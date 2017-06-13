@@ -1,0 +1,7 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =5
+let g:netrw_dirhist_1='/Users/ryo/.vim/toml'
+let g:netrw_dirhist_2='/Users/ryo/Downloads/typing'
+let g:netrw_dirhist_3='/Users/ryo/Downloads/typing/lib'
+let g:netrw_dirhist_4='/Users/ryo/rails/sst1/app'
+let g:netrw_dirhist_5='/Users/ryo/rails/sst1/app/controllers'

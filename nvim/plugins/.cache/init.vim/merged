@@ -1,0 +1,2 @@
+100
+['/Users/ryo/.config/nvim/plugins/repos/github.com/Shougo/dein.vim/', 'Shougo/denite.nvim', 'Shougo/deol.nvim', 'Shougo/deoplete-rct', 'Shougo/deoplete.nvim', 'Shougo/neosnippet', 'Shougo/neosnippet-snippets', 'Shougo/vimproc.vim', 'itchyny/lightline.vim', 'jacoborus/tender.vim', 'osyo-manga/vim-monster', 'vim-airline/vim-airline']
