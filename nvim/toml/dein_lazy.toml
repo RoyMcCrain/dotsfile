@@ -9,8 +9,6 @@ hook_source = '''
   endif
 '''
 on_i  = 1
-on_ft = ['snippet']
-depends = ['neosnippet-snippets']
 
 [[plugins]]
 repo = 'Shougo/deoplete.nvim'
@@ -28,10 +26,6 @@ hook_source = '''
   inoremap <expr><tab> pumvisible() ? "\<C-n>" :
         \ neosnippet#expandable_or_jumpable() ?
         \    "\<Plug>(neosnippet_expand_or_jump)" : "\<tab>"
-  let g:monster#completion#rcodetools#backend = "async_rct_complete"
-  let g:deoplete#sources#omni#input_patterns = {
-  \   "ruby" : '[^. *\t]\.\w*\|\h\w*::',
-  \}
 '''
 on_i = 1
 

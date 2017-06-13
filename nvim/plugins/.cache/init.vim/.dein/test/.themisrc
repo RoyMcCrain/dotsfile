@@ -1,20 +1,28 @@
-let s:sids = {}
-function! s:sid(path) abort
-  if has_key(s:sids, a:path)
-    return s:sids[a:path]
-  endif
-  redir => scriptnames
-    silent! scriptnames
-  redir END
-  for line in split(scriptnames, '\n')
-    if line =~# a:path
-      let sid =  matchstr(line, '\v^\s*\zs\d+\ze')
-      let s:sids[a:path] = sid
-      return sid
-    endif
-  endfor
-endfunction
+if !has('nvim')
+  let &termencoding=&encoding
+  set encoding=utf-8
+endif
 
-function! SID(name) abort
-  return function(printf("\<SNR>%d_%s", s:sid('autoload/lightline.vim'), a:name))
-endfunction
+let s:assert = themis#helper('assert')
+call themis#option('recursive', 1)
+call themis#helper('command').with(s:assert)
+
+if !empty($TRAVIS)
+  call themis#log('***********************************************************')
+  call themis#log('v:progname:     ' . v:progname)
+  call themis#log('v:version:      ' . v:version)
+  call themis#log('has("lua"):     ' . has('lua'))
+  call themis#log('has("python"):  ' . has('python'))
+  call themis#log('has("python3"): ' . has('python3'))
+  call themis#log('$LANG:          ' . $LANG)
+  call themis#log('&encoding:      ' . &encoding)
+  call themis#log('&termencoding:  ' . &termencoding)
+  call themis#log('&fileencodings: ' . &fileencodings)
+  call themis#log('&fileformats:   ' . &fileformats)
+  call themis#log('&shellslash:    ' . (exists('&shellslash') ? &shellslash : 'DISABLED'))
+  call themis#log('&runtimepath:')
+  for s:runtimepath in split(&runtimepath, ',')
+    call themis#log('  ' . s:runtimepath)
+  endfor
+  call themis#log('***********************************************************')
+endif

@@ -75,7 +75,7 @@ if &compatible
   set nocompatible               " Be iMproved
 endif
 
-set runtimepath+=~/.config/nvim/plugins/repos/github.com/Shougo/dein.vim
+set runtimepath+=~/.config/nvim/plugins/Shougo/dein.vim
 
 " Required:
 if dein#load_state('~/.config/nvim/plugins/')
@@ -83,7 +83,7 @@ if dein#load_state('~/.config/nvim/plugins/')
 
   " Let dein manage dein
   " Required:
-  call dein#add('~/.config/nvim/plugins/repos/github.com/Shougo/dein.vim')
+  call dein#add('~/.config/nvim/plugins/Shougo/dein.vim')
   call dein#add('Shougo/vimproc.vim',{'build' : 'make' })
 
 
@@ -103,3 +103,12 @@ let g:lightline = { 'colorscheme': 'tender' }
 let g:airline_theme =  'tender'
 
 
+" Tell Neosnippet about the other snippets
+let g:neosnippet#snippets_directory='~/.config/nvim/plugins/repos/github.com/honza/vim-snippets/snippets'
+
+
+" vim-monsterをdeopleteと一緒に使う
+let g:monster#completion#rcodetools#backend = "async_rct_complete"
+let g:deoplete#sources#omni#input_patterns = {
+\   "ruby" : '[^. *\t]\.\w*\|\h\w*::',
+\}

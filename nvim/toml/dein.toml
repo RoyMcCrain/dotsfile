@@ -5,7 +5,7 @@ repo = 'Shougo/deol.nvim'
 repo = 'Shougo/denite.nvim'
 
 [[plugins]]
-repo = 'Shougo/neosnippet-snippets'
+repo = 'honza/vim-snippets'
 
 [[plugins]]
 repo = 'jacoborus/tender.vim'
