@@ -1,0 +1,4 @@
+--append=yes
+--recurse=yes
+--ruby-kinds=cfm
+--html-kinds=af

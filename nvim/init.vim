@@ -98,12 +98,14 @@ if dein#load_state('~/.config/nvim/plugins/')
 endif
 
 syntax enable
+filetype plugin indent on
 colorscheme tender
 let g:lightline = { 'colorscheme': 'tender' }
 let g:airline_theme =  'tender'
 
 
 " Tell Neosnippet about the other snippets
+let g:neosnippet#enable_snipmate_compatibility = 1
 let g:neosnippet#snippets_directory='~/.config/nvim/plugins/repos/github.com/honza/vim-snippets/snippets'
 
 
@@ -112,3 +114,7 @@ let g:monster#completion#rcodetools#backend = "async_rct_complete"
 let g:deoplete#sources#omni#input_patterns = {
 \   "ruby" : '[^. *\t]\.\w*\|\h\w*::',
 \}
+
+" auto-ctagsの設定
+let g:auto_ctags = 1
+let g:auto_ctags_tags_name = '.tags'

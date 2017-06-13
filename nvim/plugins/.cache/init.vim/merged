@@ -1,2 +1,2 @@
 100
-['/Users/ryo/.config/nvim/plugins/Shougo/dein.vim/', 'Shougo/denite.nvim', 'Shougo/deol.nvim', 'Shougo/deoplete-rct', 'Shougo/deoplete.nvim', 'Shougo/neosnippet', 'Shougo/vimproc.vim', 'honza/vim-snippets', 'itchyny/lightline.vim', 'jacoborus/tender.vim', 'osyo-manga/vim-monster', 'vim-airline/vim-airline']
+['/Users/ryo/.config/nvim/plugins/Shougo/dein.vim/', 'Shougo/denite.nvim', 'Shougo/deol.nvim', 'Shougo/deoplete-rct', 'Shougo/deoplete.nvim', 'Shougo/neosnippet', 'Shougo/neosnippet-snippets', 'Shougo/vimproc.vim', 'honza/vim-snippets', 'itchyny/lightline.vim', 'jacoborus/tender.vim', 'osyo-manga/vim-monster', 'soramugi/auto-ctags.vim', 'vim-airline/vim-airline']

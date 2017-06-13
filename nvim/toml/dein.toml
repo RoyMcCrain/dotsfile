@@ -5,6 +5,9 @@ repo = 'Shougo/deol.nvim'
 repo = 'Shougo/denite.nvim'
 
 [[plugins]]
+repo = 'Shougo/neosnippet-snippets'
+
+[[plugins]]
 repo = 'honza/vim-snippets'
 
 [[plugins]]
@@ -21,3 +24,6 @@ repo = 'Shougo/deoplete-rct'
 
 [[plugins]]
 repo = 'osyo-manga/vim-monster'
+
+[[plugins]]
+repo = 'soramugi/auto-ctags.vim'
