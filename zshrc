@@ -128,6 +128,8 @@ alias mv='mv -i'
 
 alias mkdir='mkdir -p'
 
+alias n="nvim"
+
 alias ctags="`brew --prefix`/bin/ctags"
 
 # sudo の後のコマンドでエイリアスを有効にする

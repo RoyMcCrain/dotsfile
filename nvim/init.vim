@@ -69,6 +69,12 @@ set noerrorbells
 
 " neovim
 tnoremap <silent> <C-[> <C-\><C-n>    " <C-[>でterminalモードから抜ける
+inoremap { {}<Left>
+inoremap ( ()<LEFT>
+inoremap [ []<LEFT>
+inoremap " ""<LEFT>
+inoremap ' ''<LEFT>
+
 
 
 if &compatible
@@ -117,4 +123,7 @@ let g:deoplete#sources#omni#input_patterns = {
 
 " auto-ctagsの設定
 let g:auto_ctags = 1
-let g:auto_ctags_tags_name = '.tags'
+let g:auto_ctags_tags_name = 'tags'
+let g:auto_ctags_directory_list = ['.git', '.svn']
+"tagsファイル読み込み
+set tags+=.git/tags

@@ -27,3 +27,6 @@ repo = 'osyo-manga/vim-monster'
 
 [[plugins]]
 repo = 'soramugi/auto-ctags.vim'
+
+[[plugins]]
+repo = 'w0rp/ale'

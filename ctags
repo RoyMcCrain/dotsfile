@@ -2,3 +2,5 @@
 --recurse=yes
 --ruby-kinds=cfm
 --html-kinds=af
+--tag-relative
+--sort=yes
