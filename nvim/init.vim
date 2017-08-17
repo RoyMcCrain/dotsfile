@@ -127,3 +127,6 @@ let g:auto_ctags_tags_name = 'tags'
 let g:auto_ctags_directory_list = ['.git', '.svn']
 "tagsファイル読み込み
 set tags+=.git/tags
+
+" vim-slimの設定
+autocmd BufRead,BufNewFile *.slim setfiletype slim

@@ -30,3 +30,6 @@ repo = 'soramugi/auto-ctags.vim'
 
 [[plugins]]
 repo = 'w0rp/ale'
+
+[[plugins]]
+repo = 'slim-template/vim-slim'
