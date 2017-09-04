@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "必要なパッケージをインストール"
-sudo yum -y install gcc-c++ glibc-headers openssl-devel readline libyaml-devel readline-devel zlib zlib-devel git
+sudo yum -y install gcc-c++ glibc-headers openssl-devel readline libyaml-devel readline-devel zlib zlib-devel
 
 echo "rbenvインストール"
 
