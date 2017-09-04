@@ -5,7 +5,14 @@
 export LANG=ja_JP.UTF-8
 export XDG_CONFIG_HOME=$HOME/.config
 export GIT_EDITOR=nvim
-export PATH="$HOME/.rbenv/bin:$PATH"
+# rbenv
+export RBENV_ROOT="$HOME/.rbenv"
+export PATH="$RBENV_ROOT/bin:$PATH"
+eval "$(rbenv init -)"
+# pyenv
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
 
 # 色を使用出来るようにする
 autoload -Uz colors
@@ -167,5 +174,3 @@ case ${OSTYPE} in
         alias ls='ls -F --color=auto'
         ;;
 esac
-
-eval "$(rbenv init - zsh)"
