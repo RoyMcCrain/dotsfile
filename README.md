@@ -2,6 +2,8 @@
 主にnvimの設定
 
 # shellの使い方（CentOS7）
+## git
+1. `sudo yum -y install git`
 ## rbenv
 1. `rbenv_setup.sh`
 2. `exit` 一旦ログアウト
