@@ -114,13 +114,6 @@ let g:airline_theme =  'tender'
 let g:neosnippet#enable_snipmate_compatibility = 1
 let g:neosnippet#snippets_directory='~/.config/nvim/plugins/repos/github.com/honza/vim-snippets/snippets'
 
-
-" vim-monsterをdeopleteと一緒に使う
-let g:monster#completion#rcodetools#backend = "async_rct_complete"
-let g:deoplete#sources#omni#input_patterns = {
-\   "ruby" : '[^. *\t]\.\w*\|\h\w*::',
-\}
-
 " auto-ctagsの設定
 let g:auto_ctags = 1
 let g:auto_ctags_tags_name = 'tags'
@@ -130,3 +123,8 @@ set tags+=.git/tags
 
 " vim-slimの設定
 autocmd BufRead,BufNewFile *.slim setfiletype slim
+
+"vim-indent-guides""
+let g:indent_guides_enable_on_vim_startup = 1
+let g:indent_guides_start_level=2
+

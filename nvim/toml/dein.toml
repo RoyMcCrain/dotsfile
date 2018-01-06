@@ -20,16 +20,10 @@ repo = 'vim-airline/vim-airline'
 repo = 'itchyny/lightline.vim'
 
 [[plugins]]
-repo = 'Shougo/deoplete-rct'
-
-[[plugins]]
-repo = 'osyo-manga/vim-monster'
-
-[[plugins]]
 repo = 'soramugi/auto-ctags.vim'
 
 [[plugins]]
-repo = 'w0rp/ale'
+repo = 'slim-template/vim-slim'
 
 [[plugins]]
-repo = 'slim-template/vim-slim'
+repo = 'nathanaelkane/vim-indent-guides'
