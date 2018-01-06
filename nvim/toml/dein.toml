@@ -8,9 +8,6 @@ repo = 'Shougo/denite.nvim'
 repo = 'Shougo/neosnippet-snippets'
 
 [[plugins]]
-repo = 'honza/vim-snippets'
-
-[[plugins]]
 repo = 'jacoborus/tender.vim'
 
 [[plugins]]
@@ -27,3 +24,6 @@ repo = 'slim-template/vim-slim'
 
 [[plugins]]
 repo = 'nathanaelkane/vim-indent-guides'
+
+[[plugins]]
+repo = 'tyru/caw.vim'

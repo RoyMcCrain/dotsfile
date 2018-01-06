@@ -18,6 +18,7 @@ set undodir=~/.config/nvim/undo         " undoファイルのパス
 set directory=~/.config/nvim/swp/        " swpファイルのパス
 set termguicolors                 " trueカラーを使う
 set clipboard+=unnamedplus
+let mapleader = "\<Space>"
 
 " View
 set showmatch                       " 閉じ括弧が入力されたとき、対応する開き括弧にわずかの間ジャンプする
@@ -74,6 +75,7 @@ inoremap ( ()<LEFT>
 inoremap [ []<LEFT>
 inoremap " ""<LEFT>
 inoremap ' ''<LEFT>
+inoremap < <><LEFT>
 
 
 
@@ -112,7 +114,6 @@ let g:airline_theme =  'tender'
 
 " Tell Neosnippet about the other snippets
 let g:neosnippet#enable_snipmate_compatibility = 1
-let g:neosnippet#snippets_directory='~/.config/nvim/plugins/repos/github.com/honza/vim-snippets/snippets'
 
 " auto-ctagsの設定
 let g:auto_ctags = 1
@@ -128,3 +129,11 @@ autocmd BufRead,BufNewFile *.slim setfiletype slim
 let g:indent_guides_enable_on_vim_startup = 1
 let g:indent_guides_start_level=2
 
+"caw.vim"
+
+" 行の最初の文字の前にコメント文字をトグル
+nmap <Leader>/ <Plug>(caw:hatpos:toggle)
+vmap <Leader>/ <Plug>(caw:hatpos:toggle)
+" 行頭にコメントをトグル
+nmap <Leader>0 <Plug>(caw:zeropos:toggle)
+vmap <Leader>0 <Plug>(caw:zeropos:toggle)
