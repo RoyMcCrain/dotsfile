@@ -70,11 +70,26 @@ set noerrorbells
 
 " neovim
 tnoremap <silent> <C-[> <C-\><C-n>    " <C-[>でterminalモードから抜ける
-inoremap { {}<Left>
-inoremap ( ()<LEFT>
 inoremap [ []<LEFT>
+inoremap [<Enter> []<Left><CR><ESC><S-o>
 inoremap " ""<LEFT>
 inoremap ' ''<LEFT>
+
+inoremap { {<space>}<Left><Left>
+inoremap {<Enter> {}<Left><CR><ESC><S-o>
+inoremap ( ()<ESC>i
+inoremap (<Enter> ()<Left><CR><ESC><S-o>
+" 英語配列用
+noremap; :
+noremap: ;
+" 空の行を挿入
+nnoremap O :<C-u>call append(expand('.'), '')<Cr>j
+" 行末、行頭のエイリアス
+noremap <Leader>a ^
+noremap <Leader>e $
+" ヤンクの内容を消さない設定
+noremap PP "0p
+noremap x "_x
 
 
 
@@ -136,3 +151,28 @@ vmap <Leader>/ <Plug>(caw:hatpos:toggle)
 " 行頭にコメントをトグル
 nmap <Leader>0 <Plug>(caw:zeropos:toggle)
 vmap <Leader>0 <Plug>(caw:zeropos:toggle)
+
+" ale設定
+
+" 左端のカラムを常に表示
+let g:ale_sign_column_always = 1
+" 保存時のみ実行する
+let g:ale_lint_on_text_changed = 0
+" ファイルを開いたときにlint実行
+let g:ale_lint_on_enter = 1
+" Space + kで次の指摘へ、Space + jで前の指摘へ移動
+nmap <Leader>k <Plug>(ale_previous_wrap)
+nmap <Leader>j <Plug>(ale_next_wrap)
+
+" 日本語入力エイリアス
+nnoremap っd dd
+nnoremap っy yy
+nnoremap あ a
+nnoremap い i
+nnoremap う u
+
+" vim-cheatsheet
+let g:cheatsheet#cheat_file = '~/.config/nvim/cheatsheet.md'
+
+" NERDTree設定
+nmap <Leader>n :NERDTreeToggle<CR>

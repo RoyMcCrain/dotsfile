@@ -27,3 +27,12 @@ repo = 'nathanaelkane/vim-indent-guides'
 
 [[plugins]]
 repo = 'tyru/caw.vim'
+
+[[plugins]]
+repo = 'w0rp/ale'
+
+[[plugins]]
+repo = 'reireias/vim-cheatsheet'
+
+[[plugins]]
+repo = 'scrooloose/nerdtree'
