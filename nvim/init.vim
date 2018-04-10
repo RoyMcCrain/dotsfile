@@ -90,7 +90,12 @@ noremap <Leader>e $
 " ヤンクの内容を消さない設定
 noremap PP "0p
 noremap x "_x
-
+" 日本語入力エイリアス
+nnoremap っd dd
+nnoremap っy yy
+nnoremap あ a
+nnoremap い i
+nnoremap う u
 
 
 if &compatible
@@ -123,56 +128,3 @@ syntax enable
 filetype plugin indent on
 colorscheme tender
 let g:lightline = { 'colorscheme': 'tender' }
-let g:airline_theme =  'tender'
-
-
-" Tell Neosnippet about the other snippets
-let g:neosnippet#enable_snipmate_compatibility = 1
-
-" auto-ctagsの設定
-let g:auto_ctags = 1
-let g:auto_ctags_tags_name = 'tags'
-let g:auto_ctags_directory_list = ['.git', '.svn']
-"tagsファイル読み込み
-set tags+=.git/tags
-
-" vim-slimの設定
-autocmd BufRead,BufNewFile *.slim setfiletype slim
-
-"vim-indent-guides""
-let g:indent_guides_enable_on_vim_startup = 1
-let g:indent_guides_start_level=2
-
-"caw.vim"
-
-" 行の最初の文字の前にコメント文字をトグル
-nmap <Leader>/ <Plug>(caw:hatpos:toggle)
-vmap <Leader>/ <Plug>(caw:hatpos:toggle)
-" 行頭にコメントをトグル
-nmap <Leader>0 <Plug>(caw:zeropos:toggle)
-vmap <Leader>0 <Plug>(caw:zeropos:toggle)
-
-" ale設定
-
-" 左端のカラムを常に表示
-let g:ale_sign_column_always = 1
-" 保存時のみ実行する
-let g:ale_lint_on_text_changed = 0
-" ファイルを開いたときにlint実行
-let g:ale_lint_on_enter = 1
-" Space + kで次の指摘へ、Space + jで前の指摘へ移動
-nmap <Leader>k <Plug>(ale_previous_wrap)
-nmap <Leader>j <Plug>(ale_next_wrap)
-
-" 日本語入力エイリアス
-nnoremap っd dd
-nnoremap っy yy
-nnoremap あ a
-nnoremap い i
-nnoremap う u
-
-" vim-cheatsheet
-let g:cheatsheet#cheat_file = '~/.config/nvim/cheatsheet.md'
-
-" NERDTree設定
-nmap <Leader>n :NERDTreeToggle<CR>
