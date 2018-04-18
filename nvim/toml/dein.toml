@@ -77,3 +77,6 @@ hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-denite.vim'
 [[plugins]]
 repo = "tpope/vim-fugitive"
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-vim-fugitive.vim'
+
+[[plugins]]
+repo = 'cohama/lexima.vim'

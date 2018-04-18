@@ -1,14 +1,17 @@
-call denite#custom#var('file_rec', 'command',
-  \ ['rg', '--follow', '--nocolor', '--nogroup', '--hidden', '-g', ''])
-call denite#custom#var('grep', 'command',
-  \ ['rg', '--nogroup', '--nocolor', '--smart-case', '--hidden'])
-call denite#custom#var('grep', 'default_opts', [])
+call denite#custom#var('file/rec', 'command',
+	\ ['rg', '--files', '--glob', '!.git'])
+call denite#custom#var('grep', 'command', ['rg'])
+call denite#custom#var('grep', 'default_opts',
+    \ ['--vimgrep', '--no-heading'])
 call denite#custom#var('grep', 'recursive_opts', [])
+call denite#custom#var('grep', 'pattern_opt', ['--regexp'])
+call denite#custom#var('grep', 'separator', ['--'])
+call denite#custom#var('grep', 'final_opts', [])
 
 " 高速マッチャcpsm使用
-call denite#custom#source('file_rec', 'matchers', ['matcher_cpsm','matcher_ignore_globs'])
+call denite#custom#source('file/rec', 'matchers', ['matcher/cpsm','matcher/ignore/globs'])
 " ignore_globsを上書きして検索除外を指定
-call denite#custom#filter('matcher_ignore_globs', 'ignore_globs',
+call denite#custom#filter('matcher/ignore_globs', 'ignore/globs',
   \ [
   \ '.git/', 'build/', '__pycache__/',
   \ 'images/', '*.o', '*.make',
@@ -33,10 +36,10 @@ call denite#custom#map('normal', "v", '<denite:do_action:vsplit>')
 
 nnoremap [denite] <Nop>
 nmap <Space>f [denite]
-nnoremap <silent> [denite] f :<C-u>Denite file_rec<CR>
+nnoremap <silent> [denite]f :<C-u>Denite file/rec<CR>
 nnoremap <silent> / :<C-u>Denite -buffer-name=search -auto-resize line<CR>
 nnoremap <silent> [denite]g :<C-u>Denite grep<CR>
 nnoremap <silent> [denite]c :<C-u>DeniteCursorWord grep<CR>
-nnoremap <silent> [denite]u :<C-u>Denite file_mru<CR>
+nnoremap <silent> [denite]u :<C-u>Denite file/mru<CR>
 nnoremap <silent> [denite]y :<C-u>Denite neoyank<CR>
 nnoremap <silent> [denite]u :<C-u>Denite -resume<CR>

@@ -70,20 +70,14 @@ set noerrorbells
 
 " neovim
 tnoremap <silent> <C-[> <C-\><C-n>    " <C-[>でterminalモードから抜ける
-inoremap [ []<LEFT>
-inoremap [<Enter> []<Left><CR><ESC><S-o>
-inoremap " ""<LEFT>
-inoremap ' ''<LEFT>
+" esc escで検索のハイライトを消す
+noremap <ESC><ESC> :noh<CR>
 
-inoremap { {<space>}<Left><Left>
-inoremap {<Enter> {}<Left><CR><ESC><S-o>
-inoremap ( ()<ESC>i
-inoremap (<Enter> ()<Left><CR><ESC><S-o>
 " 英語配列用
 noremap; :
 noremap: ;
 " 空の行を挿入
-nnoremap O :<C-u>call append(expand('.'), '')<Cr>j
+nnoremap O :<C-u>call append(expand('.'), '')<CR>j
 " 行末、行頭のエイリアス
 noremap <Leader>a ^
 noremap <Leader>e $
