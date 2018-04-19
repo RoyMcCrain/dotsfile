@@ -9,9 +9,9 @@ call denite#custom#var('grep', 'separator', ['--'])
 call denite#custom#var('grep', 'final_opts', [])
 
 " 高速マッチャcpsm使用
-call denite#custom#source('file/rec', 'matchers', ['matcher/cpsm','matcher/ignore/globs'])
+call denite#custom#source('file/rec', 'matchers', ['matcher/cpsm','matcher/ignore_globs'])
 " ignore_globsを上書きして検索除外を指定
-call denite#custom#filter('matcher/ignore_globs', 'ignore/globs',
+call denite#custom#filter('matcher/ignore_globs', 'ignore_globs',
   \ [
   \ '.git/', 'build/', '__pycache__/',
   \ 'images/', '*.o', '*.make',
