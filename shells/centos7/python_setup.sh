@@ -12,7 +12,7 @@ source ~/.bash_profile
 
 # pythonのインストール
 env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.6.4
-pyenv global 3.5.0
+pyenv global 3.6.4
 
 # pipでneovimインストール
 pip install --upgrade neovim
