@@ -1,4 +1,19 @@
 [[plugins]]
+repo = 'Shougo/vimproc.vim'
+hook_post_update = '''
+  let g:dein#plugin.build = cmd
+  if dein#util#_is_windows()
+    let cmd = 'tools\\update-dll-mingw'
+  elseif dein#util#_is_cygwin()
+    let cmd = 'make -f make_cygwin.mak'
+  elseif executable('gmake')
+    let cmd = 'gmake'
+  else
+    let cmd = 'make'
+  endif
+'''
+
+[[plugins]]
 repo = 'Shougo/deol.nvim'
 
 [[plugins]]
@@ -29,10 +44,8 @@ hook_add = '''
 [[plugins]]
 repo = 'tyru/caw.vim'
 hook_add = '''
-  nmap <Leader>/ <Plug>(caw:hatpos:toggle)
-  vmap <Leader>/ <Plug>(caw:hatpos:toggle)
-  nmap <Leader>0 <Plug>(caw:zeropos:toggle)
-  vmap <Leader>0 <Plug>(caw:zeropos:toggle)
+  noremap <Leader>/ <Plug>(caw:hatpos:toggle)
+  noremap <Leader>0 <Plug>(caw:zeropos:toggle)
 '''
 # 行の最初の文字の前にコメント文字をトグル
 # 行頭にコメントをトグル
@@ -46,8 +59,8 @@ hook_add = '''
   let g:ale_sign_column_always = 1
   let g:ale_lint_on_text_changed = 0
   let g:ale_lint_on_enter = 1
-  nmap <Leader>k <Plug>(ale_previous_wrap)
-  nmap <Leader>j <Plug>(ale_next_wrap)
+  noremap <Leader>k <Plug>(ale_previous_wrap)
+  noremap <Leader>j <Plug>(ale_next_wrap)
 '''
 # 左端のカラムを常に表示
 # 保存時のみ実行する
@@ -60,7 +73,7 @@ hook_add = 'let g:cheatsheet#cheat_file = "~/.config/nvim/cheatsheet.md"'
 
 [[plugins]]
 repo = 'scrooloose/nerdtree'
-hook_add = 'nmap <Leader>n :NERDTreeToggle<CR>'
+hook_add = 'noremap <Leader>n :NERDTreeToggle<CR>'
 
 [[plugins]]
 repo = 'nixprime/cpsm'
@@ -92,13 +105,14 @@ hook_add = '''
   let g:Gtags_OpenQuickfixWindow = 1
   " Keymap
   " Show definetion of function cousor word on quickfix
-  nmap <silent> K :<C-u>exe("Gtags ".expand('<cword>'))<CR>
+  nnoremap <silent>K :<C-u>exe("Gtags ".expand('<cword>'))<CR>
   " Show reference of cousor word on quickfix
-  nmap <silent> R :<C-u>exe("Gtags -r ".expand('<cword>'))<CR>
+  nnoremap <silent><Leader>t :<C-u>exe("Gtags -r ".expand('<cword>'))<CR>
 '''
 
 [[plugins]]
 repo = 'jsfaint/gen_tags.vim'
 hook_add = '''
+  let g:gen_tags#ctags_auto_gen = 1
   let g:gen_tags#gtags_auto_gen = 1
 '''

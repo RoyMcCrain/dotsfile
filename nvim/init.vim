@@ -105,7 +105,6 @@ if dein#load_state('~/.config/nvim/plugins/')
   " Let dein manage dein
   " Required:
   call dein#add('~/.config/nvim/plugins/repos/github.com/Shougo/dein.vim')
-  call dein#add('Shougo/vimproc.vim',{'build' : 'make' })
 
 
   " 管理するプラグインを記述したファイル
