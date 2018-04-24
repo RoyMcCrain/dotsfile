@@ -64,7 +64,10 @@ hook_add = 'nmap <Leader>n :NERDTreeToggle<CR>'
 
 [[plugins]]
 repo = 'nixprime/cpsm'
-build = 'env PY3=ON ./install.sh'
+hook_post_update = '''
+  let g:dein#plugin.build = cmd
+  let cmd = 'env PY3=ON ./install.sh'
+'''
 
 [[plugins]]
 repo = 'Shougo/neoyank.vim'
