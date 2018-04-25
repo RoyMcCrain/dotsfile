@@ -28,7 +28,7 @@ on_i = 1
 repo = 'neovim/node-host'
 on_ft = ['javascript', 'javascript.jsx']
 hook_post_update = '''
-  let g:dein#plugin.build = 'npm install'
+  let g:dein#plugin.build = 'yarn add'
 '''
 
 [[plugins]]
@@ -40,7 +40,7 @@ hook_post_update = '''
 hook_add = '''
   let g:tigris#enabled = 1
   let g:tigris#on_the_fly_enabled = 1
-  let g:tigris#delay = 300
+  let g:tigris#delay = 200
 '''
 
 [[plugins]]
