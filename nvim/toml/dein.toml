@@ -116,3 +116,16 @@ hook_add = '''
   let g:gen_tags#ctags_auto_gen = 1
   let g:gen_tags#gtags_auto_gen = 1
 '''
+
+[[plugins]]
+repo = 'easymotion/vim-easymotion'
+hook_add = '''
+  let g:EasyMotion_do_mapping = 0 "Disable default mappings
+  nmap s <Plug>(easymotion-overwin-f2)
+  " Gif config
+  map <Leader>l <Plug>(easymotion-lineforward)
+  map <Leader>j <Plug>(easymotion-j)
+  map <Leader>k <Plug>(easymotion-k)
+  map <Leader>h <Plug>(easymotion-linebackward)
+  let g:EasyMotion_startofline = 0 " keep cursor column when JK motion
+'''
