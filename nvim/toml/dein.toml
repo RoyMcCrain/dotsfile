@@ -86,6 +86,9 @@ hook_post_update = '''
 repo = 'Shougo/neoyank.vim'
 
 [[plugins]]
+repo = 'Shougo/neomru.vim'
+
+[[plugins]]
 repo = 'Shougo/denite.nvim'
 depends = ['denite-gtags']
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-denite.vim'
@@ -103,11 +106,6 @@ hook_add = '''
   " Options
   let g:Gtags_Auto_Map = 0
   let g:Gtags_OpenQuickfixWindow = 1
-  " Keymap
-  " Show definetion of function cousor word on quickfix
-  nnoremap <silent>K :<C-u>exe("Gtags ".expand('<cword>'))<CR>
-  " Show reference of cousor word on quickfix
-  nnoremap <silent><Leader>t :<C-u>exe("Gtags -r ".expand('<cword>'))<CR>
 '''
 
 [[plugins]]
