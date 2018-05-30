@@ -37,7 +37,6 @@ call denite#custom#map('normal', "v", '<denite:do_action:vsplit>')
 nnoremap [denite] <Nop>
 nmap <Space>f [denite]
 nnoremap <silent> [denite]f :<C-u>Denite file/rec<CR>
-nnoremap <silent> / :<C-u>Denite -buffer-name=search -auto-resize line<CR>
 nnoremap <silent> [denite]g :<C-u>Denite grep<CR>
 nnoremap <silent> [denite]c :<C-u>DeniteCursorWord grep<CR>
 nnoremap <silent> [denite]u :<C-u>Denite file_mru<CR>
