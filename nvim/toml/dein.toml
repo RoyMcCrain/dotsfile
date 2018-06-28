@@ -44,8 +44,8 @@ hook_add = '''
 [[plugins]]
 repo = 'tyru/caw.vim'
 hook_add = '''
-  noremap <Leader>/ <Plug>(caw:hatpos:toggle)
-  noremap <Leader>0 <Plug>(caw:zeropos:toggle)
+  nmap <Leader>/ <Plug>(caw:hatpos:toggle)
+  nmap <Leader>0 <Plug>(caw:zeropos:toggle)
 '''
 # 行の最初の文字の前にコメント文字をトグル
 # 行頭にコメントをトグル
@@ -59,8 +59,8 @@ hook_add = '''
   let g:ale_sign_column_always = 1
   let g:ale_lint_on_text_changed = 0
   let g:ale_lint_on_enter = 1
-  noremap <Leader>k <Plug>(ale_previous_wrap)
-  noremap <Leader>j <Plug>(ale_next_wrap)
+  nmap <Leader>k <Plug>(ale_previous_wrap)
+  nmap <Leader>j <Plug>(ale_next_wrap)
 '''
 # 左端のカラムを常に表示
 # 保存時のみ実行する
@@ -86,6 +86,9 @@ hook_post_update = '''
 repo = 'Shougo/neoyank.vim'
 
 [[plugins]]
+repo = 'Shougo/neomru.vim'
+
+[[plugins]]
 repo = 'Shougo/denite.nvim'
 depends = ['denite-gtags']
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-denite.vim'
@@ -103,11 +106,6 @@ hook_add = '''
   " Options
   let g:Gtags_Auto_Map = 0
   let g:Gtags_OpenQuickfixWindow = 1
-  " Keymap
-  " Show definetion of function cousor word on quickfix
-  nnoremap <silent>K :<C-u>exe("Gtags ".expand('<cword>'))<CR>
-  " Show reference of cousor word on quickfix
-  nnoremap <silent><Leader>t :<C-u>exe("Gtags -r ".expand('<cword>'))<CR>
 '''
 
 [[plugins]]
