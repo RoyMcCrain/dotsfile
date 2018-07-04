@@ -101,6 +101,9 @@ hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-vim-fugitive.vim'
 repo = 'cohama/lexima.vim'
 
 [[plugins]]
+repo = 'zah/nim.vim'
+
+[[plugins]]
 repo = 'lighttiger2505/gtags.vim'
 hook_add = '''
   " Options
