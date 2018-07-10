@@ -17,9 +17,6 @@ hook_post_update = '''
 repo = 'Shougo/deol.nvim'
 
 [[plugins]]
-repo = 'Shougo/neosnippet-snippets'
-
-[[plugins]]
 repo = 'jacoborus/tender.vim'
 
 [[plugins]]
@@ -59,9 +56,15 @@ hook_add = '''
   let g:ale_sign_column_always = 1
   let g:ale_lint_on_text_changed = 0
   let g:ale_lint_on_enter = 1
-  nmap <Leader>k <Plug>(ale_previous_wrap)
-  nmap <Leader>j <Plug>(ale_next_wrap)
-'''
+  let g:ale_fix_on_save = 1
+  let g:ale_javascript_prettier_use_local_config = 1
+  let g:ale_javascript_prettier_eslint_options = '--single-quote --trailing-comma es5 --no-semi'
+  nmap <Leader>p <Plug>(ale_previous_wrap)
+  nmap <Leader>n <Plug>(ale_next_wrap)
+  let g:ale_fixers = {
+    \ 'javascript': ['prettier-eslint'],
+    \ }
+  '''
 # 左端のカラムを常に表示
 # 保存時のみ実行する
 # ファイルを開いたときにlint実行
