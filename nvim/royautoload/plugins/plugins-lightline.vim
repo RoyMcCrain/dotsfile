@@ -26,3 +26,5 @@ function! LightlineFilename()
   endif
   return expand('%')
 endfunction
+set laststatus=2
+set noshowmode
