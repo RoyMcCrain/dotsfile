@@ -119,5 +119,3 @@ endif
 
 syntax enable
 filetype plugin indent on
-colorscheme tender
-let g:lightline = { 'colorscheme': 'tender' }
