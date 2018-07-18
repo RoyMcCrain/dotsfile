@@ -3,6 +3,7 @@
 #----------------------------------------------------------------#
 [[plugins]]
 repo = 'Shougo/deoplete.nvim'
+on_i = 1
 on_event = 'InsertCharPre'
 hook_source = '''
   let g:deoplete#enable_at_startup = 1
@@ -10,7 +11,21 @@ hook_source = '''
     \ neosnippet#expandable_or_jumpable() ?
     \    "\<Plug>(neosnippet_expand_or_jump)" : "\<tab>"
 '''
+
+#----------------------------------------------------------------------------------#
+# コメントアウト補助
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'tyru/caw.vim'
 on_i = 1
+hook_add = '''
+  " 行の最初の文字の前にコメント文字をトグル
+  nmap <Leader>/ <Plug>(caw:hatpos:toggle)
+  vmap <Leader>/ <Plug>(caw:hatpos:toggle)
+  " 行頭にコメントをトグル
+  nmap <Leader>0 <Plug>(caw:zeropos:toggle)
+  vmap <Leader>0 <Plug>(caw:zeropos:toggle)
+'''
 
 #----------------------------------------------------------------#
 # javascript補完

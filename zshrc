@@ -34,7 +34,7 @@ SAVEHIST=1000000
 # 1行表示
 # PROMPT="%~ %# "
 # 2行表示
-PROMPT="%{${fg[green]}%}[%n]%{${reset_color}%} %~
+PROMPT="%{${fg[green]}%}[ %n ]%{${reset_color}%} %~
 %# "
 
 # 単語の区切り文字を指定する
@@ -184,5 +184,6 @@ export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 source ~/.zplug/init.zsh
 zplug "b4b4r07/enhancd", use:init.sh
 zplug "zsh-users/zsh-syntax-highlighting", defer:2
+zplug "zsh-users/zsh-history-substring-search"
 zplug "zsh-users/zsh-completions"
-zplug load --verbose
+zplug load
