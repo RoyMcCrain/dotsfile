@@ -29,14 +29,14 @@ hook_add = '''
 #----------------------------------------------------------------#
 [[plugins]]
 repo = 'neovim/node-host'
-on_ft = ['javascript', 'javascript.jsx']
+on_ft = ['javascript', 'jsx']
 hook_post_update = '''
-  let g:dein#plugin.build = 'yarn add'
+  let g:dein#plugin.build = 'npm install'
 '''
 
 [[plugins]]
 repo = 'billyvg/tigris.nvim'
-on_ft = ['javascript', 'javascript.jsx']
+on_ft = ['javascript', 'jsx']
 hook_post_update = '''
   let g:dein#plugin.build = './install.sh'
 '''
