@@ -53,10 +53,40 @@ hook_add = '''
 repo = 'othree/yajs.vim'
 on_ft = ['javascript', 'javascript.jsx']
 hook_add = '''
-  let g:polyglot_disabled = ['javascript', 'javascript.jsx']
+  autocmd BufNewFile,BufRead *.jsx  set filetype=javascript.jsx
 '''
 
 [[plugins]] # jsx
 repo = 'MaxMEllon/vim-jsx-pretty'
-on_ft = ['javascript', 'javascript.jsx']
+on_ft = ['jsx']
 depends = ['yajs.vim']
+
+[[plugins]] # node
+repo = 'moll/vim-node'
+on_ft = ['javascript']
+
+[[plugins]] # slim
+repo = 'slim-template/vim-slim'
+on_ft = ['slim']
+hook_add = '''
+  autocmd BufRead,BufNewFile *.slim setfiletype slim
+'''
+
+[[plugins]] # vue
+repo = 'posva/vim-vue'
+on_ft = ['vue']
+hook_add = '''
+  autocmd FileType vue syntax sync fromstart
+'''
+
+[[plugins]] # toml
+repo = 'cespare/vim-toml'
+on_ft = ['toml']
+
+[[plugins]] #nim
+repo = 'zah/nim.vim'
+on_ft = ['nim']
+
+[[plugins]]
+repo = 'elzr/vim-json'
+on_ft = ['json']
