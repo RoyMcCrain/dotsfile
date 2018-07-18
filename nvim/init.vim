@@ -119,3 +119,10 @@ endif
 
 syntax enable
 filetype plugin indent on
+
+augroup FiletypeGroup
+  autocmd!
+  au BufNewFile,BufRead *.jsx  set filetype=javascript.jsx
+  au BufNewFile,BufRead *.slim set filetype=slim
+  au FileType vue syntax sync fromstart
+augroup END

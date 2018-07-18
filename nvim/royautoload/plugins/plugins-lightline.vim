@@ -2,6 +2,7 @@ let g:lightline = {
   \ 'colorscheme': 'tender',
   \ 'component_function': {
   \   'filename': 'LightlineFilename',
+  \   'gitbranch': 'fugitive#head'
   \ },
   \ 'component_expand': {
   \   'linter_checking': 'lightline#ale#checking',
@@ -10,11 +11,15 @@ let g:lightline = {
   \   'linter_ok': 'lightline#ale#ok',
   \ },
   \ 'active': {
+  \   'left': [
+  \     [ 'mode', 'paste' ],
+  \     [ 'gitbranch', 'readonly', 'filename', 'modified' ],
+  \     [ 'linter_checking', 'linter_errors', 'linter_warnings', 'linter_ok']
+  \   ],
   \   'right': [
   \     [ 'lineinfo' ],
   \     [ 'percent' ],
-  \     [ 'fileformat', 'fileencoding', 'filetype' ],
-  \     [ 'linter_checking', 'linter_errors', 'linter_warnings', 'linter_ok' ]
+  \     [ 'fileformat', 'fileencoding', 'filetype'  ]
   \   ] 
   \ }
   \}

@@ -36,6 +36,12 @@ hook_add = '''
 '''
 
 #----------------------------------------------------------------------------------#
+# Syntax
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'sheerun/vim-polyglot'
+
+#----------------------------------------------------------------------------------#
 # statusline拡張 ale利用
 #----------------------------------------------------------------------------------#
 [[plugins]]
@@ -64,7 +70,9 @@ hook_add = '''
   nmap <Leader>aj <Plug>(ale_previous_wrap)
   nmap <Leader>ak <Plug>(ale_next_wrap)
   let g:ale_fixers = {
-    \ 'javascript': ['prettier-eslint'],
+    \ 'javascript': ['prettier-eslint', 'prettier_standard'],
+    \ 'jsx': ['prettier-eslint', 'prettier_standard'],
+    \ 'vue': ['prettier-eslint', 'prettier_standard'],
     \ }
 '''
 
@@ -171,3 +179,4 @@ repo = 'Shougo/deol.nvim'
 [[plugins]]
 repo = 'reireias/vim-cheatsheet'
 hook_add = 'let g:cheatsheet#cheat_file = "~/.config/nvim/cheatsheet.md"'
+
