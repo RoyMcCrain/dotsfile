@@ -5,9 +5,31 @@
 repo = 'Shougo/deoplete.nvim'
 on_i = 1
 on_event = 'InsertCharPre'
+depends = [
+  'deoplete-ternjs',
+  'deoplete-elm'
+]
 hook_source = '''
+  let now = localtime()
+  echo "deoplete start"
+  echo strftime("%Y/%m/%d %H:%M:%S", now)
   let g:deoplete#enable_at_startup = 1
 '''
+
+[[plugins]] # javascript
+repo = 'carlitux/deoplete-ternjs'
+hook_post_update = '''
+  let g'dein#plugin.build = 'npm install -g tern'
+'''
+hook_source = '''
+  let g:deoplete#sources#ternjs#filetypes = [
+  \ 'javascript.jsx',
+  \ 'vue',
+  \ ]
+'''
+
+[[plugins]] # elm
+repo = 'pbogut/deoplete-elm'
 
 #----------------------------------------------------------------------------------#
 # コメントアウト補助
@@ -29,14 +51,14 @@ hook_add = '''
 #----------------------------------------------------------------#
 [[plugins]]
 repo = 'neovim/node-host'
-on_ft = ['javascript', 'jsx']
+on_ft = ['javascript', 'javascript.jsx']
 hook_post_update = '''
   let g:dein#plugin.build = 'npm install'
 '''
 
 [[plugins]]
 repo = 'billyvg/tigris.nvim'
-on_ft = ['javascript', 'jsx']
+on_ft = ['javascript', 'javascript.jsx']
 hook_post_update = '''
   let g:dein#plugin.build = './install.sh'
 '''
@@ -58,7 +80,7 @@ hook_add = '''
 
 [[plugins]] # jsx
 repo = 'MaxMEllon/vim-jsx-pretty'
-on_ft = ['jsx']
+on_ft = ['javascript.jsx']
 depends = ['yajs.vim']
 
 [[plugins]] # node
@@ -87,6 +109,10 @@ on_ft = ['toml']
 repo = 'zah/nim.vim'
 on_ft = ['nim']
 
-[[plugins]]
+[[plugins]] # json
 repo = 'elzr/vim-json'
 on_ft = ['json']
+
+[[plugins]] # elm
+repo = 'ElmCast/elm-vim'
+on_ft = ['elm']
