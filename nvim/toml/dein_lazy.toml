@@ -116,3 +116,22 @@ on_ft = ['json']
 [[plugins]] # elm
 repo = 'ElmCast/elm-vim'
 on_ft = ['elm']
+
+[[plugins]] # markdown
+repo = 'tpope/vim-markdown'
+on_ft = ['markdown']
+hook_add = '''
+  autocmd BufNewFile,BufReadPost *.md set filetype=markdown
+'''
+
+[[plugins]] # markdown
+repo = 'suan/vim-instant-markdown'
+on_ft = ['markdown']
+
+[[plugins]] # haskell
+repo = 'neovimhaskell/haskell-vim'
+on_ft = ['haskell']
+
+[[plugins]] # haskell
+repo = 'nbouscal/vim-stylish-haskell'
+on_ft = ['haskell']

@@ -21,7 +21,11 @@ export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 # 色を使用出来るようにする
 autoload -Uz colors
 colors
-
+# haskell stack
+export PATH="$HOME/.local/bin:$PATH"
+autoload -U +X compinit && compinit
+autoload -U +X bashcompinit && bashcompinit
+eval "$(stack --bash-completion-script stack)"
 # emacs 風キーバインドにする
 bindkey -e
 
