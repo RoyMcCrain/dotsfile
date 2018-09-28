@@ -26,6 +26,10 @@ export PATH="$HOME/.local/bin:$PATH"
 autoload -U +X compinit && compinit
 autoload -U +X bashcompinit && bashcompinit
 eval "$(stack --bash-completion-script stack)"
+# stackのalias
+alias ghc="stack ghc --"
+alias ghci="stack ghc -- --interactive"
+alias runghc="stack runghc --"
 # emacs 風キーバインドにする
 bindkey -e
 

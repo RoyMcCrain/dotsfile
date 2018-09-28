@@ -86,6 +86,7 @@ hook_add = '''
 [[plugins]]
 repo = 'Shougo/denite.nvim'
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-denite.vim'
+depends = ['denite-gtags']
 
 [[plugins]]
 repo = 'Shougo/neoyank.vim'
@@ -159,7 +160,6 @@ hook_add = '''
 
 [[plugins]]
 repo = 'ozelentok/denite-gtags'
-depends = ['denite']
 
 #----------------------------------------------------------------------------------#
 # terminal拡張　TODO
