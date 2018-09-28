@@ -174,3 +174,12 @@ repo = 'Shougo/deol.nvim'
 repo = 'reireias/vim-cheatsheet'
 hook_add = 'let g:cheatsheet#cheat_file = "~/.config/nvim/cheatsheet.md"'
 
+#----------------------------------------------------------------------------------#
+# 置き換え強化
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'tpope/vim-abolish'
+# crs "SnakeCase" → "snake_case"
+# crm "mixed_case" → "MixedCase"
+# crc "camel_case" → "camelCase"
+# cru "upper_case" → "UPPER_CASE"
