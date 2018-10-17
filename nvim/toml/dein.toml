@@ -3,18 +3,7 @@
 #----------------------------------------------------------------------------------#
 [[plugins]] # deinで必須
 repo = 'Shougo/vimproc.vim'
-hook_post_update = '''
-  let g:dein#plugin.build = cmd
-  if dein#util#_is_windows()
-    let cmd = 'tools\\update-dll-mingw'
-  elseif dein#util#_is_cygwin()
-    let cmd = 'make -f make_cygwin.mak'
-  elseif executable('gmake')
-    let cmd = 'gmake'
-  else
-    let cmd = 'make'
-  endif
-'''
+build = 'make'
 
 #----------------------------------------------------------------------------------#
 # toml管理で便利
@@ -103,10 +92,7 @@ hook_add = 'noremap <Leader>n :NERDTreeToggle<CR>'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'nixprime/cpsm'
-hook_post_update = '''
-  let g:dein#plugin.build = cmd
-  let cmd = 'env PY3=ON ./install.sh'
-'''
+build = 'sh -c "env PY3=ON ./install.sh"'
 
 #----------------------------------------------------------------------------------#
 # gitツール
