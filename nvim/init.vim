@@ -84,6 +84,8 @@ noremap <Leader>e $
 " ヤンクの内容を消さない設定
 noremap PP "0p
 noremap x "_x
+" 行選択エイリアス
+noremap <Leader>v V
 " 日本語入力エイリアス
 nnoremap っd dd
 nnoremap っy yy
