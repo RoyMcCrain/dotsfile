@@ -108,6 +108,21 @@ hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-vim-fugitive.vim'
 repo = 'cohama/lexima.vim'
 
 #----------------------------------------------------------------------------------#
+# コメントアウト補助
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'tyru/caw.vim'
+on_i = 1
+hook_add = '''
+  " 行の最初の文字の前にコメント文字をトグル
+  nmap <Leader>/ <Plug>(caw:hatpos:toggle)
+  vmap <Leader>/ <Plug>(caw:hatpos:toggle)
+  " 行頭にコメントをトグル
+  nmap <Leader>0 <Plug>(caw:zeropos:toggle)
+  vmap <Leader>0 <Plug>(caw:zeropos:toggle)
+'''
+
+#----------------------------------------------------------------------------------#
 # 移動補完
 #----------------------------------------------------------------------------------#
 [[plugins]] # vimの移動コマンド拡張
