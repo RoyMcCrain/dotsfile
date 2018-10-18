@@ -80,7 +80,7 @@ hook_add = '''
 
 [[plugins]] # jsx
 repo = 'MaxMEllon/vim-jsx-pretty'
-on_ft = ['javascript.jsx']
+on_ft = ['javascript', 'javascript.jsx']
 depends = ['yajs.vim']
 
 [[plugins]] # node
