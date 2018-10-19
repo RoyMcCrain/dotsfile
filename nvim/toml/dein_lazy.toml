@@ -18,9 +18,7 @@ hook_source = '''
 
 [[plugins]] # javascript
 repo = 'carlitux/deoplete-ternjs'
-hook_post_update = '''
-  let g'dein#plugin.build = 'npm install -g tern'
-'''
+build = 'npm install -g tern'
 hook_source = '''
   let g:deoplete#sources#ternjs#filetypes = [
   \ 'javascript.jsx',
