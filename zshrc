@@ -46,8 +46,8 @@ SAVEHIST=1000000
 # 1行表示
 # PROMPT="%~ %# "
 # 2行表示
-PROMPT="%{${fg[green]}%}[ %n ]%{${reset_color}%} %~
-%# "
+PROMPT="%F{006}λ%f %F{228}%C%f
+%F{163}λ%f "
 
 # 単語の区切り文字を指定する
 autoload -Uz select-word-style
