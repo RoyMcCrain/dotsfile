@@ -18,6 +18,10 @@ export PATH="$HOME/.goenv/bin:$PATH"
 eval "$(goenv init -)"
 # yarn
 export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+# nvm
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+
 # 色を使用出来るようにする
 autoload -Uz colors
 colors

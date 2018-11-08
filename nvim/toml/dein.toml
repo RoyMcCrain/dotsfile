@@ -53,9 +53,10 @@ hook_add = '''
   nmap <Leader>aj <Plug>(ale_previous_wrap)
   nmap <Leader>ak <Plug>(ale_next_wrap)
   let g:ale_fixers = {
-    \ 'javascript': ['prettier-eslint', 'prettier_standard'],
-    \ 'jsx': ['prettier-eslint', 'prettier_standard'],
+    \ 'javascript': ['standard', 'prettier-eslint', 'prettier'],
+    \ 'typescript': ['prettier'],
     \ 'vue': ['prettier-eslint', 'prettier_standard'],
+    \ 'ruby': ['rufo'],
     \ }
 '''
 
