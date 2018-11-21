@@ -17,6 +17,7 @@ set nrformats-=octal              " 0で始まる数値を8進数として扱わ
 set undodir=~/.config/nvim/undo         " undoファイルのパス
 set directory=~/.config/nvim/swp/        " swpファイルのパス
 set termguicolors                 " trueカラーを使う
+let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 set clipboard+=unnamedplus
 let mapleader = "\<Space>"
 
