@@ -11,7 +11,6 @@
     "terminal.external.osxExec": "Hyper.app",
     "files.autoSave": "onFocusChange",
     "editor.minimap.enabled": false,
-    // システムのclipboardにコピー
     "vim.useSystemClipboard":true,
     "vim.hlsearch": true,
     "vim.leader": "<Space>",
