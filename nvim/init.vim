@@ -1,6 +1,3 @@
-"-------------------------------------------
-"-------------------------------------------
-
 "-------------------------------------------------------------------------------
 " Vim Options
 "-------------------------------------------------------------------------------
@@ -17,6 +14,7 @@ set nrformats-=octal              " 0で始まる数値を8進数として扱わ
 set undodir=~/.config/nvim/undo         " undoファイルのパス
 set directory=~/.config/nvim/swp/        " swpファイルのパス
 set termguicolors                 " trueカラーを使う
+set guifont=CiCa-Regular:h16
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 set clipboard+=unnamedplus
 let mapleader = "\<Space>"
@@ -62,7 +60,7 @@ set shellslash   "ディレクトリパスに/を使えるようにする
 
 
 " エンコーディングの設定
-set encoding=utf-8
+set encoding=utf8
 set fileformats=unix,dos,mac
 
 " ビープ音
@@ -122,3 +120,5 @@ endif
 
 syntax enable
 filetype plugin indent on
+let g:python_host_prog=$PYENV_ROOT.'/versions/neovim-2/bin/python'
+let g:python3_host_prog=$PYENV_ROOT.'/versions/neovim-3/bin/python'

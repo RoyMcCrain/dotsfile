@@ -6,7 +6,8 @@ repo = 'Shougo/deoplete.nvim'
 on_i = 1
 on_event = 'InsertCharPre'
 depends = [
-  'deoplete-ternjs',
+  'nvim-typescript',
+  'autocomplete-flow',
   'deoplete-elm'
 ]
 hook_source = '''
@@ -14,20 +15,28 @@ hook_source = '''
   echo "deoplete start"
   echo strftime("%Y/%m/%d %H:%M:%S", now)
   let g:deoplete#enable_at_startup = 1
+  call deoplete#custom#option('max_list', 5)
 '''
 
+[[plugins]] # typescript
+repo = 'mhartington/nvim-typescript'
+on_ft = ['typescript']
+build = './install.sh'
+
+[[plugins]] # typescript
+repo = 'HerringtonDarkholme/yats.vim'
+depends = ['nvim-typescript']
+
 [[plugins]] # javascript
-repo = 'carlitux/deoplete-ternjs'
-build = 'npm install -g tern'
+repo = 'wokalski/autocomplete-flow'
+on_ft = ['javascript']
 hook_source = '''
-  let g:deoplete#sources#ternjs#filetypes = [
-  \ 'javascript',
-  \ 'vue',
-  \ ]
+  let g:autocomplete_flow#insert_paren_after_function = 0
 '''
 
 [[plugins]] # elm
 repo = 'pbogut/deoplete-elm'
+on_ft = ['elm']
 
 #----------------------------------------------------------------#
 # javascript補完
@@ -36,16 +45,6 @@ repo = 'pbogut/deoplete-elm'
 repo = 'neovim/node-host'
 on_ft = ['javascript']
 build = 'npm install'
-
-[[plugins]]
-repo = 'billyvg/tigris.nvim'
-on_ft = ['javascript']
-build = './install.sh'
-hook_add = '''
-  let g:tigris#enabled = 1
-  let g:tigris#on_the_fly_enabled = 1
-  let g:tigris#delay = 200
-'''
 
 #----------------------------------------------------------------#
 # Syntax Highlight
@@ -98,16 +97,16 @@ repo = 'plasticboy/vim-markdown'
 on_ft = ['markdown']
 hook_add = '''
   autocmd BufNewFile,BufReadPost *.md set filetype=markdown
-  let g:vim_markdown_folding_level = 1
+  let g:vim_markdown_folding_disabled = 1
 '''
 
 [[plugins]] # markdown
-repo = 'suan/vim-instant-markdown'
+repo = 'previm/previm'
 on_ft = ['markdown']
-depends =['tabular']
-
-[[plugins]]
-repo = 'godlygeek/tabular'
+hook_add = '''
+  let g:previm_open_cmd = 'open -a Google\ Chrome'
+  let g:previm_enable_realtime = 1
+'''
 
 [[plugins]] # haskell
 repo = 'neovimhaskell/haskell-vim'

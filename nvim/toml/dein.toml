@@ -19,9 +19,9 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'jacoborus/tender.vim'
+repo = 'joshdick/onedark.vim'
 hook_add = '''
-  colorscheme tender
+  colorscheme onedark
 '''
 
 #----------------------------------------------------------------------------------#
@@ -30,6 +30,7 @@ hook_add = '''
 [[plugins]]
 repo = 'itchyny/lightline.vim'
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-lightline.vim'
+depends = ['vim-devicons']
 
 [[plugins]]
 repo = 'maximbaz/lightline-ale'
@@ -68,6 +69,7 @@ repo = 'nathanaelkane/vim-indent-guides'
 hook_add = '''
   let g:indent_guides_enable_on_vim_startup = 1
   let g:indent_guides_start_level = 2
+  let g:indent_guides_guide_size = 1
 '''
 
 #----------------------------------------------------------------------------------#
@@ -85,9 +87,12 @@ repo = 'Shougo/neoyank.vim'
 repo = 'Shougo/neomru.vim'
 
 [[plugins]]
-repo = 'scrooloose/nerdtree'
-hook_add = 'noremap <Leader>n :NERDTreeToggle<CR>'
+repo = 'Shougo/defx.nvim'
+hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-defx.vim'
 
+[[plugins]]
+repo = 'kristijanhusak/defx-icons'
+depends = ['defx']
 #----------------------------------------------------------------------------------#
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
@@ -143,6 +148,27 @@ hook_add = '''
 '''
 
 #----------------------------------------------------------------------------------#
+# 置き換え強化
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'tpope/vim-abolish'
+# crs "SnakeCase" → "snake_case"
+# crm "mixed_case" → "MixedCase"
+# crc "camel_case" → "camelCase"
+# cru "upper_case" → "UPPER_CASE"
+
+#----------------------------------------------------------------------------------#
+# icons
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'ryanoasis/vim-devicons'
+dependes =['lightline']
+hook_add = '''
+  let g:webdevicons_enable = 1
+  let g:webdevicons_enable_denite = 1
+'''
+
+#----------------------------------------------------------------------------------#
 # タグつけ　TODO
 #----------------------------------------------------------------------------------#
 [[plugins]]
@@ -176,12 +202,3 @@ repo = 'Shougo/deol.nvim'
 repo = 'reireias/vim-cheatsheet'
 hook_add = 'let g:cheatsheet#cheat_file = "~/.config/nvim/cheatsheet.md"'
 
-#----------------------------------------------------------------------------------#
-# 置き換え強化
-#----------------------------------------------------------------------------------#
-[[plugins]]
-repo = 'tpope/vim-abolish'
-# crs "SnakeCase" → "snake_case"
-# crm "mixed_case" → "MixedCase"
-# crc "camel_case" → "camelCase"
-# cru "upper_case" → "UPPER_CASE"

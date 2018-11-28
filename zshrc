@@ -11,8 +11,11 @@ export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
 # pyenv
 export PYENV_ROOT="$HOME/.pyenv"
-export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
+if [ -d "${PYENV_ROOT}" ]; then
+  export PATH=${PYENV_ROOT}/bin:$PATH
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+fi
 # goenv
 export PATH="$HOME/.goenv/bin:$PATH"
 eval "$(goenv init -)"
@@ -46,8 +49,7 @@ SAVEHIST=1000000
 # 1行表示
 # PROMPT="%~ %# "
 # 2行表示
-PROMPT="%F{006}λ%f %F{228}%C%f
-%F{163}λ%f "
+PROMPT="%F{163}λ %f "
 
 # 単語の区切り文字を指定する
 autoload -Uz select-word-style

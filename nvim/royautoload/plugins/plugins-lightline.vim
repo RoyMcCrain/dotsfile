@@ -1,5 +1,5 @@
 let g:lightline = {
-  \ 'colorscheme': 'tender',
+  \ 'colorscheme': 'onedark',
   \ 'component_function': {
   \   'filename': 'LightlineFilename',
   \   'gitbranch': 'fugitive#head'
@@ -12,14 +12,12 @@ let g:lightline = {
   \ },
   \ 'active': {
   \   'left': [
-  \     [ 'mode', 'paste' ],
-  \     [ 'gitbranch', 'readonly', 'filename', 'modified' ],
+  \     [ 'mode', 'paste', 'gitbranch', 'readonly', 'modified' ],
   \     [ 'linter_checking', 'linter_errors', 'linter_warnings', 'linter_ok']
   \   ],
   \   'right': [
-  \     [ 'lineinfo' ],
-  \     [ 'percent' ],
-  \     [ 'fileformat', 'fileencoding', 'filetype'  ]
+  \     [ 'filetype', 'fileformat', 'lineinfo' ],
+  \     [ 'filename' ]
   \   ] 
   \ }
   \}
@@ -31,5 +29,6 @@ function! LightlineFilename()
   endif
   return expand('%')
 endfunction
+
 set laststatus=2
 set noshowmode
