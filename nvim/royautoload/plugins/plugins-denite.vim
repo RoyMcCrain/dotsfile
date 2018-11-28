@@ -35,10 +35,21 @@ call denite#custom#map('insert', "<C-v>", '<denite:do_action:vsplit>')
 call denite#custom#map('normal', "v", '<denite:do_action:vsplit>')
 
 nnoremap [denite] <Nop>
-nmap <Space>f [denite]
+nmap <Leader>f [denite]
 nnoremap <silent> [denite]f :<C-u>Denite file/rec<CR>
 nnoremap <silent> [denite]g :<C-u>Denite grep<CR>
 nnoremap <silent> [denite]c :<C-u>DeniteCursorWord grep<CR>
 nnoremap <silent> [denite]u :<C-u>Denite file_mru<CR>
 nnoremap <silent> [denite]y :<C-u>Denite neoyank<CR>
 nnoremap <silent> [denite]r :<C-u>Denite -resume<CR>
+
+nnoremap [rails] <Nop>
+nmap     <Leader>r [rails]
+nnoremap [rails]r :Denite<Space>rails:
+nnoremap <silent> [rails]r :<C-u>Denite<Space>rails:dwim<Return>
+nnoremap <silent> [rails]m :<C-u>Denite<Space>rails:model<Return>
+nnoremap <silent> [rails]c :<C-u>Denite<Space>rails:controller<Return>
+nnoremap <silent> [rails]v :<C-u>Denite<Space>rails:view<Return>
+nnoremap <silent> [rails]h :<C-u>Denite<Space>rails:helper<Return>
+nnoremap <silent> [rails]r :<C-u>Denite<Space>rails:test<Return>
+nnoremap <silent> [rails]s :<C-u>Denite<Space>rails:spec<Return>

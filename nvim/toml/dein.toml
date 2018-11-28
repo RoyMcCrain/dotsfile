@@ -78,7 +78,10 @@ hook_add = '''
 [[plugins]]
 repo = 'Shougo/denite.nvim'
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-denite.vim'
-depends = ['denite-gtags']
+depends = ['denite-gtags', 'denite-rails']
+
+[[plugins]]
+repo = '5t111111/denite-rails'
 
 [[plugins]]
 repo = 'Shougo/neoyank.vim'
