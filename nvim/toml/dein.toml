@@ -93,6 +93,10 @@ hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-defx.vim'
 [[plugins]]
 repo = 'kristijanhusak/defx-icons'
 depends = ['defx']
+
+[[plugins]]
+repo = 'kristijanhusak/defx-git'
+depends = ['defx']
 #----------------------------------------------------------------------------------#
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
