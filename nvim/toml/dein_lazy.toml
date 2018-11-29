@@ -6,26 +6,13 @@ repo = 'Shougo/deoplete.nvim'
 on_i = 1
 on_event = 'InsertCharPre'
 depends = [
-  'nvim-typescript',
   'autocomplete-flow',
   'deoplete-elm'
 ]
 hook_source = '''
-  let now = localtime()
-  echo "deoplete start"
-  echo strftime("%Y/%m/%d %H:%M:%S", now)
   let g:deoplete#enable_at_startup = 1
   call deoplete#custom#option('max_list', 5)
 '''
-
-[[plugins]] # typescript
-repo = 'mhartington/nvim-typescript'
-on_ft = ['typescript']
-build = './install.sh'
-
-[[plugins]] # typescript
-repo = 'HerringtonDarkholme/yats.vim'
-depends = ['nvim-typescript']
 
 [[plugins]] # javascript
 repo = 'wokalski/autocomplete-flow'
@@ -37,14 +24,6 @@ hook_source = '''
 [[plugins]] # elm
 repo = 'pbogut/deoplete-elm'
 on_ft = ['elm']
-
-#----------------------------------------------------------------#
-# javascript補完
-#----------------------------------------------------------------#
-[[plugins]]
-repo = 'neovim/node-host'
-on_ft = ['javascript']
-build = 'npm install'
 
 #----------------------------------------------------------------#
 # Syntax Highlight

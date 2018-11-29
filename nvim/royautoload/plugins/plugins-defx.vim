@@ -1,5 +1,5 @@
 noremap <Leader>n
-  \ :Defx -columns="git:mark:filename:icons:type:size:time" -fnamewidth=40 ./<CR>
+  \ :Defx -columns="git:mark:filename:icons:type:size:time" -fnamewidth=40 `expand('%:p:h')` -search=`expand('%:p')`<CR>
 autocmd FileType defx call s:defx_my_settings()
 function! s:defx_my_settings() abort
  " Define mappings

@@ -55,9 +55,12 @@ hook_add = '''
   nmap <Leader>ak <Plug>(ale_next_wrap)
   let g:ale_fixers = {
     \ 'javascript': ['standard', 'prettier-eslint', 'prettier'],
-    \ 'typescript': ['prettier'],
+    \ 'typescript': ['tslint'],
     \ 'vue': ['prettier-eslint', 'prettier_standard'],
     \ 'ruby': ['rufo'],
+    \ }
+  let g:ale_linters = {
+    \ 'typescript': ['tsserver'],
     \ }
 '''
 
@@ -95,11 +98,11 @@ hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-defx.vim'
 
 [[plugins]]
 repo = 'kristijanhusak/defx-icons'
-depends = ['defx']
+depends = ['defx.nvim']
 
 [[plugins]]
 repo = 'kristijanhusak/defx-git'
-depends = ['defx']
+depends = ['defx.nvim']
 #----------------------------------------------------------------------------------#
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
