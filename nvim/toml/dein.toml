@@ -49,15 +49,15 @@ hook_add = '''
   let g:ale_lint_on_enter = 1
   " 保存時のみ実行する
   let g:ale_fix_on_save = 1
-  let g:ale_javascript_prettier_use_local_config = 1
-  let g:ale_javascript_prettier_eslint_options = '--single-quote --trailing-comma es5 --no-semi'
+  let g:ale_completion_enabled = 1
+  let g:ale_lint_on_text_changed = 'never'
   nmap <Leader>aj <Plug>(ale_previous_wrap)
   nmap <Leader>ak <Plug>(ale_next_wrap)
   let g:ale_fixers = {
     \ 'javascript': ['standard', 'prettier-eslint', 'prettier'],
     \ 'typescript': ['tslint'],
     \ 'vue': ['prettier-eslint', 'prettier_standard'],
-    \ 'ruby': ['rufo'],
+    \ 'ruby': ['rufo', 'rubocop'],
     \ }
   let g:ale_linters = {
     \ 'typescript': ['tsserver'],
