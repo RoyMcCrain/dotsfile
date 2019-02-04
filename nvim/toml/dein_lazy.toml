@@ -6,20 +6,17 @@ repo = 'Shougo/deoplete.nvim'
 on_i = 1
 on_event = 'InsertCharPre'
 depends = [
-  'autocomplete-flow',
-  'deoplete-elm'
+  'deoplete-elm',
+  'deoplete-tabnine'
 ]
 hook_source = '''
   let g:deoplete#enable_at_startup = 1
   call deoplete#custom#option('max_list', 5)
 '''
 
-[[plugins]] # javascript
-repo = 'wokalski/autocomplete-flow'
-on_ft = ['javascript']
-hook_source = '''
-  let g:autocomplete_flow#insert_paren_after_function = 0
-'''
+[[plugins]] # tabnine
+repo = 'tbodt/deoplete-tabnine'
+build = './install.sh'
 
 [[plugins]] # elm
 repo = 'pbogut/deoplete-elm'

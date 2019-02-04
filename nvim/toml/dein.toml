@@ -54,12 +54,13 @@ hook_add = '''
   nmap <Leader>aj <Plug>(ale_previous_wrap)
   nmap <Leader>ak <Plug>(ale_next_wrap)
   let g:ale_fixers = {
-    \ 'javascript': ['standard', 'prettier-eslint', 'prettier'],
+    \ 'javascript': ['standard'],
     \ 'typescript': ['tslint'],
     \ 'vue': ['prettier-eslint', 'prettier_standard'],
     \ 'ruby': ['rufo', 'rubocop'],
     \ }
   let g:ale_linters = {
+    \ 'javascript': ['standard'],
     \ 'typescript': ['tsserver'],
     \ }
 '''
@@ -116,6 +117,18 @@ build = 'sh -c "env PY3=ON ./install.sh"'
 [[plugins]]
 repo = "tpope/vim-fugitive"
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-vim-fugitive.vim'
+
+[[plugins]] # bitbucket
+repo = "tommcdo/vim-fubitive"
+depends = ['vim-fugitive']
+
+[[plugins]] # github
+repo = "tpope/vim-rhubarb"
+depends = ['vim-fugitive']
+
+[[plugins]] # gitlab
+repo = "shumphrey/fugitive-gitlab.vim"
+depends = ['vim-fugitive']
 
 #----------------------------------------------------------------------------------#
 # カッコ補完
@@ -182,7 +195,7 @@ hook_add = '''
 # タグつけ　TODO
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'lighttiger2505/gtags.vim'
+repo = 'vim-script/gtags.vim'
 hook_add = '''
   " Options
   let g:Gtags_Auto_Map = 0
@@ -190,10 +203,26 @@ hook_add = '''
 '''
 
 [[plugins]]
-repo = 'jsfaint/gen_tags.vim'
+repo = 'ludovicchabant/vim-gutentags'
 hook_add = '''
-  let g:gen_tags#ctags_auto_gen = 1
-  let g:gen_tags#gtags_auto_gen = 1
+  let g:gutentags_modules = ['ctags', 'gtags_cscope']
+  let g:gutentags_ctags_tagfile = '.git/tags'
+  let g:gutentags_ctags_extra_args = [
+  \ '--append=yes',
+  \ '--tag-relative=always',
+  \ '--exclude=.git',
+  \ '--exclude=log',
+  \ '--exclude=node_modules',
+  \ '--exclude=jquery.*.js',
+  \ '--exclude=jquery-*.js',
+  \ '--exclude=vendor',
+  \ '--exclude=*.min.js',
+  \ ]
+  let g:gutentags_gtags_executable = 'gtags .git/'
+  let g:gutentags_exclude_project_root = [
+  \ '/usr/local',
+  \ '~/dotsfile',
+  \ ]
 '''
 
 [[plugins]]
@@ -210,5 +239,5 @@ repo = 'Shougo/deol.nvim'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'reireias/vim-cheatsheet'
-hook_add = 'let g:cheatsheet#cheat_file = "~/.config/nvim/cheatsheet.md"'
+hook_add = 'let g:cheatsheet#cheat_file = "~/dotsfile/nvim/cheatsheet.md"'
 
