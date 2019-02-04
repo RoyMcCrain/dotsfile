@@ -195,7 +195,7 @@ hook_add = '''
 # タグつけ　TODO
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'vim-script/gtags.vim'
+repo = 'vim-scripts/gtags.vim'
 hook_add = '''
   " Options
   let g:Gtags_Auto_Map = 0
