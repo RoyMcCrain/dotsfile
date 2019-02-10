@@ -60,7 +60,7 @@ set shellslash   "ディレクトリパスに/を使えるようにする
 
 
 " エンコーディングの設定
-set encoding=utf8
+
 set fileformats=unix,dos,mac
 
 " ビープ音

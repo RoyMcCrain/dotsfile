@@ -22,11 +22,12 @@ fi
 export PATH="$HOME/.goenv/bin:$PATH"
 eval "$(goenv init -)"
 # yarn
-export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
-# nvm
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-
+export PATH="$PATH:`yarn global bin`"
+# nodenv
+export PATH="$HOME/.nodenv/shims:$PATH"
+eval "$(nodenv init - --no-rehash)"
+# cloud functions コマンド alias
+alias cfunc='functions-emulator'
 # 色を使用出来るようにする
 autoload -Uz colors
 colors
