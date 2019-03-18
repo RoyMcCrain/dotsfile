@@ -28,6 +28,8 @@ export PATH="$HOME/.nodenv/shims:$PATH"
 eval "$(nodenv init - --no-rehash)"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
+# hub alias
+eval "$(hub alias -s)"
 # 色を使用出来るようにする
 autoload -Uz colors
 colors

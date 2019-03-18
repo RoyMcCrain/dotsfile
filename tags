@@ -1,0 +1,170 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	0.0.0	/3522685/
+$NVIM_TUI_ENABLE_TRUE_COLOR	nvim/init.vim	/^let $NVIM_TUI_ENABLE_TRUE_COLOR=1$/;"	v
+*	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> *$/;"	m
+**/node_module	vscode/settings.json	/^        "**\/node_module": true$/;"	b	object:files.exclude
+.	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> .$/;"	m
+0	vscode/settings.json	/^            "after": ["$"]$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.2.after
+0	vscode/settings.json	/^            "after": [":"]$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.0.after
+0	vscode/settings.json	/^            "after": ["V"]$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.3.after
+0	vscode/settings.json	/^            "after": ["^"]$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.1.after
+0	vscode/settings.json	/^            "before": [";"],$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.0.before
+0	vscode/settings.json	/^            "before": ["<Leader>", "a"],$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.1.before
+0	vscode/settings.json	/^            "before": ["<Leader>", "e"],$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.2.before
+0	vscode/settings.json	/^            "before": ["<Leader>", "v"],$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.3.before
+0	vscode/settings.json	/^        {$/;"	o	array:vim.normalModeKeyBindingsNonRecursive
+1	vscode/settings.json	/^            "before": ["<Leader>", "a"],$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.1.before
+1	vscode/settings.json	/^            "before": ["<Leader>", "e"],$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.2.before
+1	vscode/settings.json	/^            "before": ["<Leader>", "v"],$/;"	s	array:vim.normalModeKeyBindingsNonRecursive.3.before
+1	vscode/settings.json	/^        {$/;"	o	array:vim.normalModeKeyBindingsNonRecursive
+2	vscode/settings.json	/^        {$/;"	o	array:vim.normalModeKeyBindingsNonRecursive
+3	vscode/settings.json	/^        {$/;"	o	array:vim.normalModeKeyBindingsNonRecursive
+:	nvim/init.vim	/^noremap: ;$/;"	m
+;	nvim/init.vim	/^noremap; :$/;"	m
+<C-g>	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> <C-g>$/;"	m
+<C-h>	nvim/init.vim	/^noremap <C-h> <C-w>h$/;"	m
+<C-j>	nvim/init.vim	/^noremap <C-j> <C-w>j$/;"	m
+<C-k>	nvim/init.vim	/^noremap <C-k> <C-w>k$/;"	m
+<C-l>	nvim/init.vim	/^noremap <C-l> <C-w>l$/;"	m
+<C-l>	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> <C-l>$/;"	m
+<CR>	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> <CR>$/;"	m
+<ESC><ESC>	nvim/init.vim	/^noremap <ESC><ESC> :noh<CR>$/;"	m
+<F2>	nvim/royautoload/plugins/plugins-lsp.vim	/^nnoremap <silent> <F2> :call LanguageClient#textDocument_rename()<CR><Paste>$/;"	m
+<Leader>a	nvim/init.vim	/^noremap <Leader>a ^$/;"	m
+<Leader>ad	nvim/royautoload/plugins/plugins-ale.vim	/^nmap <Leader>ad <Plug>(ale_detail)$/;"	m
+<Leader>aj	nvim/royautoload/plugins/plugins-ale.vim	/^nmap <Leader>aj <Plug>(ale_previous_wrap)$/;"	m
+<Leader>ak	nvim/royautoload/plugins/plugins-ale.vim	/^nmap <Leader>ak <Plug>(ale_next_wrap)$/;"	m
+<Leader>at	nvim/royautoload/plugins/plugins-ale.vim	/^nmap <Leader>at <Plug>(ale_toggle)$/;"	m
+<Leader>e	nvim/init.vim	/^noremap <Leader>e \$$/;"	m
+<Leader>f	nvim/royautoload/plugins/plugins-denite.vim	/^nmap <Leader>f [denite]$/;"	m
+<Leader>n	nvim/royautoload/plugins/plugins-defx.vim	/^noremap <Leader>n$/;"	m
+<Leader>r	nvim/royautoload/plugins/plugins-denite.vim	/^nmap     <Leader>r [rails]$/;"	m
+<Leader>s	nvim/init.vim	/^noremap <silent> <Leader>s :split<CR>$/;"	m
+<Leader>v	nvim/init.vim	/^noremap <silent> <Leader>v :vsplit<CR>$/;"	m
+<Space>	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> <Space>$/;"	m
+<Space>t	nvim/royautoload/plugins/plugins-denite.vim	/^nmap <Space>t [gtags]$/;"	m
+<space>g	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nmap <space>g [git]$/;"	m
+Cheat Sheet	nvim/cheatsheet.md	/^# Cheat Sheet$/;"	c
+K	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> K$/;"	m
+K	nvim/royautoload/plugins/plugins-lsp.vim	/^nnoremap <silent> K :call LanguageClient#textDocument_hover()<CR>$/;"	m
+LightlineFilename	nvim/royautoload/plugins/plugins-lightline.vim	/^function! LightlineFilename()$/;"	f
+N	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> N$/;"	m
+NERDTree設定	nvim/cheatsheet.md	/^### NERDTree設定$/;"	S
+O	nvim/init.vim	/^nnoremap O :<C-u>call append(expand('.'), '')<CR>j$/;"	m
+P	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> P$/;"	m
+PP	nvim/init.vim	/^noremap PP "0p$/;"	m
+[denite]	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap [denite] <Nop>$/;"	m
+[denite]c	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [denite]c :<C-u>DeniteCursorWord grep<CR>$/;"	m
+[denite]f	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [denite]f :<C-u>Denite file\/rec<CR>$/;"	m
+[denite]g	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [denite]g :<C-u>Denite grep<CR>$/;"	m
+[denite]m	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [denite]m :<C-u>Denite menu<CR>$/;"	m
+[denite]r	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [denite]r :<C-u>Denite -resume<CR>$/;"	m
+[denite]u	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [denite]u :<C-u>Denite file_mru<CR>$/;"	m
+[denite]y	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [denite]y :<C-u>Denite neoyank<CR>$/;"	m
+[git]	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nnoremap [git]  <Nop>$/;"	m
+[git]a	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nnoremap <silent> [git]a :Gwrite<CR>$/;"	m
+[git]b	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nnoremap <silent> [git]b :Gblame<CR>$/;"	m
+[git]c	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nnoremap <silent> [git]c :Gcommit-v<CR>$/;"	m
+[git]d	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nnoremap <silent> [git]d :Gdiff<CR>$/;"	m
+[git]m	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nnoremap <silent> [git]m :Gmerge<CR>$/;"	m
+[git]s	nvim/royautoload/plugins/plugins-vim-fugitive.vim	/^nnoremap <silent> [git]s :Gstatus<CR><C-w>T$/;"	m
+[gtags]	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap [gtags] <Nop>$/;"	m
+[gtags]c	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [gtags]c :<C-u>DeniteCursorWord -buffer-name=gtags_context -mode=normal gtags_/;"	m
+[gtags]d	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [gtags]d :<C-u>DeniteCursorWord -buffer-name=gtags_def -mode=normal gtags_def</;"	m
+[gtags]r	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [gtags]r :<C-u>DeniteCursorWord -buffer-name=gtags_ref -mode=normal gtags_ref</;"	m
+[rails]	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap [rails] <Nop>$/;"	m
+[rails]c	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [rails]c :<C-u>Denite<Space>rails:controller<Return>$/;"	m
+[rails]h	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [rails]h :<C-u>Denite<Space>rails:helper<Return>$/;"	m
+[rails]m	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [rails]m :<C-u>Denite<Space>rails:model<Return>$/;"	m
+[rails]r	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap [rails]r :Denite<Space>rails:$/;"	m
+[rails]s	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [rails]s :<C-u>Denite<Space>rails:spec<Return>$/;"	m
+[rails]t	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [rails]t :<C-u>Denite<Space>rails:test<Return>$/;"	m
+[rails]v	nvim/royautoload/plugins/plugins-denite.vim	/^nnoremap <silent> [rails]v :<C-u>Denite<Space>rails:view<Return>$/;"	m
+after	vscode/settings.json	/^            "after": ["$"]$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.2
+after	vscode/settings.json	/^            "after": [":"]$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.0
+after	vscode/settings.json	/^            "after": ["V"]$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.3
+after	vscode/settings.json	/^            "after": ["^"]$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.1
+ale設定	nvim/cheatsheet.md	/^### ale設定$/;"	S
+before	vscode/settings.json	/^            "before": [";"],$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.0
+before	vscode/settings.json	/^            "before": ["<Leader>", "a"],$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.1
+before	vscode/settings.json	/^            "before": ["<Leader>", "e"],$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.2
+before	vscode/settings.json	/^            "before": ["<Leader>", "v"],$/;"	a	object:vim.normalModeKeyBindingsNonRecursive.3
+c	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> c$/;"	m
+caw.vim	nvim/cheatsheet.md	/^### caw.vim$/;"	S
+cd	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> cd$/;"	m
+d	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> d$/;"	m
+dotsfile	README.md	/^# dotsfile$/;"	c
+editor.fontFamily	vscode/settings.json	/^    "editor.fontFamily": "Ricty Diminished Discord",$/;"	s
+editor.fontSize	vscode/settings.json	/^    "editor.fontSize": 14,$/;"	n
+editor.minimap.enabled	vscode/settings.json	/^    "editor.minimap.enabled": false,$/;"	b
+editor.renderWhitespace	vscode/settings.json	/^    "editor.renderWhitespace": "boundary",$/;"	s
+editor.tabSize	vscode/settings.json	/^    "editor.tabSize": 2,$/;"	n
+editor.wordWrap	vscode/settings.json	/^    "editor.wordWrap": "on",$/;"	s
+files.autoSave	vscode/settings.json	/^    "files.autoSave": "onFocusChange",$/;"	s
+files.exclude	vscode/settings.json	/^    "files.exclude": {$/;"	o
+g:LanguageClient_serverCommands	nvim/royautoload/plugins/plugins-lsp.vim	/^let g:LanguageClient_serverCommands = {$/;"	v
+g:ale_completion_delay	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_completion_delay = 200$/;"	v
+g:ale_completion_enabled	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_completion_enabled = 1$/;"	v
+g:ale_echo_cursor	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_echo_cursor = 0$/;"	v
+g:ale_fix_on_save	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_fix_on_save = 1$/;"	v
+g:ale_fixers	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_fixers = {$/;"	v
+g:ale_lint_on_enter	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_lint_on_enter = 1$/;"	v
+g:ale_lint_on_text_changed	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_lint_on_text_changed = 'never'$/;"	v
+g:ale_linters	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_linters = {$/;"	v
+g:ale_sign_column_always	nvim/royautoload/plugins/plugins-ale.vim	/^let g:ale_sign_column_always = 1$/;"	v
+g:lightline	nvim/royautoload/plugins/plugins-lightline.vim	/^let g:lightline = {$/;"	v
+g:python3_host_prog	nvim/init.vim	/^let g:python3_host_prog=$PYENV_ROOT.'\/versions\/neovim-3\/bin\/python'$/;"	v
+g:python_host_prog	nvim/init.vim	/^let g:python_host_prog=$PYENV_ROOT.'\/versions\/neovim-2\/bin\/python'$/;"	v
+gd	nvim/royautoload/plugins/plugins-lsp.vim	/^nnoremap <silent> gd :call LanguageClient#textDocument_definition()<CR>$/;"	m
+git	README.md	/^## git$/;"	s
+h	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> h$/;"	m
+j	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> j$/;"	m
+jj	nvim/init.vim	/^inoremap <silent>jj <ESC><CR>$/;"	m
+k	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> k$/;"	m
+l	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> l$/;"	m
+m	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> m$/;"	m
+mapleader	nvim/init.vim	/^let mapleader = "\\<Space>"$/;"	v
+move	nvim/cheatsheet.md	/^### move$/;"	S
+neovim	README.md	/^## neovim$/;"	s
+p	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> p$/;"	m
+pyenv (neovim用)	README.md	/^## pyenv (neovim用)$/;"	s
+q	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> q$/;"	m
+r	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> r$/;"	m
+rbenv	README.md	/^## rbenv$/;"	s
+s:defx_my_settings	nvim/royautoload/plugins/plugins-defx.vim	/^function! s:defx_my_settings() abort$/;"	f
+s:lazy_toml	nvim/init.vim	/^  let s:lazy_toml = '~\/.config\/nvim\/toml\/dein_lazy.toml'$/;"	v
+s:menus	nvim/royautoload/plugins/plugins-denite.vim	/^let s:menus = {}$/;"	v
+s:menus	nvim/royautoload/plugins/plugins-denite.vim	/^let s:menus.commands = {$/;"	v
+s:menus	nvim/royautoload/plugins/plugins-denite.vim	/^let s:menus.commands.command_candidates = [$/;"	v
+s:menus	nvim/royautoload/plugins/plugins-denite.vim	/^let s:menus.commands.file_candidates = [$/;"	v
+s:menus	nvim/royautoload/plugins/plugins-denite.vim	/^let s:menus.config = {$/;"	v
+s:menus	nvim/royautoload/plugins/plugins-denite.vim	/^let s:menus.config.file_candidates = [$/;"	v
+s:toml	nvim/init.vim	/^  let s:toml = '~\/.config\/nvim\/toml\/dein.toml'$/;"	v
+shellの使い方（CentOS7）	README.md	/^# shellの使い方（CentOS7）$/;"	c
+t	tmux.conf	/^bind -n WheelUpPane if-shell -F -t = "#{mouse_any_flag}" "send-keys -M" "if -Ft= '#{pane_in_mode/;"	k
+terminal.external.osxExec	vscode/settings.json	/^    "terminal.external.osxExec": "Hyper.app",$/;"	s
+v	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> v$/;"	m
+vim	nvim/cheatsheet.md	/^## vim$/;"	s
+vim.hlsearch	vscode/settings.json	/^    "vim.hlsearch": true,$/;"	b
+vim.leader	vscode/settings.json	/^    "vim.leader": "<Space>",$/;"	s
+vim.normalModeKeyBindingsNonRecursive	vscode/settings.json	/^    "vim.normalModeKeyBindingsNonRecursive": [$/;"	a
+vim.useSystemClipboard	vscode/settings.json	/^    "vim.useSystemClipboard":true,$/;"	b
+workbench.colorTheme	vscode/settings.json	/^    "workbench.colorTheme": "Monokai",$/;"	s
+workbench.iconTheme	vscode/settings.json	/^    "workbench.iconTheme": "material-icon-theme"$/;"	s
+x	nvim/init.vim	/^noremap x "_x$/;"	m
+x	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> x$/;"	m
+xterm	tmux.conf	/^set -g terminal-overrides 'xterm:colors=256'$/;"	k
+yy	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> yy$/;"	m
+zsh	README.md	/^## zsh$/;"	s
+~	nvim/royautoload/plugins/plugins-defx.vim	/^  nnoremap <silent><buffer><expr> ~$/;"	m
+あ	nvim/init.vim	/^nnoremap あ a$/;"	m
+い	nvim/init.vim	/^nnoremap い i$/;"	m
+う	nvim/init.vim	/^nnoremap う u$/;"	m
+っd	nvim/init.vim	/^nnoremap っd dd$/;"	m
+っj	nvim/init.vim	/^inoremap っj <ESC><CR>$/;"	m
+っy	nvim/init.vim	/^nnoremap っy yy$/;"	m

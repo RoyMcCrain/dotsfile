@@ -1,25 +1,3 @@
-call denite#custom#var('file/rec', 'command',
-	\ ['rg', '--files', '--glob', '!.git'])
-call denite#custom#var('grep', 'command', ['rg'])
-call denite#custom#var('grep', 'default_opts',
-    \ ['--vimgrep', '--no-heading'])
-call denite#custom#var('grep', 'recursive_opts', [])
-call denite#custom#var('grep', 'pattern_opt', ['--regexp'])
-call denite#custom#var('grep', 'separator', ['--'])
-call denite#custom#var('grep', 'final_opts', [])
-
-" 高速マッチャcpsm使用
-call denite#custom#source('file/rec', 'matchers', ['matcher/cpsm','matcher/ignore_globs'])
-" ignore_globsを上書きして検索除外を指定
-call denite#custom#filter('matcher_ignore_globs', 'ignore_globs',
-      \ [ '*~', '*.o', '*.exe', '*.bak',
-      \ '.DS_Store', '*.pyc', '*.sw[po]', '*.class',
-      \ '.hg/', '.git/', '.bzr/', '.svn/',
-      \ 'node_modules/', 'bower_components/', 'tmp/', 'log/', 'vendor/ruby',
-      \ '.idea/', 'dist/',
-      \ 'tags', 'tags-*',
-      \ 'GTAGS', 'GRTAGS', 'GPATH'])
-
 " gtagsとdeniteの連携設定
 nnoremap [gtags] <Nop>
 nmap <Space>t [gtags]
@@ -27,14 +5,6 @@ nnoremap <silent> [gtags]d :<C-u>DeniteCursorWord -buffer-name=gtags_def -mode=n
 nnoremap <silent> [gtags]r :<C-u>DeniteCursorWord -buffer-name=gtags_ref -mode=normal gtags_ref<CR>
 nnoremap <silent> [gtags]c :<C-u>DeniteCursorWord -buffer-name=gtags_context -mode=normal gtags_context<CR>
 
-
-" denite/insert モードのときは，C- で移動できるようにする
-call denite#custom#map('insert', "<C-j>", '<denite:move_to_next_line>')
-call denite#custom#map('insert', "<C-k>", '<denite:move_to_previous_line>')
-
-" tabopen や vsplit のキーバインドを割り当て
-call denite#custom#map('insert', "<C-v>", '<denite:do_action:vsplit>')
-call denite#custom#map('normal', "v", '<denite:do_action:vsplit>')
 
 nnoremap [denite] <Nop>
 nmap <Leader>f [denite]
@@ -56,8 +26,6 @@ nnoremap <silent> [rails]h :<C-u>Denite<Space>rails:helper<Return>
 nnoremap <silent> [rails]t :<C-u>Denite<Space>rails:test<Return>
 nnoremap <silent> [rails]s :<C-u>Denite<Space>rails:spec<Return>
 
-" Change default prompt
-call denite#custom#option('default', 'prompt', 'λ')
 
 " Add custom menus
 let s:menus = {}
@@ -69,12 +37,8 @@ let s:menus.commands.command_candidates = [
   \ ['Cheat Sheet', 'Cheat'],
   \ ['Gbrowse', 'Gbrowse'],
   \ ['Ctag Init', 'GenCtags'],
-  \ ['Gtag Init', 'GenGTAGS'],
+  \ ['Gtag Init', 'GenGTAGS']
   \ ]
-let s:menus.commands.file_candidates = [
-  \ ['Edit Cheat Sheet', '~/dotsfile/nvim/cheatsheet.md'],
-  \ ]
-
 let s:menus.config = {
   \ 'description': 'いろんな Config'
   \ }
@@ -86,8 +50,18 @@ let s:menus.config.file_candidates = [
   \ ['denite', '~/dotsfile/nvim/royautoload/plugins/plugins-denite.vim'],
   \ ['lightline', '~/dotsfile/nvim/royautoload/plugins/plugins-lightline.vim'],
   \ ['vim-fugitive', '~/dotsfile/nvim/royautoload/plugins/plugins-vim-fugitive.vim'],
+  \ ['ale', '~/dotsfile/nvim/royautoload/plugins/plugins-ale.vim'],
+  \ ['lsp', '~/dotsfile/nvim/royautoload/plugins/plugins-lsp.vim'],
   \ ['zshrc', '~/dotsfile/zshrc'],
   \ ]
 
+" denite/insert モードのときは，C- で移動できるようにする
+call denite#custom#map('insert', "<C-j>", '<denite:move_to_next_line>')
+call denite#custom#map('insert', "<C-k>", '<denite:move_to_previous_line>')
 
+" tabopen や vsplit のキーバインドを割り当て
+call denite#custom#map('insert', "<C-v>", '<denite:do_action:vsplit>')
+call denite#custom#map('normal', "v", '<denite:do_action:vsplit>')
+" Change default prompt
+call denite#custom#option('default', 'prompt', 'λ')
 call denite#custom#var('menu', 'menus', s:menus)

@@ -5,15 +5,14 @@
 repo = 'Shougo/deoplete.nvim'
 on_i = 1
 on_event = 'InsertCharPre'
-depends = [
-  'deoplete-elm',
-  'deoplete-tabnine'
-]
 hook_source = '''
   let g:deoplete#enable_at_startup = 1
-  call deoplete#custom#option('max_list', 5)
+  call deoplete#custom#option({
+  \ 'auto_complete_delay': 200,
+  \ 'smart_case': v:true,
+  \ })
+  call deoplete#custom#source( '_', 'min_pattern_length', 3)
 '''
-
 [[plugins]] # tabnine
 repo = 'tbodt/deoplete-tabnine'
 build = './install.sh'
@@ -21,6 +20,7 @@ build = './install.sh'
 [[plugins]] # elm
 repo = 'pbogut/deoplete-elm'
 on_ft = ['elm']
+depends = ['deoplete.nvim']
 
 #----------------------------------------------------------------#
 # Syntax Highlight
@@ -40,6 +40,14 @@ depends = ['vim-javascript', 'typescript-vim']
 hook_add = '''
   let g:vim_jsx_pretty_colorful_config = 1
 '''
+[[plugins]] # css3
+repo = 'hail2u/vim-css3-syntax'
+on_ft = ['javascript', 'typescript', 'css']
+
+[[plugins]] # styled-components
+repo = 'styled-components/vim-styled-components'
+on_ft = ['javascript', 'typescript']
+depends = ['vim-css3-syntax']
 
 [[plugins]] # node
 repo = 'moll/vim-node'
@@ -87,6 +95,10 @@ hook_add = '''
 [[plugins]] # haskell
 repo = 'neovimhaskell/haskell-vim'
 on_ft = ['haskell']
+
+[[plugins]] # ruby
+repo = 'vim-ruby/vim-ruby'
+on_ft = ['ruby']
 
 #----------------------------------------------------------------#
 # Config for each Lang

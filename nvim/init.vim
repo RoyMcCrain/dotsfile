@@ -18,13 +18,14 @@ set guifont=CiCa-Regular:h16
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 set clipboard+=unnamedplus
 let mapleader = "\<Space>"
+set pumheight=10
 
 " View
 set showmatch                       " 閉じ括弧が入力されたとき、対応する開き括弧にわずかの間ジャンプする
 set matchtime=1                     " マッチしている括弧を表示するための時間を0.1秒単位で指定する
 set number                          " 毎行の前に行番号を表示する
 set list                            " 不可視文字を表示する
-set listchars=trail:-,extends:»,precedes:«,nbsp:%,eol:↲
+set listchars=trail:-,extends:»,precedes:«,nbsp:%,eol:⏎
 
 set display=lastline                " テキスト表示の方法を変える(長いテキストを省略せず最後まで表示する)
 set laststatus=2                    " 最下ウィンドウにステータス行を常に表示する
@@ -46,6 +47,7 @@ set incsearch                     " インクリメントサーチを行う、�
 set ignorecase                    " 検索時に大文字小文字を区別しない
 set smartcase                     " 大文字小文字混在の場合は区別する
 set wrapscan                      " 最後尾まで検索を終えたら次の検索で先頭に移る
+set inccommand=split              " 置き換え結果previewで見れる
 
 
 " special
@@ -83,14 +85,23 @@ noremap <Leader>e $
 " ヤンクの内容を消さない設定
 noremap PP "0p
 noremap x "_x
-" 行選択エイリアス
-noremap <Leader>v V
+" 分割エイリアス
+noremap <silent> V :vsplit<CR>
+noremap <silent> S :split<CR>
+noremap <silent> <Leader>v V<CR>
 " 日本語入力エイリアス
 nnoremap っd dd
 nnoremap っy yy
 nnoremap あ a
 nnoremap い i
 nnoremap う u
+" window移動
+noremap <C-h> <C-w>h
+noremap <C-j> <C-w>j
+noremap <C-k> <C-w>k
+noremap <C-l> <C-w>l
+
+" neovim機能
 
 
 if &compatible
