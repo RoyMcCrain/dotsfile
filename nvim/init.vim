@@ -14,8 +14,8 @@ set nrformats-=octal              " 0で始まる数値を8進数として扱わ
 set undodir=~/.config/nvim/undo         " undoファイルのパス
 set directory=~/.config/nvim/swp/        " swpファイルのパス
 set termguicolors                 " trueカラーを使う
-set guifont=CiCa-Regular:h16
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
+set guifont=Ricty\ Diminished\ Discord-with-icons
 set clipboard+=unnamedplus
 let mapleader = "\<Space>"
 set pumheight=10
@@ -102,21 +102,23 @@ noremap <C-k> <C-w>k
 noremap <C-l> <C-w>l
 
 " neovim機能
+set winhl=Normal:Floating
+
 
 
 if &compatible
   set nocompatible               " Be iMproved
 endif
 
-set runtimepath+=~/.config/nvim/plugins/repos/github.com/Shougo/dein.vim
+set runtimepath+=~/.cache/dein/repos/github.com/Shougo/dein.vim
 
 " Required:
-if dein#load_state('~/.config/nvim/plugins/')
-  call dein#begin('~/.config/nvim/plugins/')
+if dein#load_state('~/.cache/dein')
+  call dein#begin('~/.cache/dein')
 
   " Let dein manage dein
   " Required:
-  call dein#add('~/.config/nvim/plugins/repos/github.com/Shougo/dein.vim')
+  call dein#add('~/.cache/dein/repos/github.com/Shougo/dein.vim')
 
 
   " 管理するプラグインを記述したファイル
@@ -134,3 +136,4 @@ filetype plugin indent on
 let g:python_host_prog=$PYENV_ROOT.'/versions/neovim-2/bin/python'
 let g:python3_host_prog=$PYENV_ROOT.'/versions/neovim-3/bin/python'
 set statusline+=%{gutentags#statusline()}
+autocmd BufNewFile,BufRead *.tsx,*.jsx set filetype=typescript.tsx

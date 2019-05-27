@@ -42,8 +42,11 @@ eval "$(stack --bash-completion-script stack)"
 alias ghc="stack ghc --"
 alias ghci="stack ghc -- --interactive"
 alias runghc="stack runghc --"
+
 # emacs 風キーバインドにする
 bindkey -e
+# zshで#をうつ
+setopt interactivecomments
 
 # ヒストリの設定
 HISTFILE=~/.zsh_history
@@ -144,7 +147,18 @@ setopt extended_glob
 
 # ^R で履歴検索をするときに * でワイルドカードを使用出来るようにする
 bindkey '^R' history-incremental-pattern-search-backward
-
+# Ctrl zでvimを再開
+fancy-ctrl-z () {
+  if [[ $#BUFFER -eq 0 ]]; then
+    BUFFER="fg"
+    zle accept-line
+  else
+    zle push-input
+    zle clear-screen
+  fi
+}
+zle -N fancy-ctrl-z
+bindkey '^Z' fancy-ctrl-z
 ########################################
 # エイリアス
 
