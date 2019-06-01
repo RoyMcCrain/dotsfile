@@ -82,6 +82,10 @@ on_ft = ['html']
 repo = 'akz92/vim-ionic2'
 on_ft = ['html']
 
+[[plugins]] # dockerfile
+repo = 'ekalinin/Dockerfile.vim'
+on_ft = ['dockerfile']
+
 #----------------------------------------------------------------#
 # Config for each Lang
 #----------------------------------------------------------------#

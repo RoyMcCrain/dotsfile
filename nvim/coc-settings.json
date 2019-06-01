@@ -1,0 +1,7 @@
+{
+  "diagnostic.messageTarget": "float",
+  "coc.preferences.formatOnSaveFiletypes": ["javascript", "css", "typescript", "typescriptreact", "json", "Markdown", "scss", "yaml"],
+  "eslint.run": "onSave",
+  "eslint.filetypes":["javascript","javascriptreact","typescript","typescriptreact"],
+  "tsserver.locale": "ja"
+}
