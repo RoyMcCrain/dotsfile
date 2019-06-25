@@ -131,6 +131,10 @@ depends = ['vim-fugitive']
 repo = "shumphrey/fugitive-gitlab.vim"
 depends = ['vim-fugitive']
 
+[[plugins]]
+repo = "chemzqm/denite-git"
+depends = ['denite.nvim']
+
 #----------------------------------------------------------------------------------#
 # カッコ補完
 #----------------------------------------------------------------------------------#

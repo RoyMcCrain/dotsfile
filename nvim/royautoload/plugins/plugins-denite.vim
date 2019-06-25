@@ -19,33 +19,6 @@ nnoremap <silent> [Rails]t :<C-u>Denite<Space>rails:test<Return>
 nnoremap <silent> [Rails]s :<C-u>Denite<Space>rails:spec<Return>
 
 
-" Add custom menus
-" let s:menus = {}
-"
-" let s:menus.commands = {
-"  \ 'description': 'コマンド'
-"  \ }
-" let s:menus.commands.command_candidates = [
-"  \ ['Cheat Sheet', 'Cheat'],
-"  \ ['Gbrowse', 'Gbrowse'],
-"  \ ['Ctag Init', 'GenCtags'],
-"  \ ['Gtag Init', 'GenGTAGS']
-"  \ ]
-" let s:menus.config = {
-"  \ 'description': 'コンフィグ'
-"  \ }
-" let s:menus.config.file_candidates = [
-"  \ ['coc', '~/dotsfile/nvim/royautoload/plugins/plugins-coc.vim'],
-"  \ ['dein.toml', '~/dotsfile/nvim/toml/dein.toml'],
-"  \ ['dein_lazy.toml', '~/dotsfile/nvim/toml/dein_lazy.toml'],
-"  \ ['init.vim', '~/dotsfile/nvim/init.vim'],
-"  \ ['defx', '~/dotsfile/nvim/royautoload/plugins/plugins-defx.vim'],
-"  \ ['denite', '~/dotsfile/nvim/royautoload/plugins/plugins-denite.vim'],
-"  \ ['lightline', '~/dotsfile/nvim/royautoload/plugins/plugins-lightline.vim'],
-"  \ ['vim-fugitive', '~/dotsfile/nvim/royautoload/plugins/plugins-vim-fugitive.vim'],
-"  \ ['zshrc', '~/dotsfile/zshrc'],
-"  \ ]
-" call denite#custom#var('menu', 'menus', s:menus)
 let s:menus = {}
 
 let s:menus.dein = { 'description': '⚔️  Plugin management' }
@@ -54,14 +27,6 @@ let s:menus.dein.command_candidates = [
   \   ['🐬 Dein: Plugins List   🔸', 'Denite dein'],
   \   ['🐬 Dein: Update log     🔸', 'echo dein#get_updates_log()'],
   \   ['🐬 Dein: Log            🔸', 'echo dein#get_log()'],
-  \ ]
-
-let s:menus.project = { 'description': '🛠  Project & Structure' }
-let s:menus.project.command_candidates = [
-  \   ['🐳 File Explorer        🔸<Leader>e',        'Defx -resume -toggle -buffer-name=tab`tabpagenr()`<CR>'],
-  \   ['🐳 Outline              🔸<LocalLeader>t',   'TagbarToggle'],
-  \   ['🐳 Git Status           🔸<LocalLeader>gs',  'Denite gitstatus'],
-  \   ['🐳 Mundo Tree           🔸<Leader>m',  'MundoToggle'],
   \ ]
 
 let s:menus.files = { 'description': '📁 File tools' }
@@ -82,28 +47,11 @@ let s:menus.tools.command_candidates = [
   \   ['🐠 File explorer      🔹', 'Defx -resume -toggle -buffer-name=tab`tabpagenr()`<CR>'],
   \ ]
 
-let s:menus.todoapp = { 'description': '🗓  Todo List' }
-let s:menus.todoapp.command_candidates = [
-  \   ['📝 TodoAdd            🔸', 'TodoAdd '],
-  \   ['📝 TodoList           🔸', 'Denite todo'],
-  \   ['📝 TodoDone           🔸', 'Denite todo:done'],
-  \ ]
-
 let s:menus.config = { 'description': '🔧 Zsh Tmux Configuration' }
 let s:menus.config.file_candidates = [
-  \   ['🐠 Zsh Configurationfile            🔸', '~/.zshrc '],
-  \   ['🐠 Tmux Configurationfile           🔸', '~/.tmux.conf '],
-  \ ]
-
-let s:menus.thinkvim = {'description': '💎 ThinkVim Configuration files'}
-let s:menus.thinkvim.file_candidates = [
-  \   ['🐠 General settings: vimrc                   🔹', $VIMPATH.'/core/vimrc'],
-  \   ['🐠 Initial settings: init.vim                🔹', $VIMPATH.'/core/init.vim'],
-  \   ['🐠 File Types: vimrc.filetype                🔹', $VIMPATH.'/core/filetype.vim'],
-  \   ['🐠 Installed Plugins: dein.toml              🔹', $VIMPATH.'/core/dein/dein.toml'],
-  \   ['🐠 Installed LazyLoadPlugins: deinlazy.toml  🔹', $VIMPATH.'/core/dein/deinlazy.toml'],
-  \   ['🐠 Global Key mappings: mappings             🔹', $VIMPATH.'/core/mappings.vim'],
-  \   ['🐠 Global Key Pluginmappings: Pluginmappings 🔹', $VIMPATH.'/core/plugins/allkey.vim'],
+  \   ['🐠 Neovim Configurationfile            🔸', '~/dotsfile/nvim/init.vim'],
+  \   ['🐠 Zsh Configurationfile            🔸', '~/dotsfile/zshrc'],
+  \   ['🐠 Tmux Configurationfile           🔸', '~/dotsfile/tmux.conf'],
   \ ]
 
 call denite#custom#var('menu', 'menus', s:menus)
