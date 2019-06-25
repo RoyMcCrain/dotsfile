@@ -44,66 +44,6 @@ build = './install.sh nightly'
 merge = 0
 hook_add = 'source ~/.config/nvim/royautoload/plugins/plugins-coc.vim'
 
-[[plugins]]
-repo = 'neoclide/coc-html'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-yank'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-jest'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-jest'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-highlight'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-json'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-prettier'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-css'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-css'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'voldikss/coc-browser'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-yaml'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-eslint'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-solargraph'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-tsserver'
-build = 'yarn install --frozen-lockfile'
-
-[[plugins]]
-repo = 'neoclide/coc-stylelint'
-build = 'yarn install --frozen-lockfile'
-
 #----------------------------------------------------------------------------------#
 # インデント補助
 #----------------------------------------------------------------------------------#
