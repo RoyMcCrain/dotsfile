@@ -16,10 +16,17 @@ let g:lightline = {
   \     ['currentfunction']
   \   ],
   \   'right': [
-  \     [ 'filetype', 'fileformat', 'lineinfo' ],
+  \     ['filetype', 'fileformat', 'lineinfo' ],
   \     [ 'filename' ]
   \   ] 
-  \ }
+  \ },
+  \ 'separator': {
+  \   'left': "\ue0b0"
+  \  },
+  \ 'subseparator': {
+  \   'left': "\ue0b1",
+  \   'right': "\ue0b3"
+  \  },
   \}
 function! LightlineFilename()
   let root = fnamemodify(get(b:, 'git_dir'), ':h')
@@ -31,4 +38,3 @@ function! LightlineFilename()
 endfunction
 
 set laststatus=2
-set noshowmode

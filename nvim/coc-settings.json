@@ -1,10 +1,14 @@
 {
   "diagnostic.messageTarget": "float",
-  "coc.preferences.formatOnSaveFiletypes": ["javascript", "css", "typescript", "typescriptreact", "json", "Markdown", "scss", "yaml", "ruby"],
+  "coc.preferences.formatOnSaveFiletypes": ["javascript", "css", "typescript", "typescriptreact", "json", "Markdown", "scss", "yaml"],
   "eslint.run": "onSave",
   "eslint.filetypes":["javascript","javascriptreact", "typescript", "typescriptreact"],
-  "tsserver.locale": "ja",
-  "solargraph.useBundler": true,
+  "tsserver.locale": "ja-JP",
+  "solargraph.commandPath": "/Users/roy/.rbenv/shims/solargraph",
   "solargraph.hover": true,
-  "solargraph.completion": true
+  "solargraph.completion": true,
+  "solargraph.diagnostics": true,
+  "html.enable": true,
+  "html.format.enable": true,
+  "tabnine.shortcut": "Tab"
 }

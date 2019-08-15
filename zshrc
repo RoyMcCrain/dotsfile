@@ -2,6 +2,7 @@
 
 ########################################
 # 環境変数
+export PATH=$PATH:'/Users/roy/ngrok'
 export LANG=ja_JP.UTF-8
 export XDG_CONFIG_HOME=$HOME/.config
 export GIT_EDITOR=nvim
@@ -11,18 +12,17 @@ export MAKEOBJDIR=.git/
 export RBENV_ROOT="$HOME/.rbenv"
 export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
-# pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-if [ -d "${PYENV_ROOT}" ]; then
-  export PATH=${PYENV_ROOT}/bin:$PATH
-  eval "$(pyenv init -)"
-  eval "$(pyenv virtualenv-init -)"
-fi
+# bundle
+alias bundle e="bundle exec"
+# python
+alias python="python3"
 # goenv
-export PATH="$HOME/.goenv/bin:$PATH"
+export GOENV_ROOT="$HOME/.goenv"
+export PATH="$GOENV_ROOT/bin:$PATH"
 eval "$(goenv init -)"
 # yarn
 export PATH="$PATH:`yarn global bin`"
+alias y="yarn"
 # nodenv
 export PATH="$HOME/.nodenv/shims:$PATH"
 eval "$(nodenv init - --no-rehash)"
@@ -30,6 +30,7 @@ eval "$(nodenv init - --no-rehash)"
 alias cfunc='functions-emulator'
 # hub alias
 eval "$(hub alias -s)"
+alias pr="git pull-request --edit"
 # 色を使用出来るようにする
 autoload -Uz colors
 colors
@@ -104,7 +105,8 @@ add-zsh-hook precmd _update_vcs_info_msg
 
 ########################################
 # オプション
-
+# #を使えるようにする
+setopt interactivecomments
 # 日本語ファイル名を表示可能にする
 setopt print_eight_bit
 # beep を無効にする
@@ -159,6 +161,7 @@ alias mv='mv -i'
 alias mkdir='mkdir -p'
 
 alias n="nvim"
+alias g="git"
 
 alias ctags="`brew --prefix`/bin/ctags"
 
@@ -202,3 +205,9 @@ zplug "zsh-users/zsh-syntax-highlighting", defer:2
 zplug "zsh-users/zsh-history-substring-search"
 zplug "zsh-users/zsh-completions"
 zplug load
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi

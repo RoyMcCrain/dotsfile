@@ -9,6 +9,11 @@ on_ft = ['javascript', 'javascript.jsx']
 repo = 'HerringtonDarkholme/yats.vim'
 on_ft = ['typescript', 'typescript.tsx']
 
+[[plugins]] # graphql
+repo = 'jparise/vim-graphql'
+on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx', "graphql"]
+depends = ['yats.vim']
+
 [[plugins]] # css3
 repo = 'hail2u/vim-css3-syntax'
 on_ft = ['css', 'javascript.jsx', 'typescript.tsx', 'javascript', 'typescript']
@@ -73,6 +78,14 @@ on_ft = ['haskell']
 [[plugins]] # ruby
 repo = 'vim-ruby/vim-ruby'
 on_ft = ['ruby']
+
+[[plugins]] # ruby-formatter
+repo = 'ruby-formatter/rufo-vim'
+on_ft = ['ruby']
+hook_add = '''
+  let g:rufo_auto_formatting = 1
+'''
+
 
 [[plugins]] # html
 repo = 'othree/html5.vim''
