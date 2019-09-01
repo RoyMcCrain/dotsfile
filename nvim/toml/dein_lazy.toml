@@ -32,27 +32,16 @@ depends = ['vim-css3-syntax']
 repo = 'moll/vim-node'
 on_ft = ['javascript']
 
-[[plugins]] # vue
-repo = 'posva/vim-vue'
-on_ft = ['vue']
-hook_add = '''
-  autocmd FileType vue syntax sync fromstart
-'''
-
 [[plugins]] # toml
 repo = 'cespare/vim-toml'
 on_ft = ['toml']
-
-[[plugins]] #nim
-repo = 'zah/nim.vim'
-on_ft = ['nim']
 
 [[plugins]] # json
 repo = 'elzr/vim-json'
 on_ft = ['json']
 
 [[plugins]] # elm
-repo = 'ElmCast/elm-vim'
+repo = 'andys8/vim-elm-syntax'
 on_ft = ['elm']
 
 [[plugins]] # markdown
@@ -85,7 +74,6 @@ on_ft = ['ruby']
 hook_add = '''
   let g:rufo_auto_formatting = 1
 '''
-
 
 [[plugins]] # html
 repo = 'othree/html5.vim''

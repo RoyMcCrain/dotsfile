@@ -1,6 +1,6 @@
 {
   "diagnostic.messageTarget": "float",
-  "coc.preferences.formatOnSaveFiletypes": ["javascript", "css", "typescript", "typescriptreact", "json", "Markdown", "scss", "yaml"],
+  "coc.preferences.formatOnSaveFiletypes": ["javascript", "css", "typescript", "typescriptreact", "json", "Markdown", "scss", "yaml", "elm"],
   "eslint.run": "onSave",
   "eslint.filetypes":["javascript","javascriptreact", "typescript", "typescriptreact"],
   "tsserver.locale": "ja-JP",
@@ -10,5 +10,16 @@
   "solargraph.diagnostics": true,
   "html.enable": true,
   "html.format.enable": true,
-  "tabnine.shortcut": "Tab"
+  "tabnine.shortcut": "Tab",
+  "languageserver": {
+    "elmLS": {
+      "command": "elm-language-server",
+      "filetypes": ["elm"],
+      "rootPatterns": ["elm.json"],
+      "initializationOptions": {
+        "elmAnalyseTrigger": "change"
+      }
+    }
+  },
+  "codeLens.enable": true
 }
