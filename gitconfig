@@ -1,0 +1,14 @@
+[alias]
+	sw = switch
+  rs = restore
+  st = status
+  cm = commit
+  br = branch
+  lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
+[user]
+	email = matsuda.r@kanamekey.com
+	name = RoyMcCrain
+[push]
+	default = current
+[color]
+	ui = true
