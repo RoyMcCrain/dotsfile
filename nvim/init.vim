@@ -73,7 +73,6 @@ noremap x "_x
 " 分割エイリアス
 noremap <silent> V :vsplit<CR>
 noremap <silent> S :split<CR>
-noremap <silent> <Leader>v V<CR>
 " 日本語入力エイリアス
 nnoremap っd dd
 nnoremap っy yy
@@ -115,4 +114,5 @@ syntax enable
 filetype plugin indent on
 let g:python_host_prog='/usr/local/bin/python2'
 let g:python3_host_prog='/usr/local/bin/python3'
-autocmd BufNewFile,BufRead *.tsx,*.jsx set filetype=typescript.tsx
+autocmd BufNewFile,BufRead *.tsx set filetype=typescript.tsx
+autocmd BufNewFile,BufRead *.jsx set filetype=javascript.jsx
