@@ -73,6 +73,7 @@ noremap x "_x
 " 分割エイリアス
 noremap <silent> V :vsplit<CR>
 noremap <silent> S :split<CR>
+noremap <silent> <Leader>v V<CR>
 " 日本語入力エイリアス
 nnoremap っd dd
 nnoremap っy yy

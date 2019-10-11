@@ -9,6 +9,13 @@ on_ft = ['javascript', 'javascript.jsx']
 repo = 'HerringtonDarkholme/yats.vim'
 on_ft = ['typescript', 'typescript.tsx']
 
+[[plugins]]
+repo = 'ruanyl/vim-sort-imports'
+on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
+hook_source = '''
+  let g:import_sort_auto = 1
+'''
+
 [[plugins]] # graphql
 repo = 'jparise/vim-graphql'
 on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx', "graphql"]
@@ -47,7 +54,7 @@ on_ft = ['elm']
 [[plugins]] # markdown
 repo = 'plasticboy/vim-markdown'
 on_ft = ['markdown']
-hook_add = '''
+hook_source = '''
   autocmd BufNewFile,BufReadPost *.md set filetype=markdown
   let g:vim_markdown_folding_disabled = 1
 '''
@@ -55,7 +62,7 @@ hook_add = '''
 [[plugins]] # markdown
 repo = 'previm/previm'
 on_ft = ['markdown']
-hook_add = '''
+hook_source = '''
   let g:previm_open_cmd = 'open -a Google\ Chrome'
   let g:previm_enable_realtime = 1
 '''
@@ -71,7 +78,7 @@ on_ft = ['ruby']
 [[plugins]] # ruby-formatter
 repo = 'ruby-formatter/rufo-vim'
 on_ft = ['ruby']
-hook_add = '''
+hook_source = '''
   let g:rufo_auto_formatting = 1
 '''
 
