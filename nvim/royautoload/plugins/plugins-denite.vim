@@ -34,6 +34,7 @@ let s:menus.Config.file_candidates = [
   \   ['🐠 Denite Configurationfile         🔸', '~/dotsfile/nvim/royautoload/plugins/plugins-denite.vim'],
   \   ['🐠 Dein: toml                       🔸', '~/dotsfile/nvim/toml/dein.toml'],
   \   ['🐠 Dein: toml lazy                  🔸', '~/dotsfile/nvim/toml/dein_lazy.toml'],
+  \   ['🐠 Coc Configurationfile            🔸', '~/dotsfile/nvim/royautoload/plugins/pluings-coc.vim'],
   \   ['🐠 Neovim Configurationfile         🔸', '~/dotsfile/nvim/init.vim'],
   \   ['🐠 Zsh Configurationfile            🔸', '~/dotsfile/zshrc'],
   \   ['🐠 Tmux Configurationfile           🔸', '~/dotsfile/tmux.conf'],
