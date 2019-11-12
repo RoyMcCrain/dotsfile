@@ -20,6 +20,9 @@ alias python="python3"
 export GOENV_ROOT="$HOME/.goenv"
 export PATH="$GOENV_ROOT/bin:$PATH"
 eval "$(goenv init -)"
+# go
+export GOPATH=$(go env GOPATH)
+export PATH=$PATH:$GOPATH/bin
 # yarn
 export PATH="$PATH:`yarn global bin`"
 alias y="yarn"
@@ -211,3 +214,15 @@ if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi
+
+# peco
+bindkey '^]' peco-src
+function peco-src() {
+  local src=$(ghq list --full-path | peco --query "$LBUFFER")
+  if [ -n "$src" ]; then
+      BUFFER="cd $src"
+      zle accept-line
+  fi
+  zle -R -c
+}
+zle -N peco-src
