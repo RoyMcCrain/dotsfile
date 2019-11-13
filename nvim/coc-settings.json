@@ -21,6 +21,11 @@
       "initializationOptions": {
         "elmAnalyseTrigger": "change"
       }
+    },
+    "golang": {
+      "command": "gopls",
+      "rootPatterns": ["go.mod"],
+      "filetypes": ["go"]
     }
   },
   "codeLens.enable": true,

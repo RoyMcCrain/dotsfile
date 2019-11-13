@@ -12,5 +12,7 @@
 	default = current
 [color]
 	ui = true
+[ghq]
+	root = /Users/roy/go/1.13.4/src
 [commit]
 	template = /Users/roy/.stCommitMsg
