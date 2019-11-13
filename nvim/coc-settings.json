@@ -23,5 +23,6 @@
       }
     }
   },
-  "codeLens.enable": true
+  "codeLens.enable": true,
+  "git.enableGutters": false
 }
