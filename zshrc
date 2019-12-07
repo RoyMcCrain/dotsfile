@@ -13,7 +13,7 @@ export RBENV_ROOT="$HOME/.rbenv"
 export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
 # bundle
-alias bundle e="bundle exec"
+alias be="bundle exec"
 # python
 alias python="python3"
 # goenv
@@ -208,6 +208,7 @@ zplug "zsh-users/zsh-syntax-highlighting", defer:2
 zplug "zsh-users/zsh-history-substring-search"
 zplug "zsh-users/zsh-completions"
 zplug load
+ENHANCD_FILTER=fzf; export ENHANCD_FILTER;
 
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/path.zsh.inc'; fi
@@ -226,3 +227,5 @@ function peco-src() {
   zle -R -c
 }
 zle -N peco-src
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh

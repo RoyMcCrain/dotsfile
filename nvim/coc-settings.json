@@ -1,9 +1,26 @@
 {
   "diagnostic.messageTarget": "float",
   "coc.preferences.formatOnType": true,
-  "coc.preferences.formatOnSaveFiletypes": ["javascript", "css", "typescript", "typescriptreact", "json", "Markdown", "scss", "yaml", "elm", "ruby"],
+  "coc.preferences.formatOnSaveFiletypes": [
+    "javascript",
+    "css",
+    "typescript",
+    "typescriptreact",
+    "json",
+    "Markdown",
+    "scss",
+    "yaml",
+    "elm",
+    "ruby",
+    "graphql"
+  ],
   "eslint.run": "onSave",
-  "eslint.filetypes":["javascript","javascriptreact", "typescript", "typescriptreact"],
+  "eslint.filetypes": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
   "tsserver.locale": "ja-JP",
   "solargraph.commandPath": "/Users/roy/.rbenv/shims/solargraph",
   "solargraph.hover": true,
