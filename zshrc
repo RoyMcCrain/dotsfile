@@ -229,3 +229,7 @@ function peco-src() {
 zle -N peco-src
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+# brew-file
+if [ -f $(brew --prefix)/etc/brew-wrap ];then
+  source $(brew --prefix)/etc/brew-wrap
+fi

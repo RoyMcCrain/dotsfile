@@ -11,7 +11,10 @@ set autoread                      " 外部でファイルが変更された場�
 set hidden                        " bufferを切り替える時に保存してくても警告を出さない
 set showcmd                       " 入力中のコマンド表示
 set nrformats-=octal              " 0で始まる数値を8進数として扱わないようにする
-set undodir=~/.config/nvim/undo         " undoファイルのパス
+if has("persistent_undo")
+  set undodir=~/.config/nvim/undo         " undoファイルのパス
+  set undofile
+endif
 set directory=~/.config/nvim/swp/        " swpファイルのパス
 set termguicolors                 " trueカラーを使う
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
