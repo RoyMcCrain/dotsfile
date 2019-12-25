@@ -27,7 +27,7 @@ export PATH=$PATH:$GOPATH/bin
 export PATH="$PATH:`yarn global bin`"
 alias y="yarn"
 # nodenv
-export PATH="$HOME/.nodenv/shims:$PATH"
+export PATH="$HOME/.nodenv/bin:$PATH"
 eval "$(nodenv init - --no-rehash)"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
@@ -166,8 +166,6 @@ alias mkdir='mkdir -p'
 alias n="nvim"
 alias g="git"
 
-alias ctags="`brew --prefix`/bin/ctags"
-
 # sudo の後のコマンドでエイリアスを有効にする
 alias sudo='sudo '
 # グローバルエイリアス
@@ -199,7 +197,6 @@ case ${OSTYPE} in
         alias ls='ls -F --color=auto'
         ;;
 esac
-export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 ########################################
 # zplug
 source ~/.zplug/init.zsh
@@ -229,6 +226,7 @@ function peco-src() {
 zle -N peco-src
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
 # brew-file
 if [ -f $(brew --prefix)/etc/brew-wrap ];then
   source $(brew --prefix)/etc/brew-wrap
