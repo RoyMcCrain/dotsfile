@@ -39,13 +39,6 @@ depends = ['vim-css3-syntax']
 repo = 'moll/vim-node'
 on_ft = ['javascript']
 
-[[plugins]]
-repo = 'ruanyl/vim-sort-imports'
-on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
-hook_source = '''
-  let g:import_sort_auto = 1
-'''
-
 [[plugins]] # toml
 repo = 'cespare/vim-toml'
 on_ft = ['toml']
@@ -79,10 +72,6 @@ repo = 'neovimhaskell/haskell-vim'
 on_ft = ['haskell']
 
 [[plugins]] # ruby
-repo = 'vim-ruby/vim-ruby'
-on_ft = ['ruby']
-
-[[plugins]]
 repo = 'pocke/iro.vim'
 on_ft = ['ruby']
 
