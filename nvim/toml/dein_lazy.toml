@@ -59,14 +59,6 @@ hook_source = '''
   let g:vim_markdown_folding_disabled = 1
 '''
 
-[[plugins]] # markdown
-repo = 'previm/previm'
-on_ft = ['markdown']
-hook_source = '''
-  let g:previm_open_cmd = 'open -a Google\ Chrome'
-  let g:previm_enable_realtime = 1
-'''
-
 [[plugins]] # haskell
 repo = 'neovimhaskell/haskell-vim'
 on_ft = ['haskell']
