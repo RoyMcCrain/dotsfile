@@ -93,6 +93,16 @@ set winhl=Normal:Floating
 if &compatible
   set nocompatible               " Be iMproved
 endif
+" dvorak
+nnoremap d h
+nnoremap h j
+nnoremap t k
+nnoremap n l
+
+vnoremap d h
+vnoremap h j
+vnoremap t k
+vnoremap n l
 
 set runtimepath+=~/.cache/dein/repos/github.com/Shougo/dein.vim
 

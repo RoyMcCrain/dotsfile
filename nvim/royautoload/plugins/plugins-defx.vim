@@ -13,7 +13,7 @@ function! s:defx_my_settings() abort
   \ defx#do_action('move')
   nnoremap <silent><buffer><expr> p
   \ defx#do_action('paste')
-  nnoremap <silent><buffer><expr> l
+  nnoremap <silent><buffer><expr> n
   \ defx#do_action('open')
   nnoremap <silent><buffer><expr> V
   \ defx#do_action('open', 'vsplit')
@@ -46,7 +46,7 @@ function! s:defx_my_settings() abort
   \ defx#do_action('toggle_ignored_files')
   nnoremap <silent><buffer><expr> ;
   \ defx#do_action('repeat')
-  nnoremap <silent><buffer><expr> h
+  nnoremap <silent><buffer><expr> d
   \ defx#do_action('cd', ['..'])
   nnoremap <silent><buffer><expr> ~
   \ defx#do_action('cd')
@@ -56,9 +56,9 @@ function! s:defx_my_settings() abort
   \ defx#do_action('toggle_select') . 'j'
   nnoremap <silent><buffer><expr> *
   \ defx#do_action('toggle_select_all')
-  nnoremap <silent><buffer><expr> j
+  nnoremap <silent><buffer><expr> h
   \ line('.') == line('$') ? 'gg' : 'j'
-  nnoremap <silent><buffer><expr> k
+  nnoremap <silent><buffer><expr> t
   \ line('.') == 1 ? 'G' : 'k'
   nnoremap <silent><buffer><expr> <C-l>
   \ defx#do_action('redraw')
