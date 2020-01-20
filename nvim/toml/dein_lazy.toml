@@ -9,12 +9,9 @@ on_ft = ['javascript', 'javascript.jsx']
 repo = 'HerringtonDarkholme/yats.vim'
 on_ft = ['typescript', 'typescript.tsx']
 
-[[plugins]]
-repo = 'ruanyl/vim-sort-imports'
+[[plugins]] # jsx
+repo = 'maxmellon/vim-jsx-pretty'
 on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
-hook_source = '''
-  let g:import_sort_auto = 1
-'''
 
 [[plugins]] # graphql
 repo = 'jparise/vim-graphql'
@@ -64,7 +61,7 @@ repo = 'neovimhaskell/haskell-vim'
 on_ft = ['haskell']
 
 [[plugins]] # ruby
-repo = 'pocke/iro.vim'
+repo = 'vim-ruby/vim-ruby'
 on_ft = ['ruby']
 
 [[plugins]] # html
@@ -89,6 +86,14 @@ hook_source = '''
 #----------------------------------------------------------------#
 # Config for each Lang
 #----------------------------------------------------------------#
+
+[[plugins]]
+repo = 'ruanyl/vim-sort-imports'
+on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
+hook_source = '''
+  let g:import_sort_auto = 1
+'''
+
 #----------------------------------------------------------------#
 # for Haskell
 #----------------------------------------------------------------#

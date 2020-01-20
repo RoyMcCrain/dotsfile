@@ -84,25 +84,15 @@ nnoremap あ a
 nnoremap い i
 nnoremap う u
 " window移動
-noremap <C-h> <C-w>h
-noremap <C-j> <C-w>j
-noremap <C-k> <C-w>k
-noremap <C-l> <C-w>l
+noremap <C-d> <C-w>h
+noremap <C-h> <C-w>j
+noremap <C-t> <C-w>k
+noremap <C-n> <C-w>l
 " neovim機能
 set winhl=Normal:Floating
 if &compatible
   set nocompatible               " Be iMproved
 endif
-" dvorak
-nnoremap d h
-nnoremap h j
-nnoremap t k
-nnoremap n l
-
-vnoremap d h
-vnoremap h j
-vnoremap t k
-vnoremap n l
 
 set runtimepath+=~/.cache/dein/repos/github.com/Shougo/dein.vim
 

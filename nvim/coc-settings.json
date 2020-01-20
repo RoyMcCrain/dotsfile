@@ -23,6 +23,8 @@
   ],
   "tsserver.locale": "ja-JP",
   "solargraph.commandPath": "/Users/roy/.rbenv/shims/solargraph",
+  "solargraph.bundlerPath": "/Users/roy/.rbenv/shims/bundler",
+  "solargraph.useBundler": true,
   "solargraph.hover": true,
   "solargraph.completion": true,
   "solargraph.diagnostics": true,
