@@ -1,7 +1,8 @@
 call defx#custom#option('_', {
  \ 'columns': 'git:mark:filename:icons:type:size:time',
  \ })
-noremap <silent><Leader>n :Defx `expand('%:p:h')` -search=`expand('%:p')` <CR>
+noremap <silent><Leader>m :Defx `expand('%:p:h')` -search=`expand('%:p')` <CR>
+autocmd BufWritePost * call defx#redraw()
 autocmd FileType defx call s:defx_my_settings()
 function! s:defx_my_settings() abort
   " Define mappings
@@ -27,9 +28,6 @@ function! s:defx_my_settings() abort
   \ defx#do_action('new_file')
   nnoremap <silent><buffer><expr> M
   \ defx#do_action('new_multiple_files')
-  nnoremap <silent><buffer><expr> C
-  \ defx#do_action('toggle_columns',
-  \                'mark:indent:icon:filename:type:size:time')
   nnoremap <silent><buffer><expr> S
   \ defx#do_action('toggle_sort', 'time')
   nnoremap <silent><buffer><expr> D

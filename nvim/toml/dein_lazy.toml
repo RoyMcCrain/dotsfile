@@ -15,12 +15,12 @@ on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
 
 [[plugins]] # graphql
 repo = 'jparise/vim-graphql'
-on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx', "graphql"]
+on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx', 'graphql']
 depends = ['yats.vim']
 
 [[plugins]] # css3
 repo = 'hail2u/vim-css3-syntax'
-on_ft = ['css', 'javascript.jsx', 'typescript.tsx', 'javascript', 'typescript']
+on_ft = ['css', 'typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
 
 [[plugins]] # styled-components
 repo = 'styled-components/vim-styled-components'
@@ -68,10 +68,6 @@ on_ft = ['ruby']
 repo = 'othree/html5.vim''
 on_ft = ['html']
 
-[[plugins]] # ionic
-repo = 'akz92/vim-ionic2'
-on_ft = ['html']
-
 [[plugins]] # dockerfile
 repo = 'ekalinin/Dockerfile.vim'
 on_ft = ['dockerfile']
@@ -88,10 +84,12 @@ hook_source = '''
 #----------------------------------------------------------------#
 
 [[plugins]]
-repo = 'ruanyl/vim-sort-imports'
-on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
+repo = 'prettier/vim-prettier'
+build = 'yarn install'
+on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx', 'css', 'less', 'scss', 'json', 'graphql', 'markdown', 'vue', 'yaml', 'html']
 hook_source = '''
-  let g:import_sort_auto = 1
+  let g:prettier#autoformat = 0
+  autocmd BufWritePre *.js,*.jsx,*.mjs,*.ts,*.tsx,*.css,*.less,*.scss,*.json,*.graphql,*.md,*.vue,*.yaml,*.html PrettierAsync
 '''
 
 #----------------------------------------------------------------#
