@@ -14,8 +14,6 @@ export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
 # bundle
 alias be="bundle exec"
-# python
-alias python="python3"
 # goenv
 export GOENV_ROOT="$HOME/.goenv"
 export PATH="$GOENV_ROOT/bin:$PATH"

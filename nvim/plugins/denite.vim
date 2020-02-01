@@ -12,37 +12,31 @@ let s:menus = {}
 
 let s:menus.Denite = { 'description': '📁 Denite Command' }
 let s:menus.Denite.command_candidates = [
-  \   ['📂 Denite: "f" File検索                🔹 ',  'Denite file/rec'],
-  \   ['📂 Denite: "g" Grep                    🔹 ',  'Denite grep'],
-  \   ['📂 Denite: "c" 選択した単語でGrep      🔹 ',  'DeniteCursorWord grep'],
-  \   ['📂 Denite: "u" MRU(最近開いたファイル) 🔹 ',  'Denite file_mru'],
-  \   ['📂 Denite: "y" NeoYank(yank一覧)       🔹 ',  'Denite neoyank'],
-  \   ['📂 Denite: "r" Deniteの履歴            🔹 ',  'Denite -resume'],
+  \   [' Denite: "f" File検索                 ',  'Denite file/rec'],
+  \   [' Denite: "g" Grep                     ',  'Denite grep'],
+  \   [' Denite: "c" 選択した単語でGrep       ',  'DeniteCursorWord grep'],
+  \   [' Denite: "u" MRU(最近開いたファイル)  ',  'Denite file_mru'],
+  \   [' Denite: "y" NeoYank(yank一覧)        ',  'Denite neoyank'],
+  \   [' Denite: "r" Deniteの履歴             ',  'Denite -resume'],
   \ ]
 
 
 let s:menus.Dein = { 'description': '⚔️  Plugin management' }
 let s:menus.Dein.command_candidates = [
-  \   ['🐬 Dein: Plugins update 🔸', 'call dein#update()'],
-  \   ['🐬 Dein: Plugins List   🔸', 'Denite dein'],
-  \   ['🐬 Dein: Update log     🔸', 'echo dein#get_updates_log()'],
-  \   ['🐬 Dein: Log            🔸', 'echo dein#get_log()'],
+  \   [' Dein: Plugins update ', 'call dein#update()'],
+  \   [' Dein: Plugins List   ', 'Denite dein'],
+  \   [' Dein: Update log     ', 'echo dein#get_updates_log()'],
+  \   [' Dein: Log            ', 'echo dein#get_log()'],
   \ ]
 
 let s:menus.Config = { 'description': '🔧 Configuration' }
 let s:menus.Config.file_candidates = [
-  \   ['🐠 Denite Configurationfile         🔸', '~/dotsfile/nvim/royautoload/plugins/plugins-denite.vim'],
-  \   ['🐠 Dein: toml                       🔸', '~/dotsfile/nvim/toml/dein.toml'],
-  \   ['🐠 Dein: toml lazy                  🔸', '~/dotsfile/nvim/toml/dein_lazy.toml'],
-  \   ['🐠 Coc Configurationfile            🔸', '~/dotsfile/nvim/royautoload/plugins/pluings-coc.vim'],
-  \   ['🐠 Neovim Configurationfile         🔸', '~/dotsfile/nvim/init.vim'],
-  \   ['🐠 Zsh Configurationfile            🔸', '~/dotsfile/zshrc'],
-  \   ['🐠 Tmux Configurationfile           🔸', '~/dotsfile/tmux.conf'],
-  \ ]
-
-let s:menus.Goyo = { 'description': '禅モード' }
-let s:menus.Goyo.command_candidates = [
-  \   ['🐬 Goyo: Toggle Goyo 🔸', 'Goyo'],
+  \   [' Denite Configurationfile         ', '~/dotsfile/nvim/plugins/denite.vim'],
+  \   [' LSP Configurationfile            ', '~/dotsfile/nvim/plugins/vim-lsp.vim'],
+  \   [' Dein: toml                       ', '~/dotsfile/nvim/toml/dein.toml'],
+  \   [' Dein: toml lazy                  ', '~/dotsfile/nvim/toml/dein_lazy.toml'],
+  \   [' Neovim Configurationfile         ', '~/dotsfile/nvim/init.vim'],
+  \   [' Zsh Configurationfile            ', '~/dotsfile/zshrc'],
   \ ]
 
 call denite#custom#var('menu', 'menus', s:menus)
@@ -61,7 +55,7 @@ autocmd FileType denite call s:denite_my_settings()
 function! s:denite_my_settings() abort
   nnoremap <silent><buffer><expr> <CR>
   \ denite#do_map('do_action')
-  nnoremap <silent><buffer><expr> d
+  nnoremap <silent><buffer><expr> D
   \ denite#do_map('do_action', 'delete')
   nnoremap <silent><buffer><expr> p
   \ denite#do_map('do_action', 'preview')
@@ -71,7 +65,7 @@ function! s:denite_my_settings() abort
   \ denite#do_map('open_filter_buffer')
   nnoremap <silent><buffer><expr> <Space>
   \ denite#do_map('toggle_select').'j'
-  nnoremap <silent><buffer><expr> h
+  nnoremap <silent><buffer><expr> d
   \ denite#do_map('move_up_path')
 endfunction
 

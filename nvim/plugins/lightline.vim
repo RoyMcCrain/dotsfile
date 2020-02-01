@@ -1,19 +1,14 @@
-function! CocCurrentFunction()
-    return get(b:, 'coc_current_function', '')
-  endfunction
 let g:lightline = {
   \ 'colorscheme': 'one',
   \ 'component_function': {
   \   'filename': 'LightlineFilename',
   \   'gitbranch': 'fugitive#head',
-  \   'cocstatus': 'coc#status',
-  \   'currentfunction': 'CocCurrentFunction'
+  \   'lspstatus': 'lsp#get_server_status',
   \ },
   \ 'active': {
   \   'left': [
   \     [ 'mode', 'paste', 'gitbranch', 'readonly', 'modified' ],
-  \     ['cocstatus'],
-  \     ['currentfunction']
+  \     [ 'lspstatus' ]
   \   ],
   \   'right': [
   \     ['filetype', 'fileformat', 'lineinfo' ],
