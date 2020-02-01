@@ -1,6 +1,8 @@
 "-------------------------------------------------------------------------------
 " Vim Options
 "-------------------------------------------------------------------------------
+
+set signcolumn=yes                " 左端のリンターとか出すところを常に出す
 " Basic
 set backspace=indent,eol,start    " Backspaceの有効化
 set whichwrap=b,s,h,l,<,>,[,]     " カーソルが行頭／末にあるときに前／次行に移動できる
@@ -18,7 +20,6 @@ endif
 set directory=~/.config/nvim/swp/        " swpファイルのパス
 set termguicolors                 " trueカラーを使う
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
-set guifont=Ricty\ Diminished\ Discord-with-icons
 set clipboard+=unnamedplus
 let mapleader = "\<Space>"
 set pumheight=10
@@ -116,7 +117,6 @@ endif
 
 syntax enable
 filetype plugin indent on
-let g:python_host_prog='/usr/local/bin/python2'
 let g:python3_host_prog='/usr/local/bin/python3'
 autocmd BufNewFile,BufRead *.tsx set filetype=typescript.tsx
 autocmd BufNewFile,BufRead *.jsx set filetype=javascript.jsx

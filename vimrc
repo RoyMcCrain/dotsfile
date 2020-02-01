@@ -82,17 +82,16 @@ nnoremap あ a
 nnoremap い i
 nnoremap う u
 " window移動
-noremap <C-h> <C-w>h
-noremap <C-j> <C-w>j
-noremap <C-k> <C-w>k
-noremap <C-l> <C-w>l
+noremap <C-d> <C-w>h
+noremap <C-h> <C-w>j
+noremap <C-t> <C-w>k
+noremap <C-n> <C-w>l
 if &compatible
   set nocompatible               " Be iMproved
 endif
 
 syntax enable
 filetype plugin indent on
-let g:python_host_prog='/usr/local/bin/python2'
 let g:python3_host_prog='/usr/local/bin/python3'
 autocmd BufNewFile,BufRead *.tsx set filetype=typescript.tsx
 autocmd BufNewFile,BufRead *.jsx set filetype=javascript.jsx
