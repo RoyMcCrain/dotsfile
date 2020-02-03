@@ -60,7 +60,8 @@ set fileformats=unix,dos,mac
 set visualbell t_vb=
 set noerrorbells
 " neovim
-tnoremap <silent> <C-[> <C-\><C-n>    " <C-[>でterminalモードから抜ける
+tnoremap <silent> <C-[> <C-\><C-n>   
+" <C-[>でterminalモードから抜ける
 " esc escで検索のハイライトを消す
 noremap <ESC><ESC> :noh<CR>
 " 英語配列用
