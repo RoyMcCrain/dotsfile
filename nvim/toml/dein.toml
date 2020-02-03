@@ -27,9 +27,15 @@ repo = 'Shougo/context_filetype.vim'
 [[plugins]]
 repo = 'morhetz/gruvbox'
 hook_add = '''
-  colorscheme gruvbox
+  " colorscheme gruvbox
   set background=dark
   let g:gruvbox_contrast_dark = 'hard'
+'''
+
+[[plugins]]
+repo = 'Zabanaa/neuromancer.vim'
+hook_add = '''
+ colorscheme neuromancer
 '''
 
 #----------------------------------------------------------------------------------#
