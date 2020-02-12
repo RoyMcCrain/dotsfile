@@ -47,8 +47,6 @@ alias runghc="stack runghc --"
 
 # emacs 風キーバインドにする
 bindkey -e
-# zshで#をうつ
-setopt interactivecomments
 
 # ヒストリの設定
 HISTFILE=~/.zsh_history
@@ -135,8 +133,6 @@ setopt extended_glob
 ########################################
 # キーバインド
 
-# ^R で履歴検索をするときに * でワイルドカードを使用出来るようにする
-bindkey '^R' history-incremental-pattern-search-backward
 # Ctrl zでvimを再開
 fancy-ctrl-z () {
   if [[ $#BUFFER -eq 0 ]]; then
@@ -205,25 +201,18 @@ zplug "zsh-users/zsh-completions"
 zplug load
 ENHANCD_FILTER=fzf; export ENHANCD_FILTER;
 
+function select-history() {
+  BUFFER=$(history -n -r 1 | fzf --no-sort +m --query "$LBUFFER" --prompt="History > ")
+  CURSOR=$#BUFFER
+}
+zle -N select-history
+bindkey '^r' select-history
+
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/path.zsh.inc'; fi
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi
-
-# peco
-bindkey '^]' peco-src
-function peco-src() {
-  local src=$(ghq list --full-path | peco --query "$LBUFFER")
-  if [ -n "$src" ]; then
-      BUFFER="cd $src"
-      zle accept-line
-  fi
-  zle -R -c
-}
-zle -N peco-src
-
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # brew-file
 if [ -f $(brew --prefix)/etc/brew-wrap ];then
