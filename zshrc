@@ -12,6 +12,8 @@ export MAKEOBJDIR=.git/
 export RBENV_ROOT="$HOME/.rbenv"
 export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
+# https://qiita.com/lichtshinoza/items/ed03f42614ee5605974d
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 # bundle
 alias be="bundle exec"
 # goenv
@@ -29,9 +31,6 @@ export PATH="$HOME/.nodenv/bin:$PATH"
 eval "$(nodenv init - --no-rehash)"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
-# hub alias
-eval "$(hub alias -s)"
-alias pr="git pull-request --edit"
 # 色を使用出来るようにする
 autoload -Uz colors
 colors
