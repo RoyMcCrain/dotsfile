@@ -1,5 +1,5 @@
 let g:lightline = {
-  \ 'colorscheme': 'one',
+  \ 'colorscheme': 'material',
   \ 'component_function': {
   \   'filename': 'LightlineFilename',
   \   'gitbranch': 'fugitive#head',
