@@ -15,13 +15,6 @@ let g:lightline = {
   \     [ 'filename' ]
   \   ] 
   \ },
-  \ 'separator': {
-  \   'left': "\ue0b0"
-  \  },
-  \ 'subseparator': {
-  \   'left': "\ue0b1",
-  \   'right': "\ue0b3"
-  \  },
   \}
 function! LightlineFilename()
   let root = fnamemodify(get(b:, 'git_dir'), ':h')

@@ -25,14 +25,6 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'morhetz/gruvbox'
-hook_add = '''
-  " colorscheme gruvbox
-  set background=dark
-  let g:gruvbox_contrast_dark = 'hard'
-'''
-
-[[plugins]]
 repo = 'Zabanaa/neuromancer.vim'
 hook_add = '''
  colorscheme neuromancer
@@ -44,7 +36,6 @@ hook_add = '''
 [[plugins]]
 repo = 'itchyny/lightline.vim'
 hook_add = 'source ~/.config/nvim/plugins/lightline.vim'
-depends = ['vim-devicons']
 
 #----------------------------------------------------------------------------------#
 # 非同期検証ツール
@@ -130,10 +121,6 @@ repo = 'Shougo/defx.nvim'
 hook_add = 'source ~/.config/nvim/plugins/defx.vim'
 
 [[plugins]]
-repo = 'kristijanhusak/defx-icons'
-depends = ['defx.nvim']
-
-[[plugins]]
 repo = 'kristijanhusak/defx-git'
 depends = ['defx.nvim']
 
@@ -208,17 +195,6 @@ repo = 'tpope/vim-abolish'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'cohama/lexima.vim'
-
-#----------------------------------------------------------------------------------#
-# icons
-#----------------------------------------------------------------------------------#
-[[plugins]]
-repo = 'ryanoasis/vim-devicons'
-dependes =['lightline']
-hook_add = '''
-  let g:webdevicons_enable = 1
-  let g:webdevicons_enable_denite = 1
-'''
 
 #----------------------------------------------------------------------------------#
 # terminal拡張

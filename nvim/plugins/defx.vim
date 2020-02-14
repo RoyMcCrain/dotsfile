@@ -1,5 +1,5 @@
 call defx#custom#option('_', {
- \ 'columns': 'git:mark:filename:icons:type:size:time',
+ \ 'columns': 'git:mark:filename:type:size:time',
  \ })
 noremap <silent><Leader>m :Defx `expand('%:p:h')` -search=`expand('%:p')` <CR>
 autocmd BufWritePost * call defx#redraw()
