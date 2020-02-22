@@ -22,11 +22,6 @@ depends = ['yats.vim']
 repo = 'hail2u/vim-css3-syntax'
 on_ft = ['css', 'typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
 
-[[plugins]] # styled-components
-repo = 'styled-components/vim-styled-components'
-on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
-depends = ['vim-css3-syntax']
-
 [[plugins]] # sass
 repo = 'cakebaker/scss-syntax.vim'
 on_ft = ['scss']
