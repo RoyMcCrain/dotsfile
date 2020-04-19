@@ -1,16 +1,26 @@
 [alias]
-	sw = switch
+  sw = switch
   rs = restore
   st = status
   cm = commit
   br = branch
   lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
+  mt = mergetool
+  dt = difftool
 [user]
-	email = matsuda.r@kanamekey.com
-	name = RoyMcCrain
+  email = matsuda.r@kanamekey.com
+  name = RoyMcCrain
 [push]
-	default = current
+  default = current
 [color]
-	ui = true
+  ui = true
 [ghq]
-	root = /Users/roy/go/1.13.4/src
+  root = /Users/roy/go/1.13.4/src
+[diff]
+  tool = nvimdiff
+[merge]
+  tool = nvimdiff
+[difftool "nvimdiff"]
+  cmd = "nvim -R -d -c \"wincmd l\" -d \"$LOCAL\" \"$REMOTE\""
+[mergetool "nvimdiff"]
+  cmd = "nvim -d -c \"4wincmd w | wincmd J\" \"$LOCAL\" \"$BASE\" \"$REMOTE\"  \"$MERGED\""
