@@ -6,4 +6,5 @@ nnoremap <silent> [git]c :Gcommit-v<CR>
 nnoremap <silent> [git]b :Gblame<CR>
 nnoremap <silent> [git]d :Gdiff<CR>
 nnoremap <silent> [git]m :Gmerge<CR>
+nnoremap <silent> [git]l :Glog<CR>
 

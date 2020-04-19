@@ -49,7 +49,8 @@ set wrapscan                      " 最後尾まで検索を終えたら次の�
 set inccommand=split              " 置き換え結果previewで見れる
 " special
 set gdefault                            " 置換のgオプションをデフォルトで有効にする
-set wildmenu wildmode=longest:full,full " vimからファイルを開く時にtabを押すとリストを表示する
+set wildmenu " Tabによる自動補完を有効にする
+set wildmode=list:longest,full " vimからファイルを開く時にtabを押すとリストを表示する
 set virtualedit=block                   " 文字のない所にカーソル移動できる
 set sh=zsh
 " windows設定
@@ -67,6 +68,8 @@ noremap <ESC><ESC> :noh<CR>
 " 英語配列用
 noremap; :
 noremap: ;
+vnoremap; :
+vnoremap: ;
 " 空の行を挿入
 nnoremap O :<C-u>call append(expand('.'), '')<CR>j
 " 行末、行頭のエイリアス
@@ -90,6 +93,9 @@ noremap <C-d> <C-w>h
 noremap <C-h> <C-w>j
 noremap <C-t> <C-w>k
 noremap <C-n> <C-w>l
+" Folding
+set foldmethod=syntax
+set foldlevelstart=99
 " neovim機能
 set winhl=Normal:Floating
 if &compatible
@@ -114,6 +120,8 @@ if dein#load_state('~/.cache/dein')
 
   call dein#end()
   call dein#save_state()
+  " vimrcやtomlを修正したら自動でアンスコする
+  let g:dein#auto_recache = 1
 endif
 
 syntax enable
