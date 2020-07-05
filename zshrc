@@ -17,15 +17,10 @@ eval "$(rbenv init -)"
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 # bundle
 alias be="bundle exec"
-# goenv
-export GOENV_ROOT="$HOME/.goenv"
-export PATH="$GOENV_ROOT/bin:$PATH"
-eval "$(goenv init -)"
 # go
 export GOPATH=$(go env GOPATH)
 export PATH=$PATH:$GOPATH/bin
 # yarn
-export PATH="$PATH:`yarn global bin`"
 alias y="yarn"
 # nodenv
 export PATH="$HOME/.nodenv/bin:$PATH"
@@ -35,16 +30,6 @@ alias cfunc='functions-emulator'
 # 色を使用出来るようにする
 autoload -Uz colors
 colors
-# haskell stack
-export PATH="$HOME/.local/bin:$PATH"
-autoload -U +X compinit && compinit
-autoload -U +X bashcompinit && bashcompinit
-eval "$(stack --bash-completion-script stack)"
-# stackのalias
-alias ghc="stack ghc --"
-alias ghci="stack ghc -- --interactive"
-alias runghc="stack runghc --"
-
 # emacs 風キーバインドにする
 bindkey -e
 
@@ -100,7 +85,6 @@ function _update_vcs_info_msg() {
     RPROMPT="${vcs_info_msg_0_}"
 }
 add-zsh-hook precmd _update_vcs_info_msg
-
 
 ########################################
 # オプション
@@ -193,7 +177,8 @@ case ${OSTYPE} in
 esac
 ########################################
 # zplug
-source ~/.zplug/init.zsh
+export ZPLUG_HOME=/usr/local/opt/zplug
+source $ZPLUG_HOME/init.zsh
 zplug "b4b4r07/enhancd", use:init.sh
 zplug "zsh-users/zsh-syntax-highlighting", defer:2
 zplug "zsh-users/zsh-history-substring-search"
