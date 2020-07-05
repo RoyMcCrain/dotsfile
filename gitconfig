@@ -15,7 +15,7 @@
 [color]
   ui = true
 [ghq]
-  root = /Users/roy/go/1.13.4/src
+  root = ~/ghq
 [diff]
   tool = nvimdiff
 [merge]
