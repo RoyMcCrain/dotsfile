@@ -22,7 +22,9 @@ set termguicolors                 " trueカラーを使う
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 set clipboard+=unnamedplus
 let mapleader = "\<Space>"
-set pumheight=10
+set pumheight=5                    " 変換候補で表示される数
+set nowrap                         " テキストが折り返されないようにする
+set colorcolumn=120                " カラムにラインを引く
 " View
 set showmatch                       " 閉じ括弧が入力されたとき、対応する開き括弧にわずかの間ジャンプする
 set matchtime=1                     " マッチしている括弧を表示するための時間を0.1秒単位で指定する
@@ -49,8 +51,8 @@ set wrapscan                      " 最後尾まで検索を終えたら次の�
 set inccommand=split              " 置き換え結果previewで見れる
 " special
 set gdefault                            " 置換のgオプションをデフォルトで有効にする
-set wildmenu " Tabによる自動補完を有効にする
-set wildmode=list:longest,full " vimからファイルを開く時にtabを押すとリストを表示する
+set wildmenu                            " Tabによる自動補完を有効にする
+set wildmode=list:longest,full          " vimからファイルを開く時にtabを押すとリストを表示する
 set virtualedit=block                   " 文字のない所にカーソル移動できる
 set sh=zsh
 " windows設定
@@ -60,8 +62,17 @@ set fileformats=unix,dos,mac
 " ビープ音
 set visualbell t_vb=
 set noerrorbells
+set maxfuncdepth=200
 " neovim
-tnoremap <silent> <C-[> <C-\><C-n>   
+tnoremap <silent> <C-[> <C-\><C-n>
+" 行末までのヤンク
+nnoremap Y y$
+" + でインクリメント
+nnoremap + <C-a>
+vnoremap + <C-a>
+" - でデクリメント
+nnoremap - <C-x>
+vnoremap - <C-x>
 " <C-[>でterminalモードから抜ける
 " esc escで検索のハイライトを消す
 noremap <ESC><ESC> :noh<CR>
@@ -72,9 +83,6 @@ vnoremap; :
 vnoremap: ;
 " 空の行を挿入
 nnoremap O :<C-u>call append(expand('.'), '')<CR>j
-" 行末、行頭のエイリアス
-noremap <Leader>a ^
-noremap <Leader>e $
 " ヤンクの内容を消さない設定
 noremap PP "0p
 noremap x "_x

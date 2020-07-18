@@ -49,7 +49,7 @@ depends = ['deoplete.nvim']
 hook_add = '''
   call deoplete#custom#var('tabnine', {
   \ 'line_limit': 500,
-  \ 'max_num_results': 3,
+  \ 'max_num_results': 2,
   \ })
 '''
 
@@ -62,9 +62,9 @@ repo = 'mattn/vim-lsp-settings'
 merged = 0
 hook_add = '''
   let g:lsp_settings = {
-        \  'typescript-language-server': {
-        \     'whitelist': ['javascript', 'javascript.jsx', 'typescript', 'typescript.tsx']
-        \  }
+  \  'typescript-language-server': {
+  \    'whitelist': ['javascript', 'javascript.jsx', 'typescript', 'typescript.tsx']
+  \  }
   \}
 '''
 
@@ -177,6 +177,11 @@ repo = 'tpope/vim-abolish'
 
 [[plugins]]
 repo = "tpope/vim-surround"
+# [e] 囲いの文字
+# [d] 目的の文字
+# ds [e] delete surround
+# cs [e] [d] change surround
+# ys iw [d] you surround
 
 #----------------------------------------------------------------------------------#
 # カッコ補完
