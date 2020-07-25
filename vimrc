@@ -11,13 +11,7 @@ set autoread                      " 外部でファイルが変更された場�
 set hidden                        " bufferを切り替える時に保存してくても警告を出さない
 set showcmd                       " 入力中のコマンド表示
 set nrformats-=octal              " 0で始まる数値を8進数として扱わないようにする
-if has("persistent_undo")
-  set undodir=~/.config/vim/undo         " undoファイルのパス
-  set undofile
-endif
-set directory=~/.config/vim/swp/        " swpファイルのパス
 set termguicolors                 " trueカラーを使う
-let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 set clipboard+=unnamedplus
 let mapleader = "\<Space>"
 set pumheight=10
@@ -56,13 +50,21 @@ set fileformats=unix,dos,mac
 " ビープ音
 set visualbell t_vb=
 set noerrorbells
-" neovim
-tnoremap <silent> <C-[> <C-\><C-n>    " <C-[>でterminalモードから抜ける
+" 行末までのヤンク
+nnoremap Y y$
+" + でインクリメント
+nnoremap + <C-a>
+vnoremap + <C-a>
+" - でデクリメント
+nnoremap - <C-x>
+vnoremap - <C-x>
 " esc escで検索のハイライトを消す
 noremap <ESC><ESC> :noh<CR>
 " 英語配列用
 noremap; :
 noremap: ;
+vnoremap; :
+vnoremap: ;
 " 空の行を挿入
 nnoremap O :<C-u>call append(expand('.'), '')<CR>j
 " 行末、行頭のエイリアス
