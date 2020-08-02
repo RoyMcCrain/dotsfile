@@ -60,13 +60,6 @@ hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
 [[plugins]]
 repo = 'mattn/vim-lsp-settings'
 merged = 0
-hook_add = '''
-  let g:lsp_settings = {
-  \  'typescript-language-server': {
-  \    'whitelist': ['javascript', 'javascript.jsx', 'typescript', 'typescript.tsx']
-  \  }
-  \}
-'''
 
 [[plugins]]
 repo = 'lighttiger2505/deoplete-vim-lsp'

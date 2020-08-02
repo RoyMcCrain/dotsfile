@@ -135,5 +135,3 @@ endif
 syntax enable
 filetype plugin indent on
 let g:python3_host_prog='/usr/local/bin/python3'
-autocmd BufNewFile,BufRead *.tsx set filetype=typescript.tsx
-autocmd BufNewFile,BufRead *.jsx set filetype=javascript.jsx

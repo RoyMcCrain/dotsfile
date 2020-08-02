@@ -3,24 +3,24 @@
 #----------------------------------------------------------------#
 [[plugins]] # javascript全般
 repo = 'othree/yajs.vim'
-on_ft = ['javascript', 'javascript.jsx']
+on_ft = ['javascript', 'javascriptreact']
 
 [[plugins]] # typescript
 repo = 'HerringtonDarkholme/yats.vim'
-on_ft = ['typescript', 'typescript.tsx']
+on_ft = ['typescript', 'typescriptreact']
 
 [[plugins]] # jsx
 repo = 'maxmellon/vim-jsx-pretty'
-on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
+on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact']
 
 [[plugins]] # graphql
 repo = 'jparise/vim-graphql'
-on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx', 'graphql']
+on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'graphql']
 depends = ['yats.vim']
 
 [[plugins]] # css3
 repo = 'hail2u/vim-css3-syntax'
-on_ft = ['css', 'typescript', 'typescript.tsx', 'javascript', 'javascript.jsx']
+on_ft = ['css', 'typescript', 'typescriptreact', 'javascript', 'javascriptreact']
 
 [[plugins]] # sass
 repo = 'cakebaker/scss-syntax.vim'
@@ -83,7 +83,7 @@ on_ft = ['go']
 [[plugins]]
 repo = 'prettier/vim-prettier'
 build = 'yarn install'
-on_ft = ['typescript', 'typescript.tsx', 'javascript', 'javascript.jsx', 'css', 'less', 'scss', 'json', 'graphql', 'markdown', 'vue', 'yaml', 'html']
+on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'css', 'less', 'scss', 'json', 'graphql', 'markdown', 'vue', 'yaml', 'html']
 hook_source = '''
   let g:prettier#autoformat = 0
   let g:prettier#config#arrow_parens = get(g:,'prettier#config#arrow_parens', 'always')
