@@ -31,12 +31,12 @@ let s:menus.Dein.command_candidates = [
 
 let s:menus.Config = { 'description': '🔧 Configuration' }
 let s:menus.Config.file_candidates = [
-  \   [' Denite Configurationfile         ', '~/dotsfile/nvim/plugins/denite.vim'],
-  \   [' LSP Configurationfile            ', '~/dotsfile/nvim/plugins/vim-lsp.vim'],
-  \   [' Dein: toml                       ', '~/dotsfile/nvim/toml/dein.toml'],
-  \   [' Dein: toml lazy                  ', '~/dotsfile/nvim/toml/dein_lazy.toml'],
-  \   [' Neovim Configurationfile         ', '~/dotsfile/nvim/init.vim'],
-  \   [' Zsh Configurationfile            ', '~/dotsfile/zshrc'],
+  \   [' Denite Configurationfile         ', '~/ghq/github.com/RoyMcCrain/dotsfile/nvim/plugins/denite.vim'],
+  \   [' LSP Configurationfile            ', '~/ghq/github.com/RoyMcCrain/dotsfile/nvim/plugins/vim-lsp.vim'],
+  \   [' Dein: toml                       ', '~/ghq/github.com/RoyMcCrain/dotsfile/nvim/toml/dein.toml'],
+  \   [' Dein: toml lazy                  ', '~/ghq/github.com/RoyMcCrain/dotsfile/nvim/toml/dein_lazy.toml'],
+  \   [' Neovim Configurationfile         ', '~/ghq/github.com/RoyMcCrain/dotsfile/nvim/init.vim'],
+  \   [' Zsh Configurationfile            ', '~/ghq/github.com/RoyMcCrain/dotsfile/zshrc'],
   \ ]
 
 call denite#custom#var('menu', 'menus', s:menus)

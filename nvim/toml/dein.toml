@@ -60,10 +60,26 @@ hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
 [[plugins]]
 repo = 'mattn/vim-lsp-settings'
 merged = 0
+hook_add = '''
+  let g:lsp_settings = {
+  \  'ruby': {'disabled': v:false}
+  \}
+'''
 
 [[plugins]]
 repo = 'lighttiger2505/deoplete-vim-lsp'
 depends = ['deoplete.nvim', 'vim-lsp']
+
+[[plugins]]
+repo = 'dense-analysis/ale'
+hook_add = '''
+  let g:ale_disable_lsp = 1
+  let g:ale_sign_column_always = 1
+  let g:ale_fix_on_save = 1
+  let g:ale_fixers = {
+  \   'ruby': ['rubocop'],
+  \}
+'''
 
 #----------------------------------------------------------------------------------#
 # インデント補助

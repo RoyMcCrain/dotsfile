@@ -7,13 +7,12 @@ export LANG=ja_JP.UTF-8
 export XDG_CONFIG_HOME=$HOME/.config
 export GIT_EDITOR=nvim
 export EDITOR=nvim
-# GNU設定rootの.git配下にtagを作る
-export MAKEOBJDIR=.git/
 # rbenv
 export RBENV_ROOT="$HOME/.rbenv"
 export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
 # https://qiita.com/lichtshinoza/items/ed03f42614ee5605974d
+# Macのみ
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 # bundle
 alias be="bundle exec"
@@ -197,6 +196,7 @@ bindkey '^r' select-history
 if [ -f $(brew --prefix)/etc/brew-wrap ];then
   source $(brew --prefix)/etc/brew-wrap
 fi
+
 export PATH="/usr/local/opt/avr-gcc@8/bin:$PATH"
 export PATH="/usr/local/opt/arm-gcc-bin@8/bin:$PATH"
 export PATH="/usr/local/sbin:$PATH"
@@ -217,3 +217,5 @@ if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi
+
+export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
