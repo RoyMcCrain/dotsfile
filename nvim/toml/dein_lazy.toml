@@ -27,6 +27,10 @@ repo = 'cakebaker/scss-syntax.vim'
 on_ft = ['scss']
 depends = ['vim-css3-syntax']
 
+[[plugins]] # css in js
+repo = 'styled-components/vim-styled-components'
+on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact']
+
 [[plugins]] # node
 repo = 'moll/vim-node'
 on_ft = ['javascript']

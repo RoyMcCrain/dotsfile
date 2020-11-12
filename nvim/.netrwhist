@@ -1,6 +1,0 @@
-let g:netrw_dirhistmax  =10
-let g:netrw_dirhistcnt =4
-let g:netrw_dirhist_4='/Users/roy/ghq/github.com/RoyMcCrain/next-demo/.git'
-let g:netrw_dirhist_3='/Users/roy/dotsfile/nvim/toml'
-let g:netrw_dirhist_2='/Users/roy/dotsfile/nvim'
-let g:netrw_dirhist_1='/Users/roy/dotsfile'
