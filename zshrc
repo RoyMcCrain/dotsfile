@@ -7,6 +7,7 @@ export LANG=ja_JP.UTF-8
 export XDG_CONFIG_HOME=$HOME/.config
 export GIT_EDITOR=nvim
 export EDITOR=nvim
+export TERM=xterm-256color
 # rbenv
 export RBENV_ROOT="$HOME/.rbenv"
 export PATH="$RBENV_ROOT/bin:$PATH"
@@ -219,3 +220,4 @@ if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-
 if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi
 
 export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+export PATH="/usr/local/opt/python@3.8/bin:$PATH"

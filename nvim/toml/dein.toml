@@ -19,10 +19,9 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'NLKNguyen/papercolor-theme'
+repo = 'morhetz/gruvbox'
 hook_add = '''
-  set background=dark
-  colorscheme PaperColor
+  colorscheme gruvbox
 '''
 
 #----------------------------------------------------------------------------------#
