@@ -2,7 +2,8 @@
 
 ########################################
 # 環境変数
-export PATH=$PATH:'/Users/roy/ngrok'
+# pipの設定
+export PATH=$PATH:$HOME/.local/bin
 export LANG=ja_JP.UTF-8
 export XDG_CONFIG_HOME=$HOME/.config
 export GIT_EDITOR=nvim
@@ -84,8 +85,6 @@ add-zsh-hook precmd _update_vcs_info_msg
 
 ########################################
 # オプション
-# #を使えるようにする
-setopt interactivecomments
 # 日本語ファイル名を表示可能にする
 setopt print_eight_bit
 # beep を無効にする
@@ -188,10 +187,6 @@ function select-history() {
 }
 zle -N select-history
 bindkey '^r' select-history
-
-export PATH="/usr/local/opt/avr-gcc@8/bin:$PATH"
-export PATH="/usr/local/opt/arm-gcc-bin@8/bin:$PATH"
-export PATH="/usr/local/sbin:$PATH"
 
 function ghq-fzf() {
   local src=$(ghq list | fzf --preview "ls -laTp $(ghq root)/{} | tail -n+4 | awk '{print \$9\"/\"\$6\"/\"\$7 \" \" \$10}'")
