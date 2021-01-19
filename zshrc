@@ -17,11 +17,12 @@ alias be="bundle exec"
 # go
 export GOPATH=$(go env GOPATH)
 export PATH=$PATH:$GOPATH/bin
-# yarn
-alias y="yarn"
 # nodenv
 export PATH="$HOME/.nodenv/bin:$PATH"
 eval "$(nodenv init - --no-rehash)"
+# yarn
+alias y="yarn"
+export PATH="$(yarn global bin):$PATH"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
 # 色を使用出来るようにする
