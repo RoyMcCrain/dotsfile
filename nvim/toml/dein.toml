@@ -62,13 +62,30 @@ repo = 'mattn/vim-lsp-settings'
 merged = 0
 hook_add = '''
   let g:lsp_settings = {
-  \  'ruby': {'disabled': v:false}
+  \  'solargraph': {'disabled': v:true},
+  \  'css-languageserver': {
+  \    'workspace_config': {
+  \      'css': {
+  \        'validate': v:false
+  \      },
+  \      'scss': {
+  \        'validate': v:false
+  \      },
+  \      'less': {
+  \        'validate': v:false
+  \      }
+  \    }
+  \  }
   \}
 '''
 
 [[plugins]]
 repo = 'lighttiger2505/deoplete-vim-lsp'
 depends = ['deoplete.nvim', 'vim-lsp']
+
+[[plugins]]
+repo = "deoplete-plugins/deoplete-zsh"
+depends = ['deoplete.nvim']
 
 [[plugins]]
 repo = 'dense-analysis/ale'
@@ -78,6 +95,10 @@ hook_add = '''
   let g:ale_fix_on_save = 1
   let g:ale_fixers = {
   \   'ruby': ['rubocop'],
+  \   'css': ['stylelint'],
+  \   'scss': ['stylelint'],
+  \   'sass': ['stylelint'],
+  \   'less': ['stylelint'],
   \}
 '''
 
@@ -121,9 +142,12 @@ depends = ['defx.nvim']
 #----------------------------------------------------------------------------------#
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
+
 [[plugins]]
-repo = 'nixprime/cpsm'
-build = 'sh -c "env PY3=ON ./install.sh"'
+repo = 'liuchengxu/vim-clap'
+on_cmd = 'Clap' # Clapコマンドが実行されるまで読み込みを遅延する
+on_func = 'clap#installer#force_download()' # clap#installer#force_download()関数が実行されるまで読み込みを遅延する
+hook_post_update = 'call clap#installer#force_download()' # vim-clapのインストール/アップデート後、clap#installer#force_download()を実行する
 
 #----------------------------------------------------------------------------------#
 # gitツール
