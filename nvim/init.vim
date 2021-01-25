@@ -90,12 +90,6 @@ noremap x "_x
 noremap <silent> V :vsplit<CR>
 noremap <silent> S :split<CR>
 noremap <silent> <Leader>v V<CR>
-" 日本語入力エイリアス
-nnoremap っd dd
-nnoremap っy yy
-nnoremap あ a
-nnoremap い i
-nnoremap う u
 " window移動
 noremap <C-d> <C-w>h
 noremap <C-h> <C-w>j

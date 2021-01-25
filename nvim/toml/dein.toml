@@ -188,11 +188,14 @@ hook_add = '''
   " Disable default mappings
   let g:EasyMotion_do_mapping = 0
   nmap s <Plug>(easymotion-overwin-f2)
+  nnoremap [EasyM] <Nop>
+  nmap <Leader><space> [EasyMotion]
+
   " Gif config
-  map <Leader>n <Plug>(easymotion-lineforward)
-  map <Leader>h <Plug>(easymotion-j)
-  map <Leader>t <Plug>(easymotion-k)
-  map <Leader>d <Plug>(easymotion-linebackward)
+  map <silent> [EasyM]n <Plug>(easymotion-lineforward)
+  map <silent> [EasyM]h <Plug>(easymotion-j)
+  map <silent> [EasyM]t <Plug>(easymotion-k)
+  map <silent> [EasyM]d <Plug>(easymotion-linebackward)
   " keep cursor column when JK motion
   let g:EasyMotion_startofline = 0 
   let g:EasyMotion_smartcase = 1

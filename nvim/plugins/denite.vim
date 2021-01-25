@@ -1,5 +1,5 @@
 nnoremap [Denite] <Nop>
-nmap <Leader>f [Denite]
+nmap <Leader>h [Denite]
 nnoremap <silent> [Denite]f :<C-u>Denite file/rec<CR>
 nnoremap <silent> [Denite]g :<C-u>Denite grep<CR>
 nnoremap <silent> [Denite]c :<C-u>DeniteCursorWord grep<CR>
