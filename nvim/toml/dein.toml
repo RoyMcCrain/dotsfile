@@ -61,13 +61,30 @@ repo = 'mattn/vim-lsp-settings'
 merged = 0
 hook_add = '''
   let g:lsp_settings = {
-  \  'ruby': {'disabled': v:false}
+  \  'solargraph': {'disabled': v:true},
+  \  'css-languageserver': {
+  \    'workspace_config': {
+  \      'css': {
+  \        'validate': v:false
+  \      },
+  \      'scss': {
+  \        'validate': v:false
+  \      },
+  \      'less': {
+  \        'validate': v:false
+  \      }
+  \    }
+  \  }
   \}
 '''
 
 [[plugins]]
 repo = 'lighttiger2505/deoplete-vim-lsp'
 depends = ['deoplete.nvim', 'vim-lsp']
+
+[[plugins]]
+repo = "deoplete-plugins/deoplete-zsh"
+depends = ['deoplete.nvim']
 
 [[plugins]]
 repo = 'dense-analysis/ale'
@@ -77,6 +94,10 @@ hook_add = '''
   let g:ale_fix_on_save = 1
   let g:ale_fixers = {
   \   'ruby': ['rubocop'],
+  \   'css': ['stylelint'],
+  \   'scss': ['stylelint'],
+  \   'sass': ['stylelint'],
+  \   'less': ['stylelint'],
   \}
 '''
 
@@ -120,9 +141,12 @@ depends = ['defx.nvim']
 #----------------------------------------------------------------------------------#
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
+
 [[plugins]]
-repo = 'nixprime/cpsm'
-build = 'sh -c "env PY3=ON ./install.sh"'
+repo = 'liuchengxu/vim-clap'
+on_cmd = 'Clap' # Clapコマンドが実行されるまで読み込みを遅延する
+on_func = 'clap#installer#force_download()' # clap#installer#force_download()関数が実行されるまで読み込みを遅延する
+hook_post_update = 'call clap#installer#force_download()' # vim-clapのインストール/アップデート後、clap#installer#force_download()を実行する
 
 #----------------------------------------------------------------------------------#
 # gitツール
@@ -163,11 +187,14 @@ hook_add = '''
   " Disable default mappings
   let g:EasyMotion_do_mapping = 0
   nmap s <Plug>(easymotion-overwin-f2)
+  nnoremap [EasyM] <Nop>
+  nmap <Leader><space> [EasyMotion]
+
   " Gif config
-  map <Leader>n <Plug>(easymotion-lineforward)
-  map <Leader>h <Plug>(easymotion-j)
-  map <Leader>t <Plug>(easymotion-k)
-  map <Leader>d <Plug>(easymotion-linebackward)
+  map <silent> [EasyM]n <Plug>(easymotion-lineforward)
+  map <silent> [EasyM]h <Plug>(easymotion-j)
+  map <silent> [EasyM]t <Plug>(easymotion-k)
+  map <silent> [EasyM]d <Plug>(easymotion-linebackward)
   " keep cursor column when JK motion
   let g:EasyMotion_startofline = 0 
   let g:EasyMotion_smartcase = 1

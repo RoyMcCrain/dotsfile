@@ -2,9 +2,9 @@
 
 ########################################
 # 環境変数
-export PATH=$PATH:'/Users/roy/ngrok'
+# pipの設定
+export PATH=$PATH:$HOME/.local/bin
 export LANG=ja_JP.UTF-8
-export XDG_CONFIG_HOME=$HOME/.config
 export GIT_EDITOR=nvim
 export EDITOR=nvim
 export TERM=xterm-256color
@@ -12,19 +12,17 @@ export TERM=xterm-256color
 export RBENV_ROOT="$HOME/.rbenv"
 export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
-# https://qiita.com/lichtshinoza/items/ed03f42614ee5605974d
-# Macのみ
-export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 # bundle
 alias be="bundle exec"
 # go
 export GOPATH=$(go env GOPATH)
 export PATH=$PATH:$GOPATH/bin
-# yarn
-alias y="yarn"
 # nodenv
 export PATH="$HOME/.nodenv/bin:$PATH"
 eval "$(nodenv init - --no-rehash)"
+# yarn
+alias y="yarn"
+export PATH="$(yarn global bin):$PATH"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
 # 色を使用出来るようにする
@@ -88,8 +86,6 @@ add-zsh-hook precmd _update_vcs_info_msg
 
 ########################################
 # オプション
-# #を使えるようにする
-setopt interactivecomments
 # 日本語ファイル名を表示可能にする
 setopt print_eight_bit
 # beep を無効にする
@@ -177,7 +173,7 @@ case ${OSTYPE} in
 esac
 ########################################
 # zplug
-export ZPLUG_HOME=/usr/local/opt/zplug
+export ZPLUG_HOME=/home/roy/.zplug
 source $ZPLUG_HOME/init.zsh
 zplug "b4b4r07/enhancd", use:init.sh
 zplug "zsh-users/zsh-syntax-highlighting", defer:2
@@ -192,15 +188,6 @@ function select-history() {
 }
 zle -N select-history
 bindkey '^r' select-history
-
-# brew-file
-if [ -f $(brew --prefix)/etc/brew-wrap ];then
-  source $(brew --prefix)/etc/brew-wrap
-fi
-
-export PATH="/usr/local/opt/avr-gcc@8/bin:$PATH"
-export PATH="/usr/local/opt/arm-gcc-bin@8/bin:$PATH"
-export PATH="/usr/local/sbin:$PATH"
 
 function ghq-fzf() {
   local src=$(ghq list | fzf --preview "ls -laTp $(ghq root)/{} | tail -n+4 | awk '{print \$9\"/\"\$6\"/\"\$7 \" \" \$10}'")
@@ -219,5 +206,4 @@ if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi
 
-export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 export PATH="/usr/local/opt/python@3.8/bin:$PATH"
