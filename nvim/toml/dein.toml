@@ -188,7 +188,7 @@ hook_add = '''
   let g:EasyMotion_do_mapping = 0
   nmap s <Plug>(easymotion-overwin-f2)
   nnoremap [EasyM] <Nop>
-  nmap <Leader><space> [EasyMotion]
+  nmap <Leader><Space> [EasyM]
 
   " Gif config
   map <silent> [EasyM]n <Plug>(easymotion-lineforward)
