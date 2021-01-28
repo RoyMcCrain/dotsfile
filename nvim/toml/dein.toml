@@ -94,6 +94,8 @@ hook_add = '''
   let g:ale_fix_on_save = 1
   let g:ale_fixers = {
   \   'ruby': ['rubocop'],
+  \   'typescript': ['eslint'],
+  \   'javascript': ['eslint'],
   \   'css': ['stylelint'],
   \   'scss': ['stylelint'],
   \   'sass': ['stylelint'],
