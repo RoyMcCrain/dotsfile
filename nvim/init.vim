@@ -25,6 +25,7 @@ let mapleader = "\<Space>"
 set pumheight=5                    " 変換候補で表示される数
 set nowrap                         " テキストが折り返されないようにする
 set colorcolumn=120                " カラムにラインを引く
+let g:netrw_home=$XDG_CACHE_HOME.'/nvim'
 " View
 set showmatch                       " 閉じ括弧が入力されたとき、対応する開き括弧にわずかの間ジャンプする
 set matchtime=1                     " マッチしている括弧を表示するための時間を0.1秒単位で指定する
