@@ -1,5 +1,6 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhistcnt =2
+let g:netrw_dirhistcnt =3
+let g:netrw_dirhist_3='/home/roy/ghq/github.com/KANAME-knmdev/template-doc/.github'
 let g:netrw_dirhist_2='/Users/roy/dotsfile/nvim/toml'
 let g:netrw_dirhist_1='/Users/roy/dotsfile/nvim'
 let g:netrw_dirhist_0='/Users/roy/dotsfile'
@@ -9,4 +10,3 @@ let g:netrw_dirhist_7='/Users/roy/ghq/github.com/RoyMcCrain/qmk_firmware/.git'
 let g:netrw_dirhist_6='/Users/roy/ghq/github.com/KANAME-knmdev/nextjs-template/.git'
 let g:netrw_dirhist_5='/Users/roy/ghq/github.com/KANAME-knmdev/achilles-db/.git'
 let g:netrw_dirhist_4='/Users/roy/ghq/github.com/KANAME-knmdev/achilles/.github/ISSUE_TEMPLATE'
-let g:netrw_dirhist_3='/Users/roy/ghq/github.com/KANAME-knmdev/achilles/.github'
