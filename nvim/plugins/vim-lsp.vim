@@ -2,7 +2,7 @@ autocmd BufWritePre * LspDocumentFormatSync
 let g:lsp_signs_hint = {'text': '!'}
 
 nnoremap [LSP] <Nop>
-nmap <silent>D [LSP]
+nmap <silent><Leader>d [LSP]
 
 nnoremap <silent> H :<C-u>LspHover<CR>
 nnoremap <silent> [LSP]a :<C-u>LspCodeAction<CR>
