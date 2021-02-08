@@ -29,6 +29,9 @@ depends = ['vim-css3-syntax']
 
 [[plugins]] # css in js
 repo = 'styled-components/vim-styled-components'
+# https://github.com/styled-components/vim-styled-components/pull/80
+# このmainにマージするやる気がないらしい...
+rev = 'develop'
 on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact']
 
 [[plugins]] # node

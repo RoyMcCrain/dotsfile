@@ -37,7 +37,6 @@ set laststatus=2                    " 最下ウィンドウにステータス行
 " Indent
 set tabstop=2           " ファイル内の<Tab>が対応する空白の数
 set softtabstop=2       " <Tab>キーを押した際に挿入されるスペース量
-set autoindent          " 新しい行を開始したとき新しい行のインデントを現在行と同じくする
 set shiftwidth=2        " (自動)インデントの各段階に使われる空白の数
 set smartindent         " 新しい行を作ったときに高度な自動インデントを行う(ex. '{'で終わる行で新しい行を作った時は改行)"
 set expandtab           " 挿入モードで <Tab> を挿入するとき、代わりに適切な数の空白を使う
