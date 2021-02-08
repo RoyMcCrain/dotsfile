@@ -133,6 +133,10 @@ repo = 'Shougo/neomru.vim'
 depends = ['denite.nvim']
 
 [[plugins]]
+repo = 'neoclide/denite-git'
+depends = ['denite.nvim']
+
+[[plugins]]
 repo = 'Shougo/defx.nvim'
 hook_add = 'source ~/.config/nvim/plugins/defx.vim'
 

@@ -7,19 +7,9 @@ nnoremap <silent> [Denite]u :<C-u>Denite file_mru<CR>
 nnoremap <silent> [Denite]y :<C-u>Denite neoyank<CR>
 nnoremap <silent> [Denite]r :<C-u>Denite -resume<CR>
 nnoremap <silent> [Denite]m :<C-u>Denite menu<CR>
+nnoremap <silent> [Denite]l :<C-u>Denite gitlog<CR>
 
 let s:menus = {}
-
-let s:menus.Denite = { 'description': '📁 Denite Command' }
-let s:menus.Denite.command_candidates = [
-  \   [' Denite: "f" File検索                 ',  'Denite file/rec'],
-  \   [' Denite: "g" Grep                     ',  'Denite grep'],
-  \   [' Denite: "c" 選択した単語でGrep       ',  'DeniteCursorWord grep'],
-  \   [' Denite: "u" MRU(最近開いたファイル)  ',  'Denite file_mru'],
-  \   [' Denite: "y" NeoYank(yank一覧)        ',  'Denite neoyank'],
-  \   [' Denite: "r" Deniteの履歴             ',  'Denite -resume'],
-  \ ]
-
 
 let s:menus.Dein = { 'description': '⚔️  Plugin management' }
 let s:menus.Dein.command_candidates = [
@@ -55,7 +45,7 @@ autocmd FileType denite call s:denite_my_settings()
 function! s:denite_my_settings() abort
   nnoremap <silent><buffer><expr> <CR>
   \ denite#do_map('do_action')
-  nnoremap <silent><buffer><expr> D
+  nnoremap <silent><buffer><expr> d
   \ denite#do_map('do_action', 'delete')
   nnoremap <silent><buffer><expr> p
   \ denite#do_map('do_action', 'preview')
@@ -63,9 +53,7 @@ function! s:denite_my_settings() abort
   \ denite#do_map('quit')
   nnoremap <silent><buffer><expr> i
   \ denite#do_map('open_filter_buffer')
-  nnoremap <silent><buffer><expr> <Space>
-  \ denite#do_map('toggle_select').'j'
-  nnoremap <silent><buffer><expr> d
+  nnoremap <silent><buffer><expr> <Left>
   \ denite#do_map('move_up_path')
 endfunction
 
