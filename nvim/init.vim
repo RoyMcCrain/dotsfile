@@ -67,12 +67,6 @@ set maxfuncdepth=200
 tnoremap <silent> <C-[> <C-\><C-n>
 " 行末までのヤンク
 nnoremap Y y$
-" + でインクリメント
-nnoremap + <C-a>
-vnoremap + <C-a>
-" - でデクリメント
-nnoremap - <C-x>
-vnoremap - <C-x>
 " <C-[>でterminalモードから抜ける
 " esc escで検索のハイライトを消す
 noremap <ESC><ESC> :noh<CR>
@@ -124,6 +118,8 @@ if dein#load_state('~/.cache/dein')
   call dein#save_state()
   " vimrcやtomlを修正したら自動でアンスコする
   let g:dein#auto_recache = 1
+  " githubのtokenを読み込む
+  source <sfile>:h/token.vim
 endif
 
 syntax enable
