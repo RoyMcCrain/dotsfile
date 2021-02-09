@@ -86,6 +86,10 @@ nnoremap O :<C-u>call append(expand('.'), '')<CR>j
 " ヤンクの内容を消さない設定
 noremap PP "0p
 noremap x "_x
+
+" 分割エイリアス
+noremap <silent> vs :vsplit<CR>
+noremap <silent> S :split<CR>
 " window移動
 noremap <C-d> <C-w>h
 noremap <C-h> <C-w>j
