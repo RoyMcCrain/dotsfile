@@ -26,7 +26,6 @@ set laststatus=2                    " 最下ウィンドウにステータス行
 " Indent
 set tabstop=2           " ファイル内の<Tab>が対応する空白の数
 set softtabstop=2       " <Tab>キーを押した際に挿入されるスペース量
-set autoindent          " 新しい行を開始したとき新しい行のインデントを現在行と同じくする
 set shiftwidth=2        " (自動)インデントの各段階に使われる空白の数
 set smartindent         " 新しい行を作ったときに高度な自動インデントを行う(ex. '{'で終わる行で新しい行を作った時は改行)"
 set expandtab           " 挿入モードで <Tab> を挿入するとき、代わりに適切な数の空白を使う
@@ -52,12 +51,6 @@ set visualbell t_vb=
 set noerrorbells
 " 行末までのヤンク
 nnoremap Y y$
-" + でインクリメント
-nnoremap + <C-a>
-vnoremap + <C-a>
-" - でデクリメント
-nnoremap - <C-x>
-vnoremap - <C-x>
 " esc escで検索のハイライトを消す
 noremap <ESC><ESC> :noh<CR>
 " 英語配列用
@@ -67,33 +60,22 @@ vnoremap; :
 vnoremap: ;
 " 空の行を挿入
 nnoremap O :<C-u>call append(expand('.'), '')<CR>j
-" 行末、行頭のエイリアス
-noremap <Leader>a ^
-noremap <Leader>e $
 " ヤンクの内容を消さない設定
 noremap PP "0p
 noremap x "_x
 " 分割エイリアス
-noremap <silent> V :vsplit<CR>
+noremap <silent> vs :vsplit<CR>
 noremap <silent> S :split<CR>
-noremap <silent> <Leader>v V<CR>
-" 日本語入力エイリアス
-nnoremap っd dd
-nnoremap っy yy
-nnoremap あ a
-nnoremap い i
-nnoremap う u
 " window移動
 noremap <C-d> <C-w>h
 noremap <C-h> <C-w>j
 noremap <C-t> <C-w>k
 noremap <C-n> <C-w>l
-if &compatible
-  set nocompatible               " Be iMproved
-endif
 
 syntax enable
 filetype plugin indent on
-let g:python3_host_prog='/usr/local/bin/python3'
-autocmd BufNewFile,BufRead *.tsx set filetype=typescript.tsx
-autocmd BufNewFile,BufRead *.jsx set filetype=javascript.jsx
+
+" Golang
+autocmd FileType go setlocal noexpandtab
+autocmd FileType go setlocal tabstop=4
+autocmd FileType go setlocal shiftwidth=4

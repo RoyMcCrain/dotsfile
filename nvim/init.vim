@@ -94,23 +94,20 @@ set foldmethod=syntax
 set foldlevelstart=99
 " neovim機能
 set winhl=Normal:Floating
-if &compatible
-  set nocompatible               " Be iMproved
-endif
 
-set runtimepath+=~/.cache/dein/repos/github.com/Shougo/dein.vim
+set runtimepath+=$HOME/.cache/dein/repos/github.com/Shougo/dein.vim
 
 " Required:
-if dein#load_state('~/.cache/dein')
-  call dein#begin('~/.cache/dein')
+if dein#load_state('$HOME/.cache/dein')
+  call dein#begin('$HOME/.cache/dein')
 
   " Let dein manage dein
   " Required:
-  call dein#add('~/.cache/dein/repos/github.com/Shougo/dein.vim')
+  call dein#add('$HOME/.cache/dein/repos/github.com/Shougo/dein.vim')
 
   " 管理するプラグインを記述したファイル
-  let s:toml = '~/.config/nvim/toml/dein.toml'
-  let s:lazy_toml = '~/.config/nvim/toml/dein_lazy.toml'
+  let s:toml = '$HOME/.config/nvim/toml/dein.toml'
+  let s:lazy_toml = '$HOME/.config/nvim/toml/dein_lazy.toml'
   call dein#load_toml(s:toml, {'lazy': 0})
   call dein#load_toml(s:lazy_toml, {'lazy': 1})
 
@@ -125,3 +122,8 @@ endif
 syntax enable
 filetype plugin indent on
 let g:python3_host_prog='/usr/bin/python3'
+
+" Golang
+autocmd FileType go setlocal noexpandtab
+autocmd FileType go setlocal tabstop=4
+autocmd FileType go setlocal shiftwidth=4
