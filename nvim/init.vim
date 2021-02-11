@@ -14,10 +14,10 @@ set hidden                        " bufferを切り替える時に保存して�
 set showcmd                       " 入力中のコマンド表示
 set nrformats-=octal              " 0で始まる数値を8進数として扱わないようにする
 if has("persistent_undo")
-  set undodir=~/.config/nvim/undo         " undoファイルのパス
+  set undodir=~/.config/nvim/undo " undoファイルのパス
   set undofile
 endif
-set directory=~/.config/nvim/swp/        " swpファイルのパス
+set noswapfile                    " swpファイルをつくらない
 set termguicolors                 " trueカラーを使う
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 set clipboard+=unnamedplus
