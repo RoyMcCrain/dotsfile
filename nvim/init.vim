@@ -54,14 +54,10 @@ set gdefault                            " 置換のgオプションをデフォ�
 set wildmenu                            " Tabによる自動補完を有効にする
 set wildmode=list:longest,full          " vimからファイルを開く時にtabを押すとリストを表示する
 set virtualedit=block                   " 文字のない所にカーソル移動できる
-set sh=zsh
 " windows設定
 set shellslash   "ディレクトリパスに/を使えるようにする
 " エンコーディングの設定
 set fileformats=unix,dos,mac
-" ビープ音
-set visualbell t_vb=
-set noerrorbells
 set maxfuncdepth=200
 " neovim
 tnoremap <silent> <C-[> <C-\><C-n>
