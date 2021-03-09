@@ -14,6 +14,7 @@ export PATH="$RBENV_ROOT/bin:$PATH"
 eval "$(rbenv init -)"
 # bundle
 alias be="bundle exec"
+alias bi="bundle install"
 # go
 export GOPATH=$(go env GOPATH)
 export PATH=$PATH:$GOPATH/bin
@@ -22,6 +23,8 @@ export PATH="$HOME/.nodenv/bin:$PATH"
 eval "$(nodenv init - --no-rehash)"
 # yarn
 alias y="yarn"
+alias yg="yarn global"
+alias yr="yarn run"
 export PATH="$(yarn global bin):$PATH"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
