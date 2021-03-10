@@ -123,3 +123,14 @@ let g:python3_host_prog='/usr/bin/python3'
 autocmd FileType go setlocal noexpandtab
 autocmd FileType go setlocal tabstop=4
 autocmd FileType go setlocal shiftwidth=4
+
+lua <<EOF
+require'nvim-treesitter.configs'.setup {
+  highlight = {
+    enable = true
+  },
+  indent = {
+    enable = true
+  }
+}
+EOF
