@@ -19,10 +19,31 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'morhetz/gruvbox'
+repo = 'mhartington/oceanic-next'
 hook_add = '''
-  colorscheme gruvbox
+  colorscheme OceanicNext
 '''
+
+#----------------------------------------------------------------#
+# Syntax Highlight
+#----------------------------------------------------------------#
+[[plugins]]
+repo = 'nvim-treesitter/nvim-treesitter'
+merged = 0
+hook_post_update = ':TSUpdate'
+hook_add = '''
+lua <<EOF
+  require'nvim-treesitter.configs'.setup {
+    highlight = {
+      enable = true,
+    },
+    indent = {
+      enable = true
+    }
+  }
+EOF
+'''
+
 
 #----------------------------------------------------------------------------------#
 # statusline拡張
@@ -237,7 +258,3 @@ hook_add = '''
   " 【ESC】 ターミナルモードから抜ける
   tnoremap <ESC><ESC>   <C-\><C-n>
 '''
-
-[[plugins]]
-repo = 'nvim-treesitter/nvim-treesitter'
-hook_post_update = ':TSUpdate'
