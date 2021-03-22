@@ -24,6 +24,26 @@ hook_add = '''
   colorscheme OceanicNext
 '''
 
+# #----------------------------------------------------------------#
+# # Syntax Highlight
+# #----------------------------------------------------------------#
+# [[plugins]]
+# repo = 'nvim-treesitter/nvim-treesitter'
+# merged = 0
+# hook_post_update = ':TSUpdate'
+# hook_add = '''
+# lua <<EOF
+#   require'nvim-treesitter.configs'.setup {
+#     highlight = {
+#       enable = true,
+#     },
+#     indent = {
+#       enable = true
+#     }
+#   }
+# EOF
+# '''
+
 #----------------------------------------------------------------------------------#
 # statusline拡張
 #----------------------------------------------------------------------------------#
@@ -225,20 +245,3 @@ repo = "tpope/vim-surround"
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'cohama/lexima.vim'
-
-#----------------------------------------------------------------------------------#
-# terminal拡張
-#----------------------------------------------------------------------------------#
-[[plugins]]
-repo = 'Shougo/deol.nvim'
-hook_add = '''
-  " 【spc + T】 float windowでターミナルを表示
-  nnoremap <silent><Leader>T :<C-u>Deol -split=floating<CR>
-  " 【ESC】 ターミナルモードから抜ける
-  tnoremap <ESC><ESC>   <C-\><C-n>
-'''
-
-[[plugins]]
-repo = 'nvim-treesitter/nvim-treesitter'
-merged = 0
-hook_post_update = ':TSUpdate'
