@@ -63,6 +63,10 @@ hook_source = '''
   let g:vim_markdown_folding_disabled = 1
 '''
 
+[[plugins]]
+repo = 'rust-lang/rust.vim'
+on_ft = ['rust']
+
 [[plugins]] # haskell
 repo = 'neovimhaskell/haskell-vim'
 on_ft = ['haskell']

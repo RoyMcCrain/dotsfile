@@ -8,10 +8,6 @@ export LANG=ja_JP.UTF-8
 export GIT_EDITOR=nvim
 export EDITOR=nvim
 export TERM=xterm-256color
-# rbenv
-export RBENV_ROOT="$HOME/.rbenv"
-export PATH="$RBENV_ROOT/bin:$PATH"
-eval "$(rbenv init -)"
 # bundle
 alias be="bundle exec"
 alias bi="bundle install"
@@ -19,15 +15,11 @@ alias rails="bundle exec rails"
 # go
 export GOPATH=$(go env GOPATH)
 export PATH=$PATH:$GOPATH/bin
-# nodenv
-export PATH="$HOME/.nodenv/bin:$PATH"
-eval "$(nodenv init - --no-rehash)"
 # yarn
 alias y="yarn"
 alias yg="yarn global"
 alias yr="yarn run"
 alias yui="yarn upgrade-interactive"
-export PATH="$(yarn global bin):$PATH"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
 # 色を使用出来るようにする
@@ -35,6 +27,8 @@ autoload -Uz colors
 colors
 # emacs 風キーバインドにする
 bindkey -e
+# asdf
+. $HOME/.asdf/asdf.sh
 
 # ヒストリの設定
 HISTFILE=~/.zsh_history
