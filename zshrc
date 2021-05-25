@@ -30,6 +30,7 @@ bindkey -e
 # asdf
 . $HOME/.asdf/asdf.sh
 
+
 # ヒストリの設定
 HISTFILE=~/.zsh_history
 HISTSIZE=1000000
@@ -167,15 +168,18 @@ case ${OSTYPE} in
         #Mac用の設定
         export CLICOLOR=1
         alias ls='ls -G -F'
+        export ZPLUG_HOME=/Users/roy/.zplug
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        export PATH="$HOME/.asdf/shims:$PATH"
         ;;
     linux*)
         #Linux用の設定
         alias ls='ls -F --color=auto'
+        export ZPLUG_HOME=/home/roy/.zplug
         ;;
 esac
 ########################################
 # zplug
-export ZPLUG_HOME=/home/roy/.zplug
 source $ZPLUG_HOME/init.zsh
 zplug "b4b4r07/enhancd", use:init.sh
 zplug "zsh-users/zsh-syntax-highlighting", defer:2
