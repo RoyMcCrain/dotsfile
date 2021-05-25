@@ -1,32 +1,32 @@
 #----------------------------------------------------------------#
 # Syntax Highlight
 #----------------------------------------------------------------#
-[[plugins]] # javascript全般
-repo = 'othree/yajs.vim'
-on_ft = ['javascript', 'javascriptreact']
-
-[[plugins]] # typescript
-repo = 'HerringtonDarkholme/yats.vim'
-on_ft = ['typescript', 'typescriptreact']
-
-[[plugins]] # jsx
-repo = 'maxmellon/vim-jsx-pretty'
-on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact']
-
-[[plugins]] # graphql
-repo = 'jparise/vim-graphql'
-on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'graphql']
-depends = ['yats.vim']
-
-[[plugins]] # css3
-repo = 'hail2u/vim-css3-syntax'
-on_ft = ['css', 'typescript', 'typescriptreact', 'javascript', 'javascriptreact']
-
-[[plugins]] # sass
-repo = 'cakebaker/scss-syntax.vim'
-on_ft = ['scss']
-depends = ['vim-css3-syntax']
-
+# [[plugins]] # javascript全般
+# repo = 'othree/yajs.vim'
+# on_ft = ['javascript', 'javascriptreact']
+# 
+# [[plugins]] # typescript
+# repo = 'HerringtonDarkholme/yats.vim'
+# on_ft = ['typescript', 'typescriptreact']
+# 
+# [[plugins]] # jsx
+# repo = 'maxmellon/vim-jsx-pretty'
+# on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact']
+# 
+# [[plugins]] # graphql
+# repo = 'jparise/vim-graphql'
+# on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'graphql']
+# depends = ['yats.vim']
+# 
+# [[plugins]] # css3
+# repo = 'hail2u/vim-css3-syntax'
+# on_ft = ['css', 'typescript', 'typescriptreact', 'javascript', 'javascriptreact']
+# 
+# [[plugins]] # sass
+# repo = 'cakebaker/scss-syntax.vim'
+# on_ft = ['scss']
+# depends = ['vim-css3-syntax']
+# 
 [[plugins]] # css in js
 repo = 'styled-components/vim-styled-components'
 # https://github.com/styled-components/vim-styled-components/pull/80
@@ -34,54 +34,54 @@ repo = 'styled-components/vim-styled-components'
 rev = 'develop'
 on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact']
 
-[[plugins]] # node
-repo = 'moll/vim-node'
-on_ft = ['javascript']
-
-[[plugins]] # toml
-repo = 'cespare/vim-toml'
-on_ft = ['toml']
-
-[[plugins]] # json
-repo = 'elzr/vim-json'
-on_ft = ['json']
-
-[[plugins]] # elm
-repo = 'andys8/vim-elm-syntax'
-on_ft = ['elm']
-
-[[plugins]] # markdown
-repo = 'godlygeek/tabular'
-on_ft = ['markdown']
-depends = ['vim-markdown']
-
-[[plugins]] # markdown
-repo = 'plasticboy/vim-markdown'
-on_ft = ['markdown']
-hook_source = '''
-  autocmd BufNewFile,BufReadPost *.md set filetype=markdown
-  let g:vim_markdown_folding_disabled = 1
-'''
-
-[[plugins]]
-repo = 'rust-lang/rust.vim'
-on_ft = ['rust']
-
-[[plugins]] # haskell
-repo = 'neovimhaskell/haskell-vim'
-on_ft = ['haskell']
-
-[[plugins]] # ruby
-repo = 'vim-ruby/vim-ruby'
-on_ft = ['ruby']
-
-[[plugins]] # html
-repo = 'othree/html5.vim'
-on_ft = ['html']
-
-[[plugins]] # dockerfile
-repo = 'ekalinin/Dockerfile.vim'
-on_ft = ['dockerfile']
+# [[plugins]] # node
+# repo = 'moll/vim-node'
+# on_ft = ['javascript']
+# 
+# [[plugins]] # toml
+# repo = 'cespare/vim-toml'
+# on_ft = ['toml']
+# 
+# [[plugins]] # json
+# repo = 'elzr/vim-json'
+# on_ft = ['json']
+# 
+# [[plugins]] # elm
+# repo = 'andys8/vim-elm-syntax'
+# on_ft = ['elm']
+# 
+# [[plugins]] # markdown
+# repo = 'godlygeek/tabular'
+# on_ft = ['markdown']
+# depends = ['vim-markdown']
+# 
+# [[plugins]] # markdown
+# repo = 'plasticboy/vim-markdown'
+# on_ft = ['markdown']
+# hook_source = '''
+#   autocmd BufNewFile,BufReadPost *.md set filetype=markdown
+#   let g:vim_markdown_folding_disabled = 1
+# '''
+# 
+# [[plugins]]
+# repo = 'rust-lang/rust.vim'
+# on_ft = ['rust']
+# 
+# [[plugins]] # haskell
+# repo = 'neovimhaskell/haskell-vim'
+# on_ft = ['haskell']
+# 
+# [[plugins]] # ruby
+# repo = 'vim-ruby/vim-ruby'
+# on_ft = ['ruby']
+# 
+# [[plugins]] # html
+# repo = 'othree/html5.vim'
+# on_ft = ['html']
+# 
+# [[plugins]] # dockerfile
+# repo = 'ekalinin/Dockerfile.vim'
+# on_ft = ['dockerfile']
 
 #----------------------------------------------------------------#
 # Config for each Lang
