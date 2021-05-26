@@ -29,7 +29,12 @@ colors
 bindkey -e
 # asdf
 . $HOME/.asdf/asdf.sh
-
+# docker alias
+alias d="docker"
+alias dc="docker container"
+alias di="docker image"
+alias dv="docker volume"
+alias dn="docker network"
 
 # ヒストリの設定
 HISTFILE=~/.zsh_history
