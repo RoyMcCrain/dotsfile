@@ -90,6 +90,8 @@ set foldmethod=syntax
 set foldlevelstart=99
 " neovim機能
 set winhl=Normal:Floating
+" githubのtokenを読み込む
+source <sfile>:h/token.vim
 
 set runtimepath+=$HOME/.cache/dein/repos/github.com/Shougo/dein.vim
 
@@ -111,8 +113,6 @@ if dein#load_state('$HOME/.cache/dein')
   call dein#save_state()
   " vimrcやtomlを修正したら自動でアンスコする
   let g:dein#auto_recache = 1
-  " githubのtokenを読み込む
-  source <sfile>:h/token.vim
 endif
 
 syntax enable

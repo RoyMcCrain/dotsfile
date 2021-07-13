@@ -175,7 +175,6 @@ case ${OSTYPE} in
         alias ls='ls -G -F'
         export ZPLUG_HOME=/Users/roy/.zplug
         eval "$(/opt/homebrew/bin/brew shellenv)"
-        export PATH="$HOME/.asdf/shims:$PATH"
         ;;
     linux*)
         #Linux用の設定
