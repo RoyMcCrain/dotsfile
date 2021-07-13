@@ -179,6 +179,7 @@ case ${OSTYPE} in
     linux*)
         #Linux用の設定
         alias ls='ls -F --color=auto'
+        alias open="xdg-open"
         export ZPLUG_HOME=/home/roy/.zplug
         ;;
 esac
