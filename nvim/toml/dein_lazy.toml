@@ -29,13 +29,3 @@ hook_source = '''
 repo = 'mattn/vim-goimports'
 on_ft = ['go']
 
-#----------------------------------------------------------------#
-# for Haskell
-#----------------------------------------------------------------#
-[[plugins]] # haskell indent
-repo = 'nbouscal/vim-stylish-haskell'
-on_ft = ['haskell']
-
-[[plugins]] # haskell use :h hoogle
-repo = 'Twinside/vim-hoogle'
-on_ft = ['haskell']

@@ -20,6 +20,7 @@ alias y="yarn"
 alias yg="yarn global"
 alias yr="yarn run"
 alias yui="yarn upgrade-interactive"
+alias sortp="npx sort-package-json"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
 # 色を使用出来るようにする
@@ -211,10 +212,10 @@ function ghq-fzf() {
 zle -N ghq-fzf
 bindkey '^H' ghq-fzf
 
+export PATH="/usr/local/opt/python@3.8/bin:$PATH"
+
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/path.zsh.inc'; fi
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi
-
-export PATH="/usr/local/opt/python@3.8/bin:$PATH"

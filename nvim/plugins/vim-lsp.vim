@@ -1,3 +1,20 @@
+" haskell 設定
+let g:lsp_log_verbose = 0
+let g:lsp_log_file = expand('~/vim-lsp.log')
+
+if executable('haskell-language-server-wrapper')
+    au User lsp_setup call lsp#register_server({
+        \ 'name': 'hls',
+        \ 'cmd': {server_info->['haskell-language-server-wrapper', '--lsp']},
+        \ 'root_uri':{server_info->lsp#utils#path_to_uri(
+        \     lsp#utils#find_nearest_parent_file_directory(
+        \         lsp#utils#get_buffer_path(),
+        \         ['.cabal', 'stack.yaml', 'cabal.project', 'package.yaml', 'hie.yaml', '.git'],
+        \     ))},
+        \ 'whitelist': ['haskell', 'lhaskell'],
+        \ })
+endif
+
 autocmd BufWritePre * LspDocumentFormatSync
 let g:lsp_signs_hint = {'text': '!'}
 

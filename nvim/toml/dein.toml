@@ -77,11 +77,13 @@ hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
 # repo = 'neovim/nvim-lsp'
 
 [[plugins]]
+repo = 'mattn/vim-lsp-icons'
+
+[[plugins]]
 repo = 'mattn/vim-lsp-settings'
 merged = 0
 hook_add = '''
   let g:lsp_settings = {
-  \  'solargraph': {'disabled': v:true},
   \  'css-languageserver': {
   \    'workspace_config': {
   \      'css': {
@@ -116,10 +118,14 @@ hook_add = '''
   \   'ruby': ['rubocop'],
   \   'typescript': ['eslint'],
   \   'javascript': ['eslint'],
+  \   'svelte': ['eslint'],
   \   'css': ['stylelint'],
   \   'scss': ['stylelint'],
   \   'sass': ['stylelint'],
   \   'less': ['stylelint'],
+  \}
+  let g:ale_linter_aliases = {
+  \   'svelte': ['svelte', 'typescript'],
   \}
 '''
 
