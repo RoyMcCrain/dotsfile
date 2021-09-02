@@ -32,10 +32,7 @@ bindkey -e
 . $HOME/.asdf/asdf.sh
 # docker alias
 alias d="docker"
-alias dc="docker container"
-alias di="docker image"
-alias dv="docker volume"
-alias dn="docker network"
+alias dc="docker-compose"
 
 # ヒストリの設定
 HISTFILE=~/.zsh_history
