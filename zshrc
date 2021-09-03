@@ -18,6 +18,8 @@ export PATH=$PATH:$GOPATH/bin
 # yarn
 alias y="yarn"
 alias yg="yarn global"
+alias yw="yarn workspace"
+alias yws="yarn workspaces"
 alias yr="yarn run"
 alias yui="yarn upgrade-interactive"
 alias sortp="npx sort-package-json"
