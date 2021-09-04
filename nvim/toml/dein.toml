@@ -51,30 +51,46 @@ EOF
 repo = 'itchyny/lightline.vim'
 hook_add = 'source ~/.config/nvim/plugins/lightline.vim'
 
+
+#----------------------------------------------------------------------------------#
+# Denops
+#----------------------------------------------------------------------------------#
+
+[[plugins]]
+repo = 'vim-denops/denops.vim'
+
 #----------------------------------------------------------------------------------#
 # 非同期検証ツール
 #----------------------------------------------------------------------------------#
 
 [[plugins]]
-repo = 'Shougo/deoplete.nvim'
-hook_add = '''
-  let g:deoplete#enable_at_startup = 1
-'''
+repo = 'Shougo/ddc.vim'
+hook_add = 'source ~/.config/nvim/plugins/ddc.vim'
+depends = ['denops.vim']
 
 [[plugins]]
-repo = 'tbodt/deoplete-tabnine'
-build = './install.sh'
-depends = ['deoplete.nvim']
-hook_add = '''
-  call deoplete#custom#source('tabnine', 'rank', 50)
-'''
+repo = 'matsui54/ddc-matcher_fuzzy'
+depends = ['ddc.vim']
+
+[[plugins]]
+repo = 'Shougo/ddc-sorter_rank'
+depends = ['ddc.vim']
+
+[[plugins]]
+repo = 'shun/ddc-vim-lsp'
+depends = ['ddc.vim']
+
+[[plugins]]
+repo = 'matsui54/ddc-buffer'
+depends = ['ddc.vim']
+
+[[plugins]]
+repo = 'Shougo/ddc-converter_remove_overlap'
+depends = ['ddc.vim']
 
 [[plugins]]
 repo = 'prabirshrestha/vim-lsp'
 hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
-
-# [[plugins]]
-# repo = 'neovim/nvim-lsp'
 
 [[plugins]]
 repo = 'mattn/vim-lsp-icons'
@@ -99,14 +115,6 @@ hook_add = '''
   \  }
   \}
 '''
-
-[[plugins]]
-repo = 'lighttiger2505/deoplete-vim-lsp'
-depends = ['deoplete.nvim', 'vim-lsp']
-
-[[plugins]]
-repo = "deoplete-plugins/deoplete-zsh"
-depends = ['deoplete.nvim']
 
 [[plugins]]
 repo = 'dense-analysis/ale'
