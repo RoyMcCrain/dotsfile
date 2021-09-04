@@ -1,8 +1,6 @@
 call ddc#custom#patch_global('sources', ['ddc-vim-lsp','buffer'])
 call ddc#custom#patch_global('sourceOptions', {
     \ 'ddc-vim-lsp': {
-    \   'matchers': ['matcher_fuzzy'],
-    \   'sorters': ['sorter_rank'],
     \   'mark': 'LSP',
     \ },
     \ 'buffer': {'mark': 'buffer'},
