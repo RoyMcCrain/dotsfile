@@ -1,7 +1,12 @@
-call ddc#custom#patch_global('sources', ['ddc-vim-lsp','buffer'])
+call ddc#custom#patch_global('sources', [ 'tabnine','ddc-vim-lsp','buffer'])
 call ddc#custom#patch_global('sourceOptions', {
     \ 'ddc-vim-lsp': {
     \   'mark': 'LSP',
+    \ },
+    \ 'tabnine': {
+    \   'mark': 'TabNine',
+    \   'isVolatile': v:true,
+    \   'maxNumResults': 2,
     \ },
     \ 'buffer': {'mark': 'buffer'},
     \ '_': {
