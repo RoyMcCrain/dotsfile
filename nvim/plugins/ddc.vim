@@ -6,7 +6,7 @@ call ddc#custom#patch_global('sourceOptions', {
     \ 'tabnine': {
     \   'mark': 'TabNine',
     \   'isVolatile': v:true,
-    \   'maxCandidates': 5,
+    \   'maxCandidates': 2,
     \ },
     \ 'buffer': {'mark': 'buffer'},
     \ '_': {

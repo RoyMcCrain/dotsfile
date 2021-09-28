@@ -93,6 +93,9 @@ set winhl=Normal:Floating
 " githubのtokenを読み込む
 source <sfile>:h/token.vim
 
+" ctrl-spaceで日本語切り替えなのでvimの動作を止める
+imap <C-space> <Nop>
+
 set runtimepath+=$HOME/.cache/dein/repos/github.com/Shougo/dein.vim
 
 " Required:
