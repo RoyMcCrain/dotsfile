@@ -192,11 +192,11 @@ hook_post_update = 'call clap#installer#force_download()' # vim-clapのインス
 # gitツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = "tpope/vim-fugitive"
+repo = 'tpope/vim-fugitive'
 hook_add = 'source ~/.config/nvim/plugins/vim-fugitive.vim'
 
 [[plugins]] # github
-repo = "tpope/vim-rhubarb"
+repo = 'tpope/vim-rhubarb'
 depends = ['vim-fugitive']
 
 [[plugins]]
@@ -251,7 +251,7 @@ repo = 'tpope/vim-abolish'
 # cru "upper_case" → "UPPER_CASE"
 
 [[plugins]]
-repo = "tpope/vim-surround"
+repo = 'tpope/vim-surround'
 # [e] 囲いの文字
 # [d] 目的の文字
 # ds [e] delete surround
