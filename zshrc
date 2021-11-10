@@ -12,9 +12,6 @@ export TERM=xterm-256color
 alias be="bundle exec"
 alias bi="bundle install"
 alias rails="bundle exec rails"
-# go
-export GOPATH=$(go env GOPATH)
-export PATH=$PATH:$GOPATH/bin
 # yarn
 alias y="yarn"
 alias yg="yarn global"
@@ -32,6 +29,8 @@ colors
 bindkey -e
 # asdf
 . $HOME/.asdf/asdf.sh
+# append completions to fpath
+fpath=(${ASDF_DIR}/completions $fpath)
 # docker alias
 alias d="docker"
 alias dc="docker-compose"
