@@ -44,7 +44,7 @@ SAVEHIST=1000000
 # 1行表示
 # PROMPT="%~ %# "
 # 2行表示
-PROMPT="%F{163}λ %f "
+PROMPT="%F{163}λ%f "
 
 # 単語の区切り文字を指定する
 autoload -Uz select-word-style
@@ -209,8 +209,6 @@ function ghq-fzf() {
 }
 zle -N ghq-fzf
 bindkey '^H' ghq-fzf
-
-export PATH="/usr/local/opt/python@3.8/bin:$PATH"
 
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/path.zsh.inc'; fi
