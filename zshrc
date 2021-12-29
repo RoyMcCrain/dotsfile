@@ -1,5 +1,3 @@
-# http://mollifier.mit-license.org/
-
 ########################################
 # 環境変数
 # pipの設定
@@ -12,9 +10,8 @@ export TERM=xterm-256color
 alias be="bundle exec"
 alias bi="bundle install"
 alias rails="bundle exec rails"
-# go
-export GOPATH=$(go env GOPATH)
-export PATH=$PATH:$GOPATH/bin
+alias rails-s="bundle exec rails s -p 3001"
+alias rspec="bundle exec rspec"
 # yarn
 alias y="yarn"
 alias yg="yarn global"
@@ -210,8 +207,6 @@ function ghq-fzf() {
 }
 zle -N ghq-fzf
 bindkey '^H' ghq-fzf
-
-export PATH="/usr/local/opt/python@3.8/bin:$PATH"
 
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/path.zsh.inc'; fi
