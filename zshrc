@@ -29,6 +29,8 @@ colors
 bindkey -e
 # asdf
 . $HOME/.asdf/asdf.sh
+# append completions to fpath
+fpath=(${ASDF_DIR}/completions $fpath)
 # docker alias
 alias d="docker"
 alias dc="docker-compose"
@@ -42,7 +44,7 @@ SAVEHIST=1000000
 # 1行表示
 # PROMPT="%~ %# "
 # 2行表示
-PROMPT="%F{163}λ %f "
+PROMPT="%F{163}λ%f "
 
 # 単語の区切り文字を指定する
 autoload -Uz select-word-style
