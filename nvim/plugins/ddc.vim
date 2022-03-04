@@ -1,6 +1,7 @@
 call ddc#custom#patch_global('sources', [ 'tabnine','vim-lsp','buffer'])
 call ddc#custom#patch_global('sourceOptions', {
     \ 'vim-lsp': {
+    \   'matchers': ['matcher_head'],
     \   'mark': 'LSP',
     \ },
     \ 'tabnine': {
@@ -25,3 +26,4 @@ call ddc#custom#patch_global('filterParams', {
     \ })
 
 call ddc#enable()
+

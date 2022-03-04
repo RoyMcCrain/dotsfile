@@ -69,6 +69,10 @@ hook_add = 'source ~/.config/nvim/plugins/ddc.vim'
 depends = ['denops.vim']
 
 [[plugins]]
+repo = 'Shougo/ddc-matcher_head'
+depends = ['ddc.vim']
+
+[[plugins]]
 repo = 'matsui54/ddc-matcher_fuzzy'
 depends = ['ddc.vim']
 
