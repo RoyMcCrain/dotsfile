@@ -26,4 +26,3 @@ call ddc#custom#patch_global('filterParams', {
     \ })
 
 call ddc#enable()
-

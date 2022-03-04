@@ -96,6 +96,10 @@ source <sfile>:h/token.vim
 " ctrl-spaceで日本語切り替えなのでvimの動作を止める
 imap <C-space> <Nop>
 
+" wrapをsetする
+noremap <silent> W :set wrap<CR>
+noremap <silent> WW :set nowrap<CR>
+
 set runtimepath+=$HOME/.cache/dein/repos/github.com/Shougo/dein.vim
 
 " Required:
