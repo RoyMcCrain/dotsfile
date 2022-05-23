@@ -180,6 +180,8 @@ case ${OSTYPE} in
         alias ls='ls -F --color=auto'
         alias open="xdg-open"
         export ZPLUG_HOME=/home/roy/.zplug
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        alias brew="env PATH=${PATH/\/home\/roy\/.asdf\/shims:/} brew"
         ;;
 esac
 ########################################
