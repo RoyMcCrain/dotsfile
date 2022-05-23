@@ -2,7 +2,7 @@ let g:lightline = {
   \ 'colorscheme': 'material',
   \ 'component_function': {
   \   'filename': 'LightlineFilename',
-  \   'gitbranch': 'fugitive#head',
+  "\   'gitbranch': 'FugitiveHead',
   \   'lspstatus': 'lsp#get_server_status',
   \ },
   \ 'active': {
