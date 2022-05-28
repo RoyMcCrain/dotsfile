@@ -19,9 +19,9 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'mhartington/oceanic-next'
+repo = 'rebelot/kanagawa.nvim'
 hook_add = '''
-  colorscheme OceanicNext
+  colorscheme kanagawa
 '''
 
 #----------------------------------------------------------------#
