@@ -60,12 +60,12 @@ set shellslash   "ディレクトリパスに/を使えるようにする
 set fileformats=unix,dos,mac
 set maxfuncdepth=200
 " neovim
+" <C-[>でterminalモードから抜ける
 tnoremap <silent> <C-[> <C-\><C-n>
 " 行末までのヤンク
 nnoremap Y y$
-" <C-[>でterminalモードから抜ける
-" esc escで検索のハイライトを消す
-noremap <ESC><ESC> :noh<CR>
+" NNで検索のハイライトを消す
+noremap NN :noh<CR>
 " 英語配列用
 noremap; :
 noremap: ;
