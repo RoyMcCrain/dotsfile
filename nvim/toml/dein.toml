@@ -30,7 +30,7 @@ hook_add = '''
 [[plugins]]
 repo = 'nvim-treesitter/nvim-treesitter'
 merged = 0
-hook_post_update = ':TSUpdate'
+hook_post_update = 'TSUpdate'
 hook_add = '''
 lua <<EOF
   require'nvim-treesitter.configs'.setup {

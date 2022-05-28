@@ -31,7 +31,7 @@ set showmatch                       " 閉じ括弧が入力されたとき、対
 set matchtime=1                     " マッチしている括弧を表示するための時間を0.1秒単位で指定する
 set number                          " 毎行の前に行番号を表示する
 set list                            " 不可視文字を表示する
-set listchars=trail:-,extends:»,precedes:«,nbsp:%,eol:⏎
+set listchars=trail:-,extends:»,precedes:«,nbsp:%,eol:↲
 set display=lastline                " テキスト表示の方法を変える(長いテキストを省略せず最後まで表示する)
 set laststatus=2                    " 最下ウィンドウにステータス行を常に表示する
 " Indent
