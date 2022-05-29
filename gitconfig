@@ -27,4 +27,4 @@
 [init]
   defaultBranch = main
 [pull]
-	rebase = false
+  rebase = false
