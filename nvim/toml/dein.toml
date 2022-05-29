@@ -1,18 +1,21 @@
 #----------------------------------------------------------------------------------#
 # 必須
 #----------------------------------------------------------------------------------#
-[[plugins]] # deinで必須
+[[plugins]]
+# deinで必須
 repo = 'Shougo/vimproc.vim'
 build = 'make'
 
 #----------------------------------------------------------------------------------#
 # toml管理で便利
 #----------------------------------------------------------------------------------#
-[[plugins]] # カーソル位置のコンテキストに合わせてftを切り替える
+[[plugins]]
+# カーソル位置のコンテキストに合わせてftを切り替える
 repo = 'osyo-manga/vim-precious'
-depends = ['context_filetype.vim']
+on_source = 'context_filetype.vim'
 
-[[plugins]] # カーソル位置のコンテキストのftを判定するライブラリ
+[[plugins]]
+# カーソル位置のコンテキストのftを判定するライブラリ
 repo = 'Shougo/context_filetype.vim'
 
 #----------------------------------------------------------------------------------#
@@ -31,50 +34,12 @@ hook_add = '''
 repo = 'itchyny/lightline.vim'
 hook_add = 'source ~/.config/nvim/plugins/lightline.vim'
 
-
 #----------------------------------------------------------------------------------#
 # Denops
 #----------------------------------------------------------------------------------#
 
 [[plugins]]
 repo = 'vim-denops/denops.vim'
-
-#----------------------------------------------------------------------------------#
-# 非同期検証ツール
-#----------------------------------------------------------------------------------#
-
-[[plugins]]
-repo = 'Shougo/ddc.vim'
-hook_add = 'source ~/.config/nvim/plugins/ddc.vim'
-depends = ['denops.vim']
-
-[[plugins]]
-repo = 'Shougo/ddc-matcher_head'
-depends = ['ddc.vim']
-
-[[plugins]]
-repo = 'matsui54/ddc-matcher_fuzzy'
-depends = ['ddc.vim']
-
-[[plugins]]
-repo = 'Shougo/ddc-sorter_rank'
-depends = ['ddc.vim']
-
-[[plugins]]
-repo = 'shun/ddc-vim-lsp'
-depends = ['ddc.vim']
-
-[[plugins]]
-repo = 'matsui54/ddc-buffer'
-depends = ['ddc.vim']
-
-[[plugins]]
-repo = 'Shougo/ddc-converter_remove_overlap'
-depends = ['ddc.vim']
-
-[[plugins]]
-repo = 'LumaKernel/ddc-tabnine'
-depends = ['ddc.vim']
 
 [[plugins]]
 repo = 'prabirshrestha/vim-lsp'
@@ -148,11 +113,11 @@ repo = 'delphinus/vim-denite-node-modules'
 
 [[plugins]]
 repo = 'Shougo/neoyank.vim'
-depends = ['denite.nvim']
+on_source = 'denite.nvim'
 
 [[plugins]]
 repo = 'Shougo/neomru.vim'
-depends = ['denite.nvim']
+on_source = 'denite.nvim'
 
 [[plugins]]
 repo = 'Shougo/defx.nvim'
@@ -160,12 +125,11 @@ hook_add = 'source ~/.config/nvim/plugins/defx.vim'
 
 [[plugins]]
 repo = 'kristijanhusak/defx-git'
-depends = ['defx.nvim']
+on_source = 'denite.nvim'
 
 #----------------------------------------------------------------------------------#
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
-
 [[plugins]]
 repo = 'liuchengxu/vim-clap'
 on_cmd = 'Clap' # Clapコマンドが実行されるまで読み込みを遅延する
@@ -179,7 +143,8 @@ hook_post_update = 'call clap#installer#force_download()' # vim-clapのインス
 repo = 'tpope/vim-fugitive'
 hook_add = 'source ~/.config/nvim/plugins/vim-fugitive.vim'
 
-[[plugins]] # github
+[[plugins]]
+# github
 repo = 'tpope/vim-rhubarb'
 depends = ['vim-fugitive']
 
@@ -192,7 +157,6 @@ depends = ['denite.nvim']
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'tyru/caw.vim'
-on_i = 1
 hook_add = '''
   " 行の最初の文字の前にコメント文字をトグル
   nmap <Leader>z <Plug>(caw:hatpos:toggle)
@@ -205,7 +169,8 @@ hook_add = '''
 #----------------------------------------------------------------------------------#
 # 移動補完
 #----------------------------------------------------------------------------------#
-[[plugins]] # vimの移動コマンド拡張
+[[plugins]]
+# vimの移動コマンド拡張
 repo = 'easymotion/vim-easymotion'
 hook_add = '''
   " Disable default mappings
