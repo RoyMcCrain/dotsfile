@@ -39,7 +39,6 @@ set softtabstop=2       " <Tab>キーを押した際に挿入されるスペー�
 set shiftwidth=2        " (自動)インデントの各段階に使われる空白の数
 set smartindent         " 新しい行を作ったときに高度な自動インデントを行う(ex. '{'で終わる行で新しい行を作った時は改行)"
 set expandtab           " 挿入モードで <Tab> を挿入するとき、代わりに適切な数の空白を使う
-set ambiwidth=double    " 文脈によって解釈が異なる全角文字の幅を、2に固定する
 set smarttab            " 新しい行を作った時に高度なインデントを行う
 " search
 set hlsearch                      " 検索語句のハイライト
