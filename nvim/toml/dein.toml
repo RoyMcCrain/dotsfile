@@ -105,28 +105,53 @@ hook_add = '''
 #----------------------------------------------------------------------------------#
 # ファイルブラウザ補助
 #----------------------------------------------------------------------------------#
-[[plugins]]
-repo = 'Shougo/denite.nvim'
-hook_add = 'source ~/.config/nvim/plugins/denite.vim'
+# [[plugins]]
+# repo = 'Shougo/denite.nvim'
+# hook_add = 'source ~/.config/nvim/plugins/denite.vim'
+# 
+# [[plugins]]
+# repo = 'delphinus/vim-denite-node-modules'
+# 
+# [[plugins]]
+# repo = 'Shougo/neoyank.vim'
+# on_source = 'denite.nvim'
+# 
+# [[plugins]]
+# repo = 'Shougo/neomru.vim'
+# on_source = 'denite.nvim'
+# 
+# [[plugins]]
+# repo = 'Shougo/defx.nvim'
+# hook_add = 'source ~/.config/nvim/plugins/defx.vim'
+# 
+# [[plugins]]
+# repo = 'kristijanhusak/defx-git'
+# on_source = 'denite.nvim'
 
 [[plugins]]
-repo = 'delphinus/vim-denite-node-modules'
+repo = 'Shougo/ddu.vim'
+hook_add = 'source ~/.config/nvim/plugins/ddu.vim'
 
 [[plugins]]
-repo = 'Shougo/neoyank.vim'
-on_source = 'denite.nvim'
+repo = 'Shougo/ddu-ui-filer'
+on_source = 'ddu.vim'
 
 [[plugins]]
-repo = 'Shougo/neomru.vim'
-on_source = 'denite.nvim'
+repo = 'Shougo/ddu-source-file'
+on_source = 'ddu.vim'
 
 [[plugins]]
-repo = 'Shougo/defx.nvim'
-hook_add = 'source ~/.config/nvim/plugins/defx.vim'
+repo = 'Shougo/ddu-source-file_rec'
+on_source = 'ddu.vim'
 
 [[plugins]]
-repo = 'kristijanhusak/defx-git'
-on_source = 'denite.nvim'
+repo = 'Shougo/ddu-kind-file'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'Shougo/ddu-column-filename'
+on_source = 'ddu.vim'
+
 
 #----------------------------------------------------------------------------------#
 # 高速検索ツール
