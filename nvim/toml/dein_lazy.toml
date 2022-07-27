@@ -46,7 +46,12 @@ hook_post_update = 'TSUpdate'
 hook_source = '''
 lua << EOF
   require'nvim-treesitter.configs'.setup {
-    ensure_installed = 'maintained',
+    ensure_installed = { "bash", "c", "c_sharp", "clojure", "cpp", "css", "dockerfile", "elixir",
+      "erlang", "go", "gomod", "graphql", "haskell", "html", "http", "java", "javascript",
+      "jsdoc", "json", "lua", "make", "markdown", "markdown_inline", "python", "ruby",
+      "rust", "scala", "scss", "svelte", "sql", "toml", "tsx", "typescript", "vim", 
+      "vue", "yaml", "zig",
+    },
     highlight = {
       enable = true,
     }
