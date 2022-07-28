@@ -76,8 +76,8 @@ noremap PP "0p
 noremap x "_x
 
 " 分割エイリアス
-noremap <silent> vs :vsplit<CR>
-noremap <silent> S :split<CR>
+noremap <silent> vs <Cmd>vsplit<CR>
+noremap <silent> S <Cmd>split<CR>
 " window移動
 noremap <C-d> <C-w>h
 noremap <C-h> <C-w>j
@@ -95,8 +95,8 @@ source <sfile>:h/token.vim
 imap <C-space> <Nop>
 
 " wrapをsetする
-noremap <silent> W :set wrap<CR>
-noremap <silent> WW :set nowrap<CR>
+noremap <silent> W <Cmd>set wrap<CR>
+noremap <silent> WW <Cmd>set nowrap<CR>
 
 set runtimepath+=$HOME/.cache/dein/repos/github.com/Shougo/dein.vim
 
