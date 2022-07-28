@@ -22,9 +22,9 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'rebelot/kanagawa.nvim'
+repo = 'folke/tokyonight.nvim'
 hook_add = '''
-  colorscheme kanagawa
+  colorscheme tokyonight
 '''
 
 #----------------------------------------------------------------------------------#
