@@ -32,6 +32,9 @@ call ddu#custom#patch_global({
     \     'ff': {
     \       'startFilter': v:true,
     \       'prompt': 'λ ',
+    \       'split': 'floating',
+    \       'autoResize': v:true,
+    \       'previewHeight': 50,
     \     },
     \   },
     \ })
@@ -76,7 +79,7 @@ function! s:ddu_my_ff_settings() abort
   nnoremap <buffer><silent> p
     \ <Cmd>call ddu#ui#ff#do_action('preview')<CR>
 
-  nnoremap <buffer><silent> <Esc><Esc>
+  nnoremap <buffer><silent> <Esc>
     \ <Cmd>call ddu#ui#ff#do_action('quit')<CR>
 endfunction
 
@@ -86,5 +89,8 @@ function! s:ddu_filter_my_settings() abort
     \ <Esc><Cmd>call ddu#ui#ff#close()<CR>
 
   nnoremap <buffer> <CR>
+    \ <Cmd><Cmd>call ddu#ui#ff#close()<CR>
+
+  nnoremap <buffer> <Esc>
     \ <Cmd><Cmd>call ddu#ui#ff#close()<CR>
 endfunction

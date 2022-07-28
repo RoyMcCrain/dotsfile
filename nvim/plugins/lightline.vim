@@ -25,4 +25,4 @@ function! LightlineFilename()
   return expand('%')
 endfunction
 
-set laststatus=2
+set laststatus=3
