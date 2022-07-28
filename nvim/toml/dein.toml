@@ -105,43 +105,23 @@ hook_add = '''
 #----------------------------------------------------------------------------------#
 # ファイルブラウザ補助
 #----------------------------------------------------------------------------------#
-# [[plugins]]
-# repo = 'Shougo/denite.nvim'
-# hook_add = 'source ~/.config/nvim/plugins/denite.vim'
-# 
-# [[plugins]]
-# repo = 'delphinus/vim-denite-node-modules'
-# 
-# [[plugins]]
-# repo = 'Shougo/neoyank.vim'
-# on_source = 'denite.nvim'
-# 
-# [[plugins]]
-# repo = 'Shougo/neomru.vim'
-# on_source = 'denite.nvim'
-# 
-# [[plugins]]
-# repo = 'Shougo/defx.nvim'
-# hook_add = 'source ~/.config/nvim/plugins/defx.vim'
-# 
-# [[plugins]]
-# repo = 'kristijanhusak/defx-git'
-# on_source = 'denite.nvim'
+[[plugins]]
+repo = 'lambdalisue/fern.vim'
+hook_add = 'source ~/.config/nvim/plugins/fern.vim'
 
+[[plugins]]
+repo = 'lambdalisue/fern-git-status.vim'
+on_source = 'fern.vim'
+
+#----------------------------------------------------------------------------------#
+# 高速検索ツール
+#----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'Shougo/ddu.vim'
 hook_add = 'source ~/.config/nvim/plugins/ddu.vim'
 
 [[plugins]]
-repo = 'Shougo/ddu-ui-filer'
-on_source = 'ddu.vim'
-
-[[plugins]]
 repo = 'Shougo/ddu-ui-ff'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'Shougo/ddu-source-file'
 on_source = 'ddu.vim'
 
 [[plugins]]
@@ -153,27 +133,12 @@ repo = 'Shougo/ddu-kind-file'
 on_source = 'ddu.vim'
 
 [[plugins]]
-repo = 'Shougo/ddu-column-filename'
-on_source = 'ddu.vim'
-
-[[plugins]]
 repo = 'Shougo/ddu-filter-matcher_substring'
 on_source = 'ddu.vim'
 
 [[plugins]]
 repo = 'shun/ddu-source-rg'
 on_source = 'ddu.vim'
-
-
-
-#----------------------------------------------------------------------------------#
-# 高速検索ツール
-#----------------------------------------------------------------------------------#
-[[plugins]]
-repo = 'liuchengxu/vim-clap'
-on_cmd = 'Clap' # Clapコマンドが実行されるまで読み込みを遅延する
-on_func = 'clap#installer#force_download()' # clap#installer#force_download()関数が実行されるまで読み込みを遅延する
-hook_post_update = 'call clap#installer#force_download()' # vim-clapのインストール/アップデート後、clap#installer#force_download()を実行する
 
 #----------------------------------------------------------------------------------#
 # gitツール
@@ -186,10 +151,6 @@ hook_add = 'source ~/.config/nvim/plugins/vim-fugitive.vim'
 # github
 repo = 'tpope/vim-rhubarb'
 depends = ['vim-fugitive']
-
-[[plugins]]
-repo = 'neoclide/denite-git'
-depends = ['denite.nvim']
 
 #----------------------------------------------------------------------------------#
 # コメントアウト補助
