@@ -137,6 +137,10 @@ repo = 'Shougo/ddu-ui-filer'
 on_source = 'ddu.vim'
 
 [[plugins]]
+repo = 'Shougo/ddu-ui-ff'
+on_source = 'ddu.vim'
+
+[[plugins]]
 repo = 'Shougo/ddu-source-file'
 on_source = 'ddu.vim'
 
@@ -151,6 +155,15 @@ on_source = 'ddu.vim'
 [[plugins]]
 repo = 'Shougo/ddu-column-filename'
 on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'Shougo/ddu-filter-matcher_substring'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'shun/ddu-source-rg'
+on_source = 'ddu.vim'
+
 
 
 #----------------------------------------------------------------------------------#
