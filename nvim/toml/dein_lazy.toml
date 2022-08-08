@@ -36,10 +36,6 @@ repo = 'LumaKernel/ddc-tabnine'
 on_source = 'ddc.vim'
 
 
-[[plugins]]
-repo = 'Shougo/ddc-ui-filer'
-on_source = 'ddc.vim'
-
 #----------------------------------------------------------------#
 # Syntax Highlight
 #----------------------------------------------------------------#

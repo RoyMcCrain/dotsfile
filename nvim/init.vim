@@ -88,7 +88,6 @@ set foldmethod=syntax
 set foldlevelstart=99
 " neovim機能
 set winhl=Normal:Floating
-hi NormalFloat guifg=#2e3440 guibg=#a3be8c
 " githubのtokenを読み込む
 source <sfile>:h/token.vim
 
@@ -123,7 +122,6 @@ endif
 
 syntax enable
 filetype plugin indent on
-" let g:python3_host_prog='/usr/bin/python3'
 
 " Golang
 autocmd FileType go setlocal noexpandtab

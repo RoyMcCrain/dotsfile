@@ -22,9 +22,9 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'folke/tokyonight.nvim'
+repo = 'rebelot/kanagawa.nvim'
 hook_add = '''
-  colorscheme tokyonight
+  colorscheme kanagawa
 '''
 
 #----------------------------------------------------------------------------------#
@@ -44,9 +44,6 @@ repo = 'vim-denops/denops.vim'
 [[plugins]]
 repo = 'prabirshrestha/vim-lsp'
 hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
-
-[[plugins]]
-repo = 'mattn/vim-lsp-icons'
 
 [[plugins]]
 repo = 'mattn/vim-lsp-settings'
