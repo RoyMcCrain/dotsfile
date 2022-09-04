@@ -11,7 +11,10 @@ call ddu#custom#patch_global({
     \           '.next',
     \         ]
     \       }
-    \     }
+    \     },
+    \     { 'name': 'buffer' },
+    \     { 'name': 'register' },
+    \     { 'name': 'mr' },
     \   ],
     \   'sourceOptions': {
     \     '_': {
@@ -54,7 +57,10 @@ call ddu#custom#patch_local('grep', {
 
 nnoremap [ddu]  <Nop>
 nmap <space>t [ddu]
-noremap <silent>ff <Cmd>call ddu#start({}) <CR>
+noremap <silent>[ddu]t <Cmd>call ddu#start({}) <CR>
+noremap <silent>[ddu]b <Cmd>call ddu#start({'sources': [{'name': 'buffer'}] }) <CR>
+noremap <silent>[ddu]m <Cmd>call ddu#start({'sources': [{'name': 'mr'}] }) <CR>
+noremap <silent>[ddu]r <Cmd>call ddu#start({'sources': [{'name': 'register'}] }) <CR>
 noremap <silent>[ddu]g <Cmd>call ddu#start({
     \   'name': 'grep',
     \   'sources':[

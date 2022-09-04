@@ -58,8 +58,8 @@ set shellslash   "ディレクトリパスに/を使えるようにする
 set fileformats=unix,dos,mac
 set maxfuncdepth=200
 " neovim
-" <C-[>でterminalモードから抜ける
-tnoremap <silent> <C-[> <C-\><C-n>
+" <Space-s>でterminalモードから抜ける
+tnoremap <silent> <Leader>s <C-\><C-n>
 " 行末までのヤンク
 nnoremap Y y$
 " NNで検索のハイライトを消す
@@ -75,6 +75,8 @@ nnoremap O :<C-u>call append(expand('.'), '')<CR>j
 noremap PP "0p
 noremap x "_x
 
+" 新規作成
+noremap <silent> k <Cmd>enew<CR>
 " 分割エイリアス
 noremap <silent> vs <Cmd>vsplit<CR>
 noremap <silent> S <Cmd>split<CR>

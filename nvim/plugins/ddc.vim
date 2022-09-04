@@ -9,7 +9,7 @@ call ddc#custom#patch_global('sourceOptions', {
     \   'isVolatile': v:true,
     \   'maxCandidates': 2,
     \ },
-    \ 'buffer': {'mark': 'buffer'},
+    \ 'buffer': {'mark': 'b'},
     \ '_': {
     \   'matchers': ['matcher_fuzzy'],
     \   'sorters': ['sorter_rank'],
@@ -19,7 +19,12 @@ call ddc#custom#patch_global('sourceOptions', {
 
 call ddc#custom#patch_global('sourceParams', {
     \ 'tabnine': {'maxNumResult': 2},
-    \ 'buffer': {'requireSameFiletype': v:false},
+    \ 'buffer': {
+    \   'requireSameFiletype': v:false,
+    \   'limitBytes': 5000000,
+    \   'fromAltBuf': v:true,
+    \   'forceCollect': v:true,
+    \ },
     \ })
 call ddc#custom#patch_global('filterParams', {
     \ 'matcher_fuzzy': {'camelcase': v:true},
