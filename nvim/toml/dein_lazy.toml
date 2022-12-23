@@ -8,6 +8,10 @@ hook_source = 'source ~/.config/nvim/plugins/ddc.vim'
 depends = ['denops.vim']
 
 [[plugins]]
+repo = 'Shougo/ddc-ui-native'
+on_source = 'ddc.vim'
+
+[[plugins]]
 repo = 'Shougo/ddc-matcher_head'
 on_source = 'ddc.vim'
 

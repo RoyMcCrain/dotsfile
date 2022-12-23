@@ -1,3 +1,4 @@
+call ddc#custom#patch_global('ui', 'native')
 call ddc#custom#patch_global('sources', ['tabnine','vim-lsp','buffer'])
 call ddc#custom#patch_global('sourceOptions', {
     \ 'vim-lsp': {
