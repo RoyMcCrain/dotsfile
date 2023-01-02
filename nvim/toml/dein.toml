@@ -41,10 +41,10 @@ hook_add = 'source ~/.config/nvim/plugins/lightline.vim'
 [[plugins]]
 repo = 'vim-denops/denops.vim'
 
-[[plugins]]
-repo = 'noevim/nvim-lspconfig'
-hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
-
+# [[plugins]]
+# repo = 'neovim/nvim-lspconfig'
+# hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
+# 
 [[plugins]]
 repo = 'prabirshrestha/vim-lsp'
 hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
@@ -232,3 +232,4 @@ repo = 'tpope/vim-surround'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'cohama/lexima.vim'
+

@@ -45,7 +45,7 @@ call ddu#custom#patch_global({
 call ddu#custom#patch_local('grep', {
     \   'sourceParams' : {
     \     'rg' : {
-    \       'args': ['--column', '--no-heading', '--color', 'never'],
+    \       'args': ['--column', '--no-heading', '--color', 'never', '--json'],
     \     },
     \   },
     \   'uiParams': {
@@ -79,7 +79,7 @@ function! s:ddu_my_ff_settings() abort
   nnoremap <buffer><silent> s
     \ <Cmd>call ddu#ui#ff#do_action('itemAction', {'name': 'open', 'params': {'command': 'split'}})<CR>
 
-  nnoremap <buffer><silent> d
+  nnoremap <buffer><silent> i
     \ <Cmd>call ddu#ui#ff#do_action('openFilterWindow')<CR>
 
   nnoremap <buffer><silent> p
