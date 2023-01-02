@@ -17,8 +17,8 @@ alias y="yarn"
 alias yg="yarn global"
 alias yw="yarn workspace"
 alias yws="yarn workspaces"
-alias yr="yarn run"
-alias yui="yarn upgrade-interactive"
+alias npr="npm run"
+alias npu="npx npm-check --update"
 alias sortp="npx sort-package-json"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'

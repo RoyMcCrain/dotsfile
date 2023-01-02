@@ -54,6 +54,9 @@ repo = 'mattn/vim-lsp-settings'
 merged = 0
 hook_add = '''
   let g:lsp_settings = {
+  \  'clangd': {
+  \    'disabled': v:true
+  \  },
   \  'css-languageserver': {
   \    'workspace_config': {
   \      'css': {
