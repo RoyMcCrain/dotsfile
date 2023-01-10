@@ -1,5 +1,5 @@
 nnoremap [git]  <Nop>
-nmap <space>g [git]
+nmap <Leader>g [git]
 nnoremap <silent> [git]s :Git<CR><C-w>T
 nnoremap <silent> [git]a :Gwrite<CR>
 nnoremap <silent> [git]c :Git commit -v<CR>

@@ -13,12 +13,13 @@ alias rails="bundle exec rails"
 alias rails-s="bundle exec rails s -p 3001"
 alias rspec="bundle exec rspec"
 # yarn
-alias y="yarn"
-alias yg="yarn global"
-alias yw="yarn workspace"
-alias yws="yarn workspaces"
-alias npr="npm run"
-alias npu="npx npm-check --update"
+alias y="yarn "
+alias yg="yarn global "
+alias yw="yarn workspace "
+alias yws="yarn workspaces "
+alias n="npm "
+alias nr="npm run "
+alias nupdate="npx npm-check --update"
 alias sortp="npx sort-package-json"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
@@ -144,7 +145,7 @@ alias mv='mv -i'
 
 alias mkdir='mkdir -p'
 
-alias n="nvim"
+alias e="nvim"
 alias g="git"
 
 # sudo の後のコマンドでエイリアスを有効にする

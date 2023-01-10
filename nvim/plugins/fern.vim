@@ -1,4 +1,4 @@
-nnoremap <Leader>m <Cmd>Fern . -reveal=% <CR>
+nnoremap <silent> <Leader>l <Cmd>Fern . -reveal=% <CR>
 
 function! s:init_fern() abort
   nmap <buffer> V <Plug>(fern-action-open:vsplit)

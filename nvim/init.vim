@@ -75,16 +75,18 @@ nnoremap O :<C-u>call append(expand('.'), '')<CR>j
 noremap PP "0p
 noremap x "_x
 
-" 新規作成
-noremap <silent> k <Cmd>enew<CR>
+" 移動
+noremap <silent> gt gj
+noremap <silent> gn gk
+
 " 分割エイリアス
 noremap <silent> vs <Cmd>vsplit<CR>
 noremap <silent> S <Cmd>split<CR>
 " window移動
-noremap <C-d> <C-w>h
-noremap <C-h> <C-w>j
-noremap <C-t> <C-w>k
-noremap <C-n> <C-w>l
+noremap <C-k> <C-w>h
+noremap <C-t> <C-w>j
+noremap <C-n> <C-w>k
+noremap <C-s> <C-w>l
 " Folding
 set foldmethod=syntax
 set foldlevelstart=99

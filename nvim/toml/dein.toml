@@ -1,5 +1,5 @@
 #----------------------------------------------------------------------------------#
-# 必須
+
 #----------------------------------------------------------------------------------#
 [[plugins]]
 # deinで必須
@@ -118,49 +118,6 @@ repo = 'lambdalisue/fern-git-status.vim'
 on_source = 'fern.vim'
 
 #----------------------------------------------------------------------------------#
-# 高速検索ツール
-#----------------------------------------------------------------------------------#
-[[plugins]]
-repo = 'Shougo/ddu.vim'
-hook_add = 'source ~/.config/nvim/plugins/ddu.vim'
-
-[[plugins]]
-repo = 'Shougo/ddu-ui-ff'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'Shougo/ddu-source-file_rec'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'Shougo/ddu-kind-file'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'Shougo/ddu-filter-matcher_substring'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'shun/ddu-source-rg'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'shun/ddu-source-buffer'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'lambdalisue/mr.vim'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'kuuote/ddu-source-mr'
-on_source = 'ddu.vim'
-
-[[plugins]]
-repo = 'Shougo/ddu-source-register'
-on_source = 'ddu.vim'
-
-#----------------------------------------------------------------------------------#
 # gitツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
@@ -179,11 +136,11 @@ depends = ['vim-fugitive']
 repo = 'tyru/caw.vim'
 hook_add = '''
   " 行の最初の文字の前にコメント文字をトグル
-  nmap <Leader>z <Plug>(caw:hatpos:toggle)
-  vmap <Leader>z <Plug>(caw:hatpos:toggle)
+  nmap <Leader>j <Plug>(caw:hatpos:toggle)
+  vmap <Leader>j <Plug>(caw:hatpos:toggle)
   " 行頭にコメントをトグル
-  nmap <Leader>Z <Plug>(caw:zeropos:toggle)
-  vmap <Leader>Z <Plug>(caw:zeropos:toggle)
+  nmap <Leader>J <Plug>(caw:zeropos:toggle)
+  vmap <Leader>J <Plug>(caw:zeropos:toggle)
 '''
 
 #----------------------------------------------------------------------------------#
@@ -197,13 +154,14 @@ hook_add = '''
   let g:EasyMotion_do_mapping = 0
   nmap s <Plug>(easymotion-overwin-f2)
   nnoremap [EasyM] <Nop>
-  nmap <Leader><Space> [EasyM]
+  nmap <Leader>s [EasyM]
 
   " Gif config
-  map <silent> [EasyM]n <Plug>(easymotion-lineforward)
-  map <silent> [EasyM]h <Plug>(easymotion-j)
-  map <silent> [EasyM]t <Plug>(easymotion-k)
-  map <silent> [EasyM]d <Plug>(easymotion-linebackward)
+  map [EasyM]s <Plug>(easymotion-lineforward)
+  map [EasyM]t <Plug>(easymotion-j)
+  map [EasyM]n <Plug>(easymotion-k)
+  map [EasyM]k <Plug>(easymotion-linebackward)
+
   " keep cursor column when JK motion
   let g:EasyMotion_startofline = 0 
   let g:EasyMotion_smartcase = 1

@@ -1,4 +1,48 @@
 #----------------------------------------------------------------------------------#
+# 高速検索ツール
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'Shougo/ddu.vim'
+on_event = 'BufRead'
+hook_source = 'source ~/.config/nvim/plugins/ddu.vim'
+
+[[plugins]]
+repo = 'Shougo/ddu-ui-ff'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'Shougo/ddu-source-file_rec'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'Shougo/ddu-kind-file'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'Shougo/ddu-filter-matcher_substring'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'shun/ddu-source-rg'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'shun/ddu-source-buffer'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'lambdalisue/mr.vim'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'kuuote/ddu-source-mr'
+on_source = 'ddu.vim'
+
+[[plugins]]
+repo = 'Shougo/ddu-source-register'
+on_source = 'ddu.vim'
+
+#----------------------------------------------------------------------------------#
 # 非同期検証ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]

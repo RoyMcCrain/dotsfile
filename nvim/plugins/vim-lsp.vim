@@ -1,7 +1,7 @@
 autocmd BufWritePre * LspDocumentFormatSync
 
 nnoremap [LSP] <Nop>
-nmap <silent><Leader>d [LSP]
+nmap <silent> <Leader>t [LSP]
 
 nnoremap <silent> H <Cmd>LspHover<CR>
 
