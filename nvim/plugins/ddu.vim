@@ -57,8 +57,8 @@ call ddu#custom#patch_local('grep', {
 
 
 nnoremap [ddu]  <Nop>
-nmap <silent> <Leader><Space> [ddu]
-noremap <silent> [ddu]t <Cmd>call ddu#start({}) <CR>
+nmap <silent> k [ddu]
+noremap <silent> [ddu]k <Cmd>call ddu#start({}) <CR>
 noremap <silent> [ddu]b <Cmd>call ddu#start({'sources': [{'name': 'buffer'}] }) <CR>
 noremap <silent> [ddu]m <Cmd>call ddu#start({'sources': [{'name': 'mr'}] }) <CR>
 noremap <silent> [ddu]r <Cmd>call ddu#start({'sources': [{'name': 'register'}] }) <CR>
