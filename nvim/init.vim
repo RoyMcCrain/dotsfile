@@ -58,8 +58,11 @@ set shellslash   "ディレクトリパスに/を使えるようにする
 set fileformats=unix,dos,mac
 set maxfuncdepth=200
 " neovim
-" <Space-s>でterminalモードから抜ける
-tnoremap <silent> <Leader>s <C-\><C-n>
+" terminalモードから抜ける
+tnoremap <Esc> <C-\><C-n>
+" 常にインサートモードでterminalを開く
+autocmd TermOpen * startinsert
+command! -nargs=* T split | wincmd j | resize 30 | terminal <args>
 " 行末までのヤンク
 nnoremap Y y$
 " NNで検索のハイライトを消す
@@ -74,10 +77,6 @@ nnoremap O :<C-u>call append(expand('.'), '')<CR>j
 " ヤンクの内容を消さない設定
 noremap PP "0p
 noremap x "_x
-
-" 移動
-noremap <silent> gt gj
-noremap <silent> gn gk
 
 " 分割エイリアス
 noremap <silent> vs <Cmd>vsplit<CR>
@@ -98,36 +97,62 @@ source <sfile>:h/token.vim
 " ctrl-spaceで日本語切り替えなのでvimの動作を止める
 imap <C-space> <Nop>
 
+" 自作キーボード用でjをwに替える
+noremap j w
+vnoremap j w
+
 " wrapをsetする
 noremap <silent> W <Cmd>set wrap<CR>
 noremap <silent> WW <Cmd>set nowrap<CR>
 
-set runtimepath+=$HOME/.cache/dein/repos/github.com/Shougo/dein.vim
-
-" Required:
-if dein#load_state('$HOME/.cache/dein')
-  call dein#begin('$HOME/.cache/dein')
-
-  " Let dein manage dein
-  " Required:
-  call dein#add('$HOME/.cache/dein/repos/github.com/Shougo/dein.vim')
-
-  " 管理するプラグインを記述したファイル
-  let s:toml = '$HOME/.config/nvim/toml/dein.toml'
-  let s:lazy_toml = '$HOME/.config/nvim/toml/dein_lazy.toml'
-  call dein#load_toml(s:toml, {'lazy': 0})
-  call dein#load_toml(s:lazy_toml, {'lazy': 1})
-
-  call dein#end()
-  call dein#save_state()
-  " vimrcやtomlを修正したら自動でアンスコする
-  let g:dein#auto_recache = 1
+let $CACHE = expand('~/.cache')
+if !isdirectory($CACHE)
+  call mkdir($CACHE, 'p')
 endif
+if &runtimepath !~# '/dein.vim'
+  let s:dein_dir = fnamemodify('dein.vim', ':p')
+  if !isdirectory(s:dein_dir)
+    let s:dein_dir = $CACHE . '/dein/repos/github.com/Shougo/dein.vim'
+    if !isdirectory(s:dein_dir)
+      execute '!git clone https://github.com/Shougo/dein.vim' s:dein_dir
+    endif
+  endif
+  execute 'set runtimepath^=' . substitute(
+        \ fnamemodify(s:dein_dir, ':p') , '[/\\]$', '', '')
+endif
+
+set nocompatible
+" Set dein base path (required)
+let s:dein_base = '$HOME/.cache/dein/'
+
+" Set dein source path (required)
+let s:dein_src = '$HOME/.cache/dein/repos/github.com/Shougo/dein.vim'
+
+" Set dein runtime path (required)
+execute 'set runtimepath+=' . s:dein_src
+
+" Call dein initialization (required)
+call dein#begin(s:dein_base)
+
+call dein#add(s:dein_src)
+
+" 管理するプラグインを記述したファイル
+let s:toml = '$HOME/.config/nvim/toml/dein.toml'
+let s:lazy_toml = '$HOME/.config/nvim/toml/dein_lazy.toml'
+call dein#load_toml(s:toml, {'lazy': 0})
+call dein#load_toml(s:lazy_toml, {'lazy': 1})
+
+" vimrcやtomlを修正したら自動でアンスコする
+let g:dein#auto_recache = 1
+
+" Finish dein initialization (required)
+call dein#end()
+
 
 syntax enable
 filetype plugin indent on
 
 " Golang
-autocmd FileType go setlocal noexpandtab
+autocmd FileType go setlocal soexpandtab
 autocmd FileType go setlocal tabstop=4
 autocmd FileType go setlocal shiftwidth=4

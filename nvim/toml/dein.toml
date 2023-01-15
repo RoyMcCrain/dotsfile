@@ -152,9 +152,9 @@ repo = 'easymotion/vim-easymotion'
 hook_add = '''
   " Disable default mappings
   let g:EasyMotion_do_mapping = 0
-  nmap <Leader><Space> <Plug>(easymotion-overwin-f2)
+  nmap F <Plug>(easymotion-overwin-f2)
   nnoremap [EasyM] <Nop>
-  nmap f [EasyM]
+  nmap <Leader><Space> [EasyM]
 
   " Gif config
   map [EasyM]s <Plug>(easymotion-lineforward)
