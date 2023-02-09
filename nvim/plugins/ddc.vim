@@ -19,7 +19,7 @@ call ddc#custom#patch_global('sourceOptions', {
     \ })
 
 call ddc#custom#patch_global('sourceParams', {
-    \ 'tabnine': {'maxNumResult': 2},
+    \ 'tabnine': {'maxNumResults': 2},
     \ 'buffer': {
     \   'requireSameFiletype': v:false,
     \   'limitBytes': 5000000,
