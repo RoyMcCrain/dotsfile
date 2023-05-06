@@ -36,6 +36,9 @@ fpath=(${ASDF_DIR}/completions $fpath)
 alias d="docker"
 alias dc="docker-compose"
 
+# JAVA_HOME
+. ~/.asdf/plugins/java/set-java-home.zsh
+
 # ヒストリの設定
 HISTFILE=~/.zsh_history
 HISTSIZE=1000000
@@ -181,8 +184,8 @@ case ${OSTYPE} in
         alias ls='ls -F --color=auto'
         alias open="xdg-open"
         export ZPLUG_HOME=/home/roy/.zplug
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        alias brew="env PATH=${PATH/\/home\/roy\/.asdf\/shims:/} brew"
+        # Ruby InstallのOpenSSL場所指定
+        export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"  
         ;;
 esac
 ########################################
