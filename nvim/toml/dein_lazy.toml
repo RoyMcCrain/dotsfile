@@ -2,95 +2,87 @@
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'Shougo/ddu.vim'
-on_event = 'BufRead'
 hook_source = 'source ~/.config/nvim/plugins/ddu.vim'
+on_event = 'BufRead'
+repo = 'Shougo/ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'Shougo/ddu-ui-ff'
-on_source = 'ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'Shougo/ddu-source-file_rec'
-on_source = 'ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'Shougo/ddu-kind-file'
-on_source = 'ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'Shougo/ddu-filter-matcher_substring'
-on_source = 'ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'shun/ddu-source-rg'
-on_source = 'ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'shun/ddu-source-buffer'
-on_source = 'ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'lambdalisue/mr.vim'
-on_source = 'ddu.vim'
 
 [[plugins]]
+on_source = 'ddu.vim'
 repo = 'kuuote/ddu-source-mr'
-on_source = 'ddu.vim'
 
 [[plugins]]
-repo = 'Shougo/ddu-source-register'
 on_source = 'ddu.vim'
+repo = 'Shougo/ddu-source-register'
 
 #----------------------------------------------------------------------------------#
 # 非同期検証ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'Shougo/ddc.vim'
-on_event = 'InsertEnter'
-hook_source = 'source ~/.config/nvim/plugins/ddc.vim'
 depends = ['denops.vim']
+hook_source = 'source ~/.config/nvim/plugins/ddc.vim'
+on_event = 'InsertEnter'
+repo = 'Shougo/ddc.vim'
 
 [[plugins]]
+on_source = 'ddc.vim'
 repo = 'Shougo/ddc-ui-native'
-on_source = 'ddc.vim'
 
 [[plugins]]
+on_source = 'ddc.vim'
 repo = 'Shougo/ddc-matcher_head'
-on_source = 'ddc.vim'
 
 [[plugins]]
+on_source = 'ddc.vim'
 repo = 'matsui54/ddc-matcher_fuzzy'
-on_source = 'ddc.vim'
 
 [[plugins]]
+on_source = 'ddc.vim'
 repo = 'Shougo/ddc-sorter_rank'
-on_source = 'ddc.vim'
 
 [[plugins]]
+on_source = 'ddc.vim'
 repo = 'shun/ddc-vim-lsp'
-on_source = 'ddc.vim'
 
 [[plugins]]
+on_source = 'ddc.vim'
 repo = 'matsui54/ddc-buffer'
-on_source = 'ddc.vim'
 
 [[plugins]]
+on_source = 'ddc.vim'
 repo = 'Shougo/ddc-converter_remove_overlap'
-on_source = 'ddc.vim'
-
-[[plugins]]
-repo = 'LumaKernel/ddc-tabnine'
-on_source = 'ddc.vim'
-
 
 #----------------------------------------------------------------#
 # Syntax Highlight
 #----------------------------------------------------------------#
 [[plugins]]
-repo = 'nvim-treesitter/nvim-treesitter'
-merged = 0
-on_event = 'BufRead'
 hook_post_update = 'TSUpdate'
 hook_source = '''
 lua << EOF
@@ -107,41 +99,50 @@ lua << EOF
   }
 EOF
 '''
-
-[[plugins]]
-# css in js
-repo = 'styled-components/vim-styled-components'
-# https://github.com/styled-components/vim-styled-components/pull/80
-# このmainにマージするやる気がないらしい...
-rev = 'develop'
-on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact']
+merged = 0
+on_event = 'BufRead'
+repo = 'nvim-treesitter/nvim-treesitter'
 
 [[plugins]]
 # haskell
-repo = 'neovimhaskell/haskell-vim'
 on_ft = ['haskell']
+repo = 'neovimhaskell/haskell-vim'
 
 #----------------------------------------------------------------#
 # Config for each Lang
 #----------------------------------------------------------------#
 
 [[plugins]]
-repo = 'prettier/vim-prettier'
-build = 'yarn install'
-on_ft = ['typescript', 'typescriptreact', 'javascript', 'javascriptreact', 'css', 'less', 'scss', 'json', 'graphql', 'markdown', 'vue', 'yaml', 'html']
+build = 'npm install'
 hook_source = '''
   let g:prettier#autoformat = 0
   autocmd BufWritePre *.js,*.jsx,*.mjs,*.ts,*.tsx,*.css,*.less,*.scss,*.json,*.graphql,*.md,*.vue,*.yaml,*.html PrettierAsync
 '''
+on_ft = [
+  'typescript',
+  'typescriptreact',
+  'javascript',
+  'javascriptreact',
+  'css',
+  'less',
+  'scss',
+  'json',
+  'graphql',
+  'markdown',
+  'vue',
+  'yaml',
+  'html',
+]
+repo = 'prettier/vim-prettier'
 
 [[plugins]]
-repo = 'mattn/vim-goimports'
 on_ft = ['go']
+repo = 'mattn/vim-goimports'
 
 #----------------------------------------------------------------#
 # for Haskell
 #----------------------------------------------------------------#
 [[plugins]]
 # haskell indent
-repo = 'nbouscal/vim-stylish-haskell'
 on_ft = ['haskell']
+repo = 'nbouscal/vim-stylish-haskell'

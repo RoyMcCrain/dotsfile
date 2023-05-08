@@ -8,3 +8,4 @@ nvim/token.vim
 ```vim
 let g:dein#install_github_api_token="TOKEN"
 ```
+

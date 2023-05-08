@@ -1,14 +1,9 @@
 call ddc#custom#patch_global('ui', 'native')
-call ddc#custom#patch_global('sources', ['tabnine','vim-lsp','buffer'])
+call ddc#custom#patch_global('sources', ['vim-lsp','buffer'])
 call ddc#custom#patch_global('sourceOptions', {
     \ 'vim-lsp': {
     \   'matchers': ['matcher_fuzzy'],
     \   'mark': 'LSP',
-    \ },
-    \ 'tabnine': {
-    \   'mark': 'TabNine',
-    \   'isVolatile': v:true,
-    \   'maxCandidates': 2,
     \ },
     \ 'buffer': {'mark': 'b'},
     \ '_': {
@@ -19,7 +14,6 @@ call ddc#custom#patch_global('sourceOptions', {
     \ })
 
 call ddc#custom#patch_global('sourceParams', {
-    \ 'tabnine': {'maxNumResults': 2},
     \ 'buffer': {
     \   'requireSameFiletype': v:false,
     \   'limitBytes': 5000000,

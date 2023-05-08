@@ -1,18 +1,15 @@
-#----------------------------------------------------------------------------------#
-
-#----------------------------------------------------------------------------------#
 [[plugins]]
 # deinで必須
-repo = 'Shougo/vimproc.vim'
 build = 'make'
+repo = 'Shougo/vimproc.vim'
 
 #----------------------------------------------------------------------------------#
 # toml管理で便利
 #----------------------------------------------------------------------------------#
 [[plugins]]
 # カーソル位置のコンテキストに合わせてftを切り替える
-repo = 'osyo-manga/vim-precious'
 on_source = 'context_filetype.vim'
+repo = 'osyo-manga/vim-precious'
 
 [[plugins]]
 # カーソル位置のコンテキストのftを判定するライブラリ
@@ -22,17 +19,17 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'rebelot/kanagawa.nvim'
 hook_add = '''
   colorscheme kanagawa
 '''
+repo = 'rebelot/kanagawa.nvim'
 
 #----------------------------------------------------------------------------------#
 # statusline拡張
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'itchyny/lightline.vim'
 hook_add = 'source ~/.config/nvim/plugins/lightline.vim'
+repo = 'itchyny/lightline.vim'
 
 #----------------------------------------------------------------------------------#
 # Denops
@@ -46,12 +43,10 @@ repo = 'vim-denops/denops.vim'
 # hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
 # 
 [[plugins]]
-repo = 'prabirshrestha/vim-lsp'
 hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
+repo = 'prabirshrestha/vim-lsp'
 
 [[plugins]]
-repo = 'mattn/vim-lsp-settings'
-merged = 0
 hook_add = '''
   let g:lsp_settings = {
   \  'clangd': {
@@ -73,9 +68,10 @@ hook_add = '''
   \}
   let g:lsp_settings_filetype_ruby = ['solargraph']
 '''
+merged = 0
+repo = 'mattn/vim-lsp-settings'
 
 [[plugins]]
-repo = 'dense-analysis/ale'
 hook_add = '''
   let g:ale_disable_lsp = 1
   let g:ale_sign_column_always = 1
@@ -94,46 +90,46 @@ hook_add = '''
   \   'svelte': ['svelte', 'typescript'],
   \}
 '''
+repo = 'dense-analysis/ale'
 
 #----------------------------------------------------------------------------------#
 # インデント補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'nathanaelkane/vim-indent-guides'
 hook_add = '''
   let g:indent_guides_enable_on_vim_startup = 1
   let g:indent_guides_start_level = 2
   let g:indent_guides_guide_size = 1
 '''
+repo = 'nathanaelkane/vim-indent-guides'
 
 #----------------------------------------------------------------------------------#
 # ファイルブラウザ補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'lambdalisue/fern.vim'
 hook_add = 'source ~/.config/nvim/plugins/fern.vim'
+repo = 'lambdalisue/fern.vim'
 
 [[plugins]]
-repo = 'lambdalisue/fern-git-status.vim'
 on_source = 'fern.vim'
+repo = 'lambdalisue/fern-git-status.vim'
 
 #----------------------------------------------------------------------------------#
 # gitツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'tpope/vim-fugitive'
 hook_add = 'source ~/.config/nvim/plugins/vim-fugitive.vim'
+repo = 'tpope/vim-fugitive'
 
 [[plugins]]
 # github
-repo = 'tpope/vim-rhubarb'
 depends = ['vim-fugitive']
+repo = 'tpope/vim-rhubarb'
 
 #----------------------------------------------------------------------------------#
 # コメントアウト補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'tyru/caw.vim'
 hook_add = '''
   " 行の最初の文字の前にコメント文字をトグル
   nmap <Leader>j <Plug>(caw:hatpos:toggle)
@@ -142,13 +138,13 @@ hook_add = '''
   nmap <Leader>J <Plug>(caw:zeropos:toggle)
   vmap <Leader>J <Plug>(caw:zeropos:toggle)
 '''
+repo = 'tyru/caw.vim'
 
 #----------------------------------------------------------------------------------#
 # 移動補完
 #----------------------------------------------------------------------------------#
 [[plugins]]
 # vimの移動コマンド拡張
-repo = 'easymotion/vim-easymotion'
 hook_add = '''
   " Disable default mappings
   let g:EasyMotion_do_mapping = 0
@@ -166,6 +162,7 @@ hook_add = '''
   let g:EasyMotion_startofline = 0 
   let g:EasyMotion_smartcase = 1
 '''
+repo = 'easymotion/vim-easymotion'
 
 #----------------------------------------------------------------------------------#
 # 置き換え強化
@@ -191,3 +188,9 @@ repo = 'tpope/vim-surround'
 [[plugins]]
 repo = 'cohama/lexima.vim'
 
+#----------------------------------------------------------------------------------#
+# Github copilot
+#----------------------------------------------------------------------------------#
+[[plugins]]
+hook_add = 'source ~/.config/nvim/plugins/copilot.vim'
+repo = 'github/copilot.vim'
