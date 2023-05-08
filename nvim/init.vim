@@ -86,6 +86,7 @@ noremap <C-k> <C-w>h
 noremap <C-t> <C-w>j
 noremap <C-n> <C-w>k
 noremap <C-s> <C-w>l
+noremap <C-j> <C-v>
 " Folding
 set foldmethod=syntax
 set foldlevelstart=99
