@@ -195,6 +195,7 @@ zplug "b4b4r07/enhancd", use:init.sh
 zplug "zsh-users/zsh-syntax-highlighting", defer:2
 zplug "zsh-users/zsh-history-substring-search"
 zplug "zsh-users/zsh-completions"
+zplug "azu/ni.zsh", use:ni.zsh
 zplug load
 ENHANCD_FILTER=fzf; export ENHANCD_FILTER;
 
