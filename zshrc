@@ -13,10 +13,8 @@ alias rails="bundle exec rails"
 alias rails-s="bundle exec rails s -p 3001"
 alias rspec="bundle exec rspec"
 # yarn
-alias y="yarn "
-alias yg="yarn global "
-alias yw="yarn workspace "
-alias yws="yarn workspaces "
+alias nir="ni run "
+alias niu="ni upgrade-interactive "
 alias sortp="npx sort-package-json"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
