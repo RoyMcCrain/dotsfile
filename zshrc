@@ -15,6 +15,7 @@ alias rspec="bundle exec rspec"
 # yarn
 alias nir="ni run "
 alias niu="ni upgrade-interactive "
+alias nil="ni run lint "
 alias sortp="npx sort-package-json"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
