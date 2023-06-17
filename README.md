@@ -17,3 +17,13 @@ nvim/token.vim
 let g:dein#install_github_api_token="TOKEN"
 ```
 
+## win32yank
+https://github.com/equalsraf/win32yank
+
+- win32yank-x64.zipをダウンロード
+- win32yank.exeの取り出す
+
+```bash
+sudo mv win32yank.exe /usr/local/bin
+sudo chmod +x /usr/local/bin/win32yank.exe
+```
