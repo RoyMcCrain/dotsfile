@@ -24,12 +24,12 @@ if executable('win32yank.exe')
   let g:clipboard = {
   \   'name': 'myClipboard',
   \   'copy': {
-  \      '+': 'win32yank.exe -i',
-  \      '*': 'win32yank.exe -i',
+  \      '+': 'win32yank.exe -i --crlf',
+  \      '*': 'win32yank.exe -i --crlf',
   \    },
   \   'paste': {
-  \      '+': 'win32yank.exe -o',
-  \      '*': 'win32yank.exe -o',
+  \      '+': 'win32yank.exe -o --lf',
+  \      '*': 'win32yank.exe -o --lf',
   \   },
   \   'cache_enabled': 1,
   \ }
@@ -119,15 +119,6 @@ vnoremap j w
 " wrapをsetする
 noremap <silent> W <Cmd>set wrap<CR>
 noremap <silent> WW <Cmd>set nowrap<CR>
-
-" 改行を取り除く
-function! PasteWithoutCtrlM()
-    let clipboard_content = getreg('+')
-    let clipboard_content = substitute(clipboard_content, '\r', '', 'g')
-    call setreg('+', clipboard_content)
-    normal! "+p
-endfunction
-nnoremap p :call PasteWithoutCtrlM()<CR>
 
 let $CACHE = expand('~/.cache')
 if !isdirectory($CACHE)
