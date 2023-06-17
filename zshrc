@@ -2,6 +2,8 @@
 # 環境変数
 # pipの設定
 export PATH=$PATH:$HOME/.local/bin
+# win32yank.exeの設定
+export PATH=$PATH:$HOME/win32yank.exe
 export LANG=ja_JP.UTF-8
 export GIT_EDITOR=nvim
 export EDITOR=nvim
@@ -288,3 +290,4 @@ elif type compctl &>/dev/null; then
   compctl -K _npm_completion npm
 fi
 ###-end-npm-completion-###
+
