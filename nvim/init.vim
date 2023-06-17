@@ -20,6 +20,20 @@ set noswapfile                    " swpファイルをつくらない
 set termguicolors                 " trueカラーを使う
 let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 set clipboard+=unnamedplus
+if executable('win32yank.exe')
+  let g:clipboard = {
+  \   'name': 'myClipboard',
+  \   'copy': {
+  \      '+': 'win32yank.exe -i --crlf',
+  \      '*': 'win32yank.exe -i --crlf',
+  \    },
+  \   'paste': {
+  \      '+': 'win32yank.exe -o --lf',
+  \      '*': 'win32yank.exe -o --lf',
+  \   },
+  \   'cache_enabled': 1,
+  \ }
+endif
 let mapleader = "\<Space>"
 set pumheight=5                    " 変換候補で表示される数
 set nowrap                         " テキストが折り返されないようにする
