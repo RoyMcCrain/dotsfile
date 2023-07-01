@@ -1,10 +1,10 @@
-call ddu#custom#patch_global({
-    \   'ui': 'ff',
-    \   'sources': [
-    \     {
-    \       'name': 'file_rec',
-    \       'params': {
-    \         'ignoredDirectories': [
+call ddu#custom#patch_global(#{
+    \   ui: 'ff',
+    \   sources: [
+    \     #{
+    \       name: 'file_rec',
+    \       params: #{
+    \         ignoredDirectories: [
     \           '.git',
     \           'node_modules',
     \           'vendor',
@@ -12,45 +12,45 @@ call ddu#custom#patch_global({
     \         ]
     \       }
     \     },
-    \     { 'name': 'buffer' },
-    \     { 'name': 'register' },
-    \     { 'name': 'mr' },
+    \     #{ name: 'buffer' },
+    \     #{ name: 'register' },
+    \     #{ name: 'mr' },
     \   ],
-    \   'sourceOptions': {
-    \     '_': {
-    \       'matchers': ['matcher_substring'],
+    \   sourceOptions: #{
+    \     _: #{
+    \       matchers: ['matcher_substring'],
     \     },
     \   },
-    \   'filterParams': {
-    \     'matcher_substring': {
-    \       'highlightMatched': 'Title',
+    \   filterParams: #{
+    \     matcher_substring: #{
+    \       highlightMatched: 'Title',
     \     },
     \   },
-    \   'kindOptions': {
-    \     'file': {
-    \       'defaultAction': 'open',
+    \   kindOptions: #{
+    \     file: #{
+    \       defaultAction: 'open',
     \     },
     \   },
-    \   'uiParams': {
-    \     'ff': {
-    \       'startFilter': v:true,
-    \       'prompt': 'λ ',
-    \       'split': 'floating',
-    \       'autoResize': v:true,
-    \       'previewHeight': 50,
+    \   uiParams: #{
+    \     ff: #{
+    \       startFilter: v:true,
+    \       prompt: 'λ ',
+    \       split: 'floating',
+    \       autoResize: v:true,
+    \       previewHeight: 50,
     \     },
     \   },
     \ })
 
-call ddu#custom#patch_local('grep', {
-    \   'sourceParams' : {
-    \     'rg' : {
-    \       'args': ['--column', '--no-heading', '--color', 'never', '--json'],
+call ddu#custom#patch_local('grep', #{
+    \   sourceParams : #{
+    \     rg : #{
+    \       args: ['--column', '--no-heading', '--color', 'never', '--json'],
     \     },
     \   },
-    \   'uiParams': {
-    \     'ff': {
-    \       'startFilter': v:false,
+    \   uiParams: #{
+    \     ff: #{
+    \       startFilter: v:false,
     \     }
     \   },
     \ })
@@ -59,26 +59,26 @@ call ddu#custom#patch_local('grep', {
 nnoremap [ddu]  <Nop>
 nmap <silent> k [ddu]
 noremap <silent> [ddu]k <Cmd>call ddu#start({}) <CR>
-noremap <silent> [ddu]b <Cmd>call ddu#start({'sources': [{'name': 'buffer'}] }) <CR>
-noremap <silent> [ddu]m <Cmd>call ddu#start({'sources': [{'name': 'mr'}] }) <CR>
-noremap <silent> [ddu]r <Cmd>call ddu#start({'sources': [{'name': 'register'}] }) <CR>
-noremap <silent> [ddu]g <Cmd>call ddu#start({
-    \   'name': 'grep',
-    \   'sources':[
-    \     {'name': 'rg', 'params': {'input': expand('<cword>')}}
+noremap <silent> [ddu]b <Cmd>call ddu#start(#{sources: [#{name: 'buffer'}] }) <CR>
+noremap <silent> [ddu]m <Cmd>call ddu#start(#{sources: [#{name: 'mr'}] }) <CR>
+noremap <silent> [ddu]r <Cmd>call ddu#start(#{sources: [#{name: 'register'}] }) <CR>
+noremap <silent> [ddu]g <Cmd>call ddu#start(#{
+    \   name: 'grep',
+    \   sources:[
+    \     #{name: 'rg', params: #{input: expand('<cword>')}}
     \   ],
     \ })<CR>
 
 autocmd FileType ddu-ff call s:ddu_my_ff_settings()
 function! s:ddu_my_ff_settings() abort
   nnoremap <buffer><silent> <CR>
-        \ <Cmd>call ddu#ui#ff#do_action('itemAction', {'name': 'open'})<CR>
+        \ <Cmd>call ddu#ui#ff#do_action('itemAction', #{name: 'open'})<CR>
 
   nnoremap <buffer><silent> v
-    \ <Cmd>call ddu#ui#ff#do_action('itemAction', {'name': 'open', 'params': {'command': 'vsplit'}})<CR>
+    \ <Cmd>call ddu#ui#ff#do_action('itemAction', #{name: 'open', params: #{command: 'vsplit'}})<CR>
 
   nnoremap <buffer><silent> s
-    \ <Cmd>call ddu#ui#ff#do_action('itemAction', {'name': 'open', 'params': {'command': 'split'}})<CR>
+    \ <Cmd>call ddu#ui#ff#do_action('itemAction', #{name: 'open', params: #{command: 'split'}})<CR>
 
   nnoremap <buffer><silent> i
     \ <Cmd>call ddu#ui#ff#do_action('openFilterWindow')<CR>

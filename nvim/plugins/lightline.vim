@@ -1,16 +1,16 @@
-let g:lightline = {
-  \ 'colorscheme': 'material',
-  \ 'component_function': {
-  \   'filename': 'LightlineFilename',
-  \   'gitbranch': 'FugitiveHead',
-  \   'lspstatus': 'lsp#get_server_status',
+let g:lightline = #{
+  \ colorscheme: 'material',
+  \ component_function: #{
+  \   filename: 'LightlineFilename',
+  \   gitbranch: 'FugitiveHead',
+  \   lspstatus: 'lsp#get_server_status',
   \ },
-  \ 'active': {
-  \   'left': [
+  \ active: #{
+  \   left: [
   \     [ 'mode', 'paste', 'gitbranch', 'readonly', 'modified' ],
   \     [ 'lspstatus' ]
   \   ],
-  \   'right': [
+  \   right: [
   \     ['filetype', 'fileformat', 'lineinfo' ],
   \     [ 'filename' ]
   \   ] 
