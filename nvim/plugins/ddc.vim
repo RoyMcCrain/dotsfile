@@ -14,7 +14,7 @@ call ddc#custom#patch_global('sourceOptions', #{
     \ })
 
 call ddc#custom#patch_global('sourceParams', #{
-    \ buffer: {
+    \ buffer: #{
     \   requireSameFiletype: v:false,
     \   limitBytes: 5000000,
     \   fromAltBuf: v:true,
