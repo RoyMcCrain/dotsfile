@@ -101,13 +101,6 @@ vim.api.nvim_set_keymap('v', 'j', 'w', {noremap = true})
 vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', {noremap = true, silent = true})
 vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', {noremap = true, silent = true})
 
--- Golang
-vim.cmd([[
-  autocmd FileType go setlocal soexpandtab
-  autocmd FileType go setlocal tabstop=4
-  autocmd FileType go setlocal shiftwidth=4
-]])
-
 -- dein
 local CACHE = vim.fn.expand('$HOME/.cache')
 if vim.fn.isdirectory(CACHE) == 0 then
@@ -151,3 +144,10 @@ vim.cmd('syntax enable')
 vim.cmd('filetype plugin indent on')
 -- hook_post_sourceを呼び出すとき必要
 vim.cmd('autocmd VimEnter * call dein#call_hook("post_source")')
+-- Golang
+vim.cmd([[
+  autocmd FileType go setlocal soexpandtab
+  autocmd FileType go setlocal tabstop=4
+  autocmd FileType go setlocal shiftwidth=4
+]])
+

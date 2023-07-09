@@ -84,21 +84,7 @@ repo = 'Shougo/ddc-converter_remove_overlap'
 #----------------------------------------------------------------#
 [[plugins]]
 hook_post_update = 'TSUpdate'
-hook_source = '''
-lua << EOF
-  require'nvim-treesitter.configs'.setup {
-    ensure_installed = { "bash", "c", "c_sharp", "clojure", "cpp", "css", "dockerfile", "elixir",
-      "erlang", "go", "gomod", "graphql", "haskell", "html", "http", "java", "javascript",
-      "jsdoc", "json", "lua", "make", "markdown", "markdown_inline", "python", "ruby",
-      "rust", "scala", "scss", "svelte", "sql", "toml", "tsx", "typescript", "vim", 
-      "vue", "yaml", "zig",
-    },
-    highlight = {
-      enable = true,
-    }
-  }
-EOF
-'''
+hook_source = 'source ~/.config/nvim/plugins/nvim-treesitter.lua'
 merged = 0
 on_event = 'BufRead'
 repo = 'nvim-treesitter/nvim-treesitter'
@@ -114,24 +100,26 @@ repo = 'neovimhaskell/haskell-vim'
 
 [[plugins]]
 build = 'npm install'
-hook_source = '''
-  let g:prettier#autoformat = 0
-  autocmd BufWritePre *.js,*.jsx,*.mjs,*.ts,*.tsx,*.css,*.less,*.scss,*.json,*.graphql,*.md,*.vue,*.yaml,*.html PrettierAsync
+lua_source = '''
+  vim.g['prettier#autoformat'] = 0
+  vim.cmd([[
+    autocmd BufWritePre *.js,*.jsx,*.mjs,*.ts,*.tsx,*.css,*.less,*.scss,*.json,*.graphql,*.md,*.vue,*.yaml,*.html PrettierAsync
+  ]])
 '''
 on_ft = [
-  'typescript',
-  'typescriptreact',
-  'javascript',
-  'javascriptreact',
-  'css',
-  'less',
-  'scss',
-  'json',
-  'graphql',
-  'markdown',
-  'vue',
-  'yaml',
-  'html',
+        'typescript',
+        'typescriptreact',
+        'javascript',
+        'javascriptreact',
+        'css',
+        'less',
+        'scss',
+        'json',
+        'graphql',
+        'markdown',
+        'vue',
+        'yaml',
+        'html',
 ]
 repo = 'prettier/vim-prettier'
 

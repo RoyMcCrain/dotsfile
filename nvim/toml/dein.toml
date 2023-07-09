@@ -52,48 +52,48 @@ hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
 repo = 'prabirshrestha/vim-lsp'
 
 [[plugins]]
-hook_add = '''
-  let g:lsp_settings = {
-  \  'clangd': {
-  \    'disabled': v:true
-  \  },
-  \  'css-languageserver': {
-  \    'workspace_config': {
-  \      'css': {
-  \        'validate': v:false
-  \      },
-  \      'scss': {
-  \        'validate': v:false
-  \      },
-  \      'less': {
-  \        'validate': v:false
-  \      }
-  \    }
-  \  }
-  \}
-  let g:lsp_settings_filetype_ruby = ['solargraph']
+lua_add = '''
+  vim.g.lsp_settings = {
+    clangd = {
+        disabled = true
+    },
+    ['css-languageserver'] = {
+        workspace_config = {
+            css = {
+                validate = false
+            },
+            scss = {
+                validate = false
+            },
+            less = {
+                validate = false
+            }
+        }
+    }
+  }
+  vim.g['lsp_settings_filetype_ruby'] = {'solargraph'}
 '''
 merged = 0
 repo = 'mattn/vim-lsp-settings'
 
 [[plugins]]
-hook_add = '''
-  let g:ale_disable_lsp = 1
-  let g:ale_sign_column_always = 1
-  let g:ale_fix_on_save = 1
-  let g:ale_fixers = {
-  \   'ruby': ['rubocop'],
-  \   'typescript': ['eslint'],
-  \   'javascript': ['eslint'],
-  \   'svelte': ['eslint'],
-  \   'css': ['stylelint'],
-  \   'scss': ['stylelint'],
-  \   'sass': ['stylelint'],
-  \   'less': ['stylelint'],
-  \}
-  let g:ale_linter_aliases = {
-  \   'svelte': ['svelte', 'typescript'],
-  \}
+lua_add = '''
+  vim.g.ale_disable_lsp = 1
+  vim.g.ale_sign_column_always = 1
+  vim.g.ale_fix_on_save = 1
+  vim.g.ale_fixers = {
+      ruby = {'rubocop'},
+      typescript = {'eslint'},
+      javascript = {'eslint'},
+      svelte = {'eslint'},
+      css = {'stylelint'},
+      scss = {'stylelint'},
+      sass = {'stylelint'},
+      less = {'stylelint'}
+  }
+  vim.g.ale_linter_aliases = {
+      svelte = {'svelte', 'typescript'}
+  }
 '''
 repo = 'dense-analysis/ale'
 
@@ -101,12 +101,17 @@ repo = 'dense-analysis/ale'
 # インデント補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = '''
-  let g:indent_guides_enable_on_vim_startup = 1
-  let g:indent_guides_start_level = 2
-  let g:indent_guides_guide_size = 1
+lua_add = '''
+  vim.opt.list = true
+  vim.opt.listchars:append "space:⋅"
+  vim.opt.listchars:append "eol:↴"
+
+  require("indent_blankline").setup {
+    show_end_of_line = true,
+    space_char_blankline = " ",
+  }
 '''
-repo = 'nathanaelkane/vim-indent-guides'
+repo = 'lukas-reineke/indent-blankline.nvim'
 
 #----------------------------------------------------------------------------------#
 # ファイルブラウザ補助
@@ -135,13 +140,13 @@ repo = 'tpope/vim-rhubarb'
 # コメントアウト補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = '''
-  " 行の最初の文字の前にコメント文字をトグル
-  nmap <Leader>j <Plug>(caw:hatpos:toggle)
-  vmap <Leader>j <Plug>(caw:hatpos:toggle)
-  " 行頭にコメントをトグル
-  nmap <Leader>J <Plug>(caw:zeropos:toggle)
-  vmap <Leader>J <Plug>(caw:zeropos:toggle)
+lua_add = '''
+  -- 行の最初の文字の前にコメント文字をトグル
+  vim.api.nvim_set_keymap('n', '<Leader>j', '<Plug>(caw:hatpos:toggle)', {})
+  vim.api.nvim_set_keymap('v', '<Leader>j', '<Plug>(caw:hatpos:toggle)', {})
+  -- 行頭にコメントをトグル
+  vim.api.nvim_set_keymap('n', '<Leader>J', '<Plug>(caw:zeropos:toggle)', {})
+  vim.api.nvim_set_keymap('v', '<Leader>J', '<Plug>(caw:zeropos:toggle)', {})
 '''
 repo = 'tyru/caw.vim'
 
@@ -150,22 +155,20 @@ repo = 'tyru/caw.vim'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 # vimの移動コマンド拡張
-hook_add = '''
-  " Disable default mappings
-  let g:EasyMotion_do_mapping = 0
-  nmap F <Plug>(easymotion-overwin-f2)
-  nnoremap [EasyM] <Nop>
-  nmap <Leader><Space> [EasyM]
-
-  " Gif config
-  map [EasyM]s <Plug>(easymotion-lineforward)
-  map [EasyM]t <Plug>(easymotion-j)
-  map [EasyM]n <Plug>(easymotion-k)
-  map [EasyM]k <Plug>(easymotion-linebackward)
-
-  " keep cursor column when JK motion
-  let g:EasyMotion_startofline = 0 
-  let g:EasyMotion_smartcase = 1
+lua_add = '''
+  -- Disable default mappings
+  vim.g.EasyMotion_do_mapping = 0
+  vim.api.nvim_set_keymap('n', 'F', '<Plug>(easymotion-overwin-f2)', {})
+  vim.api.nvim_set_keymap('n', '[EasyM]', '<Nop>', {})
+  vim.api.nvim_set_keymap('n', '<Leader><Space>', '[EasyM]', {})
+  -- Gif config
+  vim.api.nvim_set_keymap('', '[EasyM]s', '<Plug>(easymotion-lineforward)', {})
+  vim.api.nvim_set_keymap('', '[EasyM]t', '<Plug>(easymotion-j)', {})
+  vim.api.nvim_set_keymap('', '[EasyM]n', '<Plug>(easymotion-k)', {})
+  vim.api.nvim_set_keymap('', '[EasyM]k', '<Plug>(easymotion-linebackward)', {})
+  -- keep cursor column when JK motion
+  vim.g.EasyMotion_startofline = 0 
+  vim.g.EasyMotion_smartcase = 1
 '''
 repo = 'easymotion/vim-easymotion'
 
