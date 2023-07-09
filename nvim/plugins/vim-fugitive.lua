@@ -1,4 +1,4 @@
-vim.api.nvim_set_keymap('n', '[git]', '<Nop>', {})
+vim.api.nvim_set_keymap('n', '[git]', '', {noremap = true})
 vim.api.nvim_set_keymap('n', '<Leader>g', '[git]', {})
 vim.api.nvim_set_keymap('n', '[git]s', ':Git<CR><C-w>T', {noremap = true})
 vim.api.nvim_set_keymap('n', '[git]a', ':Gwrite<CR>', {noremap = true})
