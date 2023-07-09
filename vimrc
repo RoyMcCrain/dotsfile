@@ -41,18 +41,14 @@ set wrapscan                      " 最後尾まで検索を終えたら次の�
 set gdefault                            " 置換のgオプションをデフォルトで有効にする
 set wildmenu wildmode=longest:full,full " vimからファイルを開く時にtabを押すとリストを表示する
 set virtualedit=block                   " 文字のない所にカーソル移動できる
-set sh=zsh
 " windows設定
 set shellslash   "ディレクトリパスに/を使えるようにする
 " エンコーディングの設定
 set fileformats=unix,dos,mac
-" ビープ音
-set visualbell t_vb=
-set noerrorbells
 " 行末までのヤンク
 nnoremap Y y$
 " esc escで検索のハイライトを消す
-noremap <ESC><ESC> :noh<CR>
+noremap NN :noh<CR>
 " 英語配列用
 noremap; :
 noremap: ;
@@ -71,6 +67,8 @@ noremap <C-d> <C-w>h
 noremap <C-h> <C-w>j
 noremap <C-t> <C-w>k
 noremap <C-n> <C-w>l
+" 日本語切り替え
+ioremap <C-space> <Nop>
 
 syntax enable
 filetype plugin indent on
