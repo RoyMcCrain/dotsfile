@@ -33,7 +33,7 @@ repo = 'rebelot/kanagawa.nvim'
 # statusline拡張
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/lightline.vim'
+hook_add = 'source ~/.config/nvim/plugins/lightline.lua'
 repo = 'itchyny/lightline.vim'
 
 #----------------------------------------------------------------------------------#
@@ -48,7 +48,7 @@ repo = 'vim-denops/denops.vim'
 # hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
 # 
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
+hook_add = 'source ~/.config/nvim/plugins/vim-lsp.lua'
 repo = 'prabirshrestha/vim-lsp'
 
 [[plugins]]
@@ -117,7 +117,7 @@ repo = 'lukas-reineke/indent-blankline.nvim'
 # ファイルブラウザ補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/fern.vim'
+hook_add = 'source ~/.config/nvim/plugins/fern.lua'
 repo = 'lambdalisue/fern.vim'
 
 [[plugins]]
@@ -128,7 +128,7 @@ repo = 'lambdalisue/fern-git-status.vim'
 # gitツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/vim-fugitive.vim'
+hook_add = 'source ~/.config/nvim/plugins/vim-fugitive.lua'
 repo = 'tpope/vim-fugitive'
 
 [[plugins]]
@@ -158,14 +158,14 @@ repo = 'tyru/caw.vim'
 lua_add = '''
   -- Disable default mappings
   vim.g.EasyMotion_do_mapping = 0
-  vim.api.nvim_set_keymap('n', 'F', '<Plug>(easymotion-overwin-f2)', {})
+  vim.api.nvim_set_keymap('n', 'F', '<Plug>(easymotion-overwin-f2)', {noremap = true})
   vim.api.nvim_set_keymap('n', '[EasyM]', '<Nop>', {})
   vim.api.nvim_set_keymap('n', '<Leader><Space>', '[EasyM]', {})
   -- Gif config
-  vim.api.nvim_set_keymap('', '[EasyM]s', '<Plug>(easymotion-lineforward)', {})
-  vim.api.nvim_set_keymap('', '[EasyM]t', '<Plug>(easymotion-j)', {})
-  vim.api.nvim_set_keymap('', '[EasyM]n', '<Plug>(easymotion-k)', {})
-  vim.api.nvim_set_keymap('', '[EasyM]k', '<Plug>(easymotion-linebackward)', {})
+  vim.api.nvim_set_keymap('', '[EasyM]s', '<Plug>(easymotion-lineforward)', {noremap = true})
+  vim.api.nvim_set_keymap('', '[EasyM]t', '<Plug>(easymotion-j)', {noremap = true})
+  vim.api.nvim_set_keymap('', '[EasyM]n', '<Plug>(easymotion-k)', {noremap = true})
+  vim.api.nvim_set_keymap('', '[EasyM]k', '<Plug>(easymotion-linebackward)', {noremap = true})
   -- keep cursor column when JK motion
   vim.g.EasyMotion_startofline = 0 
   vim.g.EasyMotion_smartcase = 1
@@ -200,5 +200,5 @@ repo = 'cohama/lexima.vim'
 # Github copilot
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/copilot.vim'
+hook_add = 'source ~/.config/nvim/plugins/copilot.lua'
 repo = 'github/copilot.vim'

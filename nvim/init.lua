@@ -145,9 +145,8 @@ vim.cmd('filetype plugin indent on')
 -- hook_post_sourceを呼び出すとき必要
 vim.cmd('autocmd VimEnter * call dein#call_hook("post_source")')
 -- Golang
-vim.cmd([[
+vim.api.nvim_exec([[
   autocmd FileType go setlocal soexpandtab
   autocmd FileType go setlocal tabstop=4
   autocmd FileType go setlocal shiftwidth=4
-]])
-
+]], false)

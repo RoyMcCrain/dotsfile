@@ -2,7 +2,7 @@
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_source = 'source ~/.config/nvim/plugins/ddu.vim'
+hook_source = 'source ~/.config/nvim/plugins/ddu.lua'
 on_event = 'BufRead'
 repo = 'Shougo/ddu.vim'
 
@@ -47,7 +47,7 @@ repo = 'Shougo/ddu-source-register'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 depends = ['denops.vim']
-hook_source = 'source ~/.config/nvim/plugins/ddc.vim'
+hook_source = 'source ~/.config/nvim/plugins/ddc.lua'
 on_event = 'InsertEnter'
 repo = 'Shougo/ddc.vim'
 
