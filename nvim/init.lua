@@ -63,6 +63,7 @@ vim.o.virtualedit = "block"                -- 文字のない所にカーソル�
 vim.o.shellslash = true                    -- ディレクトリパスに/を使えるようにする
 vim.o.fileformats = "unix,dos,mac"         -- エンコーディングの設定
 vim.o.maxfuncdepth = 200                   -- 最大関数呼び出し深度
+vim.o.compatible = false                   -- viとの互換を切る
 -- terminalモードから抜ける
 vim.api.nvim_set_keymap('t', '<Esc>', '<C-\\><C-n>', {noremap = true})
 vim.cmd([[ autocmd TermOpen * startinsert ]])
@@ -100,7 +101,7 @@ vim.api.nvim_set_keymap('v', 'j', 'w', {noremap = true})
 vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', {noremap = true, silent = true})
 vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', {noremap = true, silent = true})
 
-CACHE = vim.fn.expand('$HOME/.cache')
+local CACHE = vim.fn.expand('$HOME/.cache')
 if vim.fn.isdirectory(CACHE) == 0 then
   vim.fn.mkdir(CACHE, 'p')
 end
@@ -115,13 +116,21 @@ if not string.find(vim.o.runtimepath, '/dein.vim') then
   vim.cmd('set runtimepath^=' .. dein_dir:gsub('[/\\]$', ''))
 end
 
-vim.o.compatible = false
-dein_base = '$HOME/.cache/dein/'
-dein_src = '$HOME/.cache/dein/repos/github.com/Shougo/dein.vim'
+local dein_base = '$HOME/.cache/dein/'
+local dein_src = '$HOME/.cache/dein/repos/github.com/Shougo/dein.vim'
+
 vim.cmd('set runtimepath+=' .. dein_src)
 
 -- Call dein initialization (required)
 vim.call('dein#begin', dein_base)
+
+local file = io.open(vim.fn.stdpath('config') .. "/token", "r") -- ファイルを読み込むモードで開く
+if file then
+    local token = file:read("*all") -- ファイルの内容全てを読み込む
+    file:close() -- ファイルを閉じる
+
+    vim.g['dein#install_github_api_token'] = token -- 変数を設定
+end
 
 vim.call('dein#add', dein_src)
 
@@ -136,13 +145,7 @@ vim.g.dein_auto_recache = 1
 
 -- Finish dein initialization (required)
 vim.call('dein#end')
-local file = io.open(vim.fn.stdpath('config') .. "/token", "r") -- ファイルを読み込むモードで開く
-if file then
-    local token = file:read("*all") -- ファイルの内容全てを読み込む
-    file:close() -- ファイルを閉じる
 
-    vim.g['dein#install_github_api_token'] = token -- 変数を設定
-end
 
 vim.cmd('syntax enable')
 vim.cmd('filetype plugin indent on')
