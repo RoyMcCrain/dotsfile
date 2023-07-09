@@ -1,4 +1,4 @@
-vim.wo["signcolumn"] = "yes"  -- 左端のリンターとか出すところを常に出す
+vim.wo.signcolumn = "yes"  -- 左端のリンターとか出すところを常に出す
 vim.o.backspace = "indent,eol,start"  -- Backspaceの有効化
 vim.o.whichwrap = "b,s,h,l,<,>,[,]"  -- カーソルが行頭／末にあるときに前／次行に移動できる
 vim.o.lazyredraw = true  -- マクロやコマンドを実行する間、画面を再描画しない(スクロールが重くなる対策)
@@ -8,7 +8,7 @@ vim.o.hidden = true  -- bufferを切り替える時に保存してくても警�
 vim.o.showcmd = true  -- 入力中のコマンド表示
 vim.o.nrformats = "bin,hex"  -- 0で始まる数値を8進数として扱わないようにする
 if vim.fn.has("persistent_undo") == 1 then
-  vim.o.undodir = vim.fn.expand("$HOME/.config/nvim/undo")  -- undoファイルのパス
+  vim.o.undodir = vim.fn.expand(vim.fn.stdpath('config') .. '/undo')  -- undoファイルのパス
   vim.o.undofile = true
 end
 vim.bo.swapfile = false  -- swpファイルをつくらない
@@ -101,10 +101,19 @@ vim.api.nvim_set_keymap('v', 'j', 'w', {noremap = true})
 vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', {noremap = true, silent = true})
 vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', {noremap = true, silent = true})
 
+-- Golang
+vim.cmd([[
+  autocmd FileType go setlocal soexpandtab
+  autocmd FileType go setlocal tabstop=4
+  autocmd FileType go setlocal shiftwidth=4
+]])
+
+-- dein
 local CACHE = vim.fn.expand('$HOME/.cache')
 if vim.fn.isdirectory(CACHE) == 0 then
   vim.fn.mkdir(CACHE, 'p')
 end
+
 if not string.find(vim.o.runtimepath, '/dein.vim') then
   local dein_dir = vim.fn.fnamemodify('dein.vim', ':p')
   if vim.fn.isdirectory(dein_dir) == 0 then
@@ -116,43 +125,29 @@ if not string.find(vim.o.runtimepath, '/dein.vim') then
   vim.cmd('set runtimepath^=' .. dein_dir:gsub('[/\\]$', ''))
 end
 
-local dein_base = '$HOME/.cache/dein/'
-local dein_src = '$HOME/.cache/dein/repos/github.com/Shougo/dein.vim'
-
+local dein_src = CACHE .. '/dein/repos/github.com/Shougo/dein.vim'
 vim.cmd('set runtimepath+=' .. dein_src)
 
 -- Call dein initialization (required)
-vim.call('dein#begin', dein_base)
+local dein = require('dein')
 
-local file = io.open(vim.fn.stdpath('config') .. "/token", "r") -- ファイルを読み込むモードで開く
-if file then
-    local token = file:read("*all") -- ファイルの内容全てを読み込む
-    file:close() -- ファイルを閉じる
+dein.setup {
+  auto_recache = true,
+  install_progress_type = 'floating',
+}
 
-    vim.g['dein#install_github_api_token'] = token -- 変数を設定
-end
-
-vim.call('dein#add', dein_src)
+local dein_base = CACHE .. '/dein/'
+dein.begin(dein_base)
 
 -- 管理するプラグインを記述したファイル
-local toml = '$HOME/.config/nvim/toml/dein.toml'
-local lazy_toml = '$HOME/.config/nvim/toml/dein_lazy.toml'
-vim.call('dein#load_toml', toml, {lazy = 0})
-vim.call('dein#load_toml', lazy_toml, {lazy = 1})
+local toml = vim.fn.stdpath('config') .. '/toml/dein.toml'
+local lazy_toml = vim.fn.stdpath('config') .. '/toml/dein_lazy.toml'
+dein.load_toml(toml, {lazy = 0})
+dein.load_toml(lazy_toml, {lazy = 1})
 
--- vimrcやtomlを修正したら自動でアンスコする
-vim.g.dein_auto_recache = 1
-
--- Finish dein initialization (required)
-vim.call('dein#end')
-
-
+dein.end_()
+-- dein終了時に実行する
 vim.cmd('syntax enable')
 vim.cmd('filetype plugin indent on')
-
--- Golang
-vim.cmd([[
-  autocmd FileType go setlocal soexpandtab
-  autocmd FileType go setlocal tabstop=4
-  autocmd FileType go setlocal shiftwidth=4
-]])
+-- hook_post_sourceを呼び出すとき必要
+vim.cmd('autocmd VimEnter * call dein#call_hook("post_source")')

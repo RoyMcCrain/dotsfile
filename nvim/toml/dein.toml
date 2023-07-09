@@ -24,7 +24,7 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = '''
+hook_post_source = '''
   colorscheme kanagawa
 '''
 repo = 'rebelot/kanagawa.nvim'
