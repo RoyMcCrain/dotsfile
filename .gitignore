@@ -3,5 +3,3 @@ package-lock.json
 .DS_Store
 nvim/swp
 nvim/undo
-nvim/token.vim
-nvim/token
