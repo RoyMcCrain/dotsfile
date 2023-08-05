@@ -40,7 +40,6 @@ vim.fn['ddu#custom#patch_global']({
       autoResize = true,
       floatingBorder = 'rounded',
       displaySourceName = 'short',
-      displayTree = true,
       floatingTitle = "Find sources, <v>, <s>, <i> or <ESC>",
       filterFloatingTitle = "Filter word, <ESC>",
     },
