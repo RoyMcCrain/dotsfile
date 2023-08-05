@@ -90,6 +90,7 @@ vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>h', {noremap = true})
 vim.api.nvim_set_keymap('n', '<C-t>', '<C-w>j', {noremap = true})
 vim.api.nvim_set_keymap('n', '<C-n>', '<C-w>k', {noremap = true})
 vim.api.nvim_set_keymap('n', '<C-s>', '<C-w>l', {noremap = true})
+-- 矩形選択が貼り付けとコンフリクトするので変更
 vim.api.nvim_set_keymap('n', '<C-j>', '<C-v>', {noremap = true})
 
 -- 日本語切替で被るのでvimを止める
@@ -100,6 +101,34 @@ vim.api.nvim_set_keymap('v', 'j', 'w', {noremap = true})
 -- wrap
 vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', {noremap = true, silent = true})
 vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', {noremap = true, silent = true})
+
+-- Terminalはinsertモードで開く
+vim.cmd [[
+  autocmd TermOpen * startinsert
+]]
+
+-- ターミナルをトグルする関数
+vim.api.nvim_exec([[
+function! ToggleTerminal()
+  if &buftype == 'terminal'
+    " ターミナルから元のバッファに戻る
+    buffer #
+  else
+    " すでに開いているターミナルバッファがあるか確認
+    for buf in range(1, bufnr('$'))
+      if getbufvar(buf, '&buftype') == 'terminal'
+        execute 'buffer' buf
+        return
+      endif
+    endfor
+    " ターミナルバッファがない場合、新しいターミナルを開く
+    terminal
+  endif
+endfunction
+]], false)
+
+-- キーマップの設定
+vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true, silent = true })
 
 -- dein
 local CACHE = vim.fn.expand('$HOME/.cache')
