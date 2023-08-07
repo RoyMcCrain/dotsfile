@@ -155,9 +155,9 @@ repo = 'tyru/caw.vim'
 lua_add = '''
   -- Disable default mappings
   vim.g.EasyMotion_do_mapping = 0
-  vim.api.nvim_set_keymap('n', 'F', '<Plug>(easymotion-overwin-f2)', {noremap = true})
-  vim.api.nvim_set_keymap('n', '[EasyM]', '<Nop>', {})
-  vim.api.nvim_set_keymap('n', '<Leader><Space>', '[EasyM]', {})
+  vim.api.nvim_set_keymap('n', '<Leader>e', '<Plug>(easymotion-overwin-f2)', {noremap = true})
+  vim.api.nvim_set_keymap('n', '[Easy,<k>,<t>,<n>,<s>]', '<Nop>', {})
+  vim.api.nvim_set_keymap('n', '<Leader><Space>', '[Easy,<k>,<t>,<n>,<s>]', {})
   -- Gif config
   vim.api.nvim_set_keymap('', '[EasyM]s', '<Plug>(easymotion-lineforward)', {noremap = true})
   vim.api.nvim_set_keymap('', '[EasyM]t', '<Plug>(easymotion-j)', {noremap = true})
