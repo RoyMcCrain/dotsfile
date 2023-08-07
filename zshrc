@@ -215,12 +215,6 @@ function ghq-fzf() {
 zle -N ghq-fzf
 bindkey '^t' ghq-fzf
 
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/Users/roy/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/path.zsh.inc'; fi
-
-# The next line enables shell command completion for gcloud.
-if [ -f '/Users/roy/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/roy/google-cloud-sdk/completion.zsh.inc'; fi
-
 ###-begin-npm-completion-###
 #
 # npm command completion script
