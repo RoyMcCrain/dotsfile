@@ -43,10 +43,6 @@ repo = 'itchyny/lightline.vim'
 [[plugins]]
 repo = 'vim-denops/denops.vim'
 
-# [[plugins]]
-# repo = 'neovim/nvim-lspconfig'
-# hook_add = 'source ~/.config/nvim/plugins/vim-lsp.vim'
-# 
 [[plugins]]
 hook_add = 'source ~/.config/nvim/plugins/vim-lsp.lua'
 repo = 'prabirshrestha/vim-lsp'
@@ -89,7 +85,7 @@ lua_add = '''
       css = {'stylelint'},
       scss = {'stylelint'},
       sass = {'stylelint'},
-      less = {'stylelint'}
+      less = {'stylelint'},
   }
   vim.g.ale_linter_aliases = {
       svelte = {'svelte', 'typescript'}

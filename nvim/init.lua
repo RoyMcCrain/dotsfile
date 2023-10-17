@@ -179,3 +179,28 @@ vim.api.nvim_exec([[
   autocmd FileType go setlocal tabstop=4
   autocmd FileType go setlocal shiftwidth=4
 ]], false)
+
+function prettier()
+  local filetypes = {
+    "javascript", "javascriptreact", "typescript", "typescriptreact",
+    "json", "css", "scss", "yaml", "html", "markdown"
+  }
+
+  local buf_filetype = vim.api.nvim_buf_get_option(0, 'filetype')
+  for _, filetype in pairs(filetypes) do
+    if buf_filetype == filetype then
+      if vim.fn.executable("bunx") == 1 then
+        local cmd = 'silent !bunx prettier --write ' .. vim.fn.expand('%:p')
+        vim.cmd(cmd)
+      end
+      return
+    end
+  end
+end
+
+vim.api.nvim_exec([[
+  augroup FormatAutogroup
+    autocmd!
+    autocmd BufWritePost * lua prettier()
+  augroup END
+]], false)

@@ -99,31 +99,6 @@ repo = 'neovimhaskell/haskell-vim'
 #----------------------------------------------------------------#
 
 [[plugins]]
-build = 'npm install'
-lua_source = '''
-  vim.g['prettier#autoformat'] = 0
-  vim.cmd([[
-    autocmd BufWritePre *.js,*.jsx,*.mjs,*.ts,*.tsx,*.css,*.less,*.scss,*.json,*.graphql,*.md,*.vue,*.yaml,*.html PrettierAsync
-  ]])
-'''
-on_ft = [
-        'typescript',
-        'typescriptreact',
-        'javascript',
-        'javascriptreact',
-        'css',
-        'less',
-        'scss',
-        'json',
-        'graphql',
-        'markdown',
-        'vue',
-        'yaml',
-        'html',
-]
-repo = 'prettier/vim-prettier'
-
-[[plugins]]
 on_ft = ['go']
 repo = 'mattn/vim-goimports'
 
