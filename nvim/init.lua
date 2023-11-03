@@ -180,6 +180,15 @@ if vim.fn.has('syntax') then
   vim.cmd('syntax on')
 end
 
+vim.api.nvim_create_user_command('DppInstall', function()
+  vim.fn['dpp#async_ext_action']('installer', 'install')
+end, {})
+
+vim.api.nvim_create_user_command('DppUpdate', function()
+  vim.fn['dpp#async_ext_action']('installer', 'update')
+end, {})
+
+
 -- Golang
 vim.api.nvim_exec([[
   autocmd FileType go setlocal noexpandtab
