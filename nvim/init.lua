@@ -60,7 +60,6 @@ vim.opt.gdefault = true                      -- 置換のgオプションをデ�
 vim.opt.wildmenu = true                      -- Tabによる自動補完を有効にする
 vim.opt.wildmode = "list:longest,full"       -- vimからファイルを開く時にtabを押すとリストを表示する
 vim.opt.virtualedit = "block"                -- 文字のない所にカーソル移動できる
-vim.opt.shellslash = true                    -- ディレクトリパスに/を使えるようにする
 vim.opt.fileformats = "unix,dos,mac"         -- エンコーディングの設定
 vim.opt.maxfuncdepth = 200                   -- 最大関数呼び出し深度
 vim.opt.compatible = false                   -- viとの互換を切る
@@ -130,11 +129,57 @@ endfunction
 -- キーマップの設定
 vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true, silent = true })
 
--- dein
+-- dpp.vim
+
 local CACHE = vim.fn.expand('$HOME/.cache')
 if vim.fn.isdirectory(CACHE) == 0 then
   vim.fn.mkdir(CACHE, 'p')
 end
+-- Set dpp base path (required)
+local dpp_base = CACHE .. '/dpp'
+
+if not string.find(vim.o.runtimepath, '/dpp.vim') then
+  local dpp_dir = vim.fn.fnamemodify('dpp.vim', ':p')
+  local dpp_src = dpp_base .. '/repos/github.com/Shougo'
+  if vim.fn.isdirectory(dpp_dir) == 0 then
+    if vim.fn.isdirectory(dpp_src) == 0 then
+      vim.cmd('!git clone https://github.com/Shougo/dpp.vim' .. ' ' .. dpp_src .. '/dpp.vim')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-installer' .. ' ' .. dpp_src .. '/dpp-ext-installer')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_src .. '/dpp-ext-lazy')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-toml' .. ' '  .. dpp_src .. '/dpp-ext-toml')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-protocol-git' .. ' ' .. dpp_src .. '/dpp-protocol-git')
+    end
+  end
+  vim.cmd('set runtimepath^=' .. dpp_src .. '/dpp.vim')
+end
+
+-- Load dpp state
+if vim.fn["dpp#min#load_state"](dpp_base) then
+  if not string.find(vim.o.runtimepath, '/denops.vim') then
+    local denops_dir = vim.fn.fnamemodify('denops.vim', ':p')
+    local denops_src = dpp_base .. '/repos/github.com/vim-denops/denops.vim'
+    if vim.fn.isdirectory(denops_dir) == 0 then
+      if vim.fn.isdirectory(denops_src) == 0 then
+        vim.cmd('!git clone https://github.com/vim-denops/denops.vim ' .. denops_src)
+      end
+    end
+    vim.cmd('set runtimepath^=' .. denops_src)
+  end
+  vim.api.nvim_command('autocmd User DenopsReady call dpp#make_state("' .. dpp_base .. '", "{TypeScript config file path}")')
+end
+
+-- Enable filetype indent and plugin
+vim.cmd('filetype indent plugin on')
+
+-- Enable syntax highlighting
+if vim.fn.has('syntax') then
+  vim.cmd('syntax on')
+end
+
+
+
+
+-- dein
 
 if not string.find(vim.o.runtimepath, '/dein.vim') then
   local dein_dir = vim.fn.fnamemodify('dein.vim', ':p')

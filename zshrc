@@ -8,32 +8,13 @@ export LANG=ja_JP.UTF-8
 export GIT_EDITOR=nvim
 export EDITOR=nvim
 export TERM=xterm-256color
-# bundle
-alias be="bundle exec"
-alias bi="bundle install"
-alias rails="bundle exec rails"
-alias rails-s="bundle exec rails s -p 3001"
-alias rspec="bundle exec rspec"
-# yarn
-alias nir="ni run "
-alias niu="ni upgrade-interactive "
-alias nil="ni run lint "
-alias sortp="npx sort-package-json"
-# cloud functions コマンド alias
-alias cfunc='functions-emulator'
+# bun
+export PATH=$PATH:$HOME/.bun/bin
 # 色を使用出来るようにする
-autoload -Uz colors
-colors
-# emacs 風キーバインドにする
-bindkey -e
+autoload -Uz colors && colors
+bindkey -v
 # asdf
 . $HOME/.asdf/asdf.sh
-# append completions to fpath
-fpath=(${ASDF_DIR}/completions $fpath)
-# docker alias
-alias d="docker"
-alias dc="docker-compose"
-
 # JAVA_HOME
 . ~/.asdf/plugins/java/set-java-home.zsh
 
@@ -59,19 +40,15 @@ zstyle ':zle:*' word-style unspecified
 ########################################
 # 補完
 # 補完機能を有効にする
-autoload -Uz compinit
-compinit
+autoload -Uz compinit && compinit
 
 # 補完で小文字でも大文字にマッチさせる
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
-
 # ../ の後は今いるディレクトリを補完しない
 zstyle ':completion:*' ignore-parents parent pwd ..
-
 # sudo の後ろでコマンド名を補完する
 zstyle ':completion:*:sudo:*' command-path /usr/local/sbin /usr/local/bin \
                    /usr/sbin /usr/bin /sbin /bin /usr/X11R6/bin
-
 # ps コマンドのプロセス名補完
 zstyle ':completion:*:processes' command 'ps x -o pid,s,args'
 
@@ -140,7 +117,8 @@ alias js='jobs'
 alias la='ls -a'
 alias ll='ls -lh'
 
-alias rm='rm -i'
+alias rm='rm -ri'
+alias rmf='rm -rf'
 alias cp='cp -i'
 alias mv='mv -i'
 
@@ -167,6 +145,23 @@ elif which putclip >/dev/null 2>&1 ; then
     # Cygwin
     alias -g C='| putclip'
 fi
+
+# bundle
+alias be="bundle exec"
+alias bi="bundle install"
+alias rails="bundle exec rails"
+alias rails-s="bundle exec rails s -p 3001"
+alias rspec="bundle exec rspec"
+# node
+alias nir="ni run "
+alias niu="ni upgrade-interactive "
+alias nil="ni run lint "
+alias sortp="npx sort-package-json"
+# cloud functions コマンド alias
+alias cfunc='functions-emulator'
+# docker alias
+alias d="docker"
+alias dc="docker-compose"
 ########################################
 # OS 別の設定
 case ${OSTYPE} in
@@ -174,16 +169,16 @@ case ${OSTYPE} in
         #Mac用の設定
         export CLICOLOR=1
         alias ls='ls -G -F'
-        export ZPLUG_HOME=/Users/roy/.zplug
+        export ZPLUG_HOME=$HOME/.zplug
         eval "$(/opt/homebrew/bin/brew shellenv)"
         ;;
     linux*)
         #Linux用の設定
         alias ls='ls -F --color=auto'
         alias open="xdg-open"
-        export ZPLUG_HOME=/home/roy/.zplug
+        export ZPLUG_HOME=$HOME/.zplug
         # Ruby InstallのOpenSSL場所指定
-        export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"  
+        export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"
         ;;
 esac
 ########################################
@@ -196,6 +191,15 @@ zplug "zsh-users/zsh-completions"
 zplug "azu/ni.zsh", use:ni.zsh
 zplug load
 ENHANCD_FILTER=fzf; export ENHANCD_FILTER;
+## 未インストールのプラグインをインストール
+if ! zplug check --verbose; then
+    printf 'Install? [y/N]: '
+    if read -q; then
+      echo; zplug install
+    fi
+fi
+# コマンドにパスを通し、プラグインを読み込む
+zplug load --verbose
 
 function select-history() {
   BUFFER=$(history -n -r 1 | fzf --no-sort +m --query "$LBUFFER" --prompt="History > ")
@@ -285,3 +289,8 @@ elif type compctl &>/dev/null; then
 fi
 ###-end-npm-completion-###
 
+# bun completions
+[ -s $HOME/.bun/_bun ] && source $HOME/.bun/_bun
+
+# asdf completions
+fpath=(${ASDF_DIR}/completions $fpath)
