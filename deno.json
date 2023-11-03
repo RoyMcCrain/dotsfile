@@ -1,0 +1,5 @@
+{
+  "lint": {
+    "include": ["nvim/plugins/*.ts"]
+  }
+}

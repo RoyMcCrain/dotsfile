@@ -3,19 +3,8 @@ import {
   ContextBuilder,
   Dpp,
   Plugin,
-} from "https://deno.land/x/dpp_vim@v0.0.2/types.ts";
-import { Denops, fn } from "https://deno.land/x/dpp_vim@v0.0.2/deps.ts";
-
-type Toml = {
-  hooks_file?: string;
-  ftplugins?: Record<string, string>;
-  plugins: Plugin[];
-};
-
-type LazyMakeStateResult = {
-  plugins: Plugin[];
-  stateLines: string[];
-};
+} from "https://deno.land/x/dpp_vim@v0.0.5/types.ts";
+import { Denops, fn } from "https://deno.land/x/dpp_vim@v0.0.5/deps.ts";
 
 export class Config extends BaseConfig {
   override async config(args: {
@@ -31,25 +20,46 @@ export class Config extends BaseConfig {
       protocols: ["git"],
     });
 
-    const [context, options] = await args.contextBuilder.get(args.denops);
+    type Toml = {
+      hooks_file?: string;
+      ftplugins?: Record<string, string>;
+      plugins?: Plugin[];
+    };
 
-    // Load toml plugins
+    type LazyMakeStateResult = {
+      plugins: Plugin[];
+      stateLines: string[];
+    };
+
+    const [context, options] = await args.contextBuilder.get(args.denops);
+    const dotfilesDir = "~/.config/nvim/toml/";
+
     const tomls: Toml[] = [];
+
     tomls.push(
       (await args.dpp.extAction(args.denops, context, options, "toml", "load", {
-        path: "$BASE_DIR/dein.toml",
+        path: await fn.expand(args.denops, dotfilesDir + "dein.toml"),
         options: {
           lazy: false,
         },
       })) as Toml,
     );
 
-    // Merge toml results
+    tomls.push(
+      (await args.dpp.extAction(args.denops, context, options, "toml", "load", {
+        path: await fn.expand(args.denops, dotfilesDir + "dein_lazy.toml"),
+        options: {
+          lazy: true,
+        },
+      })) as Toml,
+    );
+
     const recordPlugins: Record<string, Plugin> = {};
     const ftplugins: Record<string, string> = {};
     const hooksFiles: string[] = [];
-    for (const toml of tomls) {
-      for (const plugin of toml.plugins) {
+
+    tomls.forEach((toml) => {
+      for (const plugin of toml.plugins ?? []) {
         recordPlugins[plugin.name] = plugin;
       }
 
@@ -66,34 +76,7 @@ export class Config extends BaseConfig {
       if (toml.hooks_file) {
         hooksFiles.push(toml.hooks_file);
       }
-    }
-
-    const localPlugins = (await args.dpp.extAction(
-      args.denops,
-      context,
-      options,
-      "local",
-      "local",
-      {
-        directory: "~/work",
-        options: {
-          frozen: true,
-          merged: false,
-        },
-      },
-    )) as Plugin[];
-
-    // Merge localPlugins
-    for (const plugin of localPlugins) {
-      if (plugin.name in recordPlugins) {
-        recordPlugins[plugin.name] = Object.assign(
-          recordPlugins[plugin.name],
-          plugin,
-        );
-      } else {
-        recordPlugins[plugin.name] = plugin;
-      }
-    }
+    });
 
     const lazyResult = (await args.dpp.extAction(
       args.denops,
@@ -107,8 +90,6 @@ export class Config extends BaseConfig {
     )) as LazyMakeStateResult;
 
     return {
-      ftplugins,
-      hooksFiles,
       plugins: lazyResult.plugins,
       stateLines: lazyResult.stateLines,
     };

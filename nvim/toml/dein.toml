@@ -3,11 +3,6 @@
 build = 'make'
 repo = 'Shougo/vimproc.vim'
 
-[[plugins]]
-# deinのUpdateをGUIで。
-# :DeinUpdate
-repo = 'wsdjeg/dein-ui.vim'
-
 #----------------------------------------------------------------------------------#
 # toml管理で便利
 #----------------------------------------------------------------------------------#
@@ -24,7 +19,7 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_post_source = '''
+hook_add = '''
   colorscheme kanagawa
 '''
 repo = 'rebelot/kanagawa.nvim'
@@ -35,13 +30,6 @@ repo = 'rebelot/kanagawa.nvim'
 [[plugins]]
 hook_add = 'source ~/.config/nvim/plugins/lightline.lua'
 repo = 'itchyny/lightline.vim'
-
-#----------------------------------------------------------------------------------#
-# Denops
-#----------------------------------------------------------------------------------#
-
-[[plugins]]
-repo = 'vim-denops/denops.vim'
 
 [[plugins]]
 hook_add = 'source ~/.config/nvim/plugins/vim-lsp.lua'
@@ -68,6 +56,7 @@ lua_add = '''
     }
   }
   vim.g['lsp_settings_filetype_ruby'] = {'solargraph'}
+  vim.g['lsp_settings_filetype_typescript'] = {'typescript-language-server', 'deno'}
 '''
 merged = 0
 repo = 'mattn/vim-lsp-settings'
@@ -98,7 +87,7 @@ repo = 'dense-analysis/ale'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 lua_add = '''
-require("ibl").setup()
+  require("ibl").setup()
 
 '''
 repo = 'lukas-reineke/indent-blankline.nvim'
