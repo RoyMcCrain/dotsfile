@@ -59,7 +59,8 @@ export class Config extends BaseConfig {
     const hooksFiles: string[] = [];
 
     tomls.forEach((toml) => {
-      for (const plugin of toml.plugins ?? []) {
+      if (!toml.plugins) return;
+      for (const plugin of toml.plugins) {
         recordPlugins[plugin.name] = plugin;
       }
 
