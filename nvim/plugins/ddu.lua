@@ -35,13 +35,15 @@ vim.fn['ddu#custom#patch_global']({
     ff = {
       winWidth = math.floor(vim.o.columns * 0.9),
       startFilter = true,
-      prompt = 'λ ',
+      prompt = '> ',
       split = 'floating',
       autoResize = true,
       floatingBorder = 'rounded',
       displaySourceName = 'short',
-      floatingTitle = "Find sources, <v>, <s>, <i> or <ESC>",
+      floatingTitle = "Find sources, <v>, <s>, <i>, <p> or <ESC>",
       filterFloatingTitle = "Filter word, <ESC>",
+      previewFloating = true,
+      previewFloatingBorder = 'rounded',
     },
   },
 })
@@ -61,7 +63,7 @@ vim.fn['ddu#custom#patch_local']('grep', {
 
 
 vim.api.nvim_set_keymap('n', '[ddu]', '', {noremap = true})
-vim.api.nvim_set_keymap('n', 'k', '[ddu]', {silent = true})
+vim.api.nvim_set_keymap('n', 't', '[ddu]', {silent = true})
 
 -- GrepActionLua関数の定義
 _G.grep_action = function()
@@ -137,6 +139,7 @@ _G.ddu_my_ff_settings = function()
   vim.api.nvim_buf_set_keymap(0, 'n', 'v', ':call ddu#ui#ff#do_action("itemAction", #{name: "open", params: #{command: "vsplit"}})<CR>', {silent = true, noremap = true})
   vim.api.nvim_buf_set_keymap(0, 'n', 's', ':call ddu#ui#ff#do_action("itemAction", #{name: "open", params: #{command: "split"}})<CR>', {silent = true, noremap = true})
   vim.api.nvim_buf_set_keymap(0, 'n', 'i', ':call ddu#ui#ff#do_action("openFilterWindow")<CR>', {silent = true, noremap = true})
+  vim.api.nvim_buf_set_keymap(0, 'n', 'p', ':call ddu#ui#ff#do_action("togglePreview")<CR>', {silent = true, noremap = true})
   vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#ff#do_action("quit")<CR>', {silent = true, noremap = true})
 end
 
