@@ -157,6 +157,8 @@ alias nir="ni run "
 alias niu="ni upgrade-interactive "
 alias nil="ni run lint "
 alias sortp="npx sort-package-json"
+# bun
+alias bunup="bunx npm-check-updates -ui"
 # cloud functions コマンド alias
 alias cfunc='functions-emulator'
 # docker alias
