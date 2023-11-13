@@ -8,7 +8,6 @@
   mt = mergetool
   dt = difftool
 [user]
-  email = matsuda.r@kanamekey.com
   name = RoyMcCrain
 [push]
   default = current
