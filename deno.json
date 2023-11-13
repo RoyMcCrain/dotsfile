@@ -1,8 +1,0 @@
-{
-  "imports": {
-    "dax": "https://deno.land/x/dax/mod.ts"
-  },
-  "lint": {
-    "include": ["nvim/plugins/*.ts"]
-  }
-}

@@ -111,20 +111,6 @@ depends = ['vim-fugitive']
 repo = 'tpope/vim-rhubarb'
 
 #----------------------------------------------------------------------------------#
-# コメントアウト補助
-#----------------------------------------------------------------------------------#
-[[plugins]]
-lua_add = '''
-  -- 行の最初の文字の前にコメント文字をトグル
-  vim.api.nvim_set_keymap('n', '<Leader>j', '<Plug>(caw:hatpos:toggle)', {})
-  vim.api.nvim_set_keymap('v', '<Leader>j', '<Plug>(caw:hatpos:toggle)', {})
-  -- 行頭にコメントをトグル
-  vim.api.nvim_set_keymap('n', '<Leader>J', '<Plug>(caw:zeropos:toggle)', {})
-  vim.api.nvim_set_keymap('v', '<Leader>J', '<Plug>(caw:zeropos:toggle)', {})
-'''
-repo = 'tyru/caw.vim'
-
-#----------------------------------------------------------------------------------#
 # 移動補完
 #----------------------------------------------------------------------------------#
 [[plugins]]
