@@ -9,7 +9,7 @@
   dt = difftool
 [user]
   name = RoyMcCrain
-	email = me@rrrr.dev
+  email = me@rrrr.dev
 [push]
   default = current
 [color]
