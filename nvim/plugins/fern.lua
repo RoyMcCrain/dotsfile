@@ -11,6 +11,12 @@ _G.init_fern = function()
   vim.api.nvim_buf_set_keymap(0, 'n', 'V', '<Plug>(fern-action-open:vsplit)', {})
   vim.api.nvim_buf_set_keymap(0, 'n', 'S', '<Plug>(fern-action-open:split)', {})
   vim.api.nvim_buf_set_keymap(0, 'n', 'D', '<Plug>(fern-action-remove)', {})
+  vim.api.nvim_buf_set_keymap(0, 'n', 'l', '<Plug>(fern-action-reload)', {})
+  vim.api.nvim_buf_set_keymap(0, 'n', 'N', '<Plug>(fern-action-new-file)', {})
+  vim.api.nvim_buf_set_keymap(0, 'n', 'K', '<Plug>(fern-action-new-dir)', {})
+  vim.api.nvim_buf_set_keymap(0, 'n', 'c', '<Plug>(fern-action-copy)', {})
+  vim.api.nvim_buf_set_keymap(0, 'n', 'm', '<Plug>(fern-action-move)', {})
+  vim.api.nvim_buf_set_keymap(0, 'n', 'R', '<Plug>(fern-action-rename)', {})
 end
 
 vim.api.nvim_exec([[
