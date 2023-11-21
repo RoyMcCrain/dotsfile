@@ -15,6 +15,7 @@ plugins=(
 	"rust"
 	"yarn"
 	"rye"
+	"lua-language-server"
 )
 
 for plugin in ${plugins[@]}; do

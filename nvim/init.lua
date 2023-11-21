@@ -1,18 +1,18 @@
-vim.opt.signcolumn = "yes"	-- 左端のリンターとか出すところを常に出す
-vim.opt.backspace = "indent,eol,start"	-- Backspaceの有効化
-vim.opt.whichwrap = "b,s,h,l,<,>,[,]"  -- カーソルが行頭／末にあるときに前／次行に移動できる
-vim.opt.lazyredraw = true  -- マクロやコマンドを実行する間、画面を再描画しない(スクロールが重くなる対策)
-vim.opt.scrolloff = 10	-- 編集中の箇所の周辺のテキストを見ることができる(スクロールする時に下が見える)
-vim.opt.autoread = true  -- 外部でファイルが変更された場合、読み直す
-vim.opt.hidden = true  -- bufferを切り替える時に保存してくても警告を出さない
-vim.opt.showcmd = true	-- 入力中のコマンド表示
-vim.opt.nrformats = "bin,hex"  -- 0で始まる数値を8進数として扱わないようにする
+vim.opt.signcolumn = "yes"                                          -- 左端のリンターとか出すところを常に出す
+vim.opt.backspace = "indent,eol,start"                              -- Backspaceの有効化
+vim.opt.whichwrap = "b,s,h,l,<,>,[,]"                               -- カーソルが行頭／末にあるときに前／次行に移動できる
+vim.opt.lazyredraw = true                                           -- マクロやコマンドを実行する間、画面を再描画しない(スクロールが重くなる対策)
+vim.opt.scrolloff = 10                                              -- 編集中の箇所の周辺のテキストを見ることができる(スクロールする時に下が見える)
+vim.opt.autoread = true                                             -- 外部でファイルが変更された場合、読み直す
+vim.opt.hidden = true                                               -- bufferを切り替える時に保存してくても警告を出さない
+vim.opt.showcmd = true                                              -- 入力中のコマンド表示
+vim.opt.nrformats = "bin,hex"                                       -- 0で始まる数値を8進数として扱わないようにする
 if vim.fn.has("persistent_undo") == 1 then
-	vim.o.undodir = vim.fn.expand(vim.fn.stdpath('config') .. '/undo')	-- undoファイルのパス
+	vim.o.undodir = vim.fn.expand(vim.fn.stdpath('config') .. '/undo') -- undoファイルのパス
 	vim.o.undofile = true
 end
-vim.opt.swapfile = false	-- swpファイルをつくらない
-vim.opt.termguicolors = true	-- trueカラーを使う
+vim.opt.swapfile = false     -- swpファイルをつくらない
+vim.opt.termguicolors = true -- trueカラーを使う
 vim.opt.clipboard = "unnamedplus"
 if vim.fn.executable('win32yank.exe') == 1 then
 	vim.g.clipboard = {
@@ -29,18 +29,18 @@ if vim.fn.executable('win32yank.exe') == 1 then
 	}
 end
 vim.g.mapleader = " "
-vim.opt.pumheight = 5  -- 変換候補で表示される数
-vim.opt.wrap = false	-- テキストが折り返されないようにする
-vim.opt.colorcolumn = "120"  -- カラムにラインを引く
+vim.opt.pumheight = 5       -- 変換候補で表示される数
+vim.opt.wrap = false        -- テキストが折り返されないようにする
+vim.opt.colorcolumn = "120" -- カラムにラインを引く
 local xdg_cache_home = os.getenv("XDG_CACHE_HOME")
 if xdg_cache_home == nil then
-		xdg_cache_home = os.getenv("HOME") .. "/.cache"
+	xdg_cache_home = os.getenv("HOME") .. "/.cache"
 end
 vim.g.netrw_home = xdg_cache_home .. '/nvim'
 vim.opt.showmatch = true -- 閉じ括弧が入力されたとき、対応する開き括弧にわずかの間ジャンプする
 vim.opt.matchtime = 1 -- マッチしている括弧を表示するための時間を0.1秒単位で指定する
-vim.opt.number = true-- 毎行の前に行番号を表示する
-vim.opt.list = true-- 不可視文字を表示する
+vim.opt.number = true -- 毎行の前に行番号を表示する
+vim.opt.list = true -- 不可視文字を表示する
 vim.opt.listchars = "trail:-,extends:»,precedes:«,nbsp:%,eol:↲,tab:▸◦,space:∙" -- 不可視文字の設定
 vim.opt.display = "lastline" -- テキスト表示の方法を変える(長いテキストを省略せず最後まで表示する)
 vim.opt.laststatus = 2 -- 最下ウィンドウにステータス行を常に表示する
@@ -63,42 +63,42 @@ vim.opt.fileformats = "unix,dos,mac" -- エンコーディングの設定
 vim.opt.maxfuncdepth = 200 -- 最大関数呼び出し深度
 vim.opt.compatible = false -- viとの互換を切る
 -- terminalモードから抜ける
-vim.api.nvim_set_keymap('t', '<Esc>', '<C-\\><C-n>', {noremap = true})
+vim.api.nvim_set_keymap('t', '<Esc>', '<C-\\><C-n>', { noremap = true })
 vim.cmd([[ autocmd TermOpen * startinsert ]])
 vim.cmd([[ command! -nargs=* T split | wincmd j | resize 30 | terminal <args> ]])
 -- 行末までのヤンク
-vim.api.nvim_set_keymap('n', 'Y', 'y$', {noremap = true})
+vim.api.nvim_set_keymap('n', 'Y', 'y$', { noremap = true })
 -- NNで検索のハイライトを消す
-vim.api.nvim_set_keymap('', 'NN', ':noh<CR>', {noremap = true})
+vim.api.nvim_set_keymap('', 'NN', ':noh<CR>', { noremap = true })
 -- 英語配列
-vim.api.nvim_set_keymap('', ';', ':', {noremap = true})
-vim.api.nvim_set_keymap('', ':', ';', {noremap = true})
-vim.api.nvim_set_keymap('v', ';', ':', {noremap = true})
-vim.api.nvim_set_keymap('v', ':', ';', {noremap = true})
+vim.api.nvim_set_keymap('', ';', ':', { noremap = true })
+vim.api.nvim_set_keymap('', ':', ';', { noremap = true })
+vim.api.nvim_set_keymap('v', ';', ':', { noremap = true })
+vim.api.nvim_set_keymap('v', ':', ';', { noremap = true })
 -- 空の行を挿入
-vim.api.nvim_set_keymap('n', 'O', ":<C-u>call append(expand('.'), '')<CR>j", {noremap = true})
+vim.api.nvim_set_keymap('n', 'O', ":<C-u>call append(expand('.'), '')<CR>j", { noremap = true })
 -- ヤンクの内容を消さない
-vim.api.nvim_set_keymap('', 'PP', '"0p', {noremap = true})
-vim.api.nvim_set_keymap('', 'x', '"_x', {noremap = true})
+vim.api.nvim_set_keymap('', 'PP', '"0p', { noremap = true })
+vim.api.nvim_set_keymap('', 'x', '"_x', { noremap = true })
 -- 画面分割
-vim.api.nvim_set_keymap('n', 'vs', '<Cmd>vsplit<CR>', {noremap = true, silent = true})
-vim.api.nvim_set_keymap('n', 'S', '<Cmd>split<CR>', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('n', 'vs', '<Cmd>vsplit<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'S', '<Cmd>split<CR>', { noremap = true, silent = true })
 -- window移動
-vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>h', {noremap = true})
-vim.api.nvim_set_keymap('n', '<C-t>', '<C-w>j', {noremap = true})
-vim.api.nvim_set_keymap('n', '<C-n>', '<C-w>k', {noremap = true})
-vim.api.nvim_set_keymap('n', '<C-s>', '<C-w>l', {noremap = true})
+vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>h', { noremap = true })
+vim.api.nvim_set_keymap('n', '<C-t>', '<C-w>j', { noremap = true })
+vim.api.nvim_set_keymap('n', '<C-n>', '<C-w>k', { noremap = true })
+vim.api.nvim_set_keymap('n', '<C-s>', '<C-w>l', { noremap = true })
 -- 矩形選択が貼り付けとコンフリクトするので変更
-vim.api.nvim_set_keymap('n', '<C-j>', '<C-v>', {noremap = true})
+vim.api.nvim_set_keymap('n', '<C-j>', '<C-v>', { noremap = true })
 
 -- 日本語切替で被るのでvimを止める
-vim.api.nvim_set_keymap('i', '<C-space>', '<Nop>', {noremap = true})
+vim.api.nvim_set_keymap('i', '<C-space>', '<Nop>', { noremap = true })
 -- Astarte配列
-vim.api.nvim_set_keymap('n', 'j', 'w', {noremap = true})
-vim.api.nvim_set_keymap('v', 'j', 'w', {noremap = true})
+vim.api.nvim_set_keymap('n', 'j', 'w', { noremap = true })
+vim.api.nvim_set_keymap('v', 'j', 'w', { noremap = true })
 -- wrap
-vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', {noremap = true, silent = true})
-vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', {noremap = true, silent = true})
+vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true, silent = true })
 
 -- Terminalはinsertモードで開く
 vim.cmd [[
@@ -106,7 +106,7 @@ vim.cmd [[
 ]]
 
 -- ターミナルをトグルする関数
-vim.api.nvim_exec([[
+vim.cmd [[
 function! ToggleTerminal()
 	if &buftype == 'terminal'
 		" ターミナルから元のバッファに戻る
@@ -123,7 +123,7 @@ function! ToggleTerminal()
 		terminal
 	endif
 endfunction
-]], false)
+]]
 
 -- キーマップの設定
 vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true, silent = true })
@@ -144,7 +144,7 @@ if not string.find(vim.o.runtimepath, '/dpp.vim') then
 			vim.cmd('!git clone https://github.com/Shougo/dpp.vim' .. ' ' .. dpp_dir .. 'dpp.vim')
 			vim.cmd('!git clone https://github.com/Shougo/dpp-ext-installer' .. ' ' .. dpp_dir .. 'dpp-ext-installer')
 			vim.cmd('!git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_dir .. 'dpp-ext-lazy')
-			vim.cmd('!git clone https://github.com/Shougo/dpp-ext-toml' .. ' '	.. dpp_dir .. 'dpp-ext-toml')
+			vim.cmd('!git clone https://github.com/Shougo/dpp-ext-toml' .. ' ' .. dpp_dir .. 'dpp-ext-toml')
 			vim.cmd('!git clone https://github.com/Shougo/dpp-protocol-git' .. ' ' .. dpp_dir .. 'dpp-protocol-git')
 		end
 	end
@@ -189,16 +189,16 @@ end, {})
 
 
 -- Golang
-vim.api.nvim_exec([[
+vim.cmd [[
 	autocmd FileType go setlocal noexpandtab
 	autocmd FileType go setlocal tabstop=4
 	autocmd FileType go setlocal shiftwidth=4
-]], false)
+]]
 
 -- prettier 設定
 function prettier()
 	local filetypes = {
-		"css", "scss", "yaml", "html", "markdown"
+		"css", "scss", "html", "markdown"
 	}
 
 	local buf_filetype = vim.api.nvim_buf_get_option(0, 'filetype')
@@ -213,34 +213,4 @@ function prettier()
 	end
 end
 
-vim.api.nvim_exec([[
-	augroup FormatAutogroup
-		autocmd!
-		autocmd BufWritePost * lua prettier()
-	augroup END
-]], false)
-
--- biome 設定
-function biome()
-	local filetypes = {
-		"javascript", "javascriptreact", "typescript", "typescriptreact", "json"
-	}
-
-	local buf_filetype = vim.api.nvim_buf_get_option(0, 'filetype')
-	for _, filetype in pairs(filetypes) do
-		if buf_filetype == filetype then
-			if vim.fn.executable("bunx") == 1 then
-				local cmd = 'silent !bunx biome format --write ' .. vim.fn.expand('%:p')
-				vim.cmd(cmd)
-			end
-			return
-		end
-	end
-end
-
-vim.api.nvim_exec([[
-	augroup FormatAutogroup
-		autocmd!
-		autocmd BufWritePost * lua biome()
-	augroup END
-]], false)
+vim.api.nvim_create_user_command('Prettier', prettier, {})
