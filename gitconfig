@@ -1,30 +1,30 @@
 [alias]
-  sw = switch
-  rs = restore
-  st = status
-  cm = commit
-  br = branch
-  lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
-  mt = mergetool
-  dt = difftool
+	sw = switch
+	rs = restore
+	st = status
+	cm = commit
+	br = branch
+	lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
+	mt = mergetool
+	dt = difftool
 [user]
-  name = RoyMcCrain
-  email = me@rrrr.dev
+	name = RoyMcCrain
+	email = me@rrrr.dev
 [push]
-  default = current
+	default = current
 [color]
-  ui = true
+	ui = true
 [ghq]
-  root = ~/ghq
+	root = ~/ghq
 [diff]
-  tool = nvimdiff
+	tool = nvimdiff
 [merge]
-  tool = nvimdiff
+	tool = nvimdiff
 [difftool "nvimdiff"]
-  cmd = "nvim -R -d -c \"wincmd l\" -d \"$LOCAL\" \"$REMOTE\""
+	cmd = "nvim -R -d -c \"wincmd l\" -d \"$LOCAL\" \"$REMOTE\""
 [mergetool "nvimdiff"]
-  cmd = "nvim -d -c \"4wincmd w | wincmd J\" \"$LOCAL\" \"$BASE\" \"$REMOTE\"  \"$MERGED\""
+	cmd = "nvim -d -c \"4wincmd w | wincmd J\" \"$LOCAL\" \"$BASE\" \"$REMOTE\"  \"$MERGED\""
 [init]
-  defaultBranch = main
+	defaultBranch = main
 [pull]
-  rebase = false
+	rebase = false

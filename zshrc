@@ -48,7 +48,7 @@ zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 zstyle ':completion:*' ignore-parents parent pwd ..
 # sudo の後ろでコマンド名を補完する
 zstyle ':completion:*:sudo:*' command-path /usr/local/sbin /usr/local/bin \
-                   /usr/sbin /usr/bin /sbin /bin /usr/X11R6/bin
+									 /usr/sbin /usr/bin /sbin /bin /usr/X11R6/bin
 # ps コマンドのプロセス名補完
 zstyle ':completion:*:processes' command 'ps x -o pid,s,args'
 
@@ -62,8 +62,8 @@ zstyle ':vcs_info:*' formats '%F{green}(%s)-[%b]%f'
 zstyle ':vcs_info:*' actionformats '%F{red}(%s)-[%b|%a]%f'
 
 function _update_vcs_info_msg() {
-    LANG=en_US.UTF-8 vcs_info
-    RPROMPT="${vcs_info_msg_0_}"
+		LANG=en_US.UTF-8 vcs_info
+		RPROMPT="${vcs_info_msg_0_}"
 }
 add-zsh-hook precmd _update_vcs_info_msg
 
@@ -98,13 +98,13 @@ setopt extended_glob
 
 # Ctrl zでvimを再開
 fancy-ctrl-z () {
-  if [[ $#BUFFER -eq 0 ]]; then
-    BUFFER="fg"
-    zle accept-line -w
-  else
-    zle push-input -w
-    zle clear-screen -w
-  fi
+	if [[ $#BUFFER -eq 0 ]]; then
+		BUFFER="fg"
+		zle accept-line -w
+	else
+		zle push-input -w
+		zle clear-screen -w
+	fi
 }
 zle -N fancy-ctrl-z
 bindkey '^Z' fancy-ctrl-z
@@ -136,14 +136,14 @@ alias -g G='| grep'
 # C で標準出力をクリップボードにコピーする
 # mollifier delta blog : http://mollifier.hatenablog.com/entry/20100317/p1
 if which pbcopy >/dev/null 2>&1 ; then
-    # Mac
-    alias -g C='| pbcopy'
+		# Mac
+		alias -g C='| pbcopy'
 elif which xsel >/dev/null 2>&1 ; then
-    # Linux
-    alias -g C='| xsel --input --clipboard'
+		# Linux
+		alias -g C='| xsel --input --clipboard'
 elif which putclip >/dev/null 2>&1 ; then
-    # Cygwin
-    alias -g C='| putclip'
+		# Cygwin
+		alias -g C='| putclip'
 fi
 
 # bundle
@@ -167,21 +167,21 @@ alias dc="docker-compose"
 ########################################
 # OS 別の設定
 case ${OSTYPE} in
-    darwin*)
-        #Mac用の設定
-        export CLICOLOR=1
-        alias ls='ls -G -F'
-        export ZPLUG_HOME=$HOME/.zplug
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        ;;
-    linux*)
-        #Linux用の設定
-        alias ls='ls -F --color=auto'
-        alias open="xdg-open"
-        export ZPLUG_HOME=$HOME/.zplug
-        # Ruby InstallのOpenSSL場所指定
-        export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"
-        ;;
+		darwin*)
+				#Mac用の設定
+				export CLICOLOR=1
+				alias ls='ls -G -F'
+				export ZPLUG_HOME=$HOME/.zplug
+				eval "$(/opt/homebrew/bin/brew shellenv)"
+				;;
+		linux*)
+				#Linux用の設定
+				alias ls='ls -F --color=auto'
+				alias open="xdg-open"
+				export ZPLUG_HOME=$HOME/.zplug
+				# Ruby InstallのOpenSSL場所指定
+				export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"
+				;;
 esac
 ########################################
 # zplug
@@ -195,28 +195,28 @@ zplug load
 ENHANCD_FILTER=fzf; export ENHANCD_FILTER;
 ## 未インストールのプラグインをインストール
 if ! zplug check --verbose; then
-    printf 'Install? [y/N]: '
-    if read -q; then
-      echo; zplug install
-    fi
+		printf 'Install? [y/N]: '
+		if read -q; then
+			echo; zplug install
+		fi
 fi
 # コマンドにパスを通し、プラグインを読み込む
 zplug load --verbose
 
 function select-history() {
-  BUFFER=$(history -n -r 1 | fzf --no-sort +m --query "$LBUFFER" --prompt="History > ")
-  CURSOR=$#BUFFER
+	BUFFER=$(history -n -r 1 | fzf --no-sort +m --query "$LBUFFER" --prompt="History > ")
+	CURSOR=$#BUFFER
 }
 zle -N select-history
 bindkey '^r' select-history
 
 function ghq-fzf() {
-  local src=$(ghq list | fzf --preview "ls -laTp $(ghq root)/{} | tail -n+4 | awk '{print \$9\"/\"\$6\"/\"\$7 \" \" \$10}'")
-  if [ -n "$src" ]; then
-    BUFFER="cd $(ghq root)/$src"
-    zle accept-line
-  fi
-  zle -R -c
+	local src=$(ghq list | fzf --preview "ls -laTp $(ghq root)/{} | tail -n+4 | awk '{print \$9\"/\"\$6\"/\"\$7 \" \" \$10}'")
+	if [ -n "$src" ]; then
+		BUFFER="cd $(ghq root)/$src"
+		zle accept-line
+	fi
+	zle -R -c
 }
 zle -N ghq-fzf
 bindkey '^t' ghq-fzf
@@ -230,64 +230,64 @@ bindkey '^t' ghq-fzf
 #
 
 if type complete &>/dev/null; then
-  _npm_completion () {
-    local words cword
-    if type _get_comp_words_by_ref &>/dev/null; then
-      _get_comp_words_by_ref -n = -n @ -n : -w words -i cword
-    else
-      cword="$COMP_CWORD"
-      words=("${COMP_WORDS[@]}")
-    fi
+	_npm_completion () {
+		local words cword
+		if type _get_comp_words_by_ref &>/dev/null; then
+			_get_comp_words_by_ref -n = -n @ -n : -w words -i cword
+		else
+			cword="$COMP_CWORD"
+			words=("${COMP_WORDS[@]}")
+		fi
 
-    local si="$IFS"
-    if ! IFS=$'\n' COMPREPLY=($(COMP_CWORD="$cword" \
-                           COMP_LINE="$COMP_LINE" \
-                           COMP_POINT="$COMP_POINT" \
-                           npm completion -- "${words[@]}" \
-                           2>/dev/null)); then
-      local ret=$?
-      IFS="$si"
-      return $ret
-    fi
-    IFS="$si"
-    if type __ltrim_colon_completions &>/dev/null; then
-      __ltrim_colon_completions "${words[cword]}"
-    fi
-  }
-  complete -o default -F _npm_completion npm
+		local si="$IFS"
+		if ! IFS=$'\n' COMPREPLY=($(COMP_CWORD="$cword" \
+													 COMP_LINE="$COMP_LINE" \
+													 COMP_POINT="$COMP_POINT" \
+													 npm completion -- "${words[@]}" \
+													 2>/dev/null)); then
+			local ret=$?
+			IFS="$si"
+			return $ret
+		fi
+		IFS="$si"
+		if type __ltrim_colon_completions &>/dev/null; then
+			__ltrim_colon_completions "${words[cword]}"
+		fi
+	}
+	complete -o default -F _npm_completion npm
 elif type compdef &>/dev/null; then
-  _npm_completion() {
-    local si=$IFS
-    compadd -- $(COMP_CWORD=$((CURRENT-1)) \
-                 COMP_LINE=$BUFFER \
-                 COMP_POINT=0 \
-                 npm completion -- "${words[@]}" \
-                 2>/dev/null)
-    IFS=$si
-  }
-  compdef _npm_completion npm
+	_npm_completion() {
+		local si=$IFS
+		compadd -- $(COMP_CWORD=$((CURRENT-1)) \
+								 COMP_LINE=$BUFFER \
+								 COMP_POINT=0 \
+								 npm completion -- "${words[@]}" \
+								 2>/dev/null)
+		IFS=$si
+	}
+	compdef _npm_completion npm
 elif type compctl &>/dev/null; then
-  _npm_completion () {
-    local cword line point words si
-    read -Ac words
-    read -cn cword
-    let cword-=1
-    read -l line
-    read -ln point
-    si="$IFS"
-    if ! IFS=$'\n' reply=($(COMP_CWORD="$cword" \
-                       COMP_LINE="$line" \
-                       COMP_POINT="$point" \
-                       npm completion -- "${words[@]}" \
-                       2>/dev/null)); then
+	_npm_completion () {
+		local cword line point words si
+		read -Ac words
+		read -cn cword
+		let cword-=1
+		read -l line
+		read -ln point
+		si="$IFS"
+		if ! IFS=$'\n' reply=($(COMP_CWORD="$cword" \
+											 COMP_LINE="$line" \
+											 COMP_POINT="$point" \
+											 npm completion -- "${words[@]}" \
+											 2>/dev/null)); then
 
-      local ret=$?
-      IFS="$si"
-      return $ret
-    fi
-    IFS="$si"
-  }
-  compctl -K _npm_completion npm
+			local ret=$?
+			IFS="$si"
+			return $ret
+		fi
+		IFS="$si"
+	}
+	compctl -K _npm_completion npm
 fi
 ###-end-npm-completion-###
 
@@ -296,3 +296,6 @@ fi
 
 # asdf completions
 fpath=(${ASDF_DIR}/completions $fpath)
+
+# bun completions
+[ -s "/home/roy/.bun/_bun" ] && source "/home/roy/.bun/_bun"
