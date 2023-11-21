@@ -27,55 +27,12 @@ hook_add = 'source ~/.config/nvim/plugins/lightline.lua'
 repo = 'itchyny/lightline.vim'
 
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/vim-lsp.lua'
-repo = 'prabirshrestha/vim-lsp'
+repo = 'josa42/nvim-lightline-lsp'
+depends = ['lightline.vim']
 
 [[plugins]]
-lua_add = '''
-  vim.g.lsp_settings = {
-    clangd = {
-        disabled = true
-    },
-    ['css-languageserver'] = {
-        workspace_config = {
-            css = {
-                validate = false
-            },
-            scss = {
-                validate = false
-            },
-            less = {
-                validate = false
-            }
-        }
-    }
-  }
-  vim.g['lsp_settings_filetype_ruby'] = {'solargraph'}
-  vim.g['lsp_settings_filetype_typescript'] = {'typescript-language-server', 'deno'}
-'''
-merged = 0
-repo = 'mattn/vim-lsp-settings'
-
-[[plugins]]
-lua_add = '''
-  vim.g.ale_disable_lsp = 1
-  vim.g.ale_sign_column_always = 1
-  vim.g.ale_fix_on_save = 1
-  vim.g.ale_fixers = {
-      ruby = {'rubocop'},
-      typescript = {'eslint'},
-      javascript = {'eslint'},
-      svelte = {'eslint'},
-      css = {'stylelint'},
-      scss = {'stylelint'},
-      sass = {'stylelint'},
-      less = {'stylelint'},
-  }
-  vim.g.ale_linter_aliases = {
-      svelte = {'svelte', 'typescript'}
-  }
-'''
-repo = 'dense-analysis/ale'
+hook_add = 'source ~/.config/nvim/plugins/nvim-lspconfig.lua'
+repo = 'neovim/nvim-lspconfig'
 
 #----------------------------------------------------------------------------------#
 # インデント補助
@@ -156,9 +113,3 @@ repo = 'tpope/vim-surround'
 [[plugins]]
 repo = 'cohama/lexima.vim'
 
-#----------------------------------------------------------------------------------#
-# Github copilot
-#----------------------------------------------------------------------------------#
-[[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/copilot.lua'
-repo = 'github/copilot.vim'

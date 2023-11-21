@@ -1,8 +1,8 @@
 vim.fn['ddc#custom#patch_global']('ui', 'native')
-vim.fn['ddc#custom#patch_global']('sources', {'vim-lsp','buffer'})
+vim.fn['ddc#custom#patch_global']('sources', {'nvim-lsp','buffer'})
 
 vim.fn['ddc#custom#patch_global']('sourceOptions', {
-  ['vim-lsp'] = {
+  ['nvim-lsp'] = {
     matchers = {'matcher_fuzzy'},
     mark = 'LSP',
   },

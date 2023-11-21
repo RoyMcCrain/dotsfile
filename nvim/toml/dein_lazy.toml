@@ -46,7 +46,6 @@ repo = 'Shougo/ddu-source-register'
 # 非同期検証ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-depends = ['denops.vim']
 hook_source = 'source ~/.config/nvim/plugins/ddc.lua'
 on_event = 'InsertEnter'
 repo = 'Shougo/ddc.vim'
@@ -69,7 +68,7 @@ repo = 'Shougo/ddc-sorter_rank'
 
 [[plugins]]
 on_source = 'ddc.vim'
-repo = 'shun/ddc-vim-lsp'
+repo = 'Shougo/ddc-source-nvim-lsp'
 
 [[plugins]]
 on_source = 'ddc.vim'
@@ -78,6 +77,14 @@ repo = 'matsui54/ddc-buffer'
 [[plugins]]
 on_source = 'ddc.vim'
 repo = 'Shougo/ddc-converter_remove_overlap'
+
+#----------------------------------------------------------------------------------#
+# Github copilot
+#----------------------------------------------------------------------------------#
+[[plugins]]
+on_event = 'InsertEnter'
+hook_source = 'source ~/.config/nvim/plugins/copilot.lua'
+repo = 'github/copilot.vim'
 
 #----------------------------------------------------------------#
 # Syntax Highlight

@@ -3,12 +3,10 @@ vim.g.lightline = {
   component_function = {
     filename = 'LightlineFilename',
     gitbranch = 'FugitiveHead',
-    lspstatus = 'lsp#get_server_status',
   },
   active = {
     left = {
       { 'mode', 'paste', 'gitbranch', 'readonly', 'modified' },
-      { 'lspstatus' }
     },
     right = {
       { 'filetype', 'fileformat', 'lineinfo' },
@@ -16,6 +14,7 @@ vim.g.lightline = {
     }
   },
 }
+
 
 vim.api.nvim_exec([[
   function! LightlineFilename()
