@@ -29,7 +29,6 @@ do
 done
 
 ASDF_ITEMS=(
-	"default-npm-packages"
 	"default-gems"
 	"asdfrc"
 	)
