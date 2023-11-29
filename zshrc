@@ -147,8 +147,8 @@ elif which putclip >/dev/null 2>&1 ; then
 fi
 
 # bundle
-alias be="bundle exec"
-alias bi="bundle install"
+alias be="bundle exec "
+alias bi="bundle install "
 alias rails="bundle exec rails"
 alias rails-s="bundle exec rails s -p 3001"
 alias rspec="bundle exec rspec"
@@ -171,20 +171,19 @@ case ${OSTYPE} in
 				#Mac用の設定
 				export CLICOLOR=1
 				alias ls='ls -G -F'
-				export ZPLUG_HOME=$HOME/.zplug
 				eval "$(/opt/homebrew/bin/brew shellenv)"
 				;;
 		linux*)
 				#Linux用の設定
 				alias ls='ls -F --color=auto'
 				alias open="xdg-open"
-				export ZPLUG_HOME=$HOME/.zplug
 				# Ruby InstallのOpenSSL場所指定
 				export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"
 				;;
 esac
 ########################################
 # zplug
+export ZPLUG_HOME=$HOME/.zplug
 source $ZPLUG_HOME/init.zsh
 zplug "b4b4r07/enhancd", use:init.sh
 zplug "zsh-users/zsh-syntax-highlighting", defer:2
@@ -201,7 +200,7 @@ if ! zplug check --verbose; then
 		fi
 fi
 # コマンドにパスを通し、プラグインを読み込む
-zplug load --verbose
+zplug load
 
 function select-history() {
 	BUFFER=$(history -n -r 1 | fzf --no-sort +m --query "$LBUFFER" --prompt="History > ")
@@ -296,6 +295,3 @@ fi
 
 # asdf completions
 fpath=(${ASDF_DIR}/completions $fpath)
-
-# bun completions
-[ -s "/home/roy/.bun/_bun" ] && source "/home/roy/.bun/_bun"
