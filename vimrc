@@ -13,14 +13,13 @@ set showcmd                       " 入力中のコマンド表示
 set nrformats-=octal              " 0で始まる数値を8進数として扱わないようにする
 set termguicolors                 " trueカラーを使う
 set clipboard+=unnamedplus
-let mapleader = "\<Space>"
 set pumheight=10
 " View
 set showmatch                       " 閉じ括弧が入力されたとき、対応する開き括弧にわずかの間ジャンプする
 set matchtime=1                     " マッチしている括弧を表示するための時間を0.1秒単位で指定する
 set number                          " 毎行の前に行番号を表示する
 set list                            " 不可視文字を表示する
-set listchars=trail:-,extends:»,precedes:«,nbsp:%,eol:⏎
+set listchars=trail:-,extends:»,precedes:«,nbsp:%,eol:↲,tab:▸◦,space: " 不可視文字の設定
 set display=lastline                " テキスト表示の方法を変える(長いテキストを省略せず最後まで表示する)
 set laststatus=2                    " 最下ウィンドウにステータス行を常に表示する
 " Indent
@@ -28,7 +27,6 @@ set tabstop=2           " ファイル内の<Tab>が対応する空白の数
 set softtabstop=2       " <Tab>キーを押した際に挿入されるスペース量
 set shiftwidth=2        " (自動)インデントの各段階に使われる空白の数
 set smartindent         " 新しい行を作ったときに高度な自動インデントを行う(ex. '{'で終わる行で新しい行を作った時は改行)"
-set expandtab           " 挿入モードで <Tab> を挿入するとき、代わりに適切な数の空白を使う
 set ambiwidth=double    " 文脈によって解釈が異なる全角文字の幅を、2に固定する
 set smarttab            " 新しい行を作った時に高度なインデントを行う
 " search
@@ -63,10 +61,10 @@ noremap x "_x
 noremap <silent> vs :vsplit<CR>
 noremap <silent> S :split<CR>
 " window移動
-noremap <C-d> <C-w>h
-noremap <C-h> <C-w>j
-noremap <C-t> <C-w>k
-noremap <C-n> <C-w>l
+noremap <C-k> <C-w>h
+noremap <C-t> <C-w>j
+noremap <C-n> <C-w>k
+noremap <C-s> <C-w>l
 " 日本語切り替え
 ioremap <C-space> <Nop>
 
@@ -74,6 +72,5 @@ syntax enable
 filetype plugin indent on
 
 " Golang
-autocmd FileType go setlocal noexpandtab
 autocmd FileType go setlocal tabstop=4
 autocmd FileType go setlocal shiftwidth=4
