@@ -1,18 +1,18 @@
 vim.g.lightline = {
-  colorscheme = 'material',
-  component_function = {
-    filename = 'LightlineFilename',
-    gitbranch = 'FugitiveHead',
-  },
-  active = {
-    left = {
-      { 'mode', 'paste', 'gitbranch', 'readonly', 'modified' },
-    },
-    right = {
-      { 'filetype', 'fileformat', 'lineinfo' },
-      { 'filename' }
-    }
-  },
+	colorscheme = 'material',
+	component_function = {
+		filename = 'LightlineFilename',
+		gitbranch = 'FugitiveHead',
+	},
+	active = {
+		left = {
+			{ 'mode', 'paste', 'gitbranch', 'readonly', 'modified' },
+		},
+		right = {
+			{ 'filetype', 'fileformat', 'lineinfo' },
+			{ 'filename' }
+		}
+	},
 }
 
 

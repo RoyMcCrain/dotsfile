@@ -295,3 +295,6 @@ fi
 
 # asdf completions
 fpath=(${ASDF_DIR}/completions $fpath)
+
+# bun completions
+[ -s "/home/roy/.bun/_bun" ] && source "/home/roy/.bun/_bun"
