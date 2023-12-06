@@ -73,7 +73,7 @@ _G.grep_action = function()
 
 	-- Floating windowのサイズと位置を計算
 	local width = math.floor(win_width * 0.5)
-	local height = 2   -- 2行の入力欄
+	local height = 2 -- 2行の入力欄
 	local row = math.floor((win_height - height) / 2)
 	local col = math.floor((win_width - width) / 2)
 
@@ -94,7 +94,7 @@ _G.grep_action = function()
 	})
 
 	-- ここで挿入モードに入る
-	vim.api.nvim_exec('startinsert', false)
+	vim.api.nvim_exec2('startinsert', {})
 
 	_G.finish_input_with_paste_floating = function()
 		local content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -156,22 +156,23 @@ _G.ddu_my_ff_settings = function()
 	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#ff#do_action("quit")<CR>', { silent = true, noremap = true })
 end
 
-vim.api.nvim_exec([[
+vim.api.nvim_exec2([[
   augroup ddu_custom
     autocmd!
     autocmd FileType ddu-ff lua _G.ddu_my_ff_settings()
   augroup END
-]], false)
+]], {})
 
 _G.ddu_filter_my_settings = function()
-	vim.api.nvim_buf_set_keymap(0, 'i', '<CR>', '<Esc>:call ddu#ui#ff#do_action("closeFilterWindow")<CR>', { noremap = true })
+	vim.api.nvim_buf_set_keymap(0, 'i', '<CR>', '<Esc>:call ddu#ui#ff#do_action("closeFilterWindow")<CR>',
+		{ noremap = true })
 	vim.api.nvim_buf_set_keymap(0, 'n', '<CR>', ':call ddu#ui#ff#do_action("closeFilterWindow")<CR>', { noremap = true })
 	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#ff#do_action("closeFilterWindow")<CR>', { noremap = true })
 end
 
-vim.api.nvim_exec([[
+vim.api.nvim_exec2([[
   augroup ddu_custom_filter
     autocmd!
     autocmd FileType ddu-ff-filter lua _G.ddu_filter_my_settings()
   augroup END
-]], false)
+]], {})

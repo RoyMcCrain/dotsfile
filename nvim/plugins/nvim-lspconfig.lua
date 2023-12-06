@@ -126,3 +126,8 @@ lspconfig.yamlls.setup {
 		}
 	}
 }
+
+lspconfig.vimls.setup {
+	on_attach = on_attach,
+	cmd = { "bunx", "vim-language-server", "--stdio" }
+}

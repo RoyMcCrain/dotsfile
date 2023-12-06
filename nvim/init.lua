@@ -131,7 +131,7 @@ vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true
 -- dpp.vim
 
 local CACHE = vim.fn.expand('$HOME/.cache')
-if vim.fn.isdirectory(CACHE) == 0 then
+if type(CACHE) == 'string' and vim.fn.isdirectory(CACHE) == 0 then
 	vim.fn.mkdir(CACHE, 'p')
 end
 -- Set dpp base path (required)

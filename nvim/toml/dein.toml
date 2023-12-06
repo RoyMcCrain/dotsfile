@@ -26,10 +26,6 @@ repo = 'rebelot/kanagawa.nvim'
 hook_add = 'source ~/.config/nvim/plugins/lightline.lua'
 repo = 'itchyny/lightline.vim'
 
-[[plugins]]
-repo = 'josa42/nvim-lightline-lsp'
-depends = ['lightline.vim']
-
 #----------------------------------------------------------------------------------#
 # LSP
 #----------------------------------------------------------------------------------#
@@ -115,4 +111,3 @@ repo = 'tpope/vim-surround'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'cohama/lexima.vim'
-
