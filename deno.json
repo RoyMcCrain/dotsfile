@@ -1,0 +1,12 @@
+{
+	"lint": {
+		"include": ["nvim/plugins/**/*.ts"],
+		"rules": {
+			"tags": ["recommended"]
+		}
+	},
+	"fmt": {
+		"useTabs": true,
+		"include": ["nvim/plugins/**/*.ts"]
+	}
+}
