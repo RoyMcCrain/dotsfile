@@ -1,11 +1,14 @@
-require("ddc_nvim_lsp_setup").setup()
-
-vim.fn['ddc#custom#patch_global']('ui', 'native')
-vim.fn['ddc#custom#patch_global']('sources', { 'nvim-lsp', 'buffer' })
+vim.fn['ddc#custom#patch_global']('ui', 'pum')
+vim.fn['ddc#custom#patch_global']('sources', { 'copilot', 'lsp', 'buffer' })
 
 vim.fn['ddc#custom#patch_global']('sourceOptions', {
-	['nvim-lsp'] = {
-		matchers = { 'matcher_fuzzy' },
+	copilot = {
+		matchers = {},
+		mark = 'CP',
+		minAutoCompleteLength = 0,
+		isVolatile = true,
+	},
+	lsp = {
 		mark = 'LSP',
 		keywordPattern = '\\k*',
 		sorters = { 'sorter_lsp-kind' },
@@ -19,13 +22,10 @@ vim.fn['ddc#custom#patch_global']('sourceOptions', {
 })
 
 vim.fn['ddc#custom#patch_global']('sourceParams', {
-	['nvim-lsp'] = {
-		snippetEngine = vim.fn['denops#callback#register'](function(body)
-			return vim.fn['vsnip#anonymous'](body)
-		end),
+	lsp = {
 		enableResolveItem = true,
 		enableAdditionalTextEdit = true,
-		confirmBehavior = 'replace'
+		snippetEngine = '',
 	},
 	buffer = {
 		requireSameFiletype = false,
@@ -40,3 +40,10 @@ vim.fn['ddc#custom#patch_global']('filterParams', {
 })
 
 vim.fn['ddc#enable']()
+
+vim.api.nvim_set_keymap('i', '<C-n>', '<Cmd>call pum#map#insert_relative(+1)<CR>', {})
+vim.api.nvim_set_keymap('i', '<C-p>', '<Cmd>call pum#map#insert_relative(-1)<CR>', {})
+vim.api.nvim_set_keymap('i', '<Tab>', '<Cmd>call pum#map#confirm()<CR>', {})
+vim.api.nvim_set_keymap('i', '<Esc>', '<Cmd>call pum#map#cancel()<CR>', {})
+vim.api.nvim_set_keymap('i', '<PageDown>', '<Cmd>call pum#map#insert_relative(+1)<CR>', {})
+vim.api.nvim_set_keymap('i', '<PageUp>', '<Cmd>call pum#map#insert_relative(-1)<CR>', {})

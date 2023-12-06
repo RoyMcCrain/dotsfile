@@ -3,7 +3,6 @@
 #----------------------------------------------------------------------------------#
 [[plugins]]
 # カーソル位置のコンテキストに合わせてftを切り替える
-on_source = 'context_filetype.vim'
 repo = 'osyo-manga/vim-precious'
 
 [[plugins]]
@@ -30,8 +29,12 @@ repo = 'itchyny/lightline.vim'
 # LSP
 #----------------------------------------------------------------------------------#
 [[plugins]]
+depends = ['ddc-source-lsp']
 hook_add = 'source ~/.config/nvim/plugins/nvim-lspconfig.lua'
 repo = 'neovim/nvim-lspconfig'
+
+[[plugins]]
+repo = 'Shougo/ddc-source-lsp'
 
 #----------------------------------------------------------------------------------#
 # インデント補助

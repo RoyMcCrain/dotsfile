@@ -21,43 +21,53 @@ local on_attach = function(_client, bufnr)
 	vim.cmd("autocmd BufWritePre <buffer> lua vim.lsp.buf.format()")
 end
 
+local capabilities = require("ddc_source_lsp").make_client_capabilities()
+
 -- LSPサーバーの設定
 local lspconfig = require 'lspconfig'
 lspconfig.tsserver.setup {
 	on_attach = on_attach,
 	cmd = { "bunx", "typescript-language-server", "--stdio" },
 	root_dir = lspconfig.util.root_pattern("package.json"),
+	capabilities = capabilities,
 }
 
 lspconfig.biome.setup {
 	on_attach = on_attach,
 	cmd = { "bunx", "biome", "lsp-proxy" },
+	capabilities = capabilities,
 }
+
 
 lspconfig.denols.setup {
 	on_attach = on_attach,
 	filetypes = { "typescript", "javascript" },
 	root_dir = lspconfig.util.root_pattern("deno.json", "deno.jsonc"),
+	capabilities = capabilities,
 }
 
 -- bun i --global vscode-langservers-extracted
 lspconfig.cssls.setup {
 	on_attach = on_attach,
 	cmd = { "bunx", "vscode-css-language-server", "--stdio" },
+	capabilities = capabilities,
 }
 
 lspconfig.stylelint_lsp.setup {
 	on_attach = on_attach,
 	cmd = { "bunx", "stylelint-lsp", "--stdio" },
 	filetypes = { "css", "scss", "less", "vue" },
+	capabilities = capabilities,
 }
 
 lspconfig.rust_analyzer.setup {
 	on_attach = on_attach,
+	capabilities = capabilities,
 }
 
 lspconfig.gopls.setup {
 	on_attach = on_attach,
+	capabilities = capabilities,
 }
 
 lspconfig.lua_ls.setup {
@@ -90,29 +100,35 @@ lspconfig.lua_ls.setup {
 			client.notify("workspace/didChangeConfiguration", { settings = client.config.settings })
 		end
 		return true
-	end
+	end,
+	capabilities = capabilities,
 }
 
 lspconfig.pyright.setup {
 	on_attach = on_attach,
+	capabilities = capabilities,
 }
 
 lspconfig.graphql.setup {
 	on_attach = on_attach,
 	cmd = { "bunx", "graphql-lsp", "server", "-m", "stream" },
-	root_dir = lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*')
+	root_dir = lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*'),
+	capabilities = capabilities,
 }
 
 lspconfig.rubocop.setup {
 	on_attach = on_attach,
+	capabilities = capabilities,
 }
 
 lspconfig.ruby_ls.setup {
 	on_attach = on_attach,
+	capabilities = capabilities,
 }
 
 lspconfig.taplo.setup {
 	on_attach = on_attach,
+	capabilities = capabilities,
 }
 
 lspconfig.yamlls.setup {
@@ -124,10 +140,12 @@ lspconfig.yamlls.setup {
 				["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*",
 			}
 		}
-	}
+	},
+	capabilities = capabilities,
 }
 
 lspconfig.vimls.setup {
 	on_attach = on_attach,
-	cmd = { "bunx", "vim-language-server", "--stdio" }
+	cmd = { "bunx", "vim-language-server", "--stdio" },
+	capabilities = capabilities,
 }

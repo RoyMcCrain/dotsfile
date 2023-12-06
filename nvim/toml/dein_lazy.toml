@@ -52,7 +52,11 @@ repo = 'Shougo/ddc.vim'
 
 [[plugins]]
 on_source = 'ddc.vim'
-repo = 'Shougo/ddc-ui-native'
+repo = 'Shougo/ddc-ui-pum'
+
+[[plugins]]
+on_source = 'ddc.vim'
+repo = 'Shougo/ddc-ui-inline'
 
 [[plugins]]
 on_source = 'ddc.vim'
@@ -68,10 +72,6 @@ repo = 'Shougo/ddc-sorter_rank'
 
 [[plugins]]
 on_source = 'ddc.vim'
-repo = 'Shougo/ddc-source-nvim-lsp'
-
-[[plugins]]
-on_source = 'ddc.vim'
 repo = 'matsui54/ddc-buffer'
 
 [[plugins]]
@@ -80,19 +80,20 @@ repo = 'Shougo/ddc-converter_remove_overlap'
 
 [[plugins]]
 on_source = 'ddc.vim'
-repo = 'Shougo/ddc-source-lsp'
+repo = 'Shougo/ddc-source-copilot'
 
 [[plugins]]
 on_source = 'ddc.vim'
-repo = 'uga-rosa/ddc-source-lsp-setup'
+repo = 'Shougo/pum.vim'
 
 #----------------------------------------------------------------------------------#
 # Github copilot
 #----------------------------------------------------------------------------------#
 [[plugins]]
-on_event = 'InsertEnter'
+on_source = 'ddc.vim'
 hook_source = 'source ~/.config/nvim/plugins/copilot.lua'
 repo = 'github/copilot.vim'
+
 
 #----------------------------------------------------------------#
 # Syntax Highlight
