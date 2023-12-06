@@ -30,6 +30,9 @@ repo = 'itchyny/lightline.vim'
 repo = 'josa42/nvim-lightline-lsp'
 depends = ['lightline.vim']
 
+#----------------------------------------------------------------------------------#
+# LSP
+#----------------------------------------------------------------------------------#
 [[plugins]]
 hook_add = 'source ~/.config/nvim/plugins/nvim-lspconfig.lua'
 repo = 'neovim/nvim-lspconfig'
