@@ -79,8 +79,8 @@ _G.grep_action = function()
 
 	-- バッファを作成
 	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
-	vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+	vim.api.nvim_set_option_value('buftype', 'nofile', { scope = 'local', buf = buf })
+	vim.api.nvim_set_option_value('bufhidden', 'wipe', { scope = 'local', buf = buf })
 
 	-- Floating windowを作成
 	local win = vim.api.nvim_open_win(buf, true, {

@@ -64,8 +64,8 @@ vim.opt.maxfuncdepth = 200 -- 最大関数呼び出し深度
 vim.opt.compatible = false -- viとの互換を切る
 -- terminalモードから抜ける
 vim.api.nvim_set_keymap('t', '<Esc>', '<C-\\><C-n>', { noremap = true })
-vim.cmd([[ autocmd TermOpen * startinsert ]])
-vim.cmd([[ command! -nargs=* T split | wincmd j | resize 30 | terminal <args> ]])
+vim.cmd('autocmd TermOpen * startinsert')
+vim.cmd('command! -nargs=* T split | wincmd j | resize 30 | terminal <args>')
 -- 行末までのヤンク
 vim.api.nvim_set_keymap('n', 'Y', 'y$', { noremap = true })
 -- NNで検索のハイライトを消す
@@ -101,12 +101,10 @@ vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', { noremap = true, silent 
 vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true, silent = true })
 
 -- Terminalはinsertモードで開く
-vim.cmd [[
-	autocmd TermOpen * startinsert
-]]
+vim.cmd('autocmd TermOpen * startinsert')
 
 -- ターミナルをトグルする関数
-vim.cmd [[
+vim.api.nvim_exec2([[
 function! ToggleTerminal()
 	if &buftype == 'terminal'
 		" ターミナルから元のバッファに戻る
@@ -123,7 +121,7 @@ function! ToggleTerminal()
 		terminal
 	endif
 endfunction
-]]
+]], {})
 
 -- キーマップの設定
 vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true, silent = true })
@@ -189,10 +187,10 @@ end, {})
 
 
 -- Golang
-vim.cmd [[
+vim.api.nvim_exec2([[
 	autocmd FileType go setlocal tabstop=4
 	autocmd FileType go setlocal shiftwidth=4
-]]
+]], {})
 
 -- prettier 設定
 function prettier()
@@ -200,7 +198,7 @@ function prettier()
 		"css", "scss", "html", "markdown"
 	}
 
-	local buf_filetype = vim.api.nvim_buf_get_option(0, 'filetype')
+	local buf_filetype = vim.api.nvim_get_option_value('filetype', { buf = 0 })
 	for _, filetype in pairs(filetypes) do
 		if buf_filetype == filetype then
 			if vim.fn.executable("bunx") == 1 then

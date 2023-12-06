@@ -78,6 +78,14 @@ repo = 'matsui54/ddc-buffer'
 on_source = 'ddc.vim'
 repo = 'Shougo/ddc-converter_remove_overlap'
 
+[[plugins]]
+on_source = 'ddc.vim'
+repo = 'Shougo/ddc-source-lsp'
+
+[[plugins]]
+on_source = 'ddc.vim'
+repo = 'uga-rosa/ddc-source-lsp-setup'
+
 #----------------------------------------------------------------------------------#
 # Github copilot
 #----------------------------------------------------------------------------------#
