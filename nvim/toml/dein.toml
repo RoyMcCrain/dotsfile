@@ -1,6 +1,3 @@
-#----------------------------------------------------------------------------------#
-# toml管理で便利
-#----------------------------------------------------------------------------------#
 [[plugins]]
 # カーソル位置のコンテキストに合わせてftを切り替える
 repo = 'osyo-manga/vim-precious'
@@ -13,67 +10,70 @@ repo = 'Shougo/context_filetype.vim'
 # colorscheme
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = '''
-  colorscheme kanagawa
-'''
 repo = 'rebelot/kanagawa.nvim'
+lua_add = 'vim.cmd([[colorscheme kanagawa]])'
 
 #----------------------------------------------------------------------------------#
 # statusline拡張
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/lightline.lua'
 repo = 'itchyny/lightline.vim'
+lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/lightline.lua]])'
 
 #----------------------------------------------------------------------------------#
 # LSP
 #----------------------------------------------------------------------------------#
 [[plugins]]
-depends = ['ddc-source-lsp']
-hook_add = 'source ~/.config/nvim/plugins/nvim-lspconfig.lua'
 repo = 'neovim/nvim-lspconfig'
+depends = ['ddc-source-lsp']
+lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-lspconfig.lua]])'
 
 [[plugins]]
 repo = 'Shougo/ddc-source-lsp'
 
 #----------------------------------------------------------------------------------#
+# Github copilot
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'github/copilot.vim'
+lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/copilot.lua]])'
+
+#----------------------------------------------------------------------------------#
 # インデント補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-lua_add = '''
-  require("ibl").setup()
-
-'''
 repo = 'lukas-reineke/indent-blankline.nvim'
+lua_add = 'require("ibl").setup()'
 
 #----------------------------------------------------------------------------------#
 # ファイルブラウザ補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/fern.lua'
 repo = 'lambdalisue/fern.vim'
+lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/fern.lua]])'
+on_source = 'fern-git-status.vim'
 
 [[plugins]]
-on_source = 'fern.vim'
 repo = 'lambdalisue/fern-git-status.vim'
 
 #----------------------------------------------------------------------------------#
 # gitツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_add = 'source ~/.config/nvim/plugins/vim-fugitive.lua'
 repo = 'tpope/vim-fugitive'
+lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/vim-fugitive.lua]])'
 
 [[plugins]]
 # github
-depends = ['vim-fugitive']
 repo = 'tpope/vim-rhubarb'
+depends = ['vim-fugitive']
 
 #----------------------------------------------------------------------------------#
 # 移動補完
 #----------------------------------------------------------------------------------#
 [[plugins]]
 # vimの移動コマンド拡張
+repo = 'easymotion/vim-easymotion'
 lua_add = '''
   -- Disable default mappings
   vim.g.EasyMotion_do_mapping = 0
@@ -89,7 +89,6 @@ lua_add = '''
   vim.g.EasyMotion_startofline = 0 
   vim.g.EasyMotion_smartcase = 1
 '''
-repo = 'easymotion/vim-easymotion'
 
 #----------------------------------------------------------------------------------#
 # 置き換え強化

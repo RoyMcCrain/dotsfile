@@ -116,12 +116,12 @@ alias la='ls -a'
 alias ll='ls -lh'
 alias lla='ls -lha'
 
-alias rm='rm -ri --'
-alias rmf='rm -rf --'
-alias cp='cp -i --'
-alias mv='mv -i --'
+alias rm='rm -ri'
+alias rmf='rm -rf'
+alias cp='cp -i'
+alias mv='mv -i'
 
-alias mkdir='mkdir -p --'
+alias mkdir='mkdir -p'
 
 alias e="nvim"
 alias g="git"

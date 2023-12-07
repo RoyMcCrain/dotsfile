@@ -104,7 +104,7 @@ vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true, sile
 vim.cmd('autocmd TermOpen * startinsert')
 
 -- ターミナルをトグルする関数
-vim.api.nvim_exec2([[
+vim.cmd([[
 function! ToggleTerminal()
 	if &buftype == 'terminal'
 		" ターミナルから元のバッファに戻る
@@ -121,7 +121,7 @@ function! ToggleTerminal()
 		terminal
 	endif
 endfunction
-]], {})
+]])
 
 -- キーマップの設定
 vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true, silent = true })
@@ -187,10 +187,10 @@ end, {})
 
 
 -- Golang
-vim.api.nvim_exec2([[
+vim.cmd([[
 	autocmd FileType go setlocal tabstop=4
 	autocmd FileType go setlocal shiftwidth=4
-]], {})
+]])
 
 -- prettier 設定
 function prettier()

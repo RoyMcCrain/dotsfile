@@ -2,126 +2,114 @@
 # 高速検索ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_source = 'source ~/.config/nvim/plugins/ddu.lua'
-on_event = 'BufRead'
 repo = 'Shougo/ddu.vim'
+lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/ddu.lua]])'
+on_event = 'BufRead'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'Shougo/ddu-ui-ff'
+on_source = 'ddu.vim'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'Shougo/ddu-source-file_rec'
+on_source = 'ddu.vim'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'Shougo/ddu-kind-file'
+on_source = 'ddu.vim'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'Shougo/ddu-filter-matcher_substring'
+on_source = 'ddu.vim'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'shun/ddu-source-rg'
+on_source = 'ddu.vim'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'shun/ddu-source-buffer'
+on_source = 'ddu.vim'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'lambdalisue/mr.vim'
+on_source = 'ddu-source-mr'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'kuuote/ddu-source-mr'
+on_source = 'ddu.vim'
 
 [[plugins]]
-on_source = 'ddu.vim'
 repo = 'Shougo/ddu-source-register'
+on_source = 'ddu.vim'
 
 #----------------------------------------------------------------------------------#
 # 非同期検証ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
-hook_source = 'source ~/.config/nvim/plugins/ddc.lua'
-on_event = 'InsertEnter'
 repo = 'Shougo/ddc.vim'
+lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/ddc.lua]])'
+on_event = 'InsertEnter'
 
 [[plugins]]
-on_source = 'ddc.vim'
 repo = 'Shougo/ddc-ui-pum'
+on_source = 'ddc.vim'
 
 [[plugins]]
-on_source = 'ddc.vim'
-repo = 'Shougo/ddc-ui-inline'
-
-[[plugins]]
-on_source = 'ddc.vim'
 repo = 'Shougo/ddc-matcher_head'
+on_source = 'ddc.vim'
 
 [[plugins]]
-on_source = 'ddc.vim'
 repo = 'matsui54/ddc-matcher_fuzzy'
+on_source = 'ddc.vim'
 
 [[plugins]]
-on_source = 'ddc.vim'
 repo = 'Shougo/ddc-sorter_rank'
+on_source = 'ddc.vim'
 
 [[plugins]]
-on_source = 'ddc.vim'
 repo = 'matsui54/ddc-buffer'
+on_source = 'ddc.vim'
 
 [[plugins]]
-on_source = 'ddc.vim'
 repo = 'Shougo/ddc-converter_remove_overlap'
+on_source = 'ddc.vim'
 
 [[plugins]]
-on_source = 'ddc.vim'
 repo = 'Shougo/ddc-source-copilot'
+on_source = 'ddc.vim'
 
 [[plugins]]
-on_source = 'ddc.vim'
 repo = 'Shougo/pum.vim'
-
-#----------------------------------------------------------------------------------#
-# Github copilot
-#----------------------------------------------------------------------------------#
-[[plugins]]
-on_source = 'ddc.vim'
-hook_source = 'source ~/.config/nvim/plugins/copilot.lua'
-repo = 'github/copilot.vim'
+on_source = 'ddc-ui-pum'
 
 
 #----------------------------------------------------------------#
 # Syntax Highlight
 #----------------------------------------------------------------#
 [[plugins]]
+repo = 'nvim-treesitter/nvim-treesitter'
 hook_post_update = 'TSUpdate'
-hook_source = 'source ~/.config/nvim/plugins/nvim-treesitter.lua'
+lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-treesitter.lua]])'
 merged = 0
 on_event = 'BufRead'
-repo = 'nvim-treesitter/nvim-treesitter'
 
 [[plugins]]
 # haskell
-on_ft = ['haskell']
 repo = 'neovimhaskell/haskell-vim'
+on_ft = ['haskell']
 
 #----------------------------------------------------------------#
 # Config for each Lang
 #----------------------------------------------------------------#
 
 [[plugins]]
-on_ft = ['go']
 repo = 'mattn/vim-goimports'
+on_ft = ['go']
 
 #----------------------------------------------------------------#
 # for Haskell
 #----------------------------------------------------------------#
 [[plugins]]
 # haskell indent
-on_ft = ['haskell']
 repo = 'nbouscal/vim-stylish-haskell'
+on_ft = ['haskell']

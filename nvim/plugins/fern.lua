@@ -20,9 +20,9 @@ _G.init_fern = function()
 	vim.api.nvim_buf_set_keymap(0, 'n', 'R', '<Plug>(fern-action-rename)', {})
 end
 
-vim.api.nvim_exec2([[
+vim.cmd([[
   augroup fern_custom
   autocmd!
   autocmd FileType fern lua _G.init_fern()
   augroup END
-]], {})
+]])

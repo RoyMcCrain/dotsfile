@@ -16,7 +16,7 @@ vim.g.lightline = {
 }
 
 
-vim.api.nvim_exec2([[
+vim.cmd([[
 	function! LightlineFilename()
 		let root = fnamemodify(get(b:, 'git_dir'), ':h')
 		let path = expand('%:p')
@@ -25,6 +25,6 @@ vim.api.nvim_exec2([[
 		endif
 		return expand('%')
 	endfunction
-]], {})
+]])
 
 vim.opt.laststatus = 3

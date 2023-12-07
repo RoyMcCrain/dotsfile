@@ -18,7 +18,7 @@ local on_attach = function(_client, bufnr)
 	buf_set_keymap('n', '[LSP]e', '<Cmd>lua vim.lsp.diagnostic.show_line_diagnostics()<CR>', opts)
 	buf_set_keymap('n', 'H', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
 	-- ファイル保存時にフォーマット
-	vim.cmd("autocmd BufWritePre <buffer> lua vim.lsp.buf.format()")
+	vim.cmd('autocmd BufWritePre <buffer> lua vim.lsp.buf.format()')
 end
 
 local capabilities = require("ddc_source_lsp").make_client_capabilities()

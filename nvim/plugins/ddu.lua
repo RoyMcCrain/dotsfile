@@ -94,7 +94,7 @@ _G.grep_action = function()
 	})
 
 	-- ここで挿入モードに入る
-	vim.api.nvim_exec2('startinsert', {})
+	vim.cmd('startinsert')
 
 	_G.finish_input_with_paste_floating = function()
 		local content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -156,12 +156,12 @@ _G.ddu_my_ff_settings = function()
 	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#ff#do_action("quit")<CR>', { silent = true, noremap = true })
 end
 
-vim.api.nvim_exec2([[
+vim.cmd([[
   augroup ddu_custom
     autocmd!
     autocmd FileType ddu-ff lua _G.ddu_my_ff_settings()
   augroup END
-]], {})
+]])
 
 _G.ddu_filter_my_settings = function()
 	vim.api.nvim_buf_set_keymap(0, 'i', '<CR>', '<Esc>:call ddu#ui#ff#do_action("closeFilterWindow")<CR>',
@@ -170,9 +170,9 @@ _G.ddu_filter_my_settings = function()
 	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#ff#do_action("closeFilterWindow")<CR>', { noremap = true })
 end
 
-vim.api.nvim_exec2([[
+vim.cmd([[
   augroup ddu_custom_filter
     autocmd!
     autocmd FileType ddu-ff-filter lua _G.ddu_filter_my_settings()
   augroup END
-]], {})
+]])
