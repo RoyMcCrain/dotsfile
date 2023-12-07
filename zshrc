@@ -16,10 +16,10 @@ bindkey -v
 # asdf
 . $HOME/.asdf/asdf.sh
 # JAVA_HOME
-. ~/.asdf/plugins/java/set-java-home.zsh
+. $HOME/.asdf/plugins/java/set-java-home.zsh
 
 # ヒストリの設定
-HISTFILE=~/.zsh_history
+HISTFILE=$HOME/.zsh_history
 HISTSIZE=1000000
 SAVEHIST=1000000
 
@@ -77,8 +77,6 @@ setopt no_beep
 setopt no_flow_control
 # Ctrl+Dでzshを終了しない
 setopt ignore_eof
-# ディレクトリ名だけでcdする
-setopt auto_cd
 # cd したら自動的にpushdする
 setopt auto_pushd
 # 重複したディレクトリを追加しない
@@ -116,13 +114,14 @@ alias js='jobs'
 
 alias la='ls -a'
 alias ll='ls -lh'
+alias lla='ls -lha'
 
-alias rm='rm -ri'
-alias rmf='rm -rf'
-alias cp='cp -i'
-alias mv='mv -i'
+alias rm='rm -ri --'
+alias rmf='rm -rf --'
+alias cp='cp -i --'
+alias mv='mv -i --'
 
-alias mkdir='mkdir -p'
+alias mkdir='mkdir -p --'
 
 alias e="nvim"
 alias g="git"
@@ -295,6 +294,3 @@ fi
 
 # asdf completions
 fpath=(${ASDF_DIR}/completions $fpath)
-
-# bun completions
-[ -s "/home/roy/.bun/_bun" ] && source "/home/roy/.bun/_bun"
