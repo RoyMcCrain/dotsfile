@@ -191,7 +191,7 @@ zplug "zsh-users/zsh-history-substring-search"
 zplug "zsh-users/zsh-completions"
 zplug "azu/ni.zsh", use:ni.zsh
 zplug load
-ENHANCD_FILTER=fzf; export ENHANCD_FILTER;
+export ENHANCD_FILTER="fzf"
 ## 未インストールのプラグインをインストール
 if ! zplug check --verbose; then
 		printf 'Install? [y/N]: '
