@@ -123,7 +123,8 @@ alias mv='mv -i'
 
 alias mkdir='mkdir -p'
 
-alias e="nvim"
+alias e="nvim ."
+alias c="code -n"
 alias g="git"
 
 # sudo の後のコマンドでエイリアスを有効にする
