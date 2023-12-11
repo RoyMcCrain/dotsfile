@@ -193,7 +193,7 @@ vim.cmd([[
 ]])
 
 -- prettier 設定
-function prettier()
+vim.api.nvim_create_user_command('Prettier', function()
 	local filetypes = {
 		"css", "scss", "html", "markdown"
 	}
@@ -208,6 +208,4 @@ function prettier()
 			return
 		end
 	end
-end
-
-vim.api.nvim_create_user_command('Prettier', prettier, {})
+end, {})
