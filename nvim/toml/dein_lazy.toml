@@ -82,7 +82,6 @@ on_source = 'ddc.vim'
 repo = 'Shougo/pum.vim'
 on_source = 'ddc-ui-pum'
 
-
 #----------------------------------------------------------------#
 # Syntax Highlight
 #----------------------------------------------------------------#
@@ -92,24 +91,3 @@ hook_post_update = 'TSUpdate'
 lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-treesitter.lua]])'
 merged = 0
 on_event = 'BufRead'
-
-[[plugins]]
-# haskell
-repo = 'neovimhaskell/haskell-vim'
-on_ft = ['haskell']
-
-#----------------------------------------------------------------#
-# Config for each Lang
-#----------------------------------------------------------------#
-
-[[plugins]]
-repo = 'mattn/vim-goimports'
-on_ft = ['go']
-
-#----------------------------------------------------------------#
-# for Haskell
-#----------------------------------------------------------------#
-[[plugins]]
-# haskell indent
-repo = 'nbouscal/vim-stylish-haskell'
-on_ft = ['haskell']

@@ -51,10 +51,14 @@ lua_add = 'require("ibl").setup()'
 [[plugins]]
 repo = 'lambdalisue/fern.vim'
 lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/fern.lua]])'
-on_source = 'fern-git-status.vim'
 
 [[plugins]]
 repo = 'lambdalisue/fern-git-status.vim'
+depends = ['fern.vim']
+
+[[plugins]]
+repo = 'lambdalisue/fern-hijack.vim'
+depends = ['fern.vim', 'fern-git-status.vim']
 
 #----------------------------------------------------------------------------------#
 # gitツール
@@ -64,9 +68,7 @@ repo = 'tpope/vim-fugitive'
 lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/vim-fugitive.lua]])'
 
 [[plugins]]
-# github
-repo = 'tpope/vim-rhubarb'
-depends = ['vim-fugitive']
+repo = 'airblade/vim-gitgutter'
 
 #----------------------------------------------------------------------------------#
 # 移動補完
@@ -74,21 +76,7 @@ depends = ['vim-fugitive']
 [[plugins]]
 # vimの移動コマンド拡張
 repo = 'easymotion/vim-easymotion'
-lua_add = '''
-  -- Disable default mappings
-  vim.g.EasyMotion_do_mapping = 0
-  vim.api.nvim_set_keymap('n', '<Leader>e', '<Plug>(easymotion-overwin-f2)', {noremap = true})
-  vim.api.nvim_set_keymap('n', '[EasyM]', '<Nop>', {})
-  vim.api.nvim_set_keymap('n', '<Leader><Space>', '[EasyM]', {})
-  -- Gif config
-  vim.api.nvim_set_keymap('', '[EasyM]s', '<Plug>(easymotion-lineforward)', {noremap = true})
-  vim.api.nvim_set_keymap('', '[EasyM]t', '<Plug>(easymotion-j)', {noremap = true})
-  vim.api.nvim_set_keymap('', '[EasyM]n', '<Plug>(easymotion-k)', {noremap = true})
-  vim.api.nvim_set_keymap('', '[EasyM]k', '<Plug>(easymotion-linebackward)', {noremap = true})
-  -- keep cursor column when JK motion
-  vim.g.EasyMotion_startofline = 0 
-  vim.g.EasyMotion_smartcase = 1
-'''
+lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/vim-easymotion.lua]])'
 
 #----------------------------------------------------------------------------------#
 # 置き換え強化
