@@ -38,7 +38,7 @@ export class Config extends BaseConfig {
 
 		tomls.push(
 			(await args.dpp.extAction(args.denops, context, options, "toml", "load", {
-				path: await fn.expand(args.denops, dotfilesDir + "dein.toml"),
+				path: await fn.expand(args.denops, dotfilesDir + "plugin.toml"),
 				options: {
 					lazy: false,
 				},
@@ -47,7 +47,7 @@ export class Config extends BaseConfig {
 
 		tomls.push(
 			(await args.dpp.extAction(args.denops, context, options, "toml", "load", {
-				path: await fn.expand(args.denops, dotfilesDir + "dein_lazy.toml"),
+				path: await fn.expand(args.denops, dotfilesDir + "plugin_lazy.toml"),
 				options: {
 					lazy: true,
 				},
