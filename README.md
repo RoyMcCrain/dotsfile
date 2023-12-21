@@ -1,5 +1,10 @@
 # dotsfile
 
+## Install
+- zplug https://github.com/zplug/zplug
+- ghq https://github.com/x-motemen/ghq
+- gh https://github.com/cli/cli
+
 ## create_symlink
 
 ```bash
