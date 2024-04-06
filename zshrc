@@ -3,13 +3,17 @@
 # pipの設定
 export PATH=$PATH:$HOME/.local/bin
 # win32yank.exeの設定
-export PATH=$PATH:$HOME/win32yank.exe
+export PATH=$PATH:/usr/bin/local/win32yank.exe
 export LANG=ja_JP.UTF-8
 export GIT_EDITOR=nvim
 export EDITOR=nvim
 export TERM=xterm-256color
 # bun
 export PATH=$PATH:$HOME/.bun/bin
+# golang
+export PATH=$PATH:/usr/local/go/bin
+export GOPATH=$HOME/.go
+export PATH=$PATH:$HOME/.go/bin
 # 色を使用出来るようにする
 autoload -Uz colors && colors
 bindkey -v
@@ -17,6 +21,7 @@ bindkey -v
 . $HOME/.asdf/asdf.sh
 # JAVA_HOME
 . $HOME/.asdf/plugins/java/set-java-home.zsh
+export ASDF_GOLANG_MOD_VERSION_ENABLED=false
 
 # ヒストリの設定
 HISTFILE=$HOME/.zsh_history
@@ -139,8 +144,11 @@ if which pbcopy >/dev/null 2>&1 ; then
 		# Mac
 		alias -g C='| pbcopy'
 elif which xsel >/dev/null 2>&1 ; then
-		# Linux
+		# Linux xsel
 		alias -g C='| xsel --input --clipboard'
+elif which xclip >/dev/null 2>&1 ; then
+		# Linux xclip
+		alias -g C='| xclip -selection clipboard'
 elif which putclip >/dev/null 2>&1 ; then
 		# Cygwin
 		alias -g C='| putclip'
