@@ -1,9 +1,5 @@
 ########################################
 # 環境変数
-# pipの設定
-export PATH=$PATH:$HOME/.local/bin
-# win32yank.exeの設定
-export PATH=$PATH:/usr/bin/local/win32yank.exe
 export LANG=ja_JP.UTF-8
 export GIT_EDITOR=nvim
 export EDITOR=nvim
@@ -12,17 +8,20 @@ export TERM=xterm-256color
 export PATH=$PATH:$HOME/.bun/bin
 # golang
 export PATH=$PATH:/usr/local/go/bin
+export GOBIN=$HOME/.go/bin
 export GOPATH=$HOME/.go
 export PATH=$PATH:$HOME/.go/bin
-# 色を使用出来るようにする
-autoload -Uz colors && colors
 bindkey -v
 # asdf
 . $HOME/.asdf/asdf.sh
 # JAVA_HOME
 . $HOME/.asdf/plugins/java/set-java-home.zsh
 export ASDF_GOLANG_MOD_VERSION_ENABLED=false
+# pipの設定
+export PATH=$PATH:$HOME/.local/bin
 
+# 色を使用出来るようにする
+autoload -Uz colors && colors
 # ヒストリの設定
 HISTFILE=$HOME/.zsh_history
 HISTSIZE=1000000
@@ -129,7 +128,7 @@ alias mv='mv -i'
 alias mkdir='mkdir -p'
 
 alias a="nvim"
-alias c="code -n ."
+alias code="code -n ."
 alias g="git"
 
 # sudo の後のコマンドでエイリアスを有効にする
@@ -149,9 +148,6 @@ elif which xsel >/dev/null 2>&1 ; then
 elif which xclip >/dev/null 2>&1 ; then
 		# Linux xclip
 		alias -g C='| xclip -selection clipboard'
-elif which putclip >/dev/null 2>&1 ; then
-		# Cygwin
-		alias -g C='| putclip'
 fi
 
 # bundle
