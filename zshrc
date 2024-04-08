@@ -6,11 +6,6 @@ export EDITOR=nvim
 export TERM=xterm-256color
 # bun
 export PATH=$PATH:$HOME/.bun/bin
-# golang
-export PATH=$PATH:/usr/local/go/bin
-export GOBIN=$HOME/.go/bin
-export GOPATH=$HOME/.go
-export PATH=$PATH:$HOME/.go/bin
 bindkey -v
 # asdf
 . $HOME/.asdf/asdf.sh
