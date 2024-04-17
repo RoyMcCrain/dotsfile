@@ -114,10 +114,10 @@ alias js='jobs'
 # fg %1 でそのjobsの復帰
 
 if command -v exa >/dev/null 2>&1; then
-	alias ls='exa -T -L=1 --icons -F'
-	alias la='exa -a -T -L=1 --icons -F'
-	alias ll='exa -l -T -L=1 --icons -F'
-	alias lla='ls -a -l -T -L=1 --icons -F'
+	alias ls='exa -TF -L=1 --icons'
+	alias la='exa -aTF -L=1 --icons'
+	alias ll='exa -lTF -L=1 --icons'
+	alias lla='exa -alTF -L=1 --icons'
 else
 	alias la='ls -a'
 	alias ll='ls -lh'
