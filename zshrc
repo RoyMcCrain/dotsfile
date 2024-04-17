@@ -111,9 +111,16 @@ bindkey '^Z' fancy-ctrl-z
 alias js='jobs'
 # fg %1 でそのjobsの復帰
 
-alias la='ls -a'
-alias ll='ls -lh'
-alias lla='ls -lha'
+if command -v exa >/dev/null 2>&1; then
+	alias ls='exa -T -L=1 --icons -F'
+	alias la='exa -a -T -L=1 --icons -F'
+	alias ll='exa -l -T -L=1 --icons -F'
+	alias lla='ls -a -l -T -L=1 --icons -F'
+else
+	alias la='ls -a'
+	alias ll='ls -lh'
+	alias lla='ls -lha'
+fi
 
 alias rm='rm -ri'
 alias rmf='rm -rf'
@@ -174,7 +181,6 @@ case ${OSTYPE} in
 				;;
 		linux*)
 				#Linux用の設定
-				alias ls='ls -F --color=auto'
 				alias open="xdg-open"
 				# Ruby InstallのOpenSSL場所指定
 				export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"
@@ -209,7 +215,13 @@ zle -N select-history
 bindkey '^r' select-history
 
 function ghq-fzf() {
-	local src=$(ghq list | fzf --preview "ls -laTp $(ghq root)/{} | tail -n+4 | awk '{print \$9\"/\"\$6\"/\"\$7 \" \" \$10}'")
+	local preview_command
+	if command -v exa >/dev/null 2>&1; then
+		preview_command="exa -T --level=1 --icons"
+	else
+		preview_command="ls -l"
+	fi
+	local src=$(ghq list | fzf --preview "$preview_command $(ghq root)/{}")
 	if [ -n "$src" ]; then
 		BUFFER="cd $(ghq root)/$src"
 		zle accept-line
@@ -218,6 +230,12 @@ function ghq-fzf() {
 }
 zle -N ghq-fzf
 bindkey '^t' ghq-fzf
+
+ghq-get-cd() {
+  ghq get "$1" && cd "$(ghq list --exact --full-path "$1")"
+}
+
+alias get="ghq-get-cd"
 
 ###-begin-npm-completion-###
 #
