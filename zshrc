@@ -6,7 +6,6 @@ export EDITOR=nvim
 export TERM=xterm-256color
 # bun
 export PATH=$PATH:$HOME/.bun/bin
-bindkey -v
 # asdf
 . $HOME/.asdf/asdf.sh
 # JAVA_HOME
@@ -21,6 +20,9 @@ autoload -Uz colors && colors
 HISTFILE=$HOME/.zsh_history
 HISTSIZE=1000000
 SAVEHIST=1000000
+
+# vim風なキーバインド
+bindkey -v
 
 # プロンプト
 # 1行表示
@@ -296,7 +298,6 @@ elif type compctl &>/dev/null; then
 											 COMP_POINT="$point" \
 											 npm completion -- "${words[@]}" \
 											 2>/dev/null)); then
-
 			local ret=$?
 			IFS="$si"
 			return $ret
