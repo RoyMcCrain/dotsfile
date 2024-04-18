@@ -38,7 +38,6 @@ lspconfig.biome.setup {
 	capabilities = capabilities,
 }
 
-
 lspconfig.denols.setup {
 	on_attach = on_attach,
 	filetypes = { "typescript", "javascript" },
@@ -150,12 +149,7 @@ lspconfig.rubocop.setup {
 	capabilities = capabilities,
 }
 
-lspconfig.ruby_ls.setup {
-	on_attach = on_attach,
-	capabilities = capabilities,
-}
-
-lspconfig.taplo.setup {
+lspconfig.ruby_lsp.setup {
 	on_attach = on_attach,
 	capabilities = capabilities,
 }
