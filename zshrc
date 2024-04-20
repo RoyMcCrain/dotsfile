@@ -178,7 +178,6 @@ case ${OSTYPE} in
 		darwin*)
 				#Mac用の設定
 				export CLICOLOR=1
-				alias ls='ls -G -F'
 				eval "$(/opt/homebrew/bin/brew shellenv)"
 				;;
 		linux*)
