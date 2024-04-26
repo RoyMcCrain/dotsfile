@@ -141,19 +141,19 @@ vim.api.nvim_set_keymap('n', '[ddu]w',
 	{ silent = true, noremap = true })
 
 _G.ddu_my_ff_settings = function()
-	vim.api.nvim_buf_set_keymap(0, 'n', '<CR>', ':call ddu#ui#ff#do_action("itemAction", #{name: "open"})<CR>',
+	vim.api.nvim_buf_set_keymap(0, 'n', '<CR>', ':call ddu#ui#do_action("itemAction", #{name: "open"})<CR>',
 		{ silent = true, noremap = true })
 	vim.api.nvim_buf_set_keymap(0, 'n', 'v',
-		':call ddu#ui#ff#do_action("itemAction", #{name: "open", params: #{command: "vsplit"}})<CR>',
+		':call ddu#ui#do_action("itemAction", #{name: "open", params: #{command: "vsplit"}})<CR>',
 		{ silent = true, noremap = true })
 	vim.api.nvim_buf_set_keymap(0, 'n', 's',
-		':call ddu#ui#ff#do_action("itemAction", #{name: "open", params: #{command: "split"}})<CR>',
+		':call ddu#ui#do_action("itemAction", #{name: "open", params: #{command: "split"}})<CR>',
 		{ silent = true, noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', 'i', ':call ddu#ui#ff#do_action("openFilterWindow")<CR>',
+	vim.api.nvim_buf_set_keymap(0, 'n', 'i', ':call ddu#ui#do_action("openFilterWindow")<CR>',
 		{ silent = true, noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', 'p', ':call ddu#ui#ff#do_action("togglePreview")<CR>',
+	vim.api.nvim_buf_set_keymap(0, 'n', 'p', ':call ddu#ui#do_action("togglePreview")<CR>',
 		{ silent = true, noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#ff#do_action("quit")<CR>', { silent = true, noremap = true })
+	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#do_action("quit")<CR>', { silent = true, noremap = true })
 end
 
 vim.cmd([[
@@ -164,10 +164,10 @@ vim.cmd([[
 ]])
 
 _G.ddu_filter_my_settings = function()
-	vim.api.nvim_buf_set_keymap(0, 'i', '<CR>', '<Esc>:call ddu#ui#ff#do_action("closeFilterWindow")<CR>',
+	vim.api.nvim_buf_set_keymap(0, 'i', '<CR>', '<Esc>:call ddu#ui#do_action("closeFilterWindow")<CR>',
 		{ noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', '<CR>', ':call ddu#ui#ff#do_action("closeFilterWindow")<CR>', { noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#ff#do_action("closeFilterWindow")<CR>', { noremap = true })
+	vim.api.nvim_buf_set_keymap(0, 'n', '<CR>', ':call ddu#ui#do_action("closeFilterWindow")<CR>', { noremap = true })
+	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#do_action("closeFilterWindow")<CR>', { noremap = true })
 end
 
 vim.cmd([[
