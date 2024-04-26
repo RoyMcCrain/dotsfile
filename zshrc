@@ -3,5 +3,4 @@ source $ZSH_HOME/antigen.zsh
 source $ZSH_HOME/options.zsh
 source $ZSH_HOME/completions.zsh
 source $ZSH_HOME/bindkeys.zsh
-zstyle ':abbr:*' force-overwrite yes
 source $ZSH_HOME/abbreviations.zsh
