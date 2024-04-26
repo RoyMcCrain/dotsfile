@@ -9,8 +9,6 @@
 git clone https://github.com/zsh-users/antigen.git ~/.antigen
 ```
 
-
-
 ## create_symlink
 
 ```bash
