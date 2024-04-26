@@ -10,6 +10,7 @@ BASE_DIR=$(ghq root)/github.com/RoyMcCrain/dotsfile
 
 # Define the files/folders to link
 LINK_ITEMS=(
+	"zsh"
 	"zshrc"
 	"nvim"
 	"gemrc"

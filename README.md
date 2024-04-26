@@ -5,6 +5,12 @@
 - ghq https://github.com/x-motemen/ghq
 - gh https://github.com/cli/cli
 
+```bash
+git clone https://github.com/zsh-users/antigen.git ~/.antigen
+```
+
+
+
 ## create_symlink
 
 ```bash
