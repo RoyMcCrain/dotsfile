@@ -55,8 +55,6 @@ alias nil="ni run lint "
 alias sortp="npx sort-package-json"
 # bun
 alias bunup="bunx npm-check-updates -ui"
-# cloud functions コマンド alias
-alias cfunc='functions-emulator'
 # docker alias
 alias d="docker"
 alias dc="docker-compose"
@@ -64,7 +62,6 @@ alias dc="docker-compose"
 case ${OSTYPE} in
 		darwin*)
 				#Mac用の設定
-				alias ls='ls -G -F'
 				;;
 		linux*)
 				#Linux用の設定
@@ -79,4 +76,3 @@ ghq-get-cd() {
 alias get="ghq-get-cd"
 
 abbr import-aliases --quiet
-abbr import-git-aliases --quiet
