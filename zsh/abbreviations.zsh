@@ -67,3 +67,5 @@ abbr --quiet "git dt"="git difftool"
 abbr --quiet "git pl"="git pull"
 abbr --quiet "git pp"="git pull --prune"
 abbr --quiet "git ps"="git push"
+
+abbr --quiet "asdf neovim update"='asdf uninstall neovim nightly && asdf install neovim nightly'

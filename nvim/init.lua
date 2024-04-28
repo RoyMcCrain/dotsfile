@@ -25,7 +25,7 @@ if vim.fn.executable('win32yank.exe') == 1 then
 			['+'] = 'win32yank.exe -o --lf',
 			['*'] = 'win32yank.exe -o --lf',
 		},
-		cache_enabled = 1,
+		cache_enabled = 0,
 	}
 end
 vim.g.mapleader = " "

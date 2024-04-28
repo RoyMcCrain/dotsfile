@@ -102,32 +102,22 @@ lspconfig.lua_ls.setup {
 	on_attach = on_attach,
 	on_init = function(client)
 		local path = client.workspace_folders[1].name
-		local function file_exists(p)
-			local f = io.open(p, "r")
-			if f ~= nil then
-				io.close(f)
-				return true
-			else
-				return false
-			end
+		-- vim.loopはv1で削除予定らしい
+		if vim.loop.fs_stat(path .. '/.luarc.json') or vim.loop.fs_stat(path .. '/.luarc.jsonc') then
+			return
 		end
-		if not file_exists(path .. '/.luarc.json') and not file_exists(path .. '/.luarc.jsonc') then
-			client.config.settings = vim.tbl_deep_extend('force', client.config.settings, {
-				Lua = {
-					runtime = {
-						version = 'LuaJIT'
-					},
-					workspace = {
-						checkThirdParty = false,
-						library = {
-							vim.env.VIMRUNTIME
-						}
-					}
+		client.config.settings.Lua = client.config.settings.Lua or {}
+		client.config.settings.Lua = vim.tbl_deep_extend('force', client.config.settings.Lua, {
+			runtime = {
+				version = 'LuaJIT'
+			},
+			workspace = {
+				checkThirdParty = false,
+				library = {
+					vim.env.VIMRUNTIME
 				}
-			})
-			client.notify("workspace/didChangeConfiguration", { settings = client.config.settings })
-		end
-		return true
+			}
+		})
 	end,
 	capabilities = capabilities,
 }
