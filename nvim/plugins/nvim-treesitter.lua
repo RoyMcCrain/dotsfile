@@ -7,6 +7,7 @@ require 'nvim-treesitter.configs'.setup {
 		"cpp",
 		"css",
 		"dockerfile",
+		"diff",
 		"elixir",
 		"elm",
 		"erlang",

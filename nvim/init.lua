@@ -1,33 +1,36 @@
-vim.opt.signcolumn = "yes"                                          -- 左端のリンターとか出すところを常に出す
-vim.opt.backspace = "indent,eol,start"                              -- Backspaceの有効化
-vim.opt.whichwrap = "b,s,h,l,<,>,[,]"                               -- カーソルが行頭／末にあるときに前／次行に移動できる
-vim.opt.lazyredraw = true                                           -- マクロやコマンドを実行する間、画面を再描画しない(スクロールが重くなる対策)
-vim.opt.scrolloff = 10                                              -- 編集中の箇所の周辺のテキストを見ることができる(スクロールする時に下が見える)
-vim.opt.autoread = true                                             -- 外部でファイルが変更された場合、読み直す
-vim.opt.hidden = true                                               -- bufferを切り替える時に保存してくても警告を出さない
-vim.opt.showcmd = true                                              -- 入力中のコマンド表示
-vim.opt.nrformats = "bin,hex"                                       -- 0で始まる数値を8進数として扱わないようにする
+vim.opt.signcolumn = "yes"             -- 左端のリンターとか出すところを常に出す
+vim.opt.backspace = "indent,eol,start" -- Backspaceの有効化
+vim.opt.whichwrap = "b,s,h,l,<,>,[,]"  -- カーソルが行頭／末にあるときに前／次行に移動できる
+vim.opt.lazyredraw = true              -- マクロやコマンドを実行する間、画面を再描画しない(スクロールが重くなる対策)
+vim.opt.scrolloff = 10                 -- 編集中の箇所の周辺のテキストを見ることができる(スクロールする時に下が見える)
+vim.opt.autoread = true                -- 外部でファイルが変更された場合、読み直す
+vim.opt.hidden = true                  -- bufferを切り替える時に保存してくても警告を出さない
+vim.opt.showcmd = true                 -- 入力中のコマンド表示
+vim.opt.nrformats = "bin,hex"          -- 0で始まる数値を8進数として扱わないようにする
+
 if vim.fn.has("persistent_undo") == 1 then
 	vim.o.undodir = vim.fn.expand(vim.fn.stdpath('config') .. '/undo') -- undoファイルのパス
 	vim.o.undofile = true
 end
+
 vim.opt.swapfile = false     -- swpファイルをつくらない
 vim.opt.termguicolors = true -- trueカラーを使う
 vim.opt.clipboard = "unnamedplus"
-if vim.fn.executable('win32yank.exe') == 1 then
+if vim.fn.executable('xsel') == 1 then
 	vim.g.clipboard = {
-		name = 'myClipboard',
+		name = 'WslClipboard',
 		copy = {
-			['+'] = 'win32yank.exe -i --crlf',
-			['*'] = 'win32yank.exe -i --crlf',
+			['+'] = 'xsel -bi',
+			['*'] = 'xsel -bi',
 		},
 		paste = {
-			['+'] = 'win32yank.exe -o --lf',
-			['*'] = 'win32yank.exe -o --lf',
+			['+'] = 'xsel -bo',
+			['*'] = function() return vim.fn.systemlist('xsel -bo | tr -d "\r"') end,
 		},
-		cache_enabled = 0,
+		cache_enabled = 1,
 	}
 end
+
 vim.g.mapleader = " "
 vim.opt.pumheight = 5       -- 変換候補で表示される数
 vim.opt.wrap = false        -- テキストが折り返されないようにする
