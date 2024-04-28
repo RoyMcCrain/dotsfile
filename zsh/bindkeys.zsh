@@ -8,8 +8,8 @@ bindkey '^r' select-history
 
 function ghq-fzf() {
 	local preview_command
-	if command -v exa >/dev/null 2>&1; then
-		preview_command="exa -T --level=1 --icons"
+	if command -v eza >/dev/null 2>&1; then
+		preview_command="eza -T --level=1 --icons"
 	else
 		preview_command="ls -l"
 	fi
