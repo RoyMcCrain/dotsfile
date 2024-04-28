@@ -13,6 +13,10 @@ if vim.fn.has("persistent_undo") == 1 then
 	vim.o.undofile = true
 end
 
+vim.cmd([[
+  command! Doc execute 'tabnew +setlocal\ readonly\ nomodifiable' stdpath('config') . '/doc/keymaps.txt'
+]])
+
 vim.opt.swapfile = false     -- swpファイルをつくらない
 vim.opt.termguicolors = true -- trueカラーを使う
 vim.opt.clipboard = "unnamedplus"
@@ -24,7 +28,7 @@ if vim.fn.executable('xsel') == 1 then
 			['*'] = 'xsel -bi',
 		},
 		paste = {
-			['+'] = 'xsel -bo',
+			['+'] = function() return vim.fn.systemlist('xsel -bo | tr -d "\r"') end,
 			['*'] = function() return vim.fn.systemlist('xsel -bo | tr -d "\r"') end,
 		},
 		cache_enabled = 1,
@@ -79,7 +83,8 @@ vim.api.nvim_set_keymap('', ':', ';', { noremap = true })
 vim.api.nvim_set_keymap('v', ';', ':', { noremap = true })
 vim.api.nvim_set_keymap('v', ':', ';', { noremap = true })
 -- 空の行を挿入
-vim.api.nvim_set_keymap('n', 'O', ":<C-u>call append(expand('.'), '')<CR>j", { noremap = true })
+vim.api.nvim_set_keymap('n', 'O', [[<cmd>call append(line('.'), '')<CR><cmd>normal! j^<CR>]],
+	{ noremap = true, silent = true })
 -- ヤンクの内容を消さない
 vim.api.nvim_set_keymap('', 'PP', '"0p', { noremap = true })
 vim.api.nvim_set_keymap('', 'x', '"_x', { noremap = true })
