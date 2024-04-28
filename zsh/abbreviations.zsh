@@ -1,61 +1,44 @@
-alias js='jobs'
+abbr --quiet js='jobs'
 # fg %1 でそのjobsの復帰
 
-if command -v exa >/dev/null 2>&1; then
-	alias ls='exa -TF -L=1 --icons'
-	alias la='exa -aTF -L=1 --icons'
-	alias ll='exa -lTF -L=1 --icons'
-	alias lla='exa -alTF -L=1 --icons'
+if command -v eza >/dev/null 2>&1; then
+	abbr --quiet ls='eza -TF -L=1 --icons'
+	abbr --quiet la='eza -aTF -L=1 --icons'
+	abbr --quiet ll='eza -lTF -L=1 --icons'
+	abbr --quiet lla='eza -alTF -L=1 --icons'
 else
-	alias la='ls -a'
-	alias ll='ls -lh'
-	alias lla='ls -lha'
+	abbr --quiet la='ls -a'
+	abbr --quiet ll='ls -lh'
+	abbr --quiet lla='ls -lha'
 fi
 
-alias rm='rm -ri'
-alias rmf='rm -rf'
-alias cp='cp -i'
-alias mv='mv -i'
+abbr --quiet rm='rm -ri'
+abbr --quiet rmf='rm -rf'
+abbr --quiet cp='cp -i'
+abbr --quiet mv='mv -i'
 
-alias mkdir='mkdir -p'
+abbr --quiet mkdir='mkdir -p'
 
-alias a="nvim"
-alias code="code -n ."
-alias g="git"
-
-# グローバルエイリアス
-alias -g L='| less'
-alias -g G='| grep'
-
-# C で標準出力をクリップボードにコピーする
-# mollifier delta blog : http://mollifier.hatenablog.com/entry/20100317/p1
-if which pbcopy >/dev/null 2>&1 ; then
-		# Mac
-		alias -g C='| pbcopy'
-elif which xsel >/dev/null 2>&1 ; then
-		# Linux xsel
-		alias -g C='| xsel --input --clipboard'
-elif which xclip >/dev/null 2>&1 ; then
-		# Linux xclip
-		alias -g C='| xclip -selection clipboard'
-fi
+abbr --quiet a="nvim"
+abbr --quiet code="code -n ."
+abbr --quiet g="git"
 
 # bundle
-alias be="bundle exec "
-alias bi="bundle install "
-alias rails="bundle exec rails"
-alias rails-s="bundle exec rails s -p 3001"
-alias rspec="bundle exec rspec"
+abbr --quiet be="bundle exec "
+abbr --quiet bi="bundle install "
+abbr --quiet rails="bundle exec rails"
+abbr --quiet rails-s="bundle exec rails s -p 3001"
+abbr --quiet rspec="bundle exec rspec"
 # node
-alias nir="ni run "
-alias niu="ni upgrade-interactive "
-alias nil="ni run lint "
-alias sortp="npx sort-package-json"
+abbr --quiet nir="ni run "
+abbr --quiet niu="ni upgrade-interactive "
+abbr --quiet nil="ni run lint "
+abbr --quiet sortp="npx sort-package-json"
 # bun
-alias bunup="bunx npm-check-updates -ui"
-# docker alias
-alias d="docker"
-alias dc="docker-compose"
+abbr --quiet bunup="bunx npm-check-updates -ui"
+# docker
+abbr --quiet d="docker"
+abbr --quiet dc="docker-compose"
 
 case ${OSTYPE} in
 		darwin*)
@@ -63,7 +46,7 @@ case ${OSTYPE} in
 				;;
 		linux*)
 				#Linux用の設定
-				alias open="xdg-open"
+				abbr --quiet open="xdg-open"
 				;;
 esac
 
@@ -71,6 +54,16 @@ ghq-get-cd() {
   ghq get "$1" && cd "$(ghq list --exact --full-path "$1")"
 }
 
-alias get="ghq-get-cd"
+abbr --quiet "ghq get"="ghq-get-cd"
 
-abbr import-aliases --quiet
+abbr --quiet "git sw"="git switch"
+abbr --quiet "git rs"="git restore"
+abbr --quiet "git cm"="git commit"
+abbr --quiet "git st"="git status"
+abbr --quiet "git br"="git branch"
+abbr --quiet "git lg"="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative"
+abbr --quiet "git mt"="git mergetool"
+abbr --quiet "git dt"="git difftool"
+abbr --quiet "git pl"="git pull"
+abbr --quiet "git pp"="git pull --prune"
+abbr --quiet "git ps"="git push"

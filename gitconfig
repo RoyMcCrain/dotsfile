@@ -1,15 +1,3 @@
-[alias]
-	sw = switch
-	rs = restore
-	st = status
-	cm = commit
-	br = branch
-	lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
-	mt = mergetool
-	dt = difftool
-	ps = push
-	pl = pull
-	pp = pull --prune
 [user]
 	name = RoyMcCrain
 	email = me@rrrr.dev

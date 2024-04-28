@@ -43,3 +43,10 @@ cd release
 cd ../
 rm -fr ./release.tar.gz ./release
 ```
+
+## eza
+https://github.com/eza-community/eza
+A modern, maintained replacement for ls.
+
+## ripgrep
+https://github.com/BurntSushi/ripgrep
