@@ -36,7 +36,7 @@ repo = 'Shougo/ddc-source-lsp'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'github/copilot.vim'
-lua_add = 'vim.g.copilot_no_maps = true'
+lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/copilot.lua]])'
 
 #----------------------------------------------------------------------------------#
 # インデント補助
