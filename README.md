@@ -43,3 +43,11 @@ A modern, maintained replacement for ls.
 
 ## ripgrep
 https://github.com/BurntSushi/ripgrep
+
+## Copilot Chat
+https://github.com/CopilotC-Nvim/CopilotChat.nvim
+
+- tiktoken というトークンを扱うライブラリを入れている。
+/nvim/lua/tittoken_core.so に配置しているのは
+https://github.com/gptlang/lua-tiktoken/releases
+v0.2.1のtiktoken_core-linux-lua51.soをtiktoken_core.soにリネームして配置している。

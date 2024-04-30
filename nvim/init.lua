@@ -217,3 +217,5 @@ vim.api.nvim_create_user_command('Prettier', function()
 		end
 	end
 end, {})
+-- nvim/lua/にtiktokenのバイナリを配置したので読み込む
+package.cpath = package.cpath .. ';' .. vim.fn.expand('~/.config/nvim/lua/?.so')
