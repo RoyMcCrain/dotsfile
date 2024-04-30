@@ -48,7 +48,7 @@ on_source = 'ddu.vim'
 [[plugins]]
 repo = 'Shougo/ddc.vim'
 lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/ddc.lua]])'
-on_event = 'InsertEnter'
+on_event = ['InsertEnter', 'CmdlineEnter' ]
 
 [[plugins]]
 repo = 'Shougo/ddc-ui-pum'

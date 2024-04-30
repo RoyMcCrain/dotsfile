@@ -1,10 +1,7 @@
 vim.fn['ddc#custom#patch_global']({
 	ui = 'pum',
 	autoCompleteEvents = {
-		'InsertEnter', 'TextChangedI', 'TextChangedP', 'CmdlineChanged',
-	},
-	cmdlineSources = {
-		[':'] = { 'cmdline', 'cmdline-history', 'around' },
+		'InsertEnter', 'TextChangedI', 'TextChangedP',
 	},
 })
 
@@ -50,9 +47,9 @@ vim.fn['ddc#custom#patch_global']('filterParams', {
 
 vim.fn['ddc#enable']()
 
-vim.api.nvim_set_keymap('i', '<C-n>', '<Cmd>call pum#map#insert_relative(+1)<CR>', {})
-vim.api.nvim_set_keymap('i', '<C-p>', '<Cmd>call pum#map#insert_relative(-1)<CR>', {})
-vim.api.nvim_set_keymap('i', '<C-k>', '<Cmd>call pum#map#confirm()<CR>', {})
-vim.api.nvim_set_keymap('i', '<C-e>', '<Cmd>call pum#map#cancel()<CR>', {})
-vim.api.nvim_set_keymap('i', '<PageDown>', '<Cmd>call pum#map#insert_relative(+1)<CR>', {})
-vim.api.nvim_set_keymap('i', '<PageUp>', '<Cmd>call pum#map#insert_relative(-1)<CR>', {})
+vim.keymap.set('i', '<C-n>', '<Cmd>call pum#map#insert_relative(+1)<CR>', {})
+vim.keymap.set('i', '<C-p>', '<Cmd>call pum#map#insert_relative(-1)<CR>', {})
+vim.keymap.set('i', '<C-k>', '<Cmd>call pum#map#confirm()<CR>', {})
+vim.keymap.set('i', '<C-e>', '<Cmd>call pum#map#cancel()<CR>', {})
+vim.keymap.set('i', '<PageDown>', '<Cmd>call pum#map#insert_relative(+1)<CR>', {})
+vim.keymap.set('i', '<PageUp>', '<Cmd>call pum#map#insert_relative(-1)<CR>', {})

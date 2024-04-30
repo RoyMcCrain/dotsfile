@@ -77,10 +77,10 @@ vim.api.nvim_set_keymap('n', 'Y', 'y$', { noremap = true })
 -- NNで検索のハイライトを消す
 vim.api.nvim_set_keymap('', 'NN', ':noh<CR>', { noremap = true })
 -- 英語配列
-vim.api.nvim_set_keymap('', ';', ':', { noremap = true })
-vim.api.nvim_set_keymap('', ':', ';', { noremap = true })
-vim.api.nvim_set_keymap('v', ';', ':', { noremap = true })
-vim.api.nvim_set_keymap('v', ':', ';', { noremap = true })
+vim.keymap.set('n', ';', ':', { noremap = true })
+vim.keymap.set('n', ':', ';', { noremap = true })
+vim.keymap.set('v', ';', ':', { noremap = true })
+vim.keymap.set('v', ':', ';', { noremap = true })
 -- 空の行を挿入
 vim.api.nvim_set_keymap('n', 'O', [[<cmd>call append(line('.'), '')<CR><cmd>normal! j^<CR>]],
 	{ noremap = true, silent = true })

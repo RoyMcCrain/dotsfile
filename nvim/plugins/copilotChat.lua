@@ -1,5 +1,4 @@
 require("CopilotChat").setup {
-	debug = true, -- Enable debugging
 	window = {
 		layout = 'float',
 		width = 0.8,
