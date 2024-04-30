@@ -63,7 +63,6 @@ vim.opt.smartcase = true -- 大文字小文字混在の場合は区別する
 vim.opt.wrapscan = true -- 最後尾まで検索を終えたら次の検索で先頭に移る
 vim.opt.inccommand = "split" -- 置き換え結果previewで見れる
 vim.opt.gdefault = true -- 置換のgオプションをデフォルトで有効にする
-vim.opt.wildmenu = true -- Tabによる自動補完を有効にする
 vim.opt.wildmode = "list:longest,full" -- vimからファイルを開く時にtabを押すとリストを表示する
 vim.opt.virtualedit = "block" -- 文字のない所にカーソル移動できる
 vim.opt.fileformats = "unix,dos,mac" -- エンコーディングの設定

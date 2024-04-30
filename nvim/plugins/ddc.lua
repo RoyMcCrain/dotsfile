@@ -1,4 +1,13 @@
-vim.fn['ddc#custom#patch_global']('ui', 'pum')
+vim.fn['ddc#custom#patch_global']({
+	ui = 'pum',
+	autoCompleteEvents = {
+		'InsertEnter', 'TextChangedI', 'TextChangedP', 'CmdlineChanged',
+	},
+	cmdlineSources = {
+		[':'] = { 'cmdline', 'cmdline-history', 'around' },
+	},
+})
+
 vim.fn['ddc#custom#patch_global']('sources', { 'copilot', 'lsp', 'buffer' })
 
 vim.fn['ddc#custom#patch_global']('sourceOptions', {
