@@ -84,7 +84,7 @@ vim.keymap.set('v', ':', ';', { noremap = true })
 -- 空の行を挿入
 vim.api.nvim_set_keymap('n', 'O', [[<cmd>call append(line('.'), '')<CR><cmd>normal! j^<CR>]], { noremap = true })
 -- ヤンクの内容を消さない
-vim.api.nvim_set_keymap('n', 'P', '"+p', { noremap = true })
+vim.api.nvim_set_keymap('n', 'P', 'o<Esc>"+p', { noremap = true })
 vim.api.nvim_set_keymap('n', 'x', '"_x', { noremap = true })
 -- 画面分割
 vim.api.nvim_set_keymap('n', 'vs', '<Cmd>vsplit<CR>', { noremap = true })
