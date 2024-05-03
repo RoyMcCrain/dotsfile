@@ -1,6 +1,5 @@
-vim.api.nvim_set_keymap('n', '<Leader>l', '<Cmd>Fern . -reveal=%<CR>', { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', '<Leader>m', '<Cmd>Fern . -drawer -reveal=% -width=50 -toggle <CR>',
-	{ noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<Leader>l', '<Cmd>Fern . -reveal=%<CR>', { noremap = true })
+vim.api.nvim_set_keymap('n', '<Leader>m', '<Cmd>Fern . -drawer -reveal=% -width=50 -toggle <CR>', { noremap = true })
 vim.g['fern#disable_default_mappings'] = 1
 vim.g['fern#default_hidden'] = 1
 

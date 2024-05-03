@@ -31,13 +31,12 @@ zR      |全ての折りたたみを開く
 [git]b |blame
 
 ## vim-easymotion
-<L>e     |2文字で移動
-
-<L>space | [EasyM]
-[EasyM]k |左に移動
-[EasyM]t |上に移動
-[EasyM]n |下に移動
-[EasyM]s |右に移動
+<L>space     | [EasyM]
+[EasyM]space |2文字の移動
+[EasyM]k     |左に移動
+[EasyM]t     |上に移動
+[EasyM]n     |下に移動
+[EasyM]s     |右に移動
 
 ## nvim-lsp
 H        |直下のワードの型情報を表示

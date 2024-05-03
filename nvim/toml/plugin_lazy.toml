@@ -82,6 +82,17 @@ on_source = 'ddc.vim'
 repo = 'Shougo/pum.vim'
 on_source = 'ddc-ui-pum'
 
+[[plugins]]
+repo = 'Shougo/ddc-source-cmdline'
+on_source = 'ddc.vim'
+
+[[plugins]]
+repo = 'Shougo/ddc-source-cmdline-history'
+on_source = 'ddc.vim'
+
+[[plugins]]
+repo = 'Shougo/ddc-source-around'
+on_source = 'ddc.vim'
 #----------------------------------------------------------------#
 # Syntax Highlight
 #----------------------------------------------------------------#
