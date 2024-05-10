@@ -75,21 +75,20 @@ vim.cmd('command! -nargs=* T split | wincmd j | resize 30 | terminal <args>')
 -- 行末までのヤンク
 vim.api.nvim_set_keymap('n', 'Y', 'y$', { noremap = true })
 -- NNで検索のハイライトを消す
-vim.api.nvim_set_keymap('', 'NN', ':noh<CR>', { noremap = true })
+vim.api.nvim_set_keymap('n', 'NN', ':noh<CR>', { noremap = true })
 -- 英語配列
 vim.keymap.set('n', ';', ':', { noremap = true })
 vim.keymap.set('n', ':', ';', { noremap = true })
 vim.keymap.set('v', ';', ':', { noremap = true })
 vim.keymap.set('v', ':', ';', { noremap = true })
 -- 空の行を挿入
-vim.api.nvim_set_keymap('n', 'O', [[<cmd>call append(line('.'), '')<CR><cmd>normal! j^<CR>]],
-	{ noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'O', [[<cmd>call append(line('.'), '')<CR><cmd>normal! j^<CR>]], { noremap = true })
 -- ヤンクの内容を消さない
-vim.api.nvim_set_keymap('', 'PP', '"0p', { noremap = true })
-vim.api.nvim_set_keymap('', 'x', '"_x', { noremap = true })
+vim.api.nvim_set_keymap('n', 'P', 'o<Esc>"+p', { noremap = true })
+vim.api.nvim_set_keymap('n', 'x', '"_x', { noremap = true })
 -- 画面分割
-vim.api.nvim_set_keymap('n', 'vs', '<Cmd>vsplit<CR>', { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', 'S', '<Cmd>split<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'vs', '<Cmd>vsplit<CR>', { noremap = true })
+vim.api.nvim_set_keymap('n', 'S', '<Cmd>split<CR>', { noremap = true })
 -- window移動
 vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>h', { noremap = true })
 vim.api.nvim_set_keymap('n', '<C-t>', '<C-w>j', { noremap = true })
@@ -104,8 +103,8 @@ vim.api.nvim_set_keymap('i', '<C-space>', '<Nop>', { noremap = true })
 vim.api.nvim_set_keymap('n', 'j', 'w', { noremap = true })
 vim.api.nvim_set_keymap('v', 'j', 'w', { noremap = true })
 -- wrap
-vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', { noremap = true })
+vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true })
 
 -- Terminalはinsertモードで開く
 vim.cmd('autocmd TermOpen * startinsert')
@@ -131,7 +130,7 @@ endfunction
 ]])
 
 -- キーマップの設定
-vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true })
 
 -- dpp.vim
 

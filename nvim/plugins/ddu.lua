@@ -62,8 +62,8 @@ vim.fn['ddu#custom#patch_local']('grep', {
 })
 
 
-vim.api.nvim_set_keymap('n', '[ddu]', '', { noremap = true })
-vim.api.nvim_set_keymap('n', 't', '[ddu]', { silent = true })
+vim.api.nvim_set_keymap('n', '[ddu]', '<Nop>', { noremap = true })
+vim.api.nvim_set_keymap('n', 't', '[ddu]', {})
 
 -- GrepActionLua関数の定義
 _G.grep_action = function()
@@ -121,39 +121,31 @@ _G.grep_action = function()
 	end
 
 	-- Floating windowのキーマッピング
-	vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', ':lua _G.finish_input_with_paste_floating()<CR>',
-		{ noremap = true, silent = true })
+	vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', ':lua _G.finish_input_with_paste_floating()<CR>', { noremap = true })
 end
 
-vim.api.nvim_set_keymap('n', '[ddu]g', ':lua _G.grep_action()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '[ddu]g', ':lua _G.grep_action()<CR>', { noremap = true })
 
 
 -- キーマップの設定
-vim.api.nvim_set_keymap('n', '[ddu]k', ':call ddu#start({}) <CR>', { silent = true, noremap = true })
-vim.api.nvim_set_keymap('n', '[ddu]b', ':call ddu#start(#{sources: [#{name: "buffer"}] }) <CR>',
-	{ silent = true, noremap = true })
-vim.api.nvim_set_keymap('n', '[ddu]m', ':call ddu#start(#{sources: [#{name: "mr"}] }) <CR>',
-	{ silent = true, noremap = true })
-vim.api.nvim_set_keymap('n', '[ddu]r', ':call ddu#start(#{sources: [#{name: "register"}] }) <CR>',
-	{ silent = true, noremap = true })
+vim.api.nvim_set_keymap('n', '[ddu]k', ':call ddu#start({}) <CR>', { noremap = true })
+vim.api.nvim_set_keymap('n', '[ddu]b', ':call ddu#start(#{sources: [#{name: "buffer"}] }) <CR>', { noremap = true })
+vim.api.nvim_set_keymap('n', '[ddu]m', ':call ddu#start(#{sources: [#{name: "mr"}] }) <CR>', { noremap = true })
+vim.api.nvim_set_keymap('n', '[ddu]r', ':call ddu#start(#{sources: [#{name: "register"}] }) <CR>', { noremap = true })
 vim.api.nvim_set_keymap('n', '[ddu]w',
 	':call ddu#start(#{name: "grep", sources:[#{name: "rg", params: #{input: expand("<cword>")}}] })<CR>',
-	{ silent = true, noremap = true })
+	{ noremap = true })
 
 _G.ddu_my_ff_settings = function()
 	vim.api.nvim_buf_set_keymap(0, 'n', '<CR>', ':call ddu#ui#do_action("itemAction", #{name: "open"})<CR>',
-		{ silent = true, noremap = true })
+		{ noremap = true })
 	vim.api.nvim_buf_set_keymap(0, 'n', 'v',
-		':call ddu#ui#do_action("itemAction", #{name: "open", params: #{command: "vsplit"}})<CR>',
-		{ silent = true, noremap = true })
+		':call ddu#ui#do_action("itemAction", #{name: "open", params: #{command: "vsplit"}})<CR>', { noremap = true })
 	vim.api.nvim_buf_set_keymap(0, 'n', 's',
-		':call ddu#ui#do_action("itemAction", #{name: "open", params: #{command: "split"}})<CR>',
-		{ silent = true, noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', 'i', ':call ddu#ui#do_action("openFilterWindow")<CR>',
-		{ silent = true, noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', 'p', ':call ddu#ui#do_action("togglePreview")<CR>',
-		{ silent = true, noremap = true })
-	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#do_action("quit")<CR>', { silent = true, noremap = true })
+		':call ddu#ui#do_action("itemAction", #{name: "open", params: #{command: "split"}})<CR>', { noremap = true })
+	vim.api.nvim_buf_set_keymap(0, 'n', 'i', ':call ddu#ui#do_action("openFilterWindow")<CR>', { noremap = true })
+	vim.api.nvim_buf_set_keymap(0, 'n', 'p', ':call ddu#ui#do_action("togglePreview")<CR>', { noremap = true })
+	vim.api.nvim_buf_set_keymap(0, 'n', '<Esc>', ':call ddu#ui#do_action("quit")<CR>', { noremap = true })
 end
 
 vim.cmd([[

@@ -1,4 +1,4 @@
-vim.api.nvim_set_keymap('n', '[LSP]', '', { noremap = true })
+vim.api.nvim_set_keymap('n', '[LSP]', '<Nop>', { noremap = true })
 vim.api.nvim_set_keymap('n', 'l', '[LSP]', {})
 
 local on_attach = function(_client, bufnr)
