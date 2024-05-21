@@ -51,3 +51,23 @@ https://github.com/CopilotC-Nvim/CopilotChat.nvim
 /nvim/lua/tittoken_core.so に配置しているのは
 https://github.com/gptlang/lua-tiktoken/releases
 v0.2.1のtiktoken_core-linux-lua51.soをtiktoken_core.soにリネームして配置している。
+
+# memo
+## denopsでライブラリのエラー
+```bash
+[denops] Failed to load plugin 'dpp': TypeError: error sending request for url (https://jsr.io/@std/internal/0.225.1/format.ts):
+ http2 error: stream error received: refused stream before processing any application logic                                     
+[denops]     at https://jsr.io/@std/assert/0.225.2/assert_array_includes.ts:4:24  
+```
+
+```bash
+Could not find co
+nstraint in the list of versions
+```
+
+こんな感じのエラーが起きたら
+```bash
+rm -fr ~/.cache/deno
+rm -fr ~/.cache/dpp
+```
+をする。なんかdenoのキャッシュが原因で上手くインストールできないときがある。
