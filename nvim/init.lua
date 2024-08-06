@@ -201,19 +201,37 @@ vim.cmd([[
 -- prettier 設定
 vim.api.nvim_create_user_command('Prettier', function()
 	local filetypes = {
-		"css", "scss", "html", "markdown"
+		"css", "scss", "html", "markdown", "javascript", "json", "yaml", "typescript", "vue", "svelte", "graphql", "php",
+		"typescript", "javascriptreact", "typescriptreact"
 	}
 
 	local buf_filetype = vim.api.nvim_get_option_value('filetype', { buf = 0 })
+	local file_path = vim.fn.expand('%:p')
+
 	for _, filetype in pairs(filetypes) do
 		if buf_filetype == filetype then
+			local cmd
 			if vim.fn.executable("bunx") == 1 then
-				local cmd = 'silent !bunx prettier --write ' .. vim.fn.expand('%:p')
-				vim.cmd(cmd)
+				cmd = 'bunx prettier --write ' .. vim.fn.shellescape(file_path)
+			else
+				vim.api.nvim_err_writeln("エラー: bunxが利用できません。")
+				return
+			end
+
+			local output = vim.fn.system(cmd)
+			local exit_code = vim.v.shell_error
+
+			if exit_code == 0 then
+				vim.cmd('e') -- ファイルを再読み込み
+				print("Prettierによるフォーマットが完了しました。")
+			else
+				vim.api.nvim_err_writeln("エラー: Prettierのフォーマットに失敗しました。")
+				vim.api.nvim_err_writeln(output)
 			end
 			return
 		end
 	end
+	print("現在のファイルタイプはPrettierでサポートされていません。")
 end, {})
 -- nvim/lua/にtiktokenのバイナリを配置したので読み込む
 package.cpath = package.cpath .. ';' .. vim.fn.expand('~/.config/nvim/lua/?.so')
