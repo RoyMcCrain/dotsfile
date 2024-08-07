@@ -9,8 +9,8 @@ vim.opt.showcmd = true                 -- 入力中のコマンド表示
 vim.opt.nrformats = "bin,hex"          -- 0で始まる数値を8進数として扱わないようにする
 
 if vim.fn.has("persistent_undo") == 1 then
-	vim.o.undodir = vim.fn.expand(vim.fn.stdpath('config') .. '/undo') -- undoファイルのパス
-	vim.o.undofile = true
+  vim.o.undodir = vim.fn.expand(vim.fn.stdpath('config') .. '/undo') -- undoファイルのパス
+  vim.o.undofile = true
 end
 
 vim.cmd([[
@@ -22,22 +22,22 @@ vim.opt.termguicolors = true -- trueカラーを使う
 vim.opt.clipboard = "unnamedplus"
 
 if vim.fn.has('wsl') == 1 then
-	vim.g.clipboard = {
-		name = 'WslClipboard',
-		copy = {
-			['+'] = 'clip.exe',
-			['*'] = 'clip.exe',
-		},
-		paste = {
-			['+'] = function()
-				return vim.fn.getreg('"')
-			end,
-			['*'] = function()
-				return vim.fn.getreg('"')
-			end,
-		},
-		cache_enabled = false,
-	}
+  vim.g.clipboard = {
+    name = 'WslClipboard',
+    copy = {
+      ['+'] = 'clip.exe',
+      ['*'] = 'clip.exe',
+    },
+    paste = {
+      ['+'] = function()
+        return vim.split(vim.fn.getreg('"'), '\n')
+      end,
+      ['*'] = function()
+        return vim.split(vim.fn.getreg('"'), '\n')
+      end,
+    },
+    cache_enabled = false,
+  }
 end
 vim.g.mapleader = " "
 vim.opt.pumheight = 5       -- 変換候補で表示される数
@@ -45,7 +45,7 @@ vim.opt.wrap = false        -- テキストが折り返されないようにす�
 vim.opt.colorcolumn = "120" -- カラムにラインを引く
 local xdg_cache_home = os.getenv("XDG_CACHE_HOME")
 if xdg_cache_home == nil then
-	xdg_cache_home = os.getenv("HOME") .. "/.cache"
+  xdg_cache_home = os.getenv("HOME") .. "/.cache"
 end
 vim.g.netrw_home = xdg_cache_home .. '/nvim'
 vim.opt.showmatch = true -- 閉じ括弧が入力されたとき、対応する開き括弧にわずかの間ジャンプする
@@ -141,43 +141,43 @@ vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true
 
 local CACHE = vim.fn.expand('$HOME/.cache')
 if type(CACHE) == 'string' and vim.fn.isdirectory(CACHE) == 0 then
-	vim.fn.mkdir(CACHE, 'p')
+  vim.fn.mkdir(CACHE, 'p')
 end
 -- Set dpp base path (required)
 local dpp_base = CACHE .. '/dpp'
 
 if not string.find(vim.o.runtimepath, '/dpp.vim') then
-	local dpp_dir = dpp_base .. '/repos/github.com/Shougo/'
-	if vim.fn.isdirectory(vim.fn.fnamemodify('dpp.vim', ':p')) == 0 then
-		if vim.fn.isdirectory(dpp_dir) == 0 then
-			vim.cmd('!git clone https://github.com/Shougo/dpp.vim' .. ' ' .. dpp_dir .. 'dpp.vim')
-			vim.cmd('!git clone https://github.com/Shougo/dpp-ext-installer' .. ' ' .. dpp_dir .. 'dpp-ext-installer')
-			vim.cmd('!git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_dir .. 'dpp-ext-lazy')
-			vim.cmd('!git clone https://github.com/Shougo/dpp-ext-toml' .. ' ' .. dpp_dir .. 'dpp-ext-toml')
-			vim.cmd('!git clone https://github.com/Shougo/dpp-protocol-git' .. ' ' .. dpp_dir .. 'dpp-protocol-git')
-		end
-	end
-	vim.opt.runtimepath:prepend(dpp_dir .. 'dpp.vim')
-	vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-installer')
-	vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-lazy')
-	vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-toml')
-	vim.opt.runtimepath:append(dpp_dir .. 'dpp-protocol-git')
+  local dpp_dir = dpp_base .. '/repos/github.com/Shougo/'
+  if vim.fn.isdirectory(vim.fn.fnamemodify('dpp.vim', ':p')) == 0 then
+    if vim.fn.isdirectory(dpp_dir) == 0 then
+      vim.cmd('!git clone https://github.com/Shougo/dpp.vim' .. ' ' .. dpp_dir .. 'dpp.vim')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-installer' .. ' ' .. dpp_dir .. 'dpp-ext-installer')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_dir .. 'dpp-ext-lazy')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-toml' .. ' ' .. dpp_dir .. 'dpp-ext-toml')
+      vim.cmd('!git clone https://github.com/Shougo/dpp-protocol-git' .. ' ' .. dpp_dir .. 'dpp-protocol-git')
+    end
+  end
+  vim.opt.runtimepath:prepend(dpp_dir .. 'dpp.vim')
+  vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-installer')
+  vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-lazy')
+  vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-toml')
+  vim.opt.runtimepath:append(dpp_dir .. 'dpp-protocol-git')
 end
 
 -- Load dpp state
 if vim.fn["dpp#min#load_state"](dpp_base) then
-	if not string.find(vim.o.runtimepath, '/denops.vim') then
-		local denops_src = dpp_base .. '/repos/github.com/vim-denops/denops.vim'
-		if vim.fn.isdirectory(vim.fn.fnamemodify('denops.vim', ':p')) == 0 then
-			if vim.fn.isdirectory(denops_src) == 0 then
-				vim.cmd('!git clone https://github.com/vim-denops/denops.vim ' .. denops_src)
-			end
-		end
-		vim.opt.runtimepath:prepend(denops_src)
-	end
+  if not string.find(vim.o.runtimepath, '/denops.vim') then
+    local denops_src = dpp_base .. '/repos/github.com/vim-denops/denops.vim'
+    if vim.fn.isdirectory(vim.fn.fnamemodify('denops.vim', ':p')) == 0 then
+      if vim.fn.isdirectory(denops_src) == 0 then
+        vim.cmd('!git clone https://github.com/vim-denops/denops.vim ' .. denops_src)
+      end
+    end
+    vim.opt.runtimepath:prepend(denops_src)
+  end
 
-	local config_dir = vim.fn.stdpath('config') .. '/plugins/dpp.ts'
-	vim.api.nvim_command('autocmd User DenopsReady call dpp#make_state("' .. dpp_base .. '", "' .. config_dir .. '")')
+  local config_dir = vim.fn.stdpath('config') .. '/plugins/dpp.ts'
+  vim.api.nvim_command('autocmd User DenopsReady call dpp#make_state("' .. dpp_base .. '", "' .. config_dir .. '")')
 end
 
 -- Enable filetype indent and plugin
@@ -185,15 +185,15 @@ vim.cmd('filetype indent plugin on')
 
 -- Enable syntax highlighting
 if vim.fn.has('syntax') then
-	vim.cmd('syntax on')
+  vim.cmd('syntax on')
 end
 
 vim.api.nvim_create_user_command('DppInstall', function()
-	vim.fn['dpp#async_ext_action']('installer', 'install')
+  vim.fn['dpp#async_ext_action']('installer', 'install')
 end, {})
 
 vim.api.nvim_create_user_command('DppUpdate', function()
-	vim.fn['dpp#async_ext_action']('installer', 'update')
+  vim.fn['dpp#async_ext_action']('installer', 'update')
 end, {})
 
 
@@ -205,38 +205,38 @@ vim.cmd([[
 
 -- prettier 設定
 vim.api.nvim_create_user_command('Prettier', function()
-	local filetypes = {
-		"css", "scss", "html", "markdown", "javascript", "json", "yaml", "typescript", "vue", "svelte", "graphql", "php",
-		"typescript", "javascriptreact", "typescriptreact"
-	}
+  local filetypes = {
+    "css", "scss", "html", "markdown", "javascript", "json", "yaml", "typescript", "vue", "svelte", "graphql", "php",
+    "typescript", "javascriptreact", "typescriptreact"
+  }
 
-	local buf_filetype = vim.api.nvim_get_option_value('filetype', { buf = 0 })
-	local file_path = vim.fn.expand('%:p')
+  local buf_filetype = vim.api.nvim_get_option_value('filetype', { buf = 0 })
+  local file_path = vim.fn.expand('%:p')
 
-	for _, filetype in pairs(filetypes) do
-		if buf_filetype == filetype then
-			local cmd
-			if vim.fn.executable("bunx") == 1 then
-				cmd = 'bunx prettier --write ' .. vim.fn.shellescape(file_path)
-			else
-				vim.api.nvim_err_writeln("エラー: bunxが利用できません。")
-				return
-			end
+  for _, filetype in pairs(filetypes) do
+    if buf_filetype == filetype then
+      local cmd
+      if vim.fn.executable("bunx") == 1 then
+        cmd = 'bunx prettier --write ' .. vim.fn.shellescape(file_path)
+      else
+        vim.api.nvim_err_writeln("エラー: bunxが利用できません。")
+        return
+      end
 
-			local output = vim.fn.system(cmd)
-			local exit_code = vim.v.shell_error
+      local output = vim.fn.system(cmd)
+      local exit_code = vim.v.shell_error
 
-			if exit_code == 0 then
-				vim.cmd('e') -- ファイルを再読み込み
-				print("Prettierによるフォーマットが完了しました。")
-			else
-				vim.api.nvim_err_writeln("エラー: Prettierのフォーマットに失敗しました。")
-				vim.api.nvim_err_writeln(output)
-			end
-			return
-		end
-	end
-	print("現在のファイルタイプはPrettierでサポートされていません。")
+      if exit_code == 0 then
+        vim.cmd('e') -- ファイルを再読み込み
+        print("Prettierによるフォーマットが完了しました。")
+      else
+        vim.api.nvim_err_writeln("エラー: Prettierのフォーマットに失敗しました。")
+        vim.api.nvim_err_writeln(output)
+      end
+      return
+    end
+  end
+  print("現在のファイルタイプはPrettierでサポートされていません。")
 end, {})
 -- nvim/lua/にtiktokenのバイナリを配置したので読み込む
 package.cpath = package.cpath .. ';' .. vim.fn.expand('~/.config/nvim/lua/?.so')
