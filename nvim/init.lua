@@ -20,21 +20,25 @@ vim.cmd([[
 vim.opt.swapfile = false     -- swpファイルをつくらない
 vim.opt.termguicolors = true -- trueカラーを使う
 vim.opt.clipboard = "unnamedplus"
-if vim.fn.executable('xsel') == 1 then
+
+if vim.fn.has('wsl') == 1 then
 	vim.g.clipboard = {
 		name = 'WslClipboard',
 		copy = {
-			['+'] = 'xsel -bi',
-			['*'] = 'xsel -bi',
+			['+'] = 'clip.exe',
+			['*'] = 'clip.exe',
 		},
 		paste = {
-			['+'] = function() return vim.fn.systemlist('xsel -bo | tr -d "\r"') end,
-			['*'] = function() return vim.fn.systemlist('xsel -bo | tr -d "\r"') end,
+			['+'] = function()
+				return vim.fn.getreg('"')
+			end,
+			['*'] = function()
+				return vim.fn.getreg('"')
+			end,
 		},
-		cache_enabled = 1,
+		cache_enabled = false,
 	}
 end
-
 vim.g.mapleader = " "
 vim.opt.pumheight = 5       -- 変換候補で表示される数
 vim.opt.wrap = false        -- テキストが折り返されないようにする
