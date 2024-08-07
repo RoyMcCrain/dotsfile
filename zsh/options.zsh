@@ -19,6 +19,14 @@ export ASDF_GOLANG_MOD_VERSION_ENABLED=false
 if [ -d "$HOME/.local/bin" ]; then
 	export PATH=$PATH:$HOME/.local/bin
 fi
+
+# sdkmanの設定
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# cypressの設定
+export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0
+
 # 色を使用出来るようにする
 autoload -Uz colors && colors
 # ヒストリの設定

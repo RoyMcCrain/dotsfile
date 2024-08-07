@@ -34,11 +34,11 @@ lspconfig.tsserver.setup {
 	capabilities = capabilities,
 }
 
-lspconfig.biome.setup {
-	on_attach = on_attach,
-	cmd = { "bunx", "biome", "lsp-proxy" },
-	capabilities = capabilities,
-}
+-- lspconfig.biome.setup {
+-- 	on_attach = on_attach,
+-- 	cmd = { "bunx", "biome", "lsp-proxy" },
+-- 	capabilities = capabilities,
+-- }
 
 lspconfig.denols.setup {
 	on_attach = on_attach,
@@ -162,5 +162,10 @@ lspconfig.yamlls.setup {
 lspconfig.vimls.setup {
 	on_attach = on_attach,
 	cmd = { "bunx", "vim-language-server", "--stdio" },
+	capabilities = capabilities,
+}
+
+lspconfig.tailwindcss.setup {
+	on_attach = on_attach,
 	capabilities = capabilities,
 }

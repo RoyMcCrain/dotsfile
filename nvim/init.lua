@@ -58,6 +58,7 @@ vim.opt.laststatus = 2 -- 最下ウィンドウにステータス行を常に表
 vim.opt.tabstop = 2 -- ファイル内の<Tab>が対応する空白の数
 vim.opt.softtabstop = 2 -- <Tab>キーを押した際に挿入されるスペース量
 vim.opt.shiftwidth = 2 -- (自動)インデントの各段階に使われる空白の数
+vim.opt.expandtab = true -- タブをスペースに変換する
 vim.opt.smartindent = true -- 新しい行を作ったときに高度な自動インデントを行う(ex. '{'で終わる行で新しい行を作った時は改行)"
 vim.opt.smarttab = true -- 新しい行を作った時に高度なインデントを行う
 vim.opt.hlsearch = true -- 検索語句のハイライト

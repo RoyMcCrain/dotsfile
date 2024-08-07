@@ -1,3 +1,6 @@
+# vim風なキーバインド
+bindkey -v
+
 function select-history() {
 	BUFFER=$(history -n -r 1 | fzf --no-sort +m --query "$LBUFFER" --prompt="History > ")
 	CURSOR=$#BUFFER
@@ -22,9 +25,6 @@ function ghq-fzf() {
 }
 zle -N ghq-fzf
 bindkey '^t' ghq-fzf
-
-# vim風なキーバインド
-bindkey -v
 
 # Ctrl zでvimを再開
 fancy-ctrl-z () {
