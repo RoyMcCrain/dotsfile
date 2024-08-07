@@ -25,8 +25,16 @@ if vim.fn.has('wsl') == 1 then
   vim.g.clipboard = {
     name = 'WslClipboard',
     copy = {
-      ['+'] = 'clip.exe',
-      ['*'] = 'clip.exe',
+      ['+'] = function(lines)
+        local text = table.concat(lines, "\n")
+        text = vim.fn.iconv(text, "utf-8", "cp932")
+        vim.fn.system('clip.exe', text)
+      end,
+      ['*'] = function(lines)
+        local text = table.concat(lines, "\n")
+        text = vim.fn.iconv(text, "utf-8", "cp932")
+        vim.fn.system('clip.exe', text)
+      end,
     },
     paste = {
       ['+'] = function()
@@ -212,11 +220,22 @@ vim.api.nvim_create_user_command('Prettier', function()
 
   local buf_filetype = vim.api.nvim_get_option_value('filetype', { buf = 0 })
   local file_path = vim.fn.expand('%:p')
+  local function file_exists(path)
+    local f = io.open(path, "r")
+    if f then
+      io.close(f)
+      return true
+    else
+      return false
+    end
+  end
 
   for _, filetype in pairs(filetypes) do
     if buf_filetype == filetype then
       local cmd
-      if vim.fn.executable("bunx") == 1 then
+      if vim.fn.executable("yarn") == 1 and file_exists(vim.fn.getcwd() .. "/yarn.lock") then
+        cmd = 'yarn run prettier --write ' .. vim.fn.shellescape(file_path)
+      elseif vim.fn.executable("bunx") == 1 then
         cmd = 'bunx prettier --write ' .. vim.fn.shellescape(file_path)
       else
         vim.api.nvim_err_writeln("エラー: bunxが利用できません。")
