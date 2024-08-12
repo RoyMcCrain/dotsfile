@@ -6,6 +6,12 @@ export TERM=xterm-256color
 if [ -f "$HOME/.bun/bin/bun" ]; then
 	export PATH=$PATH:$HOME/.bun/bin
 fi
+# pnpm
+if [ -f "$HOME/.local/share/pnpm/pnpm" ]; then
+  export PNPM_HOME="$HOME/.local/share/pnpm"
+  export PATH="$PNPM_HOME:$PATH"
+fi
+
 # asdf
 if [ -f "$HOME/.asdf/asdf.sh" ]; then
 . $HOME/.asdf/asdf.sh
