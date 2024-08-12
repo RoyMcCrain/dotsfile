@@ -2,10 +2,6 @@ export LANG=ja_JP.UTF-8
 export GIT_EDITOR=nvim
 export EDITOR=nvim
 export TERM=xterm-256color
-# bun
-if [ -f "$HOME/.bun/bin/bun" ]; then
-  export PATH=$PATH:$HOME/.bun/bin
-fi
 # pnpm
 if [ -f "$HOME/.local/share/pnpm/pnpm" ]; then
   export PNPM_HOME="$HOME/.local/share/pnpm"

@@ -33,9 +33,10 @@ abbr -f --quiet rspec="bundle exec rspec"
 abbr -f --quiet nir="ni run "
 abbr -f --quiet niu="ni upgrade-interactive "
 abbr -f --quiet nil="ni run lint "
+abbr -f --quiet nid="ni run dlx "
 abbr -f --quiet sortp="npx sort-package-json"
-# bun
-abbr -f --quiet bunup="bunx npm-check-updates -ui"
+# pnpm
+abbr -f --quiet pn="pnpm"
 # docker
 abbr -f --quiet d="docker"
 abbr -f --quiet dc="docker-compose"

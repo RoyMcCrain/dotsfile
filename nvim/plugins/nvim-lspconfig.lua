@@ -29,7 +29,6 @@ local capabilities = require("ddc_source_lsp").make_client_capabilities()
 local lspconfig = require 'lspconfig'
 lspconfig.tsserver.setup {
   on_attach = on_attach,
-  cmd = { "bunx", "typescript-language-server", "--stdio" },
   root_dir = lspconfig.util.root_pattern("package.json"),
   capabilities = capabilities,
 }
@@ -50,13 +49,11 @@ lspconfig.denols.setup {
 -- bun i --global vscode-langservers-extracted
 lspconfig.cssls.setup {
   on_attach = on_attach,
-  cmd = { "bunx", "vscode-css-language-server", "--stdio" },
   capabilities = capabilities,
 }
 
 lspconfig.stylelint_lsp.setup {
   on_attach = on_attach,
-  cmd = { "bunx", "stylelint-lsp", "--stdio" },
   filetypes = { "css", "scss", "less", "vue" },
   capabilities = capabilities,
 }
@@ -131,7 +128,6 @@ lspconfig.pyright.setup {
 
 lspconfig.graphql.setup {
   on_attach = on_attach,
-  cmd = { "bunx", "graphql-lsp", "server", "-m", "stream" },
   root_dir = lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*'),
   capabilities = capabilities,
 }
@@ -148,7 +144,6 @@ lspconfig.ruby_lsp.setup {
 
 lspconfig.yamlls.setup {
   on_attach = on_attach,
-  cmd = { "bunx", "yaml-language-server", "--stdio" },
   settings = {
     yaml = {
       schemas = {
@@ -161,7 +156,6 @@ lspconfig.yamlls.setup {
 
 lspconfig.vimls.setup {
   on_attach = on_attach,
-  cmd = { "bunx", "vim-language-server", "--stdio" },
   capabilities = capabilities,
 }
 
