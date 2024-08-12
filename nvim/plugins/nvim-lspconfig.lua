@@ -35,9 +35,9 @@ lspconfig.tsserver.setup {
 }
 
 -- lspconfig.biome.setup {
--- 	on_attach = on_attach,
--- 	cmd = { "bunx", "biome", "lsp-proxy" },
--- 	capabilities = capabilities,
+--  on_attach = on_attach,
+--  cmd = { "bunx", "biome", "lsp-proxy" },
+--  capabilities = capabilities,
 -- }
 
 lspconfig.denols.setup {

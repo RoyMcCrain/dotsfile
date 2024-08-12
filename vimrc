@@ -66,7 +66,7 @@ noremap <C-t> <C-w>j
 noremap <C-n> <C-w>k
 noremap <C-s> <C-w>l
 " 日本語切り替え
-ioremap <C-space> <Nop>
+inoremap <C-space> <Nop>
 
 syntax enable
 filetype plugin indent on

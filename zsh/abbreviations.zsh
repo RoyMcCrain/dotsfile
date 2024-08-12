@@ -2,14 +2,14 @@ abbr -f --quiet js='jobs'
 # fg %1 でそのjobsの復帰
 
 if type eza >/dev/null 2>&1; then
-	abbr -f --quiet ls='eza -TF -L=1 --icons'
-	abbr -f --quiet la='eza -aTF -L=1 --icons'
-	abbr -f --quiet ll='eza -lTF -L=1 --icons'
-	abbr -f --quiet lla='eza -alTF -L=1 --icons'
+  abbr -f --quiet ls='eza -TF -L=1 --icons'
+  abbr -f --quiet la='eza -aTF -L=1 --icons'
+  abbr -f --quiet ll='eza -lTF -L=1 --icons'
+  abbr -f --quiet lla='eza -alTF -L=1 --icons'
 else
-	abbr -f --quiet la='ls -a'
-	abbr -f --quiet ll='ls -lh'
-	abbr -f --quiet lla='ls -lha'
+  abbr -f --quiet la='ls -a'
+  abbr -f --quiet ll='ls -lh'
+  abbr -f --quiet lla='ls -lha'
 fi
 
 abbr -f --quiet rm='rm -ri'
@@ -41,13 +41,13 @@ abbr -f --quiet d="docker"
 abbr -f --quiet dc="docker-compose"
 
 case ${OSTYPE} in
-		darwin*)
-				#Mac用の設定
-				;;
-		linux*)
-				#Linux用の設定
-				abbr -f --quiet open="xdg-open"
-				;;
+    darwin*)
+        #Mac用の設定
+        ;;
+    linux*)
+        #Linux用の設定
+        abbr -f --quiet open="xdg-open"
+        ;;
 esac
 
 ghq-get-cd() {

@@ -4,7 +4,7 @@ export EDITOR=nvim
 export TERM=xterm-256color
 # bun
 if [ -f "$HOME/.bun/bin/bun" ]; then
-	export PATH=$PATH:$HOME/.bun/bin
+  export PATH=$PATH:$HOME/.bun/bin
 fi
 # pnpm
 if [ -f "$HOME/.local/share/pnpm/pnpm" ]; then
@@ -23,7 +23,7 @@ fi
 export ASDF_GOLANG_MOD_VERSION_ENABLED=false
 # pipの設定
 if [ -d "$HOME/.local/bin" ]; then
-	export PATH=$PATH:$HOME/.local/bin
+  export PATH=$PATH:$HOME/.local/bin
 fi
 
 # sdkmanの設定
@@ -74,8 +74,8 @@ zstyle ':vcs_info:*' formats '%c%u%F{green}%s:%b%f'
 zstyle ':vcs_info:*' actionformats '%%c%uF{red}%s:%b|%a%f'
 
 function _update_vcs_info_msg() {
-		LANG=en_US.UTF-8 vcs_info
-		RPROMPT="${vcs_info_msg_0_}"
+    LANG=en_US.UTF-8 vcs_info
+    RPROMPT="${vcs_info_msg_0_}"
 }
 add-zsh-hook precmd _update_vcs_info_msg
 
@@ -106,16 +106,16 @@ setopt extended_glob
 ########################################
 # OS 別の設定
 case ${OSTYPE} in
-		darwin*)
-				#Mac用の設定
-				export CLICOLOR=1
-				if [ -f /opt/homebrew/bin/brew ]; then
-					eval "$(/opt/homebrew/bin/brew shellenv)"
-				fi
-				;;
-		linux*)
-				#Linux用の設定
-				# Ruby InstallのOpenSSL場所指定
-				export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"
-				;;
+    darwin*)
+        #Mac用の設定
+        export CLICOLOR=1
+        if [ -f /opt/homebrew/bin/brew ]; then
+          eval "$(/opt/homebrew/bin/brew shellenv)"
+        fi
+        ;;
+    linux*)
+        #Linux用の設定
+        # Ruby InstallのOpenSSL場所指定
+        export RUBY_CONFIGURE_OPTS="--with-openssl-dir=/usr"
+        ;;
 esac
