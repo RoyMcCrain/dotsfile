@@ -234,11 +234,11 @@ vim.api.nvim_create_user_command('Prettier', function()
     if buf_filetype == filetype then
       local cmd
       if vim.fn.executable("yarn") == 1 and file_exists(vim.fn.getcwd() .. "/yarn.lock") then
-        cmd = 'yarn run prettier --write ' .. vim.fn.shellescape(file_path)
-      elseif vim.fn.executable("bunx") == 1 then
-        cmd = 'bunx prettier --write ' .. vim.fn.shellescape(file_path)
+        cmd = 'yarn run prettier --cache --write ' .. vim.fn.shellescape(file_path)
+      elseif vim.fn.executable("npx") == 1 then
+        cmd = 'npx prettier --cache --write ' .. vim.fn.shellescape(file_path)
       else
-        vim.api.nvim_err_writeln("エラー: bunxが利用できません。")
+        vim.api.nvim_err_writeln("エラー: npxが利用できません。")
         return
       end
 

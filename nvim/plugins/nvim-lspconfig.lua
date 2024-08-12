@@ -21,6 +21,14 @@ local on_attach = function(_client, bufnr)
   buf_set_keymap('n', 'H', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
   -- ファイル保存時にフォーマット
   vim.cmd('autocmd BufWritePre <buffer> lua vim.lsp.buf.format()')
+  -- ファイル保存時にPrettierを実行
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    pattern = { "*.js", "*.ts", "*.jsx", "*.tsx", "*.php" },
+    group = vim.api.nvim_create_augroup("FormatOnSave", { clear = true }),
+    callback = function()
+      vim.cmd("silent! Prettier")
+    end,
+  })
 end
 
 local capabilities = require("ddc_source_lsp").make_client_capabilities()
