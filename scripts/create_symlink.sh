@@ -30,7 +30,7 @@ do
 done
 
 ASDF_ITEMS=(
-  "default-gems"
+  "default-npm-packages"
   "asdfrc"
   )
 
