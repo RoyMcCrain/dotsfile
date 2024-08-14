@@ -20,14 +20,36 @@ local on_attach = function(_client, bufnr)
   buf_set_keymap('n', '[LSP]l', '<Cmd>lua vim.diagnostic.setloclist()<CR>', opts)
   buf_set_keymap('n', 'H', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
   -- ファイル保存時にフォーマット
-  vim.cmd('autocmd BufWritePre <buffer> lua vim.lsp.buf.format()')
+  local function format_on_save()
+    local filename = vim.fn.expand('%:t')
+    if not string.find(filename, 'no_fmt') then
+      vim.lsp.buf.format()
+    end
+  end
+
   -- ファイル保存時にPrettierを実行
+  local function run_prettier()
+    local filename = vim.fn.expand('%:t')
+    if not string.find(filename, 'no_fmt') then
+      vim.cmd("silent! Prettier")
+    end
+  end
+
+  -- オートコマンドグループを作成
+  local augroup = vim.api.nvim_create_augroup("FormatOnSave", { clear = true })
+
+  -- BufWritePre イベントでフォーマットを実行
+  vim.api.nvim_create_autocmd("BufWritePre", {
+    buffer = 0,
+    group = augroup,
+    callback = format_on_save,
+  })
+
+  -- BufWritePost イベントでPrettierを実行
   vim.api.nvim_create_autocmd("BufWritePost", {
     pattern = { "*.js", "*.ts", "*.jsx", "*.tsx", "*.php" },
-    group = vim.api.nvim_create_augroup("FormatOnSave", { clear = true }),
-    callback = function()
-      vim.cmd("silent! Prettier")
-    end,
+    group = augroup,
+    callback = run_prettier,
   })
 end
 

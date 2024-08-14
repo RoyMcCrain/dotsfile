@@ -6,7 +6,6 @@
     }
   },
   "fmt": {
-    "useTabs": true,
     "include": ["nvim/plugins/**/*.ts"]
   }
 }
