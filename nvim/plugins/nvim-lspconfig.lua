@@ -1,7 +1,7 @@
 vim.api.nvim_set_keymap('n', '[LSP]', '<Nop>', { noremap = true })
 vim.api.nvim_set_keymap('n', 'l', '[LSP]', {})
 
-local on_attach = function(_client, bufnr)
+local on_attach = function(client, bufnr)
   -- バッファローカルキーマッピングを設定
   local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
   local opts = { noremap = true }
@@ -51,12 +51,28 @@ local on_attach = function(_client, bufnr)
     group = augroup,
     callback = run_prettier,
   })
+
+  -- tsserverとdenolsの判定
+  local lspconfig = require 'lspconfig'
+
+  local function is_deno_project(fname)
+    return lspconfig.util.root_pattern("deno.json", "deno.jsonc")(fname) ~= nil
+  end
+
+  -- Denoプロジェクトの判定
+  if client.name == "tsserver" and is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
+    client.stop() -- Denoプロジェクトの場合はtsserverを停止
+  elseif client.name == "denols" and not is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
+    client.stop() -- Denoプロジェクトでない場合はdenolsを停止
+  end
 end
 
 local capabilities = require("ddc_source_lsp").make_client_capabilities()
 
+
 -- LSPサーバーの設定
 local lspconfig = require 'lspconfig'
+
 lspconfig.tsserver.setup {
   on_attach = on_attach,
   root_dir = lspconfig.util.root_pattern("package.json"),
@@ -65,7 +81,7 @@ lspconfig.tsserver.setup {
 
 -- lspconfig.biome.setup {
 --  on_attach = on_attach,
---  cmd = { "bunx", "biome", "lsp-proxy" },
+--  cmd = { "npx", "biome", "lsp-proxy" },
 --  capabilities = capabilities,
 -- }
 
@@ -191,10 +207,10 @@ lspconfig.vimls.setup {
 
 lspconfig.tailwindcss.setup {
   on_attach = on_attach,
+  filetypes = { "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx", "vue" },
   capabilities = capabilities,
 }
 
--- bun i --global intelephense
 lspconfig.intelephense.setup {
   on_attach = on_attach,
   capabilities = capabilities,
