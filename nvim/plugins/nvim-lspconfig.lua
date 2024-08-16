@@ -59,12 +59,21 @@ local on_attach = function(client, bufnr)
     return lspconfig.util.root_pattern("deno.json", "deno.jsonc")(fname) ~= nil
   end
 
-  -- Denoプロジェクトの判定
+  local function is_graphql_project(fname)
+    return lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*')(fname) ~= nil
+  end
+
+  print(client.name)
+  -- Client.nameの判定
   if client.name == "tsserver" and is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
     client.stop() -- Denoプロジェクトの場合はtsserverを停止
   elseif client.name == "denols" and not is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
     client.stop() -- Denoプロジェクトでない場合はdenolsを停止
+  elseif client.name == "graphql" and not is_graphql_project(vim.api.nvim_buf_get_name(bufnr)) then
+    client.stop() -- GraphQLプロジェクトでない場合はgraphqlを停止
   end
+
+  -- graphqlの設定
 end
 
 local capabilities = require("ddc_source_lsp").make_client_capabilities()
