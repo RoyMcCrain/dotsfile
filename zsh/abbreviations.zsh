@@ -20,7 +20,8 @@ abbr -f --quiet mv='mv -i'
 abbr -f --quiet mkdir='mkdir -p'
 
 abbr -f --quiet a="nvim"
-abbr -f --quiet code="code -n ."
+abbr -f --quiet code="code -n ." # vscode
+abbr -f --quiet exp="explorer.exe ." # explorer
 abbr -f --quiet g="git"
 
 # bundle
@@ -68,5 +69,3 @@ abbr -f --quiet "git dt"="git difftool"
 abbr -f --quiet "git pl"="git pull"
 abbr -f --quiet "git pp"="git pull --prune"
 abbr -f --quiet "git ps"="git push"
-
-abbr -f --quiet "asdf neovim update"='asdf uninstall neovim nightly && asdf install neovim nightly'
