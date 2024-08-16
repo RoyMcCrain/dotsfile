@@ -12,6 +12,7 @@ BASE_DIR=$(ghq root)/github.com/RoyMcCrain/dotsfile
 LINK_ITEMS=(
   "zsh"
   "zshrc"
+  "zprofile"
   "nvim"
   "gemrc"
   "gitconfig"
