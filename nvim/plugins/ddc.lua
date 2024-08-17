@@ -18,8 +18,9 @@ vim.fn['ddc#custom#patch_global']('sourceOptions', {
     isVolatile = true,
   },
   lsp = {
+    dup = 'keep',
     mark = 'LSP',
-    forceCompletionPattern = [[\.\w*|:\w*|->\w*]],
+    keywordPattern = '\\k+',
     sorters = { 'sorter_lsp-kind' },
   },
   buffer = { mark = 'B' },
@@ -52,6 +53,7 @@ vim.fn['ddc#custom#patch_global']('filterParams', {
   matcher_fuzzy = { camelcase = true },
   ['sorter_lsp-kind'] = {
     priority = {
+      'Keyword',
       'Variable',
       'Field',
       { 'Function', 'Method' },
