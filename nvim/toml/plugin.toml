@@ -22,6 +22,10 @@ lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-lspconfig.lua]])'
 
 [[plugins]]
 repo = 'Shougo/ddc-source-lsp'
+depends = ['ddc-source-lsp-setup']
+
+[[plugins]]
+repo = 'uga-rosa/ddc-source-lsp-setup'
 
 #----------------------------------------------------------------------------------#
 # Github copilot

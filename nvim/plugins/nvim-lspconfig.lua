@@ -59,33 +59,24 @@ local on_attach = function(client, bufnr)
     return lspconfig.util.root_pattern("deno.json", "deno.jsonc")(fname) ~= nil
   end
 
-  local function is_graphql_project(fname)
-    return lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*')(fname) ~= nil
-  end
-
-  print(client.name)
   -- Client.nameの判定
   if client.name == "tsserver" and is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
     client.stop() -- Denoプロジェクトの場合はtsserverを停止
   elseif client.name == "denols" and not is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
     client.stop() -- Denoプロジェクトでない場合はdenolsを停止
-  elseif client.name == "graphql" and not is_graphql_project(vim.api.nvim_buf_get_name(bufnr)) then
-    client.stop() -- GraphQLプロジェクトでない場合はgraphqlを停止
   end
-
-  -- graphqlの設定
 end
 
-local capabilities = require("ddc_source_lsp").make_client_capabilities()
 
 
 -- LSPサーバーの設定
+require("ddc_source_lsp_setup").setup()
+
 local lspconfig = require 'lspconfig'
 
 lspconfig.tsserver.setup {
   on_attach = on_attach,
   root_dir = lspconfig.util.root_pattern("package.json"),
-  capabilities = capabilities,
 }
 
 -- lspconfig.biome.setup {
@@ -98,24 +89,20 @@ lspconfig.denols.setup {
   on_attach = on_attach,
   filetypes = { "typescript", "javascript" },
   root_dir = lspconfig.util.root_pattern("deno.json", "deno.jsonc"),
-  capabilities = capabilities,
 }
 
 -- bun i --global vscode-langservers-extracted
 lspconfig.cssls.setup {
   on_attach = on_attach,
-  capabilities = capabilities,
 }
 
 lspconfig.stylelint_lsp.setup {
   on_attach = on_attach,
   filetypes = { "css", "scss", "less", "vue" },
-  capabilities = capabilities,
 }
 
 lspconfig.rust_analyzer.setup {
   on_attach = on_attach,
-  capabilities = capabilities,
 }
 
 lspconfig.gopls.setup {
@@ -140,7 +127,6 @@ lspconfig.gopls.setup {
       end,
     })
   end,
-  capabilities = capabilities,
   settings = {
     gopls = {
       analyses = {
@@ -173,28 +159,23 @@ lspconfig.lua_ls.setup {
       }
     })
   end,
-  capabilities = capabilities,
 }
 
 lspconfig.pyright.setup {
   on_attach = on_attach,
-  capabilities = capabilities,
 }
 
 lspconfig.graphql.setup {
   on_attach = on_attach,
   root_dir = lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*'),
-  capabilities = capabilities,
 }
 
 lspconfig.rubocop.setup {
   on_attach = on_attach,
-  capabilities = capabilities,
 }
 
 lspconfig.ruby_lsp.setup {
   on_attach = on_attach,
-  capabilities = capabilities,
 }
 
 lspconfig.yamlls.setup {
@@ -206,21 +187,17 @@ lspconfig.yamlls.setup {
       }
     }
   },
-  capabilities = capabilities,
 }
 
 lspconfig.vimls.setup {
   on_attach = on_attach,
-  capabilities = capabilities,
 }
 
 lspconfig.tailwindcss.setup {
   on_attach = on_attach,
   filetypes = { "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx", "vue" },
-  capabilities = capabilities,
 }
 
 lspconfig.intelephense.setup {
   on_attach = on_attach,
-  capabilities = capabilities,
 }

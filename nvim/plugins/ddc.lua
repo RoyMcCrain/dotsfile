@@ -19,7 +19,7 @@ vim.fn['ddc#custom#patch_global']('sourceOptions', {
   },
   lsp = {
     mark = 'LSP',
-    keywordPattern = '\\k*',
+    forceCompletionPattern = [[\.\w*|:\w*|->\w*]],
     sorters = { 'sorter_lsp-kind' },
   },
   buffer = { mark = 'B' },
@@ -44,11 +44,20 @@ vim.fn['ddc#custom#patch_global']('sourceParams', {
     limitBytes = 5000000,
     fromAltBuf = true,
     forceCollect = true,
-  },
+  }
 })
+
 
 vim.fn['ddc#custom#patch_global']('filterParams', {
   matcher_fuzzy = { camelcase = true },
+  ['sorter_lsp-kind'] = {
+    priority = {
+      'Variable',
+      'Field',
+      { 'Function', 'Method' },
+      'Enum',
+    },
+  }
 })
 
 vim.fn['ddc#enable']()
