@@ -22,30 +22,46 @@ vim.opt.termguicolors = true -- trueカラーを使う
 vim.opt.clipboard = "unnamedplus"
 
 if vim.fn.has('wsl') == 1 then
-  vim.g.clipboard = {
-    name = 'WslClipboard',
-    copy = {
-      ['+'] = function(lines)
-        local text = table.concat(lines, "\n")
-        text = vim.fn.iconv(text, "utf-8", "cp932")
-        vim.fn.system('clip.exe', text)
-      end,
-      ['*'] = function(lines)
-        local text = table.concat(lines, "\n")
-        text = vim.fn.iconv(text, "utf-8", "cp932")
-        vim.fn.system('clip.exe', text)
-      end,
-    },
-    paste = {
-      ['+'] = function()
-        return vim.split(vim.fn.getreg('"'), '\n')
-      end,
-      ['*'] = function()
-        return vim.split(vim.fn.getreg('"'), '\n')
-      end,
-    },
-    cache_enabled = false,
-  }
+  if vim.fn.executable('xsel') == 1 then
+    vim.g.clipboard = {
+      name = 'WslClipboard',
+      copy = {
+        ['+'] = 'xsel -bi',
+        ['*'] = 'xsel -bi',
+      },
+      paste = {
+        ['+'] = function() return vim.fn.systemlist('xsel -bo | tr -d "\r"') end,
+        ['*'] = function() return vim.fn.systemlist('xsel -bo | tr -d "\r"') end,
+      },
+      cache_enabled = 1,
+    }
+  else
+    print("xselが入ってない")
+    vim.g.clipboard = {
+      name = 'WslClipboard',
+      copy = {
+        ['+'] = function(lines)
+          local text = table.concat(lines, "\n")
+          text = vim.fn.iconv(text, "utf-8", "cp932")
+          vim.fn.system('clip.exe', text)
+        end,
+        ['*'] = function(lines)
+          local text = table.concat(lines, "\n")
+          text = vim.fn.iconv(text, "utf-8", "cp932")
+          vim.fn.system('clip.exe', text)
+        end,
+      },
+      paste = {
+        ['+'] = function()
+          return vim.split(vim.fn.getreg('"'), '\n')
+        end,
+        ['*'] = function()
+          return vim.split(vim.fn.getreg('"'), '\n')
+        end,
+      },
+      cache_enabled = false,
+    }
+  end
 end
 vim.g.mapleader = " "
 vim.opt.pumheight = 5       -- 変換候補で表示される数
@@ -210,6 +226,21 @@ vim.cmd([[
 	autocmd FileType go setlocal tabstop=4
 	autocmd FileType go setlocal shiftwidth=4
 ]])
+
+vim.api.nvim_create_user_command('YarnLint', function()
+  local file_path = vim.fn.expand('%:p')
+  local cmd = 'yarn lint --fix ' .. vim.fn.shellescape(file_path)
+  local output = vim.fn.system(cmd)
+  local exit_code = vim.v.shell_error
+
+  if exit_code == 0 then
+    vim.cmd('e') -- ファイルを再読み込み
+    print("eslintによるフォーマットが完了しました。")
+  else
+    vim.api.nvim_err_writeln("エラー: eslintのフォーマットに失敗しました。")
+    vim.api.nvim_err_writeln(output)
+  end
+end, {})
 
 -- prettier 設定
 vim.api.nvim_create_user_command('Prettier', function()
