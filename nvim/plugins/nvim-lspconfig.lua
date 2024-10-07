@@ -74,7 +74,7 @@ require("ddc_source_lsp_setup").setup()
 
 local lspconfig = require 'lspconfig'
 
-lspconfig.tsserver.setup {
+lspconfig.ts_ls.setup {
   on_attach = on_attach,
   root_dir = lspconfig.util.root_pattern("package.json"),
 }
@@ -84,6 +84,40 @@ lspconfig.tsserver.setup {
 --  cmd = { "npx", "biome", "lsp-proxy" },
 --  capabilities = capabilities,
 -- }
+--
+--
+local eslint = {
+  lintCommand = 'eslint -f visualstudio --stdin --stdin-filename ${INPUT}',
+  lintStdin = true,
+  lintFormats = { '%f(%l,%c): %tarning %m', '%f(%l,%c): %rror %m' },
+  formatCommand = 'eslint --fix-to-stdout --stdin --stdin-filename=${INPUT}',
+  formatStdin = true
+}
+
+lspconfig.efm.setup {
+  init_options = {
+    documentFormatting = true,
+    rangeFormatting = true,
+    hover = true,
+    documentSymbol = true,
+    codeAction = true,
+    completion = true,
+  },
+  settings = {
+    rootMarkers = { ".git/" },
+    languages = {
+      javascript = { eslint },
+      javascriptreact = { eslint },
+      ['javascript.jsx'] = { eslint },
+      typescript = { eslint },
+      typescriptreact = { eslint },
+      ['typescript.tsx'] = { eslint },
+    }
+  },
+  filetypes = { "javascript", "typescript", "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx" },
+  root_dir = lspconfig.util.root_pattern("package.json"),
+  on_attach = on_attach,
+}
 
 lspconfig.denols.setup {
   on_attach = on_attach,

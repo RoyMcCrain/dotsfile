@@ -40,7 +40,9 @@ abbr -f --quieter sortp="npx sort-package-json"
 abbr -f --quieter pn="pnpm"
 # docker
 abbr -f --quieter d="docker"
-abbr -f --quieter dc="docker-compose"
+abbr -f --quieter dc="docker compose"
+#dockerのphp
+abbr -f --quiet dcp="docker compose exec php"
 
 case ${OSTYPE} in
     darwin*)

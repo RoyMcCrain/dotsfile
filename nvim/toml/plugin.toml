@@ -17,12 +17,11 @@ lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/lightline.lua]])'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'neovim/nvim-lspconfig'
-depends = ['ddc-source-lsp']
+depends = ['ddc-source-lsp', 'ddc-source-lsp-setup']
 lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-lspconfig.lua]])'
 
 [[plugins]]
 repo = 'Shougo/ddc-source-lsp'
-depends = ['ddc-source-lsp-setup']
 
 [[plugins]]
 repo = 'uga-rosa/ddc-source-lsp-setup'

@@ -1,1 +1,1 @@
-vim.g.copilot_no_maps = true
+vim.g.copilot_no_maps = false

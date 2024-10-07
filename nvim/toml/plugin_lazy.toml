@@ -93,6 +93,7 @@ on_source = 'ddc.vim'
 [[plugins]]
 repo = 'Shougo/ddc-source-around'
 on_source = 'ddc.vim'
+
 #----------------------------------------------------------------#
 # Syntax Highlight
 #----------------------------------------------------------------#

@@ -17,6 +17,8 @@ j       |w(astarte配列だと使いづらいから)
 W       |wrap
 WW      |nowrap
 zR      |全ての折りたたみを開く
+C-o     |前の位置に戻る LSPの定義ジャンプから戻るときによく使う
+C-i     |次の位置に進む
 
 ## vim-figitive
 <L>g   |[git]

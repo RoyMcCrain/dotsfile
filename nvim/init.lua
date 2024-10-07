@@ -227,6 +227,14 @@ vim.cmd([[
 	autocmd FileType go setlocal shiftwidth=4
 ]])
 
+-- PHP
+vim.cmd([[
+	autocmd FileType php setlocal tabstop=4
+	autocmd FileType php setlocal shiftwidth=4
+	autocmd FileType php setlocal autoindent
+	autocmd FileType php setlocal smartindent
+]])
+
 vim.api.nvim_create_user_command('YarnLint', function()
   local file_path = vim.fn.expand('%:p')
   local cmd = 'yarn lint --fix ' .. vim.fn.shellescape(file_path)
