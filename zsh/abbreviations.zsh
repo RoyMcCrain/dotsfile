@@ -1,46 +1,46 @@
-abbr -f --quiet js='jobs'
+abbr -f --quieter js='jobs'
 # fg %1 でそのjobsの復帰
 
 if type eza >/dev/null 2>&1; then
-  abbr -f --quiet ls='eza -TF -L=1 --icons'
-  abbr -f --quiet la='eza -aTF -L=1 --icons'
-  abbr -f --quiet ll='eza -lTF -L=1 --icons'
-  abbr -f --quiet lla='eza -alTF -L=1 --icons'
+  abbr -f --quieter ls='eza -TF -L=1 --icons'
+  abbr -f --quieter la='eza -aTF -L=1 --icons'
+  abbr -f --quieter ll='eza -lTF -L=1 --icons'
+  abbr -f --quieter lla='eza -alTF -L=1 --icons'
 else
-  abbr -f --quiet la='ls -a'
-  abbr -f --quiet ll='ls -lh'
-  abbr -f --quiet lla='ls -lha'
+  abbr -f --quieter la='ls -a'
+  abbr -f --quieter ll='ls -lh'
+  abbr -f --quieter lla='ls -lha'
 fi
 
-abbr -f --quiet rm='rm -ri'
-abbr -f --quiet rmf='rm -rf'
-abbr -f --quiet cp='cp -i'
-abbr -f --quiet mv='mv -i'
+abbr -f --quieter rm='rm -ri'
+abbr -f --quieter rmf='rm -rf'
+abbr -f --quieter cp='cp -i'
+abbr -f --quieter mv='mv -i'
 
-abbr -f --quiet mkdir='mkdir -p'
+abbr -f --quieter mkdir='mkdir -p'
 
-abbr -f --quiet a="nvim"
-abbr -f --quiet code="code -n ." # vscode
-abbr -f --quiet exp="explorer.exe ." # explorer
-abbr -f --quiet g="git"
+abbr -f --quieter a="nvim"
+abbr -f --quieter code="code -n ." # vscode
+abbr -f --quieter exp="explorer.exe ." # explorer
+abbr -f --quieter g="git"
 
 # bundle
-abbr -f --quiet be="bundle exec "
-abbr -f --quiet bi="bundle install "
-abbr -f --quiet rails="bundle exec rails"
-abbr -f --quiet rails-s="bundle exec rails s -p 3001"
-abbr -f --quiet rspec="bundle exec rspec"
+abbr -f --quieter be="bundle exec "
+abbr -f --quieter bi="bundle install "
+abbr -f --quieter rails="bundle exec rails"
+abbr -f --quieter rails-s="bundle exec rails s -p 3001"
+abbr -f --quieter rspec="bundle exec rspec"
 # node
-abbr -f --quiet nir="ni run "
-abbr -f --quiet niu="ni upgrade-interactive "
-abbr -f --quiet nil="ni run lint "
-abbr -f --quiet nid="ni run dlx "
-abbr -f --quiet sortp="npx sort-package-json"
+abbr -f --quieter nir="ni run "
+abbr -f --quieter niu="ni upgrade-interactive "
+abbr -f --quieter nil="ni run lint "
+abbr -f --quieter nid="ni run dlx "
+abbr -f --quieter sortp="npx sort-package-json"
 # pnpm
-abbr -f --quiet pn="pnpm"
+abbr -f --quieter pn="pnpm"
 # docker
-abbr -f --quiet d="docker"
-abbr -f --quiet dc="docker-compose"
+abbr -f --quieter d="docker"
+abbr -f --quieter dc="docker-compose"
 
 case ${OSTYPE} in
     darwin*)
@@ -48,7 +48,7 @@ case ${OSTYPE} in
         ;;
     linux*)
         #Linux用の設定
-        abbr -f --quiet open="xdg-open"
+        abbr -f --quieter open="xdg-open"
         ;;
 esac
 
@@ -56,16 +56,16 @@ ghq-get-cd() {
   ghq get "$1" && cd "$(ghq list --exact --full-path "$1")"
 }
 
-abbr -f --quiet "ghq get"="ghq-get-cd"
+abbr -f --quieter "ghq get"="ghq-get-cd"
 
-abbr -f --quiet "git sw"="git switch"
-abbr -f --quiet "git rs"="git restore"
-abbr -f --quiet "git cm"="git commit"
-abbr -f --quiet "git st"="git status"
-abbr -f --quiet "git br"="git branch"
-abbr -f --quiet "git lg"="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative"
-abbr -f --quiet "git mt"="git mergetool"
-abbr -f --quiet "git dt"="git difftool"
-abbr -f --quiet "git pl"="git pull"
-abbr -f --quiet "git pp"="git pull --prune"
-abbr -f --quiet "git ps"="git push"
+abbr -f --quieter "git sw"="git switch"
+abbr -f --quieter "git rs"="git restore"
+abbr -f --quieter "git cm"="git commit"
+abbr -f --quieter "git st"="git status"
+abbr -f --quieter "git br"="git branch"
+abbr -f --quieter "git lg"="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative"
+abbr -f --quieter "git mt"="git mergetool"
+abbr -f --quieter "git dt"="git difftool"
+abbr -f --quieter "git pl"="git pull"
+abbr -f --quieter "git pp"="git pull --prune"
+abbr -f --quieter "git ps"="git push"
