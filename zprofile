@@ -1,3 +1,4 @@
-export ZSH_HOME=$HOME/.zsh
-source $ZSH_HOME/antigen.zsh
-source $ZSH_HOME/abbreviations.zsh
+# マウントの実行
+if [ ! -d /mnt/nas/contents ]; then
+  mount -a
+fi
