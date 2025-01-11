@@ -46,11 +46,11 @@ local on_attach = function(client, bufnr)
   })
 
   -- BufWritePost イベントでPrettierを実行
-  vim.api.nvim_create_autocmd("BufWritePost", {
-    pattern = { "*.js", "*.ts", "*.jsx", "*.tsx", "*.php" },
-    group = augroup,
-    callback = run_prettier,
-  })
+  --vim.api.nvim_create_autocmd("BufWritePost", {
+  --  pattern = { "*.js", "*.ts", "*.jsx", "*.tsx" },
+  --  group = augroup,
+  --  callback = run_prettier,
+  --})
 
   -- tsserverとdenolsの判定
   local lspconfig = require 'lspconfig'
@@ -79,45 +79,43 @@ lspconfig.ts_ls.setup {
   root_dir = lspconfig.util.root_pattern("package.json"),
 }
 
--- lspconfig.biome.setup {
---  on_attach = on_attach,
---  cmd = { "npx", "biome", "lsp-proxy" },
---  capabilities = capabilities,
--- }
---
---
-local eslint = {
-  lintCommand = 'eslint -f visualstudio --stdin --stdin-filename ${INPUT}',
-  lintStdin = true,
-  lintFormats = { '%f(%l,%c): %tarning %m', '%f(%l,%c): %rror %m' },
-  formatCommand = 'eslint --fix-to-stdout --stdin --stdin-filename=${INPUT}',
-  formatStdin = true
+lspconfig.biome.setup {
+  on_attach = on_attach,
+  cmd = { "npx", "biome", "lsp-proxy" },
 }
 
-lspconfig.efm.setup {
-  init_options = {
-    documentFormatting = true,
-    rangeFormatting = true,
-    hover = true,
-    documentSymbol = true,
-    codeAction = true,
-    completion = true,
-  },
-  settings = {
-    rootMarkers = { ".git/" },
-    languages = {
-      javascript = { eslint },
-      javascriptreact = { eslint },
-      ['javascript.jsx'] = { eslint },
-      typescript = { eslint },
-      typescriptreact = { eslint },
-      ['typescript.tsx'] = { eslint },
-    }
-  },
-  filetypes = { "javascript", "typescript", "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx" },
-  root_dir = lspconfig.util.root_pattern("package.json"),
-  on_attach = on_attach,
-}
+-- local eslint = {
+--   lintCommand = 'eslint -f visualstudio --stdin --stdin-filename ${INPUT}',
+--   lintStdin = true,
+--   lintFormats = { '%f(%l,%c): %tarning %m', '%f(%l,%c): %rror %m' },
+--   formatCommand = 'eslint --fix-to-stdout --stdin --stdin-filename=${INPUT}',
+--   formatStdin = true
+-- }
+--
+-- lspconfig.efm.setup {
+--   init_options = {
+--     documentFormatting = true,
+--     rangeFormatting = true,
+--     hover = true,
+--     documentSymbol = true,
+--     codeAction = true,
+--     completion = true,
+--   },
+--   settings = {
+--     rootMarkers = { ".git/" },
+--     languages = {
+--       javascript = { eslint },
+--       javascriptreact = { eslint },
+--       ['javascript.jsx'] = { eslint },
+--       typescript = { eslint },
+--       typescriptreact = { eslint },
+--       ['typescript.tsx'] = { eslint },
+--     }
+--   },
+--   filetypes = { "javascript", "typescript", "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx" },
+--   root_dir = lspconfig.util.root_pattern("package.json"),
+--   on_attach = on_attach,
+-- }
 
 lspconfig.denols.setup {
   on_attach = on_attach,
@@ -230,8 +228,4 @@ lspconfig.vimls.setup {
 lspconfig.tailwindcss.setup {
   on_attach = on_attach,
   filetypes = { "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx", "vue" },
-}
-
-lspconfig.intelephense.setup {
-  on_attach = on_attach,
 }

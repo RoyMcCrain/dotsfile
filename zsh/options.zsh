@@ -8,6 +8,13 @@ if [ -f "$HOME/.local/share/pnpm/pnpm" ]; then
   export PATH="$PNPM_HOME:$PATH"
 fi
 
+# bun
+if [ -d "$HOME/.bun/bin" ]; then
+  export BUN_INSTALL="$HOME/.bun"
+  export PATH="$BUN_INSTALL/bin:$PATH"
+  source "$HOME/.bun/_bun"
+fi
+
 # asdf
 if [ -f "$HOME/.asdf/asdf.sh" ]; then
 . $HOME/.asdf/asdf.sh
