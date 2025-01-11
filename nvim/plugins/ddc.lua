@@ -8,16 +8,16 @@ vim.fn['ddc#custom#patch_global']({
   }
 })
 
--- vim.fn['ddc#custom#patch_global']('sources', { 'copilot', 'lsp', 'buffer' })
-vim.fn['ddc#custom#patch_global']('sources', { 'lsp', 'buffer' })
+vim.fn['ddc#custom#patch_global']('sources', { 'copilot', 'lsp', 'buffer' })
+-- vim.fn['ddc#custom#patch_global']('sources', { 'lsp', 'buffer' })
 
 vim.fn['ddc#custom#patch_global']('sourceOptions', {
-  -- copilot = {
-  --   matchers = {},
-  --   mark = 'CP',
-  --   minAutoCompleteLength = 0,
-  --   isVolatile = true,
-  -- },
+  copilot = {
+    matchers = {},
+    mark = 'CP',
+    minAutoCompleteLength = 0,
+    isVolatile = true,
+  },
   lsp = {
     dup = 'keep',
     mark = 'LSP',
