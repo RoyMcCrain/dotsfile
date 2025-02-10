@@ -97,7 +97,8 @@ chmod +x ./scripts/build_env/asdf_install_plugin.sh
 ## 不必要なaptで入れたgolang削除
 
 ```bash
-rm -rf ~/go
+sudo apt remove golang
+sudo rm -rf ~/go
 ```
 ディレクトリは要確認
 
