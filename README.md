@@ -69,10 +69,10 @@ https://asdf-vm.com/ja-jp/guide/getting-started.html
 git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
 ```
 
-## zshの再読み込み
+## 一時的なasdf有効化
 
 ```bash
-source ~/.zshrc
+. "$HOME/.asdf/asdf.sh"
 ```
 
 antigenのインストールが出来いなければ `antigen apply` をする
