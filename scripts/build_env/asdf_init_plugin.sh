@@ -1,6 +1,7 @@
 #!/bin/zsh
 
 plugins=(
+  "ghq"
   "nodejs"
   "bat"
   "deno"
