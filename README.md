@@ -61,6 +61,40 @@ go/bin/ にghqが生成されるのでそれを一旦使う
 cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```
 
+## asdf
+
+https://asdf-vm.com/ja-jp/guide/getting-started.html
+
+```bash
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+```
+
+## zshの再読み込み
+
+```bash
+source ~/.zshrc
+```
+
+antigenのインストールが出来いなければ `antigen apply` をする
+
+## asdf_init_plugin
+
+```bash
+chmod +x ./scripts/build_env/asdf_init_plugin.sh
+./scripts/build_env/asdf_init_plugin.sh
+```
+
+上記で、asdf plugin add を行う
+
+
+## asdf_install_plugin
+
+```bash
+chmod +x ./scripts/build_env/asdf_install_plugin.sh
+./scripts/build_env/asdf_install_plugin.sh
+```
+
+
 
 ## antigen(zshのプラグインマネージャー)
 
@@ -114,38 +148,6 @@ sudo apt update
 sudo apt install -y eza
 ```
 
-## asdf
-
-https://asdf-vm.com/ja-jp/guide/getting-started.html
-
-```bash
-git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
-```
-
-## zshの再読み込み
-
-```bash
-source ~/.zshrc
-```
-
-antigenのインストールが出来いなければ `antigen apply` をする
-
-## asdf_init_plugin
-
-```bash
-chmod +x ./scripts/asdf_init_plugin.sh
-./scripts/asdf_init_plugin.sh
-```
-
-上記で、asdf plugin add を行う
-
-
-## asdf_install_plugin
-
-```bash
-chmod +x ./scripts/build_env/asdf_install_plugin.sh
-./scripts/build_env/asdf_install_plugin.sh
-```
 
 
 
