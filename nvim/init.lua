@@ -213,10 +213,14 @@ if vim.fn.has('syntax') then
 end
 
 vim.api.nvim_create_user_command('DppInstall', function()
+  local config_dir = vim.fn.stdpath('config') .. '/plugins/dpp.ts'
+  vim.cmd('!deno cache ' .. config_dir)
   vim.fn['dpp#async_ext_action']('installer', 'install')
 end, {})
 
 vim.api.nvim_create_user_command('DppUpdate', function()
+  local config_dir = vim.fn.stdpath('config') .. '/plugins/dpp.ts'
+  vim.cmd('!deno cache ' .. config_dir)
   vim.fn['dpp#async_ext_action']('installer', 'update')
 end, {})
 
