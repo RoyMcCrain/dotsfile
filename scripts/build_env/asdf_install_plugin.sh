@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+asdf install ghq latest
+asdf global ghq latest
+
 asdf install bat latest
 asdf global bat latest
 
