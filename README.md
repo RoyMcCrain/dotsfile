@@ -51,11 +51,13 @@ https://github.com/x-motemen/ghq?tab=readme-ov-file#go-get
 go install github.com/x-motemen/ghq@latest
 ```
 
+go/bin/ にghqが生成されるのでそれを一旦使う
+
 
 ## dotsfilesのclone
 
 ```bash
-ghq get git@github.com:RoyMcCrain/dotsfile.git
+./go/binghq get git@github.com:RoyMcCrain/dotsfile.git
 cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```
 
