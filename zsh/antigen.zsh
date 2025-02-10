@@ -2,7 +2,7 @@
 source $HOME/.antigen/antigen.zsh
 
 # プラグインの追加
-antigen bundle b4b4r07/enhancd@master
+antigen bundle babarot/enhancd@main
 export ENHANCD_FILTER="fzf"
 
 antigen bundle zdharma-continuum/fast-syntax-highlighting@master
