@@ -6,7 +6,7 @@
 
 必要そうなやつをaptでいれる
 ```bash
-sudo apt install build-essential zsh
+sudo apt update && sudo apt install -y build-essential zsh
 ```
 
 zsh をログインシェルにする
