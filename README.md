@@ -1,5 +1,7 @@
 # dotsfile
 
+いろいろ設定集
+
 ## init
 
 必要そうなやつをaptでいれる
@@ -12,7 +14,7 @@ zsh をログインシェルにする
 $ chsh -s $(which zsh)
 ```
 
-### ghの設定
+## ghの設定
 
 https://github.com/cli/cli/blob/trunk/docs/install_linux.md
 
@@ -36,7 +38,7 @@ gh auth login
 Githubとsshができるようにする
 
 
-### ghqの設定
+## ghqの設定
 
 Goを入れる
 ```bash
@@ -50,7 +52,7 @@ go install github.com/x-motemen/ghq@latest
 ```
 
 
-### dotsfilesのclone
+## dotsfilesのclone
 
 ```bash
 ghq get git@github.com:RoyMcCrain/dotsfile.git
@@ -58,7 +60,7 @@ cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```
 
 
-### antigen(zshのプラグインマネージャー)
+## antigen(zshのプラグインマネージャー)
 
 [antigen](https://github.com/zsh-users/antigen)
 
@@ -66,7 +68,7 @@ cd ~/ghq/github.com/RoyMcCrain/dotsfile
 git clone https://github.com/zsh-users/antigen.git ~/.antigen
 ```
 
-### create_symlink
+## create_symlink
 
 ```bash
 chmod +x ./scripts/create_symlink.sh
@@ -74,12 +76,12 @@ chmod +x ./scripts/create_symlink.sh
 
 上記で、シンボリックリンクを作成できる
 
-### xsel
+## xsel
 ```bash
 sudo apt install xsel
 ```
 
-### WSL-Hello-sudo
+## WSL-Hello-sudo
 
 https://github.com/nullpo-head/WSL-Hello-sudo
 
@@ -95,7 +97,7 @@ cd ../
 rm -fr ./release.tar.gz ./release
 ```
 
-### eza
+## eza
 https://github.com/eza-community/eza
 
 https://github.com/eza-community/eza/blob/main/INSTALL.md#debian-and-ubuntu
@@ -109,7 +111,7 @@ sudo apt update
 sudo apt install -y eza
 ```
 
-### asdf
+## asdf
 
 https://asdf-vm.com/ja-jp/guide/getting-started.html
 
@@ -117,7 +119,7 @@ https://asdf-vm.com/ja-jp/guide/getting-started.html
 git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
 ```
 
-### zshの再読み込み
+## zshの再読み込み
 
 ```bash
 source ~/.zshrc
@@ -125,7 +127,7 @@ source ~/.zshrc
 
 antigenのインストールが出来いなければ `antigen apply` をする
 
-### asdf_init_plugin
+## asdf_init_plugin
 
 ```bash
 chmod +x ./scripts/asdf_init_plugin.sh
