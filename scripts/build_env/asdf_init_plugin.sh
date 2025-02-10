@@ -6,11 +6,8 @@ plugins=(
   "deno"
   "fzf"
   "ruby"
-  "ghq"
-  "golang"
   "jq"
   "neovim"
-  "github-cli" # gh
   "ripgrep"
   "rust"
   "rye"

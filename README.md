@@ -1,8 +1,68 @@
 # dotsfile
 
-## Install
-- ghq https://github.com/x-motemen/ghq
-- gh https://github.com/cli/cli
+いろいろ設定集
+
+## init
+
+必要そうなやつをaptでいれる
+```bash
+sudo apt install build-essential zsh
+```
+
+zsh をログインシェルにする
+```bash
+$ chsh -s $(which zsh)
+```
+
+## ghの設定
+
+https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+
+```bash
+(type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
+	&& sudo mkdir -p -m 755 /etc/apt/keyrings \
+        && out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+	&& sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+	&& sudo apt update \
+	&& sudo apt install gh -y
+```
+
+ghのインストール後
+
+```bash
+gh auth login
+```
+
+Githubとsshができるようにする
+
+
+## ghqの設定
+
+Goを入れる
+```bash
+sudo apt install golang
+```
+
+https://github.com/x-motemen/ghq?tab=readme-ov-file#go-get
+
+```bash
+go install github.com/x-motemen/ghq@latest
+```
+
+
+## dotsfilesのclone
+
+```bash
+ghq get git@github.com:RoyMcCrain/dotsfile.git
+cd ~/ghq/github.com/RoyMcCrain/dotsfile
+```
+
+
+## antigen(zshのプラグインマネージャー)
+
+[antigen](https://github.com/zsh-users/antigen)
 
 ```bash
 git clone https://github.com/zsh-users/antigen.git ~/.antigen
@@ -39,18 +99,43 @@ rm -fr ./release.tar.gz ./release
 
 ## eza
 https://github.com/eza-community/eza
-A modern, maintained replacement for ls.
 
-## ripgrep
-https://github.com/BurntSushi/ripgrep
+https://github.com/eza-community/eza/blob/main/INSTALL.md#debian-and-ubuntu
 
-## Copilot Chat
-https://github.com/CopilotC-Nvim/CopilotChat.nvim
+```bash
+sudo mkdir -p /etc/apt/keyrings
+wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
+sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+sudo apt update
+sudo apt install -y eza
+```
 
-- tiktoken というトークンを扱うライブラリを入れている。
-/nvim/lua/tittoken_core.so に配置しているのは
-https://github.com/gptlang/lua-tiktoken/releases
-v0.2.1のtiktoken_core-linux-lua51.soをtiktoken_core.soにリネームして配置している。
+## asdf
+
+https://asdf-vm.com/ja-jp/guide/getting-started.html
+
+```bash
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+```
+
+## zshの再読み込み
+
+```bash
+source ~/.zshrc
+```
+
+antigenのインストールが出来いなければ `antigen apply` をする
+
+## asdf_init_plugin
+
+```bash
+chmod +x ./scripts/asdf_init_plugin.sh
+```
+
+上記で、asdf plugin add を行う
+
+
 
 # memo
 ## denopsでライブラリのエラー
