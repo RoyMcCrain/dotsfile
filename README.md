@@ -73,7 +73,8 @@ git clone https://github.com/zsh-users/antigen.git ~/.antigen
 ## create_symlink
 
 ```bash
-chmod +x ./scripts/create_symlink.sh
+chmod +x ./scripts/build_env/create_symlink.sh
+./scripts/build_env/create_symlink.sh
 ```
 
 上記で、シンボリックリンクを作成できる
@@ -142,8 +143,8 @@ chmod +x ./scripts/asdf_init_plugin.sh
 ## asdf_install_plugin
 
 ```bash
-chmod +x ./scripts/asdf_install_plugin.sh
-./scripts/asdf_install_plugin.sh
+chmod +x ./scripts/build_env/asdf_install_plugin.sh
+./scripts/build_env/asdf_install_plugin.sh
 ```
 
 
