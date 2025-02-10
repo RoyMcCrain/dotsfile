@@ -6,7 +6,7 @@
 
 必要そうなやつをaptでいれる
 ```bash
-sudo apt update && sudo apt install -y build-essential zsh zip
+sudo apt update && sudo apt install -y build-essential zsh zip language-pack-ja
 ```
 
 zsh をログインシェルにする
