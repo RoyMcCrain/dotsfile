@@ -11,7 +11,7 @@ sudo apt update && sudo apt install -y build-essential zsh
 
 zsh をログインシェルにする
 ```bash
-$ chsh -s $(which zsh)
+chsh -s $(which zsh)
 ```
 
 ## ghの設定
