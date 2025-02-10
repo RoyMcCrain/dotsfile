@@ -75,10 +75,6 @@ repo = 'Shougo/ddc-converter_remove_overlap'
 on_source = 'ddc.vim'
 
 [[plugins]]
-repo = 'Shougo/ddc-source-copilot'
-on_source = 'ddc.vim'
-
-[[plugins]]
 repo = 'Shougo/pum.vim'
 on_source = 'ddc-ui-pum'
 

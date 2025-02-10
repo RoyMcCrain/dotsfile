@@ -28,12 +28,12 @@ local on_attach = function(client, bufnr)
   end
 
   -- ファイル保存時にPrettierを実行
-  local function run_prettier()
-    local filename = vim.fn.expand('%:t')
-    if not string.find(filename, 'no_fmt') then
-      vim.cmd("silent! Prettier")
-    end
-  end
+  -- local function run_prettier()
+  --   local filename = vim.fn.expand('%:t')
+  --   if not string.find(filename, 'no_fmt') then
+  --     vim.cmd("silent! Prettier")
+  --   end
+  -- end
 
   -- オートコマンドグループを作成
   local augroup = vim.api.nvim_create_augroup("FormatOnSave", { clear = true })
@@ -60,7 +60,7 @@ local on_attach = function(client, bufnr)
   end
 
   -- Client.nameの判定
-  if client.name == "tsserver" and is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
+  if client.name == "ts_ls" and is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
     client.stop() -- Denoプロジェクトの場合はtsserverを停止
   elseif client.name == "denols" and not is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
     client.stop() -- Denoプロジェクトでない場合はdenolsを停止

@@ -33,14 +33,6 @@ repo = 'uga-rosa/ddc-source-lsp-setup'
 repo = 'github/copilot.vim'
 lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/copilot.lua]])'
 
-# [[plugins]]
-# repo = 'nvim-lua/plenary.nvim'
-# 
-# [[plugins]]
-# repo = 'CopilotC-Nvim/CopilotChat.nvim'
-# depends = ['plenary.nvim', 'copilot.vim']
-# lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/copilotChat.lua]])'
-
 #----------------------------------------------------------------------------------#
 # インデント補助
 #----------------------------------------------------------------------------------#
