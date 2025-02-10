@@ -131,9 +131,18 @@ antigenのインストールが出来いなければ `antigen apply` をする
 
 ```bash
 chmod +x ./scripts/asdf_init_plugin.sh
+./scripts/asdf_init_plugin.sh
 ```
 
 上記で、asdf plugin add を行う
+
+
+## asdf_install_plugin
+
+```bash
+chmod +x ./scripts/asdf_install_plugin.sh
+./scripts/asdf_install_plugin.sh
+```
 
 
 
