@@ -6,7 +6,7 @@
 
 必要そうなやつをaptでいれる
 ```bash
-sudo apt update && sudo apt install -y build-essential zsh
+sudo apt update && sudo apt install -y build-essential zsh zip
 ```
 
 zsh をログインシェルにする
@@ -61,6 +61,47 @@ go/bin/ にghqが生成されるのでそれを一旦使う
 cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```
 
+## asdf
+
+https://asdf-vm.com/ja-jp/guide/getting-started.html
+
+```bash
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+```
+
+## 一時的なasdf有効化
+
+```bash
+. "$HOME/.asdf/asdf.sh"
+```
+
+antigenのインストールが出来いなければ `antigen apply` をする
+
+## asdf_init_plugin
+
+```bash
+chmod +x ./scripts/build_env/asdf_init_plugin.sh
+./scripts/build_env/asdf_init_plugin.sh
+```
+
+上記で、asdf plugin add を行う
+
+
+## asdf_install_plugin
+
+```bash
+chmod +x ./scripts/build_env/asdf_install_plugin.sh
+./scripts/build_env/asdf_install_plugin.sh
+```
+
+## 不必要なaptで入れたgolang削除
+
+```bash
+sudo apt remove golang
+sudo rm -rf ~/go
+```
+ディレクトリは要確認
+
 
 ## antigen(zshのプラグインマネージャー)
 
@@ -73,10 +114,31 @@ git clone https://github.com/zsh-users/antigen.git ~/.antigen
 ## create_symlink
 
 ```bash
-chmod +x ./scripts/create_symlink.sh
+chmod +x ./scripts/build_env/create_symlink.sh
+./scripts/build_env/create_symlink.sh
 ```
 
 上記で、シンボリックリンクを作成できる
+
+## eza
+https://github.com/eza-community/eza
+
+https://github.com/eza-community/eza/blob/main/INSTALL.md#debian-and-ubuntu
+
+```bash
+sudo mkdir -p /etc/apt/keyrings
+wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
+sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+sudo apt update
+sudo apt install -y eza
+```
+
+## zshrcの読み込み
+
+```bash
+source ~/.zshrc
+```
 
 ## xsel
 ```bash
@@ -99,52 +161,6 @@ cd ../
 rm -fr ./release.tar.gz ./release
 ```
 
-## eza
-https://github.com/eza-community/eza
-
-https://github.com/eza-community/eza/blob/main/INSTALL.md#debian-and-ubuntu
-
-```bash
-sudo mkdir -p /etc/apt/keyrings
-wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
-echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
-sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
-sudo apt update
-sudo apt install -y eza
-```
-
-## asdf
-
-https://asdf-vm.com/ja-jp/guide/getting-started.html
-
-```bash
-git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
-```
-
-## zshの再読み込み
-
-```bash
-source ~/.zshrc
-```
-
-antigenのインストールが出来いなければ `antigen apply` をする
-
-## asdf_init_plugin
-
-```bash
-chmod +x ./scripts/asdf_init_plugin.sh
-./scripts/asdf_init_plugin.sh
-```
-
-上記で、asdf plugin add を行う
-
-
-## asdf_install_plugin
-
-```bash
-chmod +x ./scripts/asdf_install_plugin.sh
-./scripts/asdf_install_plugin.sh
-```
 
 
 
