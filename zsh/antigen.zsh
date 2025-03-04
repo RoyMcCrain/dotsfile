@@ -1,10 +1,6 @@
 # Antigenの初期化
 source $HOME/.antigen/antigen.zsh
 
-# プラグインの追加
-antigen bundle babarot/enhancd@main
-export ENHANCD_FILTER="fzf"
-
 antigen bundle zdharma-continuum/fast-syntax-highlighting@master
 antigen bundle zsh-users/zsh-completions@master
 antigen bundle zsh-users/zsh-autosuggestions@master
