@@ -63,19 +63,21 @@ cd ~/ghq/github.com/RoyMcCrain/dotsfile
 
 ## asdf
 
-https://asdf-vm.com/ja-jp/guide/getting-started.html
+https://asdf-vm.com/guide/getting-started.html#install-asdf
 
+Versionは最新のものを使う
 ```bash
-git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+curl -OL https://github.com/asdf-vm/asdf/releases/download/v0.16.5/asdf-v0.16.5-linux-amd64.tar.gz
+tar -zxvf asdf-v0.16.5-linux-amd64.tar.gz
+sudo mv asdf /usr/local/bin/
+sudo chmod +x /usr/local/bin/asdf
 ```
 
-## 一時的なasdf有効化
-
+不必要なファイル削除
 ```bash
-. "$HOME/.asdf/asdf.sh"
+rm -f asdf-v0.16.5-linux-amd64.tar.gz
 ```
 
-antigenのインストールが出来いなければ `antigen apply` をする
 
 ## asdf_init_plugin
 
