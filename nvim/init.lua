@@ -231,6 +231,13 @@ vim.cmd([[
 	autocmd FileType go setlocal shiftwidth=4
 ]])
 
+-- filetypeの設定
+vim.filetype.add({
+  filename = {
+    ['Procfile'] = 'bash',
+  }
+})
+
 -- prettier 設定
 vim.api.nvim_create_user_command('Prettier', function()
   local filetypes = {
