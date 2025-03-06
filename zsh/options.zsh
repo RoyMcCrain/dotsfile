@@ -16,14 +16,15 @@ if [ -d "$HOME/.bun/bin" ]; then
 fi
 
 # asdf
-if [ -f "$HOME/.asdf/asdf.sh" ]; then
-. $HOME/.asdf/asdf.sh
+if [ -d "$HOME/.asdf" ]; then
+  export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
 fi
+ 
 # JAVA_HOME
 if [ -f "$HOME/.asdf/plugins/java/set-java-home.zsh" ]; then
 . $HOME/.asdf/plugins/java/set-java-home.zsh
 fi
-export ASDF_GOLANG_MOD_VERSION_ENABLED=false
+
 # pipの設定
 if [ -d "$HOME/.local/bin" ]; then
   export PATH=$PATH:$HOME/.local/bin
