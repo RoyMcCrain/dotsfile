@@ -15,6 +15,7 @@
     "jsr:@denops/std@7.1.1": "7.1.1",
     "jsr:@denops/std@7.3": "7.3.2",
     "jsr:@denops/std@7.4": "7.4.0",
+    "jsr:@denops/std@7.5": "7.5.0",
     "jsr:@denops/std@~7.1.1": "7.1.1",
     "jsr:@denops/test@3.0.4": "3.0.4",
     "jsr:@denops/test@~3.0.2": "3.0.4",
@@ -31,10 +32,12 @@
     "jsr:@shougo/ddc-vim@7.0.0": "7.0.0",
     "jsr:@shougo/ddc-vim@9.1": "9.1.0",
     "jsr:@shougo/ddu-kind-file@0.9": "0.9.0",
+    "jsr:@shougo/ddu-vim@10.0": "10.0.0",
     "jsr:@shougo/ddu-vim@6.1": "6.1.0",
     "jsr:@shougo/ddu-vim@6.4": "6.4.0",
     "jsr:@shougo/ddu-vim@7.0": "7.0.0",
     "jsr:@shougo/ddu-vim@9.4": "9.4.0",
+    "jsr:@shougo/ddu-vim@9.5": "9.5.0",
     "jsr:@shougo/ddu-vim@9.5.0": "9.5.0",
     "jsr:@shougo/ddu-vim@^6.1.0": "6.4.0",
     "jsr:@shougo/dpp-ext-lazy@1.5": "1.5.0",
@@ -113,6 +116,17 @@
     },
     "@denops/std@7.4.0": {
       "integrity": "6d7ae66af0286a440c14c0ba096b4336697bcd69e83e0fce21a41fb3dec10d65",
+      "dependencies": [
+        "jsr:@core/unknownutil@^4.3.0",
+        "jsr:@denops/core@7",
+        "jsr:@lambdalisue/itertools",
+        "jsr:@lambdalisue/unreachable",
+        "jsr:@std/semver",
+        "jsr:@std/ulid"
+      ]
+    },
+    "@denops/std@7.5.0": {
+      "integrity": "22d41172f1f5c91265a5555c1aecd63263176c6c65b4fb7c2b1a585ecb79a554",
       "dependencies": [
         "jsr:@core/unknownutil@^4.3.0",
         "jsr:@denops/core@7",
@@ -238,7 +252,15 @@
     "@shougo/ddu-vim@9.5.0": {
       "integrity": "69f9802c4244cdb8122733e0fff7f721ebe314269855e13766b18b31c18f91a4",
       "dependencies": [
-        "jsr:@denops/std@7.4"
+        "jsr:@denops/std@7.4",
+        "jsr:@std/path@~1.0.2"
+      ]
+    },
+    "@shougo/ddu-vim@10.0.0": {
+      "integrity": "e0919024eea6f6dde706ec9cea6eaf201b5a64b8b670c2e8e7e82a776487577f",
+      "dependencies": [
+        "jsr:@denops/std@7.4",
+        "jsr:@std/path@~1.0.2"
       ]
     },
     "@shougo/dpp-ext-lazy@1.5.0": {
