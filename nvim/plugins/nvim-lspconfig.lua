@@ -28,12 +28,12 @@ local on_attach = function(client, bufnr)
   end
 
   -- ファイル保存時にPrettierを実行
-  -- local function run_prettier()
-  --   local filename = vim.fn.expand('%:t')
-  --   if not string.find(filename, 'no_fmt') then
-  --     vim.cmd("silent! Prettier")
-  --   end
-  -- end
+  local function run_prettier()
+    local filename = vim.fn.expand('%:t')
+    if not string.find(filename, 'no_fmt') then
+      vim.cmd("silent! Prettier")
+    end
+  end
 
   -- オートコマンドグループを作成
   local augroup = vim.api.nvim_create_augroup("FormatOnSave", { clear = true })
@@ -46,11 +46,11 @@ local on_attach = function(client, bufnr)
   })
 
   -- BufWritePost イベントでPrettierを実行
-  --vim.api.nvim_create_autocmd("BufWritePost", {
-  --  pattern = { "*.js", "*.ts", "*.jsx", "*.tsx" },
-  --  group = augroup,
-  --  callback = run_prettier,
-  --})
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    pattern = { "*.js", "*.ts", "*.jsx", "*.tsx" },
+    group = augroup,
+    callback = run_prettier,
+  })
 
   -- tsserverとdenolsの判定
   local lspconfig = require 'lspconfig'
@@ -228,4 +228,9 @@ lspconfig.vimls.setup {
 lspconfig.tailwindcss.setup {
   on_attach = on_attach,
   filetypes = { "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx", "vue" },
+}
+
+-- Protobuf
+lspconfig.protols.setup {
+  on_attach = on_attach,
 }

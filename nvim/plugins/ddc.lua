@@ -4,7 +4,7 @@ vim.fn['ddc#custom#patch_global']({
     'InsertEnter', 'TextChangedI', 'TextChangedP', 'CmdlineChanged'
   },
   cmdlineSources = {
-    [':'] = { 'cmdline', 'cmdline-history', 'around' }
+    [':'] = { 'cmdline', 'cmdline_history', 'around' }
   }
 })
 
