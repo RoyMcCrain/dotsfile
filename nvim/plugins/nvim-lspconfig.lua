@@ -27,13 +27,13 @@ local on_attach = function(client, bufnr)
     end
   end
 
-  -- ファイル保存時にPrettierを実行
-  local function run_prettier()
-    local filename = vim.fn.expand('%:t')
-    if not string.find(filename, 'no_fmt') then
-      vim.cmd("silent! Prettier")
-    end
-  end
+  --  -- ファイル保存時にPrettierを実行
+  --  local function run_prettier()
+  --    local filename = vim.fn.expand('%:t')
+  --    if not string.find(filename, 'no_fmt') then
+  --      vim.cmd("silent! Prettier")
+  --    end
+  --  end
 
   -- オートコマンドグループを作成
   local augroup = vim.api.nvim_create_augroup("FormatOnSave", { clear = true })
@@ -45,12 +45,12 @@ local on_attach = function(client, bufnr)
     callback = format_on_save,
   })
 
-  -- BufWritePost イベントでPrettierを実行
-  vim.api.nvim_create_autocmd("BufWritePost", {
-    pattern = { "*.js", "*.ts", "*.jsx", "*.tsx" },
-    group = augroup,
-    callback = run_prettier,
-  })
+  --  -- BufWritePost イベントでPrettierを実行
+  --  vim.api.nvim_create_autocmd("BufWritePost", {
+  --    pattern = { "*.js", "*.ts", "*.jsx", "*.tsx" },
+  --    group = augroup,
+  --    callback = run_prettier,
+  --  })
 
   -- tsserverとdenolsの判定
   local lspconfig = require 'lspconfig'
@@ -79,9 +79,15 @@ lspconfig.ts_ls.setup {
   root_dir = lspconfig.util.root_pattern("package.json"),
 }
 
+-- biome.jsonの絶対パス取得関数
+local function get_biome_config_path()
+  local root = lspconfig.util.root_pattern("biome.json")(vim.fn.expand("%:p"))
+  return root and (root .. "/biome.json") or ""
+end
+
 lspconfig.biome.setup {
   on_attach = on_attach,
-  cmd = { "npx", "biome", "lsp-proxy" },
+  cmd = { "biome", "lsp-proxy", "--config-path", get_biome_config_path() },
 }
 
 -- local eslint = {
