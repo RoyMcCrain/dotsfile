@@ -15,6 +15,8 @@ vim.fn['ddc#custom#patch_global']('sourceOptions', {
     dup = 'keep',
     mark = 'LSP',
     sorters = { 'sorter_lsp-kind' },
+    minAutoCompleteLength = 1,
+    forceCompletionPattern = '\\.\\w*|:\\w*|->\\w*|<\\w*', -- JSXタグの< も認識
   },
   buffer = { mark = 'B' },
   cmdline = { mark = 'CMD' },
@@ -32,6 +34,18 @@ vim.fn['ddc#custom#patch_global']('sourceParams', {
     enableResolveItem = true,
     enableAdditionalTextEdit = true,
     snippetEngine = '',
+    capabilityOverride = {  -- LSP capabilities情報
+      textDocument = {
+        completion = {
+          completionItem = {
+            snippetSupport = true,
+            resolveSupport = {
+              properties = { 'documentation', 'detail', 'additionalTextEdits' }
+            }
+          }
+        }
+      }
+    }
   },
   buffer = {
     requireSameFiletype = false,
@@ -49,7 +63,8 @@ vim.fn['ddc#custom#patch_global']('filterParams', {
       'Keyword',
       'Variable',
       'Field',
-      { 'Function', 'Method' },
+      'Constant',
+      { 'Function', 'Method', 'Module' },
       'Enum',
     },
   }

@@ -67,27 +67,44 @@ local on_attach = function(client, bufnr)
   end
 end
 
-
-
 -- LSPサーバーの設定
-require("ddc_source_lsp_setup").setup()
+-- LSPのcapabilitiesを適切に設定
+local capabilities = require("ddc_source_lsp").make_client_capabilities()
 
 local lspconfig = require 'lspconfig'
 
 lspconfig.ts_ls.setup {
-  on_attach = on_attach,
+  capabilities = capabilities,
+  on_attach,
   root_dir = lspconfig.util.root_pattern("package.json"),
+  filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
 }
 
--- biome.jsonの絶対パス取得関数
-local function get_biome_config_path()
-  local root = lspconfig.util.root_pattern("biome.json")(vim.fn.expand("%:p"))
-  return root and (root .. "/biome.json") or ""
-end
-
 lspconfig.biome.setup {
-  on_attach = on_attach,
-  cmd = { "biome", "lsp-proxy", "--config-path", get_biome_config_path() },
+  capabilities = capabilities,
+  on_attach = function(client, bufnr)
+    on_attach(client, bufnr)
+    client.server_capabilities.documentFormattingProvider = true -- フォーマッティングはbiomeに任せて、補完などはts_lsに任せる
+    client.server_capabilities.completionProvider = false        -- 補完はts_lsに任せる
+    -- ファイル保存時にorganizeImportsを実行
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      buffer = bufnr,
+      callback = function()
+        local params = vim.lsp.util.make_range_params()
+        params.context = { only = { "source.organizeImports.biome" }, diagnostics = {} }
+        local result = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params, 3000)
+        for _, res in pairs(result or {}) do
+          for _, r in pairs(res.result or {}) do
+            if r.edit then
+              vim.lsp.util.apply_workspace_edit(r.edit, "utf-8")
+            else
+              vim.lsp.buf.execute_command(r.command)
+            end
+          end
+        end
+      end,
+    })
+  end,
 }
 
 -- local eslint = {
@@ -124,6 +141,7 @@ lspconfig.biome.setup {
 -- }
 
 lspconfig.denols.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
   filetypes = { "typescript", "javascript" },
   root_dir = lspconfig.util.root_pattern("deno.json", "deno.jsonc"),
@@ -131,19 +149,23 @@ lspconfig.denols.setup {
 
 -- bun i --global vscode-langservers-extracted
 lspconfig.cssls.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
 }
 
 lspconfig.stylelint_lsp.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
   filetypes = { "css", "scss", "less", "vue" },
 }
 
 lspconfig.rust_analyzer.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
 }
 
 lspconfig.gopls.setup {
+  capabilities = capabilities,
   on_attach = function(client, bufnr)
     on_attach(client, bufnr)
     -- ファイル保存時にorganizeImportsを実行
@@ -156,7 +178,7 @@ lspconfig.gopls.setup {
         for _, res in pairs(result or {}) do
           for _, r in pairs(res.result or {}) do
             if r.edit then
-              vim.lsp.util.apply_workspace_edit(r.edit, "UTF-8")
+              vim.lsp.util.apply_workspace_edit(r.edit, "utf-8")
             else
               vim.lsp.buf.execute_command(r.command)
             end
@@ -177,6 +199,7 @@ lspconfig.gopls.setup {
 }
 
 lspconfig.lua_ls.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
   on_init = function(client)
     local path = client.workspace_folders[1].name
@@ -200,23 +223,28 @@ lspconfig.lua_ls.setup {
 }
 
 lspconfig.pyright.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
 }
 
 lspconfig.graphql.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
   root_dir = lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*'),
 }
 
 lspconfig.rubocop.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
 }
 
 lspconfig.ruby_lsp.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
 }
 
 lspconfig.yamlls.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
   settings = {
     yaml = {
@@ -228,15 +256,22 @@ lspconfig.yamlls.setup {
 }
 
 lspconfig.vimls.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
 }
 
 lspconfig.tailwindcss.setup {
-  on_attach = on_attach,
-  filetypes = { "javascriptreact", "javascript.jsx", "typescriptreact", "typescript.tsx", "vue" },
+  capabilities = capabilities,
+  on_attach = function(client, bufnr)
+    -- TailwindCSSの補完機能を制限
+    client.server_capabilities.completionProvider = false
+    on_attach(client, bufnr)
+  end,
+  filetypes = { "javascriptreact", "typescriptreact", "vue" },
 }
 
 -- Protobuf
 lspconfig.protols.setup {
+  capabilities = capabilities,
   on_attach = on_attach,
 }
