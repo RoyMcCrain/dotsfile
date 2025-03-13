@@ -203,8 +203,7 @@ lspconfig.lua_ls.setup {
   on_attach = on_attach,
   on_init = function(client)
     local path = client.workspace_folders[1].name
-    -- vim.loopはv1で削除予定らしい
-    if vim.loop.fs_stat(path .. '/.luarc.json') or vim.loop.fs_stat(path .. '/.luarc.jsonc') then
+    if vim.fs.stat(path .. '/.luarc.json') or vim.fs.stat(path .. '/.luarc.jsonc') then
       return
     end
     client.config.settings.Lua = client.config.settings.Lua or {}
@@ -269,6 +268,35 @@ lspconfig.tailwindcss.setup {
   end,
   filetypes = { "javascriptreact", "typescriptreact", "vue" },
 }
+
+-- TailwindCSS LSPのトグル機能
+_G.toggle_tailwind = function(state)
+  local clients = vim.lsp.get_clients()
+  for _, client in ipairs(clients) do
+    if client.name == "tailwindcss" then
+      if state == false or (state == nil and client.server_capabilities.completionProvider) then
+        -- 補完機能を無効化
+        client.server_capabilities.completionProvider = nil
+      else
+        -- 補完機能を有効化
+        client.server_capabilities.completionProvider = {
+          triggerCharacters = { '"', "'", "`", " ", ".", "[", "!", "-" }
+        }
+        vim.notify("TailwindCSS補完: ON")
+      end
+    end
+  end
+end
+
+vim.api.nvim_set_keymap('i', '<C-t>', '<C-o>:lua _G.toggle_tailwind(true)<CR>', { noremap = true })
+
+-- インサートモードを抜けたらOFFに戻す
+vim.api.nvim_create_autocmd("InsertLeave", {
+  callback = function()
+    _G.toggle_tailwind(false)
+  end,
+})
+
 
 -- Protobuf
 lspconfig.protols.setup {

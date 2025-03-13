@@ -56,6 +56,8 @@ H        |直下のワードの型情報を表示
 [LSP]k   |前の診断情報に移動
 [LSP]s   |後の診断情報に移動
 
+C-t(Insert) |tailwindcssの補完
+
 ## Fern
 <L>l     |Fernを全画面
 <L>m     |FernをVerticalで開く
@@ -109,10 +111,4 @@ ys iw [d]  |you surround
 
 ## コマンド
 :Doc     |ドキュメントを新しいタブで開く
-:Pretter |prettierを実行
-:Chat    |チャットを開く
-:Explain |説明
-:Review  |レビュー
-:Fix     |修正
-:Optimize|最適化
-:Tests   |テスト
+:LspDebugClients |LSPのデバッグ情報を表示
