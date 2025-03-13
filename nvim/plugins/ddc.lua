@@ -34,18 +34,6 @@ vim.fn['ddc#custom#patch_global']('sourceParams', {
     enableResolveItem = true,
     enableAdditionalTextEdit = true,
     snippetEngine = '',
-    capabilityOverride = {  -- LSP capabilities情報
-      textDocument = {
-        completion = {
-          completionItem = {
-            snippetSupport = true,
-            resolveSupport = {
-              properties = { 'documentation', 'detail', 'additionalTextEdits' }
-            }
-          }
-        }
-      }
-    }
   },
   buffer = {
     requireSameFiletype = false,
