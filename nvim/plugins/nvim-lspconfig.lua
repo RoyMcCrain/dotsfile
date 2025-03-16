@@ -198,27 +198,10 @@ lspconfig.gopls.setup {
   }
 }
 
+-- lazydev.nvimを利用前提
 lspconfig.lua_ls.setup {
   capabilities = capabilities,
   on_attach = on_attach,
-  on_init = function(client)
-    local path = client.workspace_folders[1].name
-    if vim.fs.stat(path .. '/.luarc.json') or vim.fs.stat(path .. '/.luarc.jsonc') then
-      return
-    end
-    client.config.settings.Lua = client.config.settings.Lua or {}
-    client.config.settings.Lua = vim.tbl_deep_extend('force', client.config.settings.Lua, {
-      runtime = {
-        version = 'LuaJIT'
-      },
-      workspace = {
-        checkThirdParty = false,
-        library = {
-          vim.env.VIMRUNTIME
-        }
-      }
-    })
-  end,
 }
 
 lspconfig.pyright.setup {

@@ -99,3 +99,7 @@ hook_post_update = 'TSUpdate'
 lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-treesitter.lua]])'
 merged = 0
 on_event = 'BufRead'
+
+[[plugins]]
+repo = 'nvim-treesitter/nvim-treesitter-context'
+on_source = 'nvim-treesitter'

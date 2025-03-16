@@ -17,7 +17,7 @@ lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/lightline.lua]])'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'neovim/nvim-lspconfig'
-depends = ['ddc-source-lsp', 'ddc-source-lsp-setup']
+depends = ['ddc-source-lsp', 'ddc-source-lsp-setup', 'lazydev.nvim']
 lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-lspconfig.lua]])'
 
 [[plugins]]
@@ -25,6 +25,10 @@ repo = 'Shougo/ddc-source-lsp'
 
 [[plugins]]
 repo = 'uga-rosa/ddc-source-lsp-setup'
+
+[[plugins]]
+repo = 'folke/lazydev.nvim'
+lua_add = 'require("lazydev").setup()'
 
 #----------------------------------------------------------------------------------#
 # Github copilot
