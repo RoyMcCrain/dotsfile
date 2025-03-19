@@ -57,7 +57,8 @@ repo = 'tpope/vim-fugitive'
 lua_add = 'require("plugins.vim-fugitive").setup()'
 
 [[plugins]]
-repo = 'airblade/vim-gitgutter'
+repo = 'lewis6991/gitsigns.nvim'
+lua_add = 'require("gitsigns").setup({})'
 
 #----------------------------------------------------------------------------------#
 # 移動補完
