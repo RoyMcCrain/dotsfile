@@ -112,3 +112,12 @@ on_source = 'nvim-treesitter'
 repo = 'windwp/nvim-autopairs'
 on_event = 'InsertEnter'
 lua_source = 'require("nvim-autopairs").setup({})'
+
+#----------------------------------------------------------------------------------#
+# タグ補完
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'windwp/nvim-ts-autotag'
+on_event = 'InsertEnter'
+lua_source = 'require("nvim-ts-autotag").setup({})'
+

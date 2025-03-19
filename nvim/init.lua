@@ -172,7 +172,6 @@ if vim.fn.has('syntax') then
   vim.cmd('syntax on')
 end
 
-
 -- Golang
 vim.cmd([[
 	autocmd FileType go setlocal tabstop=4
