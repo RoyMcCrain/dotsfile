@@ -318,5 +318,3 @@ vim.api.nvim_create_user_command('SortTw', function()
   end
   print("現在のファイルタイプはTailwindCSSのソートはサポートされていません。")
 end, {})
-
-require('lsp-debug-utils')

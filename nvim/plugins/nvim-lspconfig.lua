@@ -5,6 +5,8 @@ local lu = require('lsp-utils')
 local lspconfig = require('lspconfig')
 -- LSPのcapabilitiesを適切に設定
 local capabilities = require("ddc_source_lsp").make_client_capabilities()
+-- debugツール
+require('lsp-debug-utils')
 
 local on_attach = function(client, bufnr)
   -- バッファローカルキーマッピングを設定
@@ -201,7 +203,7 @@ lspconfig.pyright.setup {
 
 lspconfig.graphql.setup {
   capabilities = capabilities,
-  on_attach =   on_attach,
+  on_attach = on_attach,
   root_dir = function(fname)
     return lu.find_nearest_file(fname, { '.graphqlrc*', '.graphql.config.*', 'graphql.config.*' })
   end
