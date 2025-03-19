@@ -100,6 +100,7 @@ M.setup = function()
   vim.api.nvim_create_user_command('DppRefresh', function()
     dpp.clear_state()
     dpp.make_state(dpp_base, config_dir)
+    vim.cmd("!deno cache " .. config_dir)
     vim.notify('refresh')
   end, {})
 
