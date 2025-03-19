@@ -1,5 +1,5 @@
 #----------------------------------------------------------------------------------#
-# 高速検索ツール
+# ddu 検索ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'Shougo/ddu.vim'
@@ -43,7 +43,7 @@ repo = 'Shougo/ddu-source-register'
 on_source = 'ddu.vim'
 
 #----------------------------------------------------------------------------------#
-# 非同期検証ツール
+# ddc 補完ツール
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'Shougo/ddc.vim'
@@ -90,9 +90,9 @@ on_source = 'ddc.vim'
 repo = 'Shougo/ddc-source-around'
 on_source = 'ddc.vim'
 
-#----------------------------------------------------------------#
-# Syntax Highlight
-#----------------------------------------------------------------#
+#----------------------------------------------------------------------------------#
+# syntax highlight
+#----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'nvim-treesitter/nvim-treesitter'
 hook_post_update = 'TSUpdate'
@@ -105,22 +105,9 @@ repo = 'nvim-treesitter/nvim-treesitter-context'
 on_source = 'nvim-treesitter'
 
 #----------------------------------------------------------------------------------#
-# Github copilot
+# カッコ補完
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'zbirenbaum/copilot.lua'
+repo = 'windwp/nvim-autopairs'
 on_event = 'InsertEnter'
-on_cmd = 'Copilot'
-lua_source = '''
-  require("copilot").setup({})
-'''
-
-# [[plugins]]
-# repo = 'github/copilot.vim'
-# on_event = 'InsertEnter'
-# on_cmd = 'Copilot'
-# lua_source = '''
-#   vim.g.copilot_no_maps = false
-# '''
-
-
+lua_source = 'require("nvim-autopairs").setup({})'

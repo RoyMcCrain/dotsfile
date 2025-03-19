@@ -24,9 +24,6 @@ lua_add = 'require("plugins.nvim-lspconfig").setup()'
 repo = 'Shougo/ddc-source-lsp'
 
 [[plugins]]
-repo = 'uga-rosa/ddc-source-lsp-setup'
-
-[[plugins]]
 repo = 'folke/lazydev.nvim'
 lua_add = 'require("lazydev").setup()'
 
@@ -88,9 +85,9 @@ repo = 'tpope/vim-surround'
 # cs [e] [d] change surround
 # ys iw [d] you surround
 
-#----------------------------------------------------------------------------------#
-# カッコ補完
-#----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'cohama/lexima.vim'
+repo = 'github/copilot.vim'
+lua_add = '''
+  vim.g.copilot_no_maps = false
+'''
 
