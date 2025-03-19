@@ -50,8 +50,8 @@ export class Config extends BaseConfig {
       const action = tomlExt.actions.load;
 
       const tomlPromises = [
-        { path: "/home/roy/.config/nvim/toml/plugin.toml", lazy: false },
-        { path: "/home/roy/.config/nvim/toml/plugin_lazy.toml", lazy: true },
+        { path: "~/.config/nvim/toml/plugin.toml", lazy: false },
+        { path: "~/.config/nvim/toml/plugin_lazy.toml", lazy: true },
       ].map((tomlFile) =>
         action.callback({
           denops: args.denops,
