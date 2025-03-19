@@ -15,11 +15,34 @@ M.setup = function()
     local dpp_dir = dpp_base .. '/repos/github.com/Shougo/'
     if vim.fn.isdirectory(vim.fn.fnamemodify('dpp.vim', ':p')) == 0 then
       if vim.fn.isdirectory(dpp_dir) == 0 then
-        vim.cmd('!git clone https://github.com/Shougo/dpp.vim' .. ' ' .. dpp_dir .. 'dpp.vim')
-        vim.cmd('!git clone https://github.com/Shougo/dpp-ext-installer' .. ' ' .. dpp_dir .. 'dpp-ext-installer')
-        vim.cmd('!git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_dir .. 'dpp-ext-lazy')
-        vim.cmd('!git clone https://github.com/Shougo/dpp-ext-toml' .. ' ' .. dpp_dir .. 'dpp-ext-toml')
-        vim.cmd('!git clone https://github.com/Shougo/dpp-protocol-git' .. ' ' .. dpp_dir .. 'dpp-protocol-git')
+        local result = ""
+        print("dpp.vimをインストールしています...")
+        result = vim.fn.system('git clone https://github.com/Shougo/dpp.vim' .. ' ' .. dpp_dir .. 'dpp.vim')
+        if vim.v.shell_error ~= 0 then
+          error("dpp.vimのクローンに失敗しました" .. result)
+        end
+        print("dpp-ext-installerをインストールしています...")
+        result = vim.fn.system('git clone https://github.com/Shougo/dpp-ext-installer' ..
+          ' ' .. dpp_dir .. 'dpp-ext-installer')
+        if vim.v.shell_error ~= 0 then
+          error("dpp-ext-installerをインストールしています" .. result)
+        end
+        print("dpp-ext-lazyをインストールしています...")
+        result = vim.fn.system('git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_dir .. 'dpp-ext-lazy')
+        if vim.v.shell_error ~= 0 then
+          error("dpp-ext-lazyをインストールしています" .. result)
+        end
+        print("dpp-ext-tomlをインストールしています...")
+        result = vim.fn.system('git clone https://github.com/Shougo/dpp-ext-toml' .. ' ' .. dpp_dir .. 'dpp-ext-toml')
+        if vim.v.shell_error ~= 0 then
+          error("dpp-ext-tomlをインストールしています" .. result)
+        end
+        print("dpp-protocol-gitをインストールしています...")
+        result = vim.fn.system('git clone https://github.com/Shougo/dpp-protocol-git' ..
+          ' ' .. dpp_dir .. 'dpp-protocol-git')
+        if vim.v.shell_error ~= 0 then
+          error("dpp-protocol-gitをインストールしています" .. result)
+        end
       end
     end
     vim.opt.runtimepath:prepend(dpp_dir .. 'dpp.vim')
@@ -29,22 +52,41 @@ M.setup = function()
     vim.opt.runtimepath:append(dpp_dir .. 'dpp-protocol-git')
   end
 
-  -- Load dpp state
-  if vim.fn["dpp#min#load_state"](dpp_base) then
-    if not string.find(vim.o.runtimepath, '/denops.vim') then
-      local denops_src = dpp_base .. '/repos/github.com/vim-denops/denops.vim'
-      if vim.fn.isdirectory(vim.fn.fnamemodify('denops.vim', ':p')) == 0 then
-        if vim.fn.isdirectory(denops_src) == 0 then
-          vim.cmd('!git clone https://github.com/vim-denops/denops.vim ' .. denops_src)
-        end
+  if not string.find(vim.o.runtimepath, '/denops%.vim') then
+    local denops_src = vim.fn.expand(dpp_base .. '/repos/github.com/vim-denops/denops.vim')
+
+    -- ディレクトリが存在しない場合はクローン
+    if vim.fn.isdirectory(denops_src) == 0 then
+      print("denops.vimをインストールしています...")
+      local result = vim.fn.system('git clone https://github.com/vim-denops/denops.vim ' .. denops_src)
+      if vim.v.shell_error ~= 0 then
+        error("denops.vimのクローンに失敗しました: " .. result)
       end
-      vim.opt.runtimepath:prepend(denops_src)
     end
 
-    vim.api.nvim_command('autocmd User DenopsReady call dpp#make_state("' .. dpp_base .. '", "' .. config_dir .. '")')
+    -- runtimepathに追加
+    vim.opt.runtimepath:prepend(denops_src)
   end
 
   local dpp = require('dpp')
+
+  if dpp.load_state(dpp_base) then
+    vim.api.nvim_create_autocmd("User", {
+      pattern = "DenopsReady",
+      callback = function()
+        vim.notify("dpp load_state() is failed")
+        dpp.make_state(dpp_base, config_dir)
+      end,
+    })
+  end
+
+  vim.api.nvim_create_autocmd("User", {
+    pattern = "Dpp:makeStatePost",
+    callback = function()
+      vim.notify("dpp make_state() is done")
+    end,
+  })
+
 
   vim.api.nvim_create_user_command('DppInstall', function()
     dpp.async_ext_action('installer', 'install')
