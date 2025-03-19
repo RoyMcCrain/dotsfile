@@ -9,8 +9,12 @@ lua_add = 'vim.cmd([[colorscheme kanagawa]])'
 # statusline拡張
 #----------------------------------------------------------------------------------#
 [[plugins]]
-repo = 'itchyny/lightline.vim'
-lua_add = 'require("plugins.lightline").setup()'
+repo = 'nvim-tree/nvim-web-devicons'
+
+[[plugins]]
+repo = 'nvim-lualine/lualine.nvim'
+depends = ['nvim-web-devicons']
+lua_add = 'require("plugins.lualine").setup()'
 
 #----------------------------------------------------------------------------------#
 # LSP
@@ -26,6 +30,10 @@ repo = 'Shougo/ddc-source-lsp'
 [[plugins]]
 repo = 'folke/lazydev.nvim'
 lua_add = 'require("lazydev").setup()'
+
+[[plugins]]
+repo = 'j-hui/fidget.nvim'
+lua_add = 'require("fidget").setup({})'
 
 #----------------------------------------------------------------------------------#
 # インデント補助
