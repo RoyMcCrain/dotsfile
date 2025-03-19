@@ -105,6 +105,28 @@ repo = 'nvim-treesitter/nvim-treesitter-context'
 on_source = 'nvim-treesitter'
 
 #----------------------------------------------------------------------------------#
+# コメントアウト
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'numToStr/Comment.nvim'
+on_event = 'BufRead'
+lua_source = '''
+require('Comment').setup({
+    pre_hook = require('ts_context_commentstring.integrations.comment_nvim').create_pre_hook(),
+  })
+'''
+on_source = 'nvim-ts-context-commentstring'
+
+[[plugins]]
+repo = 'JoosepAlviste/nvim-ts-context-commentstring'
+on_source = 'nvim-treesitter'
+lua_source = '''
+  require("nvim-ts-context-commentstring").setup({
+      enable_autocmd = false,
+  })
+'''
+
+#----------------------------------------------------------------------------------#
 # カッコ補完
 #----------------------------------------------------------------------------------#
 [[plugins]]

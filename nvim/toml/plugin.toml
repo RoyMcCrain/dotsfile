@@ -78,14 +78,6 @@ repo = 'tpope/vim-abolish'
 # cru "upper_case" → "UPPER_CASE"
 
 [[plugins]]
-repo = 'tpope/vim-surround'
-# [e] 囲いの文字
-# [d] 目的の文字
-# ds [e] delete surround
-# cs [e] [d] change surround
-# ys iw [d] you surround
-
-[[plugins]]
 repo = 'github/copilot.vim'
 lua_add = '''
   vim.g.copilot_no_maps = false
