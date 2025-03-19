@@ -11,6 +11,8 @@ M.setup = function()
   -- debugツール
   require('lsp-debug-utils')
 
+  local navic = require('nvim-navic')
+
   local on_attach = function(client, bufnr)
     -- バッファローカルキーマッピングを設定
     local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
@@ -47,6 +49,9 @@ M.setup = function()
     --    group = augroup,
     --    callback = lsp_utils.run_prettier,
     --  })
+    if client.server_capabilities.documentSymbolProvider then
+      navic.attach(client, bufnr)
+    end
   end
 
   -- LSPサーバーの設定

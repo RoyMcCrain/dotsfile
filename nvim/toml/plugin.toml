@@ -21,7 +21,7 @@ lua_add = 'require("plugins.lualine").setup()'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'neovim/nvim-lspconfig'
-depends = ['ddc-source-lsp', 'lazydev.nvim']
+depends = ['ddc-source-lsp', 'lazydev.nvim', 'nvim-navic']
 lua_add = 'require("plugins.nvim-lspconfig").setup()'
 
 [[plugins]]
@@ -32,8 +32,7 @@ repo = 'folke/lazydev.nvim'
 lua_add = 'require("lazydev").setup()'
 
 [[plugins]]
-repo = 'j-hui/fidget.nvim'
-lua_add = 'require("fidget").setup({})'
+repo = 'SmiteshP/nvim-navic'
 
 #----------------------------------------------------------------------------------#
 # インデント補助

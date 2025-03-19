@@ -35,24 +35,37 @@ M.setup = function()
       },
       lualine_c = {
         { 'diff', colored = true },
-        'diagnostics'
+        'diagnostics',
       },
       lualine_x = {
         char_count,
-      },
-      lualine_y = {
         'location',
         line_count,
         'fileformat',
         'filetype',
       },
+      lualine_y = {
+        'lsp_status'
+      },
       lualine_z = {},
     },
     tabline = {
       lualine_a = {},
-      lualine_b = { { 'filename', path = 1 } },
+      lualine_b = {
+        { 'filename', path = 1 }
+      },
       lualine_c = {},
-      lualine_y = { 'lsp_status' },
+      lualine_y = {},
+      lualine_z = {},
+    },
+    winbar = {
+      lualine_a = {},
+      lualine_b = {},
+      lualine_c = {
+        { 'navic', color_correction = 'dynamic' }
+      },
+      lualine_x = {},
+      lualine_y = {},
       lualine_z = {},
     },
   }
