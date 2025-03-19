@@ -64,8 +64,8 @@ repo = 'airblade/vim-gitgutter'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 # vimの移動コマンド拡張
-repo = 'easymotion/vim-easymotion'
-lua_add = 'require("plugins.vim-easymotion").setup()'
+repo = 'smoka7/hop.nvim'
+lua_add = 'require("plugins.hop-nvim").setup()'
 
 #----------------------------------------------------------------------------------#
 # 置き換え強化

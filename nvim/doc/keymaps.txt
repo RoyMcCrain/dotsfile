@@ -32,13 +32,15 @@ C-i     |次の位置に進む
 [git]m |merge
 [git]b |blame
 
-## vim-easymotion
-<L>space     | [EasyM]
-[EasyM]space |2文字の移動
-[EasyM]k     |左に移動
-[EasyM]t     |上に移動
-[EasyM]n     |下に移動
-[EasyM]s     |右に移動
+## hop.nvim
+s      |2文字の移動
+t      |[hop]
+[hop]k     |左に移動
+[hop]t     |上に移動
+[hop]n     |下に移動
+[hop]s     |右に移動
+[hop]l     |単語ジャンプ
+Visualモードでも使える
 
 ## nvim-lsp
 H        |直下のワードの型情報を表示
@@ -74,7 +76,7 @@ m        |移動
 R        |リネーム
 
 ## ddu
-t        |[ddu]
+k        |[ddu]
 [ddu]g   |Grep
 [ddu]k   |ファイル検索
 [ddu]b   |バッファ検索

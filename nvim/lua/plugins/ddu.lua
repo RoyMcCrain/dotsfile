@@ -66,7 +66,7 @@ M.setup = function()
 
 
   vim.api.nvim_set_keymap('n', '[ddu]', '<Nop>', { noremap = true })
-  vim.api.nvim_set_keymap('n', 't', '[ddu]', {})
+  vim.api.nvim_set_keymap('n', 'k', '[ddu]', {})
 
   -- GrepActionLua関数の定義
   _G.grep_action = function()
