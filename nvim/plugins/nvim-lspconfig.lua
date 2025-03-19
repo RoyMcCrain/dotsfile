@@ -1,6 +1,11 @@
 vim.api.nvim_set_keymap('n', '[LSP]', '<Nop>', { noremap = true })
 vim.api.nvim_set_keymap('n', 'l', '[LSP]', {})
 
+local lu = require('lsp-utils')
+local lspconfig = require('lspconfig')
+-- LSPのcapabilitiesを適切に設定
+local capabilities = require("ddc_source_lsp").make_client_capabilities()
+
 local on_attach = function(client, bufnr)
   -- バッファローカルキーマッピングを設定
   local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
@@ -19,21 +24,7 @@ local on_attach = function(client, bufnr)
   buf_set_keymap('n', '[LSP]s', '<Cmd>lua vim.diagnostic.goto_next()<CR>', opts)
   buf_set_keymap('n', '[LSP]l', '<Cmd>lua vim.diagnostic.setloclist()<CR>', opts)
   buf_set_keymap('n', 'H', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
-  -- ファイル保存時にフォーマット
-  local function format_on_save()
-    local filename = vim.fn.expand('%:t')
-    if not string.find(filename, 'no_fmt') then
-      vim.lsp.buf.format()
-    end
-  end
 
-  --  -- ファイル保存時にPrettierを実行
-  --  local function run_prettier()
-  --    local filename = vim.fn.expand('%:t')
-  --    if not string.find(filename, 'no_fmt') then
-  --      vim.cmd("silent! Prettier")
-  --    end
-  --  end
 
   -- オートコマンドグループを作成
   local augroup = vim.api.nvim_create_augroup("FormatOnSave", { clear = true })
@@ -42,46 +33,38 @@ local on_attach = function(client, bufnr)
   vim.api.nvim_create_autocmd("BufWritePre", {
     buffer = 0,
     group = augroup,
-    callback = format_on_save,
+    callback = lu.format_on_save,
   })
 
   --  -- BufWritePost イベントでPrettierを実行
   --  vim.api.nvim_create_autocmd("BufWritePost", {
   --    pattern = { "*.js", "*.ts", "*.jsx", "*.tsx" },
   --    group = augroup,
-  --    callback = run_prettier,
+  --    callback = lsp_utils.run_prettier,
   --  })
-
-  -- tsserverとdenolsの判定
-  local lspconfig = require 'lspconfig'
-
-  local function is_deno_project(fname)
-    return lspconfig.util.root_pattern("deno.json", "deno.jsonc")(fname) ~= nil
-  end
-
-  -- Client.nameの判定
-  if client.name == "ts_ls" and is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
-    client.stop() -- Denoプロジェクトの場合はtsserverを停止
-  elseif client.name == "denols" and not is_deno_project(vim.api.nvim_buf_get_name(bufnr)) then
-    client.stop() -- Denoプロジェクトでない場合はdenolsを停止
-  end
 end
 
 -- LSPサーバーの設定
--- LSPのcapabilitiesを適切に設定
-local capabilities = require("ddc_source_lsp").make_client_capabilities()
-
-local lspconfig = require 'lspconfig'
 
 lspconfig.ts_ls.setup {
   capabilities = capabilities,
-  on_attach,
-  root_dir = lspconfig.util.root_pattern("package.json"),
+  on_attach = function(client, bufnr)
+    on_attach(client, bufnr)
+    if lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
+      client.stop()
+    end
+  end,
+  root_dir = function(fname)
+    return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
+  end,
   filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
 }
 
 lspconfig.biome.setup {
   capabilities = capabilities,
+  root_dir = function(fname)
+    return lu.find_nearest_file(fname, 'biome.json')
+  end,
   on_attach = function(client, bufnr)
     on_attach(client, bufnr)
     client.server_capabilities.documentFormattingProvider = true -- フォーマッティングはbiomeに任せて、補完などはts_lsに任せる
@@ -142,9 +125,16 @@ lspconfig.biome.setup {
 
 lspconfig.denols.setup {
   capabilities = capabilities,
-  on_attach = on_attach,
+  on_attach = function(client, bufnr)
+    on_attach(client, bufnr)
+    if not lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
+      client.stop()
+    end
+  end,
   filetypes = { "typescript", "javascript" },
-  root_dir = lspconfig.util.root_pattern("deno.json", "deno.jsonc"),
+  root_dir = function(fname)
+    return lu.find_nearest_file(fname, { "deno.json", "deno.jsonc" })
+  end,
 }
 
 -- bun i --global vscode-langservers-extracted
@@ -211,8 +201,10 @@ lspconfig.pyright.setup {
 
 lspconfig.graphql.setup {
   capabilities = capabilities,
-  on_attach = on_attach,
-  root_dir = lspconfig.util.root_pattern('.graphqlrc*', '.graphql.config.*', 'graphql.config.*'),
+  on_attach =   on_attach,
+  root_dir = function(fname)
+    return lu.find_nearest_file(fname, { '.graphqlrc*', '.graphql.config.*', 'graphql.config.*' })
+  end
 }
 
 lspconfig.rubocop.setup {
@@ -279,7 +271,6 @@ vim.api.nvim_create_autocmd("InsertLeave", {
     _G.toggle_tailwind(false)
   end,
 })
-
 
 -- Protobuf
 lspconfig.protols.setup {

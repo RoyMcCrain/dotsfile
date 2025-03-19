@@ -71,3 +71,5 @@ abbr -f --quieter "git dt"="git difftool"
 abbr -f --quieter "git pl"="git pull"
 abbr -f --quieter "git pp"="git pull --prune"
 abbr -f --quieter "git ps"="git push"
+
+abbr -f --quieter "sz"="source ~/.zshrc"
