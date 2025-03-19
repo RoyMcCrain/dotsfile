@@ -1,7 +1,11 @@
 local M = {}
 
 M.setup = function()
-  require 'nvim-treesitter.configs'.setup {
+  require 'nvim-treesitter.configs'.setup({
+    modules = {},
+    sync_install = false,
+    ignore_install = {},
+    auto_install = true,
     ensure_installed = {
       "bash",
       "c",
@@ -54,8 +58,11 @@ M.setup = function()
     },
     highlight = {
       enable = true,
-    }
-  }
+    },
+    indent = {
+      enable = true,
+    },
+  })
 end
 
 return M
