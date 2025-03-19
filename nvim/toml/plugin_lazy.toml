@@ -103,3 +103,24 @@ on_event = 'BufRead'
 [[plugins]]
 repo = 'nvim-treesitter/nvim-treesitter-context'
 on_source = 'nvim-treesitter'
+
+#----------------------------------------------------------------------------------#
+# Github copilot
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'zbirenbaum/copilot.lua'
+on_event = 'InsertEnter'
+on_cmd = 'Copilot'
+lua_source = '''
+  require("copilot").setup({})
+'''
+
+# [[plugins]]
+# repo = 'github/copilot.vim'
+# on_event = 'InsertEnter'
+# on_cmd = 'Copilot'
+# lua_source = '''
+#   vim.g.copilot_no_maps = false
+# '''
+
+
