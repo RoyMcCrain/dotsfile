@@ -10,15 +10,15 @@ lua_add = 'vim.cmd([[colorscheme kanagawa]])'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'itchyny/lightline.vim'
-lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/lightline.lua]])'
+lua_add = 'require("plugins.lightline").setup()'
 
 #----------------------------------------------------------------------------------#
 # LSP
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'neovim/nvim-lspconfig'
-depends = ['ddc-source-lsp', 'ddc-source-lsp-setup', 'lazydev.nvim']
-lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-lspconfig.lua]])'
+depends = ['ddc-source-lsp', 'lazydev.nvim']
+lua_add = 'require("plugins.nvim-lspconfig").setup()'
 
 [[plugins]]
 repo = 'Shougo/ddc-source-lsp'
@@ -42,7 +42,7 @@ lua_add = 'require("ibl").setup()'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'lambdalisue/fern.vim'
-lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/fern.lua]])'
+lua_add = 'require("plugins.fern").setup()'
 
 [[plugins]]
 repo = 'lambdalisue/fern-git-status.vim'
@@ -57,7 +57,7 @@ depends = ['fern.vim', 'fern-git-status.vim']
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'tpope/vim-fugitive'
-lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/vim-fugitive.lua]])'
+lua_add = 'require("plugins.vim-fugitive").setup()'
 
 [[plugins]]
 repo = 'airblade/vim-gitgutter'
@@ -68,7 +68,7 @@ repo = 'airblade/vim-gitgutter'
 [[plugins]]
 # vimの移動コマンド拡張
 repo = 'easymotion/vim-easymotion'
-lua_add = 'vim.cmd([[source ~/.config/nvim/plugins/vim-easymotion.lua]])'
+lua_add = 'require("plugins.vim-easymotion").setup()'
 
 #----------------------------------------------------------------------------------#
 # 置き換え強化

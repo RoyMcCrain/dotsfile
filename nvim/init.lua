@@ -162,47 +162,7 @@ endfunction
 vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true })
 
 -- dpp.vim
-
-local CACHE = vim.fn.expand('$HOME/.cache')
-if type(CACHE) == 'string' and vim.fn.isdirectory(CACHE) == 0 then
-  vim.fn.mkdir(CACHE, 'p')
-end
--- Set dpp base path (required)
-local dpp_base = CACHE .. '/dpp'
-
-if not string.find(vim.o.runtimepath, '/dpp.vim') then
-  local dpp_dir = dpp_base .. '/repos/github.com/Shougo/'
-  if vim.fn.isdirectory(vim.fn.fnamemodify('dpp.vim', ':p')) == 0 then
-    if vim.fn.isdirectory(dpp_dir) == 0 then
-      vim.cmd('!git clone https://github.com/Shougo/dpp.vim' .. ' ' .. dpp_dir .. 'dpp.vim')
-      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-installer' .. ' ' .. dpp_dir .. 'dpp-ext-installer')
-      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_dir .. 'dpp-ext-lazy')
-      vim.cmd('!git clone https://github.com/Shougo/dpp-ext-toml' .. ' ' .. dpp_dir .. 'dpp-ext-toml')
-      vim.cmd('!git clone https://github.com/Shougo/dpp-protocol-git' .. ' ' .. dpp_dir .. 'dpp-protocol-git')
-    end
-  end
-  vim.opt.runtimepath:prepend(dpp_dir .. 'dpp.vim')
-  vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-installer')
-  vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-lazy')
-  vim.opt.runtimepath:append(dpp_dir .. 'dpp-ext-toml')
-  vim.opt.runtimepath:append(dpp_dir .. 'dpp-protocol-git')
-end
-
--- Load dpp state
-if vim.fn["dpp#min#load_state"](dpp_base) then
-  if not string.find(vim.o.runtimepath, '/denops.vim') then
-    local denops_src = dpp_base .. '/repos/github.com/vim-denops/denops.vim'
-    if vim.fn.isdirectory(vim.fn.fnamemodify('denops.vim', ':p')) == 0 then
-      if vim.fn.isdirectory(denops_src) == 0 then
-        vim.cmd('!git clone https://github.com/vim-denops/denops.vim ' .. denops_src)
-      end
-    end
-    vim.opt.runtimepath:prepend(denops_src)
-  end
-
-  local config_dir = vim.fn.stdpath('config') .. '/plugins/dpp.ts'
-  vim.api.nvim_command('autocmd User DenopsReady call dpp#make_state("' .. dpp_base .. '", "' .. config_dir .. '")')
-end
+require('dpp-vim').setup()
 
 -- Enable filetype indent and plugin
 vim.cmd('filetype indent plugin on')
@@ -211,18 +171,6 @@ vim.cmd('filetype indent plugin on')
 if vim.fn.has('syntax') then
   vim.cmd('syntax on')
 end
-
-vim.api.nvim_create_user_command('DppInstall', function()
-  local config_dir = vim.fn.stdpath('config') .. '/plugins/dpp.ts'
-  vim.cmd('!deno cache ' .. config_dir)
-  vim.fn['dpp#async_ext_action']('installer', 'install')
-end, {})
-
-vim.api.nvim_create_user_command('DppUpdate', function()
-  local config_dir = vim.fn.stdpath('config') .. '/plugins/dpp.ts'
-  vim.cmd('!deno cache ' .. config_dir)
-  vim.fn['dpp#async_ext_action']('installer', 'update')
-end, {})
 
 
 -- Golang

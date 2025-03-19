@@ -3,7 +3,7 @@
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'Shougo/ddu.vim'
-lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/ddu.lua]])'
+lua_source = 'require("plugins.ddu").setup()'
 on_event = 'BufRead'
 
 [[plugins]]
@@ -47,7 +47,7 @@ on_source = 'ddu.vim'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'Shougo/ddc.vim'
-lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/ddc.lua]])'
+lua_source = 'require("plugins.ddc").setup()'
 on_event = ['InsertEnter', 'CmdlineEnter' ]
 
 [[plugins]]
@@ -96,7 +96,7 @@ on_source = 'ddc.vim'
 [[plugins]]
 repo = 'nvim-treesitter/nvim-treesitter'
 hook_post_update = 'TSUpdate'
-lua_source = 'vim.cmd([[source ~/.config/nvim/plugins/nvim-treesitter.lua]])'
+lua_source = 'require("plugins.nvim-treesitter").setup()'
 merged = 0
 on_event = 'BufRead'
 
