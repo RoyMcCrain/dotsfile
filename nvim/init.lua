@@ -2,7 +2,7 @@ vim.opt.signcolumn = "yes"             -- 左端のリンターとか出すと�
 vim.opt.backspace = "indent,eol,start" -- Backspaceの有効化
 vim.opt.whichwrap = "b,s,h,l,<,>,[,]"  -- カーソルが行頭／末にあるときに前／次行に移動できる
 vim.opt.lazyredraw = true              -- マクロやコマンドを実行する間、画面を再描画しない(スクロールが重くなる対策)
-vim.opt.scrolloff = 10                 -- 編集中の箇所の周辺のテキストを見ることができる(スクロールする時に下が見える)
+vim.opt.scrolloff = 20                 -- 編集中の箇所の周辺のテキストを見ることができる(スクロールする時に下が見える)
 vim.opt.autoread = true                -- 外部でファイルが変更された場合、読み直す
 vim.opt.hidden = true                  -- bufferを切り替える時に保存してくても警告を出さない
 vim.opt.showcmd = true                 -- 入力中のコマンド表示
@@ -13,9 +13,12 @@ if vim.fn.has("persistent_undo") == 1 then
   vim.o.undofile = true
 end
 
-vim.cmd([[
-  command! Doc execute 'tabnew +setlocal\ readonly\ nomodifiable' stdpath('config') . '/doc/keymaps.txt'
-]])
+vim.api.nvim_create_user_command('Doc', function()
+  local doc_path = vim.fn.stdpath('config') .. '/doc/keymaps.txt'
+  vim.cmd('tabnew ' .. doc_path)
+  vim.bo.readonly = true
+  vim.bo.modifiable = false
+end, {})
 
 vim.opt.swapfile = false     -- swpファイルをつくらない
 vim.opt.termguicolors = true -- trueカラーを使う
@@ -98,85 +101,75 @@ vim.opt.fileformats = "unix,dos,mac" -- エンコーディングの設定
 vim.opt.maxfuncdepth = 200 -- 最大関数呼び出し深度
 vim.opt.compatible = false -- viとの互換を切る
 -- terminalモードから抜ける
-vim.api.nvim_set_keymap('t', '<Esc>', '<C-\\><C-n>', { noremap = true })
-vim.cmd('autocmd TermOpen * startinsert')
-vim.cmd('command! -nargs=* T split | wincmd j | resize 30 | terminal <args>')
+vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { noremap = true })
+-- Terminalはinsertモードで開く
+vim.api.nvim_create_autocmd("TermOpen", {
+  pattern = "*",
+  command = "startinsert"
+})
+
 -- 行末までのヤンク
-vim.api.nvim_set_keymap('n', 'Y', 'y$', { noremap = true })
+vim.keymap.set('n', 'Y', 'y$', { noremap = true })
 -- NNで検索のハイライトを消す
-vim.api.nvim_set_keymap('n', 'NN', ':noh<CR>', { noremap = true })
+vim.keymap.set('n', 'NN', ':noh<CR>', { noremap = true })
 -- 英語配列
 vim.keymap.set('n', ';', ':', { noremap = true })
 vim.keymap.set('n', ':', ';', { noremap = true })
 vim.keymap.set('v', ';', ':', { noremap = true })
 vim.keymap.set('v', ':', ';', { noremap = true })
 -- 空の行を挿入
-vim.api.nvim_set_keymap('n', 'O', [[<cmd>call append(line('.'), '')<CR><cmd>normal! j^<CR>]], { noremap = true })
+vim.keymap.set('n', 'O', function()
+  vim.api.nvim_call_function('append', { vim.fn.line('.'), '' })
+  vim.cmd('normal! j^')
+end, { noremap = true })
+
 -- ヤンクの内容を消さない
-vim.api.nvim_set_keymap('n', 'P', 'o<Esc>"+p', { noremap = true })
-vim.api.nvim_set_keymap('n', 'x', '"_x', { noremap = true })
+vim.keymap.set('n', 'P', 'o<Esc>"+p', { noremap = true })
+vim.keymap.set('n', 'x', '"_x', { noremap = true })
+
 -- 画面分割
-vim.api.nvim_set_keymap('n', 'vs', '<Cmd>vsplit<CR>', { noremap = true })
-vim.api.nvim_set_keymap('n', 'S', '<Cmd>split<CR>', { noremap = true })
+vim.keymap.set('n', 'vs', '<Cmd>vsplit<CR>', { noremap = true })
+vim.keymap.set('n', 'S', '<Cmd>split<CR>', { noremap = true })
+
 -- window移動
-vim.api.nvim_set_keymap('n', '<C-k>', '<C-w>h', { noremap = true })
-vim.api.nvim_set_keymap('n', '<C-t>', '<C-w>j', { noremap = true })
-vim.api.nvim_set_keymap('n', '<C-n>', '<C-w>k', { noremap = true })
-vim.api.nvim_set_keymap('n', '<C-s>', '<C-w>l', { noremap = true })
+vim.keymap.set('n', '<C-k>', '<C-w>h', { noremap = true })
+vim.keymap.set('n', '<C-t>', '<C-w>j', { noremap = true })
+vim.keymap.set('n', '<C-n>', '<C-w>k', { noremap = true })
+vim.keymap.set('n', '<C-s>', '<C-w>l', { noremap = true })
+
 -- 矩形選択が貼り付けとコンフリクトするので変更
-vim.api.nvim_set_keymap('n', '<C-j>', '<C-v>', { noremap = true })
+vim.keymap.set('n', '<C-j>', '<C-v>', { noremap = true })
 
 -- 日本語切替で被るのでvimを止める
-vim.api.nvim_set_keymap('i', '<C-space>', '<Nop>', { noremap = true })
+vim.keymap.set('i', '<C-space>', '<Nop>', { noremap = true })
+
 -- Astarte配列
-vim.api.nvim_set_keymap('n', 'j', 'w', { noremap = true })
-vim.api.nvim_set_keymap('v', 'j', 'w', { noremap = true })
+vim.keymap.set({ 'n', 'v' }, 'j', 'w', { noremap = true })
+
 -- wrap
-vim.api.nvim_set_keymap('n', 'W', '<Cmd>set wrap<CR>', { noremap = true })
-vim.api.nvim_set_keymap('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true })
+vim.keymap.set('n', 'W', '<Cmd>set wrap<CR>', { noremap = true })
+vim.keymap.set('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true })
 
--- Terminalはinsertモードで開く
-vim.cmd('autocmd TermOpen * startinsert')
-
--- ターミナルをトグルする関数
-vim.cmd([[
-function! ToggleTerminal()
-	if &buftype == 'terminal'
-		" ターミナルから元のバッファに戻る
-		buffer #
-	else
-		" すでに開いているターミナルバッファがあるか確認
-		for buf in range(1, bufnr('$'))
-			if getbufvar(buf, '&buftype') == 'terminal'
-				execute 'buffer' buf
-				return
-			endif
-		endfor
-		" ターミナルバッファがない場合、新しいターミナルを開く
-		terminal
-	endif
-endfunction
-]])
-
--- キーマップの設定
-vim.api.nvim_set_keymap('n', 'T', ':call ToggleTerminal()<CR>', { noremap = true })
+local func = require('custom-function')
+-- コマンドの設定
+vim.api.nvim_create_user_command('Term', func.toggle_terminal, {})
+-- prettier 設定
+vim.api.nvim_create_user_command('Prettier', func.pritter, {})
+-- rustywind(tailwindcssのクラス名ソート)
+vim.api.nvim_create_user_command('SortTw', func.sort_tailwind_class, {})
 
 -- dpp.vim
+-- filetype plugin indent onはneovimはデフォルトで有効
+-- syntax onはtree-sitterを使うので不要
 require('dpp-vim').setup()
-
--- Enable filetype indent and plugin
-vim.cmd('filetype indent plugin on')
-
--- Enable syntax highlighting
-if vim.fn.has('syntax') then
-  vim.cmd('syntax on')
-end
-
 -- Golang
-vim.cmd([[
-	autocmd FileType go setlocal tabstop=4
-	autocmd FileType go setlocal shiftwidth=4
-]])
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "go",
+  callback = function()
+    vim.bo.tabstop = 4
+    vim.bo.shiftwidth = 4
+  end
+})
 
 -- filetypeの設定
 vim.filetype.add({
@@ -184,84 +177,3 @@ vim.filetype.add({
     ['Procfile'] = 'bash',
   }
 })
-
--- prettier 設定
-vim.api.nvim_create_user_command('Prettier', function()
-  local filetypes = {
-    "css", "scss", "html", "markdown", "javascript", "json", "yaml", "typescript", "vue", "svelte", "graphql", "php",
-    "typescript", "javascriptreact", "typescriptreact"
-  }
-
-  local buf_filetype = vim.api.nvim_get_option_value('filetype', { buf = 0 })
-  local file_path = vim.fn.expand('%:p')
-  local function file_exists(path)
-    local f = io.open(path, "r")
-    if f then
-      io.close(f)
-      return true
-    else
-      return false
-    end
-  end
-
-  for _, filetype in pairs(filetypes) do
-    if buf_filetype == filetype then
-      local cmd
-      if vim.fn.executable("yarn") == 1 and file_exists(vim.fn.getcwd() .. "/yarn.lock") then
-        cmd = 'yarn run prettier --cache --write ' .. vim.fn.shellescape(file_path)
-      elseif vim.fn.executable("npx") == 1 then
-        cmd = 'npx prettier --cache --write ' .. vim.fn.shellescape(file_path)
-      else
-        vim.api.nvim_err_writeln("エラー: npxが利用できません。")
-        return
-      end
-
-      local output = vim.fn.system(cmd)
-      local exit_code = vim.v.shell_error
-
-      if exit_code == 0 then
-        vim.cmd('e') -- ファイルを再読み込み
-        print("Prettierによるフォーマットが完了しました。")
-      else
-        vim.api.nvim_err_writeln("エラー: Prettierのフォーマットに失敗しました。")
-        vim.api.nvim_err_writeln(output)
-      end
-      return
-    end
-  end
-  print("現在のファイルタイプはPrettierでサポートされていません。")
-end, {})
-
--- rustywind(tailwindcssのクラス名ソート)
-vim.api.nvim_create_user_command('SortTw', function()
-  local filetypes = {
-    "javascript", "typescript", "vue", "svelte",
-    "typescript", "javascriptreact", "typescriptreact"
-  }
-  local buf_filetype = vim.api.nvim_get_option_value('filetype', { buf = 0 })
-  local file_path = vim.fn.expand('%:p')
-  for _, filetype in pairs(filetypes) do
-    if buf_filetype == filetype then
-      local cmd
-      if vim.fn.executable("npx") == 1 then
-        cmd = 'npx rustywind --write ' .. vim.fn.shellescape(file_path)
-      else
-        vim.api.nvim_err_writeln("エラー: npxが利用できません。")
-        return
-      end
-
-      local output = vim.fn.system(cmd)
-      local exit_code = vim.v.shell_error
-
-      if exit_code == 0 then
-        vim.cmd('e') -- ファイルを再読み込み
-        print("RustywindによるTailwindCSSのソートが完了しました。")
-      else
-        vim.api.nvim_err_writeln("エラー: TailwindCSSのソートに失敗しました。")
-        vim.api.nvim_err_writeln(output)
-      end
-      return
-    end
-  end
-  print("現在のファイルタイプはTailwindCSSのソートはサポートされていません。")
-end, {})

@@ -35,6 +35,15 @@ lua_add = 'require("lazydev").setup()'
 repo = 'SmiteshP/nvim-navic'
 
 #----------------------------------------------------------------------------------#
+# ai
+#----------------------------------------------------------------------------------#
+[[plugins]]
+repo = 'github/copilot.vim'
+lua_add = '''
+  vim.g.copilot_no_maps = false
+'''
+
+#----------------------------------------------------------------------------------#
 # インデント補助
 #----------------------------------------------------------------------------------#
 [[plugins]]
@@ -84,12 +93,6 @@ repo = 'tpope/vim-abolish'
 # crm "mixed_case" → "MixedCase"
 # crc "camel_case" → "camelCase"
 # cru "upper_case" → "UPPER_CASE"
-
-[[plugins]]
-repo = 'github/copilot.vim'
-lua_add = '''
-  vim.g.copilot_no_maps = false
-'''
 
 #----------------------------------------------------------------------------------#
 # コメントアウト
