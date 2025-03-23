@@ -127,4 +127,26 @@ M.yarn_lint = function()
   end
 end
 
+
+-- 現在開いているファイルを非同期にVisual Studio Codeで開きます。
+-- @return nil
+M.open_in_code = function()
+  local file_path = vim.fn.expand('%:p')
+  local line = vim.fn.line('.')
+  local col = vim.fn.col('.')
+  vim.notify(string.format("VSCodeでファイルを開きます: %s:%d:%d", file_path, line, col))
+  -- 非同期でVSCodeを開く
+  vim.fn.jobstart({
+    "code", "--goto", string.format("%s:%d:%d", file_path, line, col),
+  }, {
+    on_exit = function(_, code)
+      if code ~= 0 then
+        vim.notify("VSCodeの起動に失敗しました", vim.log.levels.ERROR)
+      else
+        vim.notify("VSCodeでファイルを開きました")
+      end
+    end,
+  })
+end
+
 return M
