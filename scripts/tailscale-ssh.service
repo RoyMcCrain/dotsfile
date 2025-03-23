@@ -1,0 +1,14 @@
+[Unit]
+Description=Start Tailscale and enable SSH
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/tailscaled
+ExecStart=/usr/bin/tailscale up --ssh
+RemainAfterExit=yes
+ExecStop=/usr/bin/tailscale down
+
+[Install]
+WantedBy=multi-user.target
+
