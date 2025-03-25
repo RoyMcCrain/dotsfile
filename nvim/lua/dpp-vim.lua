@@ -25,23 +25,23 @@ M.setup = function()
         result = vim.fn.system('git clone https://github.com/Shougo/dpp-ext-installer' ..
           ' ' .. dpp_dir .. 'dpp-ext-installer')
         if vim.v.shell_error ~= 0 then
-          error("dpp-ext-installerをインストールしています" .. result)
+          error("dpp-ext-installerのクローンに失敗しました" .. result)
         end
         print("dpp-ext-lazyをインストールしています...")
         result = vim.fn.system('git clone https://github.com/Shougo/dpp-ext-lazy' .. ' ' .. dpp_dir .. 'dpp-ext-lazy')
         if vim.v.shell_error ~= 0 then
-          error("dpp-ext-lazyをインストールしています" .. result)
+          error("dpp-ext-lazyのクローンに失敗しました" .. result)
         end
         print("dpp-ext-tomlをインストールしています...")
         result = vim.fn.system('git clone https://github.com/Shougo/dpp-ext-toml' .. ' ' .. dpp_dir .. 'dpp-ext-toml')
         if vim.v.shell_error ~= 0 then
-          error("dpp-ext-tomlをインストールしています" .. result)
+          error("dpp-ext-tomlのクローンに失敗しました" .. result)
         end
         print("dpp-protocol-gitをインストールしています...")
         result = vim.fn.system('git clone https://github.com/Shougo/dpp-protocol-git' ..
           ' ' .. dpp_dir .. 'dpp-protocol-git')
         if vim.v.shell_error ~= 0 then
-          error("dpp-protocol-gitをインストールしています" .. result)
+          error("dpp-protocol-gitのクローンに失敗しました" .. result)
         end
       end
     end
