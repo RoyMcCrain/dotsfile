@@ -66,7 +66,7 @@ if vim.fn.has('wsl') == 1 then
     }
   end
 end
-vim.g.mapleader = " "
+vim.g.mapleader = " "       -- <leader>をスペースにする
 vim.opt.pumheight = 5       -- 変換候補で表示される数
 vim.opt.wrap = false        -- テキストが折り返されないようにする
 vim.opt.colorcolumn = "120" -- カラムにラインを引く
@@ -112,11 +112,6 @@ vim.api.nvim_create_autocmd("TermOpen", {
 vim.keymap.set('n', 'Y', 'y$', { noremap = true })
 -- NNで検索のハイライトを消す
 vim.keymap.set('n', 'NN', ':noh<CR>', { noremap = true })
--- 英語配列
-vim.keymap.set('n', ';', ':', { noremap = true })
-vim.keymap.set('n', ':', ';', { noremap = true })
-vim.keymap.set('v', ';', ':', { noremap = true })
-vim.keymap.set('v', ':', ';', { noremap = true })
 -- 空の行を挿入
 vim.keymap.set('n', 'O', function()
   vim.api.nvim_call_function('append', { vim.fn.line('.'), '' })
@@ -150,9 +145,14 @@ vim.keymap.set({ 'n', 'v' }, 'j', 'w', { noremap = true })
 vim.keymap.set('n', 'W', '<Cmd>set wrap<CR>', { noremap = true })
 vim.keymap.set('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true })
 
+vim.keymap.set('n', ':', ';', { noremap = true })
+vim.keymap.set('n', ';', ':', { noremap = true })
+vim.keymap.set('v', ':', ';', { noremap = true })
+vim.keymap.set('v', ';', ':', { noremap = true })
+
 local func = require('custom-function')
 -- コマンドの設定
-vim.api.nvim_create_user_command('Term', func.toggle_terminal, {})
+vim.keymap.set('n', 'T', func.toggle_terminal, { noremap = true })
 -- prettier 設定
 vim.api.nvim_create_user_command('Prettier', func.pritter, {})
 -- rustywind(tailwindcssのクラス名ソート)

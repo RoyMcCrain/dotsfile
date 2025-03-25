@@ -62,6 +62,7 @@ abbr -f --quieter "ghq get"="ghq-get-cd"
 
 abbr -f --quieter "git sw"="git switch"
 abbr -f --quieter "git rs"="git restore"
+abbr -f --quieter "git rb"="git rebase"
 abbr -f --quieter "git cm"="git commit"
 abbr -f --quieter "git st"="git status"
 abbr -f --quieter "git br"="git branch"

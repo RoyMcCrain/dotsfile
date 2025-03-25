@@ -45,7 +45,27 @@ M.setup = function()
         'filetype',
       },
       lualine_y = {
-        'lsp_status'
+        {
+          'lsp_status',
+          ignore_lsp = { 'GitHub Copilot', 'biome' },
+          fmt = function(str)
+            return str:gsub('GitHub Copilot', 'Copilot')
+                :gsub('lua_ls', 'lua')
+                :gsub('ts_ls', 'ts')
+                :gsub('tailwindcss', 'tw')
+                :gsub('vimls', 'vim')
+                :gsub('yamlls', 'yaml')
+                :gsub('ruby_lsp', 'ruby')
+                :gsub('pyright', 'python')
+                :gsub('graphql', 'gql')
+                :gsub('gopls', 'go')
+                :gsub('rust_analyzer', 'rust')
+                :gsub('stylelint_lsp', 'stylelint')
+                :gsub('cssls', 'css')
+                :gsub('denols', 'deno')
+            
+          end,
+        }
       },
       lualine_z = {},
     },
@@ -55,7 +75,7 @@ M.setup = function()
         { 'filename', path = 1 }
       },
       lualine_c = {},
-      lualine_y = {},
+      lualine_y = { 'tabs' },
       lualine_z = {},
     },
     winbar = {

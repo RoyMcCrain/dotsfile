@@ -114,3 +114,13 @@ lua_add = '''
   })
 '''
 
+[[plugins]]
+repo = '~/.config/nvim/denops/ddu-source-keymaps'
+merged = 0
+build = "deno cache main.ts"
+
+[[plugins]]
+repo = '~/.config/nvim/denops/ddu-kind-keymaps'
+merged = 0
+build = "deno cache main.ts"
+

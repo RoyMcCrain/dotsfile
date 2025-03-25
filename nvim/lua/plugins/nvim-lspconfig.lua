@@ -1,8 +1,8 @@
 local M = {}
 
 M.setup = function()
-  vim.api.nvim_set_keymap('n', '[LSP]', '<Nop>', { noremap = true })
-  vim.api.nvim_set_keymap('n', 'l', '[LSP]', {})
+  vim.keymap.set('n', '[LSP]', '<Nop>', { noremap = true })
+  vim.keymap.set('n', 'l', '[LSP]', { remap = true, desc = 'LSP' })
 
   local lu = require('lsp-utils')
   local lspconfig = require('lspconfig')
@@ -15,22 +15,20 @@ M.setup = function()
 
   local on_attach = function(client, bufnr)
     -- バッファローカルキーマッピングを設定
-    local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
-    local opts = { noremap = true }
-
     -- LSP関連のキーマッピング
-    buf_set_keymap('n', '[LSP]a', '<Cmd>lua vim.lsp.buf.code_action()<CR>', opts)
-    buf_set_keymap('n', '[LSP]D', '<Cmd>lua vim.lsp.buf.definition()<CR>', opts)
-    buf_set_keymap('n', '[LSP]T', '<Cmd>lua vim.lsp.buf.type_definition()<CR>', opts)
-    buf_set_keymap('n', '[LSP]r', '<Cmd>lua vim.lsp.buf.references()<CR>', opts)
-    buf_set_keymap('n', '[LSP]R', '<Cmd>lua vim.lsp.buf.rename()<CR>', opts)
-    buf_set_keymap('n', '[LSP]w', '<Cmd>lua vim.lsp.buf.workspace_symbol()<CR>', opts)
-    buf_set_keymap('n', '[LSP]I', '<Cmd>lua vim.lsp.buf.implementation()<CR>', opts)
-    buf_set_keymap('n', '[LSP]d', '<Cmd>lua vim.lsp.buf.document_symbol()<CR>', opts)
-    buf_set_keymap('n', '[LSP]k', '<Cmd>lua vim.diagnostic.goto_prev()<CR>', opts)
-    buf_set_keymap('n', '[LSP]s', '<Cmd>lua vim.diagnostic.goto_next()<CR>', opts)
-    buf_set_keymap('n', '[LSP]l', '<Cmd>lua vim.diagnostic.setloclist()<CR>', opts)
-    buf_set_keymap('n', 'H', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
+    vim.keymap.set('n', '[LSP]a', '<Cmd>lua vim.lsp.buf.code_action()<CR>', { noremap = true, desc = "Code Action" })
+    vim.keymap.set('n', '[LSP]D', '<Cmd>lua vim.lsp.buf.definition()<CR>', { noremap = true, desc = "定義" })
+    vim.keymap.set('n', '[LSP]T', '<Cmd>lua vim.lsp.buf.type_definition()<CR>', { noremap = true, desc = "型定義" })
+    vim.keymap.set('n', '[LSP]r', '<Cmd>lua vim.lsp.buf.references()<CR>', { noremap = true, desc = "参照" })
+    vim.keymap.set('n', '[LSP]R', '<Cmd>lua vim.lsp.buf.rename()<CR>', { noremap = true, desc = "リネーム" })
+    vim.keymap.set('n', '[LSP]w', '<Cmd>lua vim.lsp.buf.workspace_symbol()<CR>', { noremap = true, desc = "ワークスペースで検索" })
+    vim.keymap.set('n', '[LSP]I', '<Cmd>lua vim.lsp.buf.implementation()<CR>', { noremap = true, desc = "実装" })
+    vim.keymap.set('n', '[LSP]d', '<Cmd>lua vim.lsp.buf.document_symbol()<CR>',
+      { noremap = true, desc = "今開いているファイルから検索" })
+    vim.keymap.set('n', '[LSP]k', '<Cmd>lua vim.diagnostic.goto_prev()<CR>', { noremap = true, desc = "前のエラーへ移動" })
+    vim.keymap.set('n', '[LSP]s', '<Cmd>lua vim.diagnostic.goto_next()<CR>', { noremap = true, desc = "次のエラーへ移動" })
+    vim.keymap.set('n', '[LSP]l', '<Cmd>lua vim.diagnostic.setloclist()<CR>', { noremap = true, desc = "診断情報一覧" })
+    vim.keymap.set('n', 'H', '<Cmd>lua vim.lsp.buf.hover()<CR>', { noremap = true, desc = "ホバー" })
 
 
     -- オートコマンドグループを作成
@@ -286,6 +284,14 @@ M.setup = function()
   lspconfig.protols.setup {
     capabilities = capabilities,
     on_attach = on_attach,
+  }
+
+  -- sqls
+  -- require sqls
+  lspconfig.sqls.setup {
+    capabilities = capabilities,
+    on_attach = on_attach,
+    cmd = { "sqls", "-config", "~/.config/sqls/config.yml" },
   }
 end
 

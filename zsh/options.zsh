@@ -17,7 +17,8 @@ fi
 
 # asdf
 if [ -d "$HOME/.asdf" ]; then
-  export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
+  export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
+  export PATH="${ASDF_DATA_DIR}/shims:$PATH"
 fi
  
 # JAVA_HOME
@@ -37,6 +38,10 @@ export SDKMAN_DIR="$HOME/.sdkman"
 # direnv
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
+fi
+
+if [ -d "/home/linuxbrew" ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
 # 色を使用出来るようにする
