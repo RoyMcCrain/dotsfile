@@ -37,27 +37,29 @@ gh auth login
 
 Githubとsshができるようにする
 
+## homebrewのインストール
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+https://brew.sh/ja/
+
+最新のインストール方法を確認する
+
 
 ## ghqの設定
 
-Goを入れる
 ```bash
-sudo apt install golang
+brew install ghq
 ```
 
-https://github.com/x-motemen/ghq?tab=readme-ov-file#go-get
-
-```bash
-go install github.com/x-motemen/ghq@latest
-```
-
-go/bin/ にghqが生成されるのでそれを一旦使う
-
+https://github.com/x-motemen/ghq?tab=readme-ov-file#macos
 
 ## dotsfilesのclone
 
 ```bash
-./go/bin/ghq get git@github.com:RoyMcCrain/dotsfile.git
+ghq get git@github.com:RoyMcCrain/dotsfile.git
 cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```
 
@@ -67,17 +69,8 @@ https://asdf-vm.com/guide/getting-started.html#install-asdf
 
 Versionは最新のものを使う
 ```bash
-curl -OL https://github.com/asdf-vm/asdf/releases/download/v0.16.5/asdf-v0.16.5-linux-amd64.tar.gz
-tar -zxvf asdf-v0.16.5-linux-amd64.tar.gz
-sudo mv asdf /usr/local/bin/
-sudo chmod +x /usr/local/bin/asdf
+brew install asdf
 ```
-
-不必要なファイル削除
-```bash
-rm -f asdf-v0.16.5-linux-amd64.tar.gz
-```
-
 
 ## asdf_init_plugin
 
