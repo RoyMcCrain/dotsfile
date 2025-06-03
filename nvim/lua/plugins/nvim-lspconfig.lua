@@ -114,6 +114,47 @@ M.setup = function()
   end
 
   -- 個別の設定が必要なサーバー
+  -- シンプルなvtsls設定
+  lspconfig.vtsls.setup {
+    capabilities = capabilities,
+    on_attach = function(client, bufnr)
+      base_on_attach(client, bufnr) -- 共通処理を呼び出し
+
+      -- vtsls 固有処理: Deno プロジェクトなら停止
+      if lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
+        pcall(client.stop)
+      end
+    end,
+    root_dir = function(fname)
+      return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
+    end,
+    filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
+
+    -- シンプルな設定（必要最小限）
+    settings = {
+      vtsls = {
+        autoUseWorkspaceTsdk = true, -- ワークスペースのTypeScriptを自動使用
+      },
+      typescript = {
+        suggest = {
+          includeCompletionsForImportStatements = true,
+          autoImports = "on",
+        },
+        preferences = {
+          includePackageJsonAutoImports = "on",
+        },
+      },
+      javascript = {
+        suggest = {
+          includeCompletionsForImportStatements = true,
+          autoImports = "on",
+        },
+        preferences = {
+          includePackageJsonAutoImports = "on",
+        },
+      },
+    },
+  }
 
 
 

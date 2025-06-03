@@ -45,7 +45,7 @@ if [ -d "/home/linuxbrew" ]; then
 fi
 
 # claude
-if [-d "$HOME/.claude/local/claude"]; then
+if [ -d "$HOME/.claude/local/claude" ]; then
   alias claude="/home/roy/.claude/local/claude"
 fi
 
