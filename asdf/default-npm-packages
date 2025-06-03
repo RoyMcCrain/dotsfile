@@ -5,6 +5,8 @@ vim-language-server
 graphql-language-service-cli
 stylelint-lsp
 typescript
-typescript-language-server
 yarn
 neovim
+pnpm
+@anthropic-ai/claude-code
+@vtsls/language-server

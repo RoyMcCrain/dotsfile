@@ -1,6 +1,7 @@
 local M = {}
 
 M.setup = function()
+  -- シンプルなddc設定（enum補完の複雑な設定を削除）
   vim.fn['ddc#custom#patch_global']({
     ui = 'pum',
     autoCompleteEvents = {
@@ -19,7 +20,8 @@ M.setup = function()
       mark = 'LSP',
       sorters = { 'sorter_lsp-kind' },
       minAutoCompleteLength = 1,
-      forceCompletionPattern = '\\.\\w*|:\\w*|->\\w*|<\\w*', -- JSXタグの< も認識
+      forceCompletionPattern = '\\.\\w*|:\\w*|->\\w*|<\\w*',
+      maxItems = 10,
     },
     buffer = { mark = 'B' },
     cmdline = { mark = 'CMD' },
@@ -46,17 +48,18 @@ M.setup = function()
     }
   })
 
-
   vim.fn['ddc#custom#patch_global']('filterParams', {
     matcher_fuzzy = { camelcase = true },
     ['sorter_lsp-kind'] = {
       priority = {
-        'Keyword',
-        'Variable',
-        'Field',
-        'Constant',
-        { 'Function', 'Method', 'Module' },
-        'Enum',
+        'Field',     -- オブジェクトプロパティ
+        'Method',    -- メソッド
+        'Variable',  -- 変数
+        'Function',  -- 関数
+        'Constant',  -- 定数
+        'Keyword',   -- キーワード
+        'Interface', -- インターフェース
+        'Class',     -- クラス
       },
     }
   })
