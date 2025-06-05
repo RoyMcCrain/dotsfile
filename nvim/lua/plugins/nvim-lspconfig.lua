@@ -156,8 +156,6 @@ M.setup = function()
     },
   }
 
-
-
   -- biome
   lspconfig.biome.setup {
     capabilities = capabilities,
@@ -191,22 +189,33 @@ M.setup = function()
 
             if not result then return end
 
+            -- resultの型チェック
+            if type(result) ~= "table" then
+              vim.notify("Unexpected result type: " .. type(result), vim.log.levels.DEBUG)
+              return
+            end
+
             -- コードアクションを実行
             for _, res in pairs(result) do
               -- res.result がある場合とない場合に対応
               local actions = res.result or res
+
+              -- actionsの型チェック
               if type(actions) == "table" then
                 for _, action in pairs(actions) do
-                  if action.edit then
-                    -- ワークスペースエディットを適用
-                    vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
-                  elseif action.command then
-                    -- 新しいAPI でコマンド実行
-                    vim.lsp.buf_request(bufnr, 'workspace/executeCommand', action.command, function(cmd_err)
-                      if cmd_err then
-                        vim.notify("Command execution failed: " .. cmd_err.message, vim.log.levels.WARN)
-                      end
-                    end)
+                  -- actionの型チェック（ここが重要！）
+                  if type(action) == "table" then
+                    if action.edit then
+                      -- ワークスペースエディットを適用
+                      vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
+                    elseif action.command then
+                      -- 新しいAPI でコマンド実行
+                      vim.lsp.buf_request(bufnr, 'workspace/executeCommand', action.command, function(cmd_err)
+                        if cmd_err then
+                          vim.notify("Command execution failed: " .. cmd_err.message, vim.log.levels.WARN)
+                        end
+                      end)
+                    end
                   end
                 end
               end
@@ -217,6 +226,7 @@ M.setup = function()
       })
     end,
   }
+
 
   -- denols
   lspconfig.denols.setup {
@@ -232,7 +242,6 @@ M.setup = function()
     root_dir = function(fname) return lu.find_nearest_file(fname, { "deno.json", "deno.jsonc" }) end,
   }
 
-  -- gopls
   -- gopls
   lspconfig.gopls.setup {
     capabilities = capabilities,
@@ -261,22 +270,33 @@ M.setup = function()
 
             if not result then return end
 
+            -- resultの型チェック
+            if type(result) ~= "table" then
+              vim.notify("Unexpected result type: " .. type(result), vim.log.levels.DEBUG)
+              return
+            end
+
             -- コードアクションを実行
             for _, res in pairs(result) do
               -- res.result がある場合とない場合に対応
               local actions = res.result or res
+
+              -- actionsの型チェック
               if type(actions) == "table" then
                 for _, action in pairs(actions) do
-                  if action.edit then
-                    -- ワークスペースエディットを適用
-                    vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
-                  elseif action.command then
-                    -- 新しいAPI でコマンド実行
-                    vim.lsp.buf_request(bufnr, 'workspace/executeCommand', action.command, function(cmd_err)
-                      if cmd_err then
-                        vim.notify("Go command execution failed: " .. cmd_err.message, vim.log.levels.WARN)
-                      end
-                    end)
+                  -- actionの型チェック（ここが重要！）
+                  if type(action) == "table" then
+                    if action.edit then
+                      -- ワークスペースエディットを適用
+                      vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
+                    elseif action.command then
+                      -- 新しいAPI でコマンド実行
+                      vim.lsp.buf_request(bufnr, 'workspace/executeCommand', action.command, function(cmd_err)
+                        if cmd_err then
+                          vim.notify("Go command execution failed: " .. cmd_err.message, vim.log.levels.WARN)
+                        end
+                      end)
+                    end
                   end
                 end
               end
