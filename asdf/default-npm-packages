@@ -10,3 +10,4 @@ neovim
 pnpm
 @anthropic-ai/claude-code
 @vtsls/language-server
+puppeteer

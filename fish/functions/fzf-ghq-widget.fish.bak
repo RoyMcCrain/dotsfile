@@ -1,0 +1,8 @@
+function fzf-ghq-widget --description 'Find ghq repositories with fzf and change to selected'
+    set -l selected_repo (ghq list | fzf --height 40% --layout reverse --border)
+    
+    if test -n "$selected_repo"
+        cd (ghq list --exact --full-path $selected_repo)
+        commandline -f repaint
+    end
+end

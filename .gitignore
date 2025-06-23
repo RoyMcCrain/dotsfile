@@ -4,3 +4,4 @@ package-lock.json
 nvim/swp
 nvim/undo
 *.zsh.zwc
+logs

@@ -164,63 +164,61 @@ M.setup = function()
       -- Biome ではフォーマットを優先し、補完を無効化
       client.server_capabilities.documentFormattingProvider = true
       client.server_capabilities.completionProvider = false
-
       base_on_attach(client, bufnr) -- 共通処理を呼び出し
 
       -- biome 固有処理: organizeImports の Autocmd (バッファローカルで定義)
       local biome_augroup = vim.api.nvim_create_augroup("BiomeOrganizeImports_" .. bufnr, { clear = true })
+
       vim.api.nvim_create_autocmd("BufWritePre", {
-        buffer = bufnr, -- バッファローカル！
+        buffer = bufnr,
         group = biome_augroup,
         callback = function()
-          local range_params = vim.lsp.util.make_range_params(0, "utf-8")
+          -- 同期的に実行するためのフラグ
+          local timeout = 1000 -- 1秒のタイムアウト
+
+          -- コードアクションのパラメータを作成
           local params = {
-            textDocument = range_params.textDocument,
-            range = range_params.range,
-            context = { only = { "source.organizeImports.biome" }, diagnostics = {} }
+            textDocument = vim.lsp.util.make_text_document_params(bufnr),
+            range = {
+              start = { line = 0, character = 0 },
+              ["end"] = { line = vim.api.nvim_buf_line_count(bufnr), character = 0 }
+            },
+            context = {
+              only = { "source.organizeImports.biome" },
+              diagnostics = {}
+            }
           }
 
-          -- 非同期版に変更（UIブロックを回避）
-          vim.lsp.buf_request(bufnr, "textDocument/codeAction", params, function(err, result)
-            if err then
-              vim.notify("Biome organize imports failed: " .. err.message, vim.log.levels.WARN)
-              return
-            end
+          -- 同期的にコードアクションを取得
+          local result = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params, timeout)
 
-            if not result then return end
+          if not result then
+            return
+          end
 
-            -- resultの型チェック
-            if type(result) ~= "table" then
-              vim.notify("Unexpected result type: " .. type(result), vim.log.levels.DEBUG)
-              return
-            end
-
-            -- コードアクションを実行
-            for _, res in pairs(result) do
-              -- res.result がある場合とない場合に対応
-              local actions = res.result or res
-
-              -- actionsの型チェック
-              if type(actions) == "table" then
-                for _, action in pairs(actions) do
-                  -- actionの型チェック（ここが重要！）
-                  if type(action) == "table" then
-                    if action.edit then
-                      -- ワークスペースエディットを適用
-                      vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
-                    elseif action.command then
-                      -- 新しいAPI でコマンド実行
-                      vim.lsp.buf_request(bufnr, 'workspace/executeCommand', action.command, function(cmd_err)
-                        if cmd_err then
-                          vim.notify("Command execution failed: " .. cmd_err.message, vim.log.levels.WARN)
-                        end
-                      end)
-                    end
+          -- 結果を処理
+          for _, res in pairs(result) do
+            if res.result then
+              for _, action in ipairs(res.result) do
+                if action.edit then
+                  -- ワークスペースエディットを適用
+                  vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
+                elseif action.command then
+                  -- コマンドを同期的に実行
+                  local cmd_result = vim.lsp.buf_request_sync(
+                    bufnr,
+                    "workspace/executeCommand",
+                    action.command,
+                    timeout
+                  )
+                  -- エラーチェック（必要に応じて）
+                  if not cmd_result then
+                    vim.notify("Biome: Command execution failed", vim.log.levels.WARN)
                   end
                 end
               end
             end
-          end)
+          end
         end,
         desc = "Organize Imports on Save (Biome)",
       })

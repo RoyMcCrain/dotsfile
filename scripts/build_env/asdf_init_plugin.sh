@@ -3,7 +3,6 @@
 plugins=(
   "nodejs"
   "deno"
-  "ruby"
   "rust"
   "rye"
 )
