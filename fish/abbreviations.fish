@@ -36,15 +36,14 @@ abbr rails 'bundle exec rails'
 abbr rails-s 'bundle exec rails s -p 3001'
 abbr rspec 'bundle exec rspec'
 
-# Node.js
-abbr nir 'ni run '
-abbr niu 'ni upgrade-interactive '
-abbr nil 'ni run lint '
-abbr nid 'ni run dlx '
 abbr sortp 'npx sort-package-json'
 
 # pnpm
-abbr pn 'pnpm'
+abbr p 'pnpm'
+abbr pr 'pnpm run'
+abbr pi 'pnpm i'
+abbr pa 'pnpm add'
+abbr px 'pnpm dlx'
 
 # Docker
 abbr d 'docker'
