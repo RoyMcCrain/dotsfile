@@ -16,6 +16,7 @@
     "jsr:@denops/std@7.3": "7.3.2",
     "jsr:@denops/std@7.4": "7.4.0",
     "jsr:@denops/std@7.5": "7.5.0",
+    "jsr:@denops/std@7.6": "7.6.0",
     "jsr:@denops/std@~7.1.1": "7.1.1",
     "jsr:@denops/test@3.0.4": "3.0.4",
     "jsr:@denops/test@~3.0.2": "3.0.4",
@@ -32,6 +33,7 @@
     "jsr:@shougo/ddc-vim@7.0.0": "7.0.0",
     "jsr:@shougo/ddc-vim@9.1": "9.1.0",
     "jsr:@shougo/ddc-vim@9.4": "9.4.0",
+    "jsr:@shougo/ddc-vim@9.5": "9.5.0",
     "jsr:@shougo/ddu-kind-file@0.9": "0.9.0",
     "jsr:@shougo/ddu-vim@10.1": "10.1.0",
     "jsr:@shougo/ddu-vim@10.3": "10.3.0",
@@ -133,6 +135,15 @@
         "jsr:@std/ulid"
       ]
     },
+    "@denops/std@7.6.0": {
+      "integrity": "468a5b4121378a845bbc4cd705fe0075dff9cd0af41fbb8a797870535af5c4c8",
+      "dependencies": [
+        "jsr:@core/unknownutil@^4.3.0",
+        "jsr:@denops/core@7",
+        "jsr:@std/semver",
+        "jsr:@std/ulid"
+      ]
+    },
     "@denops/test@3.0.4": {
       "integrity": "6d345744749d3b4ab4858b6bd861b1bcb34cb8f00bd82e3d64a725c369223ff4",
       "dependencies": [
@@ -213,6 +224,14 @@
       "dependencies": [
         "jsr:@core/unknownutil@4.3",
         "jsr:@denops/std@7.4",
+        "jsr:@std/assert@~1.0.2"
+      ]
+    },
+    "@shougo/ddc-vim@9.5.0": {
+      "integrity": "ffd8d8f10482cc1b31bc91f756484617fad875d919ab8f5b6ab644ed1cf48923",
+      "dependencies": [
+        "jsr:@core/unknownutil@4.3",
+        "jsr:@denops/std@7.5",
         "jsr:@std/assert@~1.0.2"
       ]
     },

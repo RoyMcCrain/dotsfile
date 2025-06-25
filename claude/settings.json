@@ -6,7 +6,15 @@
         "-y",
         "puppeteer-mcp-server"
       ]
-    }
+    },
+    "figma-dev-mode-mcp-server": {
+			"transport": "sse",
+			"url": "http://127.0.0.1:3845/sse"
+		},
+		"deepwiki": {
+			"transport": "sse",
+			"url": "https://mcp.deepwiki.com/sse"
+		}
   },
   "model": "opus"
 }
