@@ -66,8 +66,10 @@ if test -d "/home/linuxbrew"
 end
 
 # claude
-if test -d "$HOME/.claude/local/claude"
-    alias claude="/home/roy/.claude/local/claude"
+if test -d "$HOME/.claude/local"
+    function claude
+        $HOME/.claude/local/claude $argv
+    end
 end
 
 # Fish specific settings
@@ -117,3 +119,4 @@ end
 
 # ghq get の略語用に関数を設定
 abbr ghq-get 'ghq-get-cd'
+
