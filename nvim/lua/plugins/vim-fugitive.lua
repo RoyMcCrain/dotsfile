@@ -11,11 +11,17 @@ M.setup = function()
   vim.keymap.set('n', '[GIT]l', ':Gllog<CR>', { noremap = true })
   vim.keymap.set('n', '[GIT]p', ':Git push<CR>', { noremap = true })
 
-  -- gitcommitファイルタイプで:Aiコマンドを定義
+  -- gitcommitファイルタイプでAIコミットメッセージを自動生成
   vim.api.nvim_create_autocmd("FileType", {
     pattern = "gitcommit",
     callback = function()
-      vim.api.nvim_buf_create_user_command(0, 'Ai', function()
+      -- gitcommitバッファが開いたら自動的にAIメッセージを生成
+      vim.defer_fn(function()
+        -- ai-commitコマンドが存在するかチェック
+        if vim.fn.executable('ai-commit') == 0 then
+          return
+        end
+        
         vim.notify('AIコミットメッセージを生成中...', vim.log.levels.INFO)
 
         -- ai-commitを実行してメッセージを取得
@@ -49,7 +55,7 @@ M.setup = function()
             end
           end,
         })
-      end, { desc = 'Insert AI commit message' })
+      end, 100)
     end,
   })
 end
