@@ -46,7 +46,7 @@ JSON_PAYLOAD=$(jq -n \
     messages: [
       {
         role: "system",
-        content: "Generate concise git commit messages. Use conventional commits format (feat/fix/docs/style/refactor/test/chore). Keep subject line under 50 characters. If needed, add body with lines wrapped at 72 characters. Be brief and clear."
+        content: "Generate git commit messages using conventional commits format (feat/fix/docs/style/refactor/test/chore). Output ONLY the commit message without any markdown, labels, or formatting. Keep subject line under 50 chars. Add body only if needed, wrapped at 72 chars."
       },
       {
         role: "user",
