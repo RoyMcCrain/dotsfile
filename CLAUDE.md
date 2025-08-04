@@ -94,4 +94,14 @@ rm -fr ~/.cache/dpp
 - Optimized shell startup performance
 
 ### AI Commit Message Generation
-The `ai-commit.sh` script integrates with LM Studio API to generate commit messages using the `qwen/qwen3-8b` model. Ensure LM Studio is running on port 1234 before using.
+The `ai-commit.sh` script integrates with LM Studio API to generate commit messages using the `qwen/qwen3-8b` model. 
+
+Features:
+- **Automatic execution**: Git commits from Neovim automatically trigger AI message generation
+- **Context optimization**: Reduces diff context to 1 line (configurable) to minimize token usage
+- **Large diff handling**: Automatically summarizes diffs over 500 lines (configurable)
+- **Environment variables**:
+  - `AI_COMMIT_MAX_LINES`: Maximum diff lines before summarization (default: 500)
+  - `AI_COMMIT_CONTEXT`: Context lines in diff (default: 1)
+
+Ensure LM Studio is running on port 1234 before using.
