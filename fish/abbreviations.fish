@@ -64,6 +64,7 @@ end
 
 abbr g 'git'
 # Git abbreviations
+abbr ac 'ai-commit'
 abbr sw 'switch'
 abbr rs 'restore'
 abbr rb 'rebase'
