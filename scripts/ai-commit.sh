@@ -11,7 +11,7 @@ NC='\033[0m'
 DIFF=$(git diff --cached)
 
 if [ -z "$DIFF" ]; then
-    echo -e "${YELLOW}アイヤ〜！ステージングされた変更がないアルよ！${NC}"
+    echo -e "${YELLOW}ステージングされた変更がありません${NC}"
     exit 1
 fi
 
@@ -32,8 +32,8 @@ JSON_PAYLOAD=$(jq -n \
         content: ("Generate a commit message for these changes:\n\n" + $diff)
       }
     ],
-    temperature: 0.7,
-    max_tokens: 100
+    temperature: 0.5,
+    max_tokens: 80
   }')
 
 # LM Studioに問い合わせ
@@ -64,12 +64,12 @@ read -r answer
 case "$answer" in
     y|Y)
         git commit -m "$MESSAGE"
-        echo -e "${GREEN}コミット完了アル！${NC}"
+        echo -e "${GREEN}コミット完了${NC}"
         ;;
     e|E)
         git commit -e -m "$MESSAGE"
         ;;
     *)
-        echo "キャンセルしたアル〜"
+        echo "キャンセル"
         ;;
 esac
