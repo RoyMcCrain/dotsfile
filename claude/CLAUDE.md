@@ -24,13 +24,11 @@ Then, provide the final answer in Japanese.
 - テストは単体テストを優先的に実行
 
 # Project Commands
-- pnpm run dev: 開発サーバー起動
 - pnpm run build: プロダクションビルド
 - pnpm run lint: biomeでのリント実行
 
-# Puppeteer
-- puppeteer-mcp-serverを使うときは特に指示がなければpuppeteer_connect_active_tabでリモートデバッグに接続して操作をしてください。
-- puppeteer_screenshotは指定がなければ常にフルサイズで撮ってください
+# memory mcp
+memory mcpを利用している場合、タスクを実行した最後に保存したほうがいいKnowledgeをmemory mcpで保存してください。
 
 # deepwiki
 - ライブラリの仕様を確認するときなどはgithubを検索せずにdeepwikiを利用して仕様を把握してください。
@@ -44,3 +42,7 @@ Run web search via Task Tool with `gemini -p 'WebSearch: ...'`.
 ```bash
 gemini -p "WebSearch: ..."
 ```
+# お願い
+下記を必ず考慮してください。これを忘れると大変なペナルティが課せられます。
+
+John Carmack, Robert C. Martin, Rob Pikeならどう設計するかを意識せよ。

@@ -44,11 +44,6 @@ if [ -d "/home/linuxbrew" ]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
-# claude
-if [ -d "$HOME/.claude/local/claude" ]; then
-  alias claude="/home/roy/.claude/local/claude"
-fi
-
 # 色を使用出来るようにする
 autoload -Uz colors && colors
 # ヒストリの設定

@@ -1,20 +1,20 @@
 {
-  "mcpServers": {
-    "puppeteer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "puppeteer-mcp-server"
-      ]
-    },
-    "figma-dev-mode-mcp-server": {
-			"transport": "sse",
-			"url": "http://127.0.0.1:3845/sse"
-		},
-		"deepwiki": {
-			"transport": "sse",
-			"url": "https://mcp.deepwiki.com/sse"
-		}
+  "model": "opus",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -ExecutionPolicy Bypass -Command \"Import-Module BurntToast -Force; New-BurntToastNotification -Text 'Claude Code', 'タスクが完了しました'\""
+          }
+        ]
+      }
+    ]
   },
-  "model": "opus"
+  "feedbackSurveyState": {
+    "lastShownTime": 1754016719333
+  },
+  "$schema": "https://json.schemastore.org/claude-code-settings.json"
 }
