@@ -81,3 +81,6 @@ abbr ps 'push'
 # Fish specific
 abbr sf 'source ~/.config/fish/config.fish'
 abbr rc 'restore-command'  # 保存したコマンドを復元
+
+# serena
+abbr serena-index 'uvx --from git+https://github.com/oraios/serena serena project index'
