@@ -114,47 +114,111 @@ M.setup = function()
   end
 
   -- 個別の設定が必要なサーバー
-  -- シンプルなvtsls設定
-  lspconfig.vtsls.setup {
-    capabilities = capabilities,
-    on_attach = function(client, bufnr)
-      base_on_attach(client, bufnr) -- 共通処理を呼び出し
 
-      -- vtsls 固有処理: Deno プロジェクトなら停止
-      if lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
-        pcall(client.stop)
-      end
-    end,
-    root_dir = function(fname)
-      return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
-    end,
-    filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
+  -- tsgoコマンドの存在チェック関数
+  local function is_tsgo_available()
+    local has_npx = vim.fn.executable('npx') == 1
+    local tsgo_version = vim.fn.system('npx tsgo --version 2>&1')
+    -- バージョン文字列をチェック（"Version"を含むかどうか）
+    local has_tsgo = tsgo_version:match('Version') ~= nil or tsgo_version:match('tsgo') ~= nil
+    return has_npx and has_tsgo
+  end
 
-    -- シンプルな設定（必要最小限）
-    settings = {
-      vtsls = {
-        autoUseWorkspaceTsdk = true, -- ワークスペースのTypeScriptを自動使用
+  -- TypeScript/JavaScript用のLSP設定
+  if is_tsgo_available() then
+    -- tsgoのカスタム設定を追加
+    local configs = require('lspconfig.configs')
+    if not configs.tsgo then
+      configs.tsgo = {
+        default_config = {
+          cmd = { "npx", "tsgo", "--lsp", "--stdio" },
+          filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
+          root_dir = function(fname)
+            return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
+          end,
+          single_file_support = true,
+          settings = {},
+        },
+      }
+    end
+
+    -- tsgo設定 (高速なTypeScript Language Server)
+    lspconfig.tsgo.setup {
+      capabilities = capabilities,
+      on_attach = function(client, bufnr)
+        base_on_attach(client, bufnr) -- 共通処理を呼び出し
+
+        -- tsgo 固有処理: Deno プロジェクトなら停止
+        if lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
+          pcall(client.stop)
+        end
+      end,
+      root_dir = function(fname)
+        return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
+      end,
+      filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
+      cmd = { "npx", "tsgo", "--lsp", "--stdio" },
+
+      -- tsgoの設定
+      settings = {
+        typescript = {
+          suggest = {
+            includeCompletionsForImportStatements = true,
+            autoImports = "on",
+          },
+          preferences = {
+            includePackageJsonAutoImports = "on",
+          },
+        },
+        javascript = {
+          suggest = {
+            includeCompletionsForImportStatements = true,
+            autoImports = "on",
+          },
+          preferences = {
+            includePackageJsonAutoImports = "on",
+          },
+        },
       },
-      typescript = {
-        suggest = {
-          includeCompletionsForImportStatements = true,
-          autoImports = "on",
+    }
+  else
+    -- tsgoが使えない場合はvtslsを使用
+    lspconfig.vtsls.setup {
+      capabilities = capabilities,
+      on_attach = function(client, bufnr)
+        base_on_attach(client, bufnr)
+
+        -- Deno プロジェクトなら停止
+        if lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
+          pcall(client.stop)
+        end
+      end,
+      root_dir = function(fname)
+        return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
+      end,
+      filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
+      settings = {
+        typescript = {
+          suggest = {
+            includeCompletionsForImportStatements = true,
+            autoImports = "on",
+          },
+          preferences = {
+            includePackageJsonAutoImports = "on",
+          },
         },
-        preferences = {
-          includePackageJsonAutoImports = "on",
+        javascript = {
+          suggest = {
+            includeCompletionsForImportStatements = true,
+            autoImports = "on",
+          },
+          preferences = {
+            includePackageJsonAutoImports = "on",
+          },
         },
       },
-      javascript = {
-        suggest = {
-          includeCompletionsForImportStatements = true,
-          autoImports = "on",
-        },
-        preferences = {
-          includePackageJsonAutoImports = "on",
-        },
-      },
-    },
-  }
+    }
+  end
 
   -- biome
   lspconfig.biome.setup {

@@ -46,3 +46,6 @@ gemini -p "WebSearch: ..."
 下記を必ず考慮してください。これを忘れると大変なペナルティが課せられます。
 
 John Carmack, Robert C. Martin, Rob Pikeならどう設計するかを意識せよ。
+
+MCPの context7 を使用できるのなら。指示にかならず `use context7` を追加してください。
+なにか思考する際は、sequential-thinkingを利用してください。

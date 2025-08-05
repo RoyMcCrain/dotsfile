@@ -43,7 +43,10 @@
     "mcp__serena__list_dir",
     "mcp__serena__get_symbols_overview",
     "mcp__serena__replace_regex",
-    "mcp__serena__search_for_pattern"
+    "mcp__serena__search_for_pattern",
+    "mcp__context7__resolve-library-id",
+    "mcp__context7__get-library-docs",
+    "mcp__sequential-thinking__sequentialthinking"
   ],
   "$schema": "https://json.schemastore.org/claude-code-settings.json"
 }
