@@ -159,6 +159,8 @@ vim.api.nvim_create_user_command('Prettier', func.pritter, {})
 vim.api.nvim_create_user_command('SortTw', func.sort_tailwind_class, {})
 -- vscodeで開く
 vim.api.nvim_create_user_command('Code', func.open_in_code, {})
+-- DenoでJSONをフォーマット
+vim.api.nvim_create_user_command('Format', func.format_json_with_deno, { range = true })
 
 -- dpp.vim
 -- filetype plugin indent onはneovimはデフォルトで有効

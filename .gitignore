@@ -5,3 +5,4 @@ nvim/swp
 nvim/undo
 *.zsh.zwc
 logs
+.serena

@@ -5,6 +5,7 @@ plugins=(
   "deno"
   "rust"
   "rye"
+  "uv"
 )
 
 for plugin in ${plugins[@]}; do

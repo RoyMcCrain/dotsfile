@@ -149,4 +149,49 @@ M.open_in_code = function()
   })
 end
 
+-- DenoでJSONをフォーマットする関数
+-- バッファ全体またはビジュアル選択範囲のJSONをフォーマットします
+-- @return nil
+M.format_json_with_deno = function()
+  -- ビジュアルモードでの選択範囲を取得
+  local start_line, end_line
+  local mode = vim.api.nvim_get_mode().mode
+
+  if mode == 'v' or mode == 'V' then
+    -- ビジュアルモードの場合、選択範囲を取得
+    start_line = vim.fn.line("'<")
+    end_line = vim.fn.line("'>")
+  else
+    -- 通常モードの場合、バッファ全体を対象とする
+    start_line = 1
+    end_line = vim.fn.line('$')
+  end
+
+  -- 対象範囲のテキストを取得
+  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+  local content = table.concat(lines, '\n')
+
+  -- Denoでフォーマット
+  local cmd = { 'deno', 'fmt', '--no-config', '--ext', 'json', '-' }
+  local result = vim.system(cmd, {
+    stdin = content,
+    text = true,
+  }):wait()
+
+  if result.code == 0 then
+    -- フォーマット成功
+    local formatted_lines = vim.split(result.stdout, '\n')
+    -- 末尾の空行を削除
+    if formatted_lines[#formatted_lines] == '' then
+      table.remove(formatted_lines)
+    end
+    -- バッファを更新
+    vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, false, formatted_lines)
+    vim.notify('JSONのフォーマットが完了しました')
+  else
+    -- エラーの場合
+    vim.notify('JSONフォーマットエラー: ' .. (result.stderr or 'Unknown error'), vim.log.levels.ERROR)
+  end
+end
+
 return M
