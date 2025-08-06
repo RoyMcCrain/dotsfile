@@ -21,8 +21,12 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# git diffを取得
-DIFF=$(git diff --cached)
+# 設定値
+MAX_LINES=500
+CONTEXT_LINES=1
+
+# git diffを取得（コンテキスト行を制限）
+DIFF=$(git diff --cached -U${CONTEXT_LINES})
 
 if [ -z "$DIFF" ]; then
     if [ "$MESSAGE_ONLY" = true ]; then
@@ -31,6 +35,41 @@ if [ -z "$DIFF" ]; then
         echo -e "${YELLOW}ステージングされた変更がありません${NC}"
     fi
     exit 1
+fi
+
+# diffの行数をチェック
+DIFF_LINES=$(echo "$DIFF" | wc -l)
+
+# diffが大きすぎる場合は要約
+if [ "$DIFF_LINES" -gt "$MAX_LINES" ]; then
+    if [ "$MESSAGE_ONLY" = false ]; then
+        echo -e "${YELLOW}Diffが大きすぎます（${DIFF_LINES}行）。要約を生成します...${NC}"
+    fi
+    
+    # ファイルごとの変更統計を取得
+    STATS=$(git diff --cached --stat)
+    
+    # 変更されたファイルリスト
+    FILES=$(git diff --cached --name-status)
+    
+    # 主要な変更部分のみを抽出（最初と最後の一部）
+    HEAD_DIFF=$(echo "$DIFF" | head -n 100)
+    TAIL_DIFF=$(echo "$DIFF" | tail -n 100)
+    
+    # 要約版のdiffを作成
+    DIFF="Summary of large diff (${DIFF_LINES} lines):
+
+File Changes:
+${FILES}
+
+Statistics:
+${STATS}
+
+--- First 100 lines of diff ---
+${HEAD_DIFF}
+
+--- Last 100 lines of diff ---
+${TAIL_DIFF}"
 fi
 
 # メッセージのみモードでない場合のみ表示
