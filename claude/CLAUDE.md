@@ -27,6 +27,63 @@ Then, provide the final answer in Japanese.
 - pnpm run build: プロダクションビルド
 - pnpm run lint: biomeでのリント実行
 
+# TypeScript型エラー確認ツールの使い分け
+
+## 各ツールの特徴と使用場面
+
+### 1. LSP診断 (mcp__ts__get_diagnostics) - 最速
+**使用場面**: 特定ファイルの型エラーを素早く確認したい時
+```typescript
+mcp__ts__get_diagnostics
+```
+- ✅ リアルタイムで現在のファイル状態を確認
+- ✅ 正確な行番号と列番号を提供
+- ✅ 単一ファイルの確認が非常に高速
+- ✅ VSCodeなどのIDEと同じ診断結果
+
+### 2. pnpm typecheck - 全体確認
+**使用場面**: プロジェクト全体の型エラーを確認したい時
+```bash
+# 全体の型チェック
+pnpm typecheck
+
+# エラー数のカウント
+pnpm typecheck 2>&1 | grep -c "error TS"
+
+# 特定ファイルのエラーのみ抽出
+pnpm typecheck 2>&1 | grep "filename.ts"
+```
+- ✅ プロジェクト全体の型エラーを一度に確認
+- ✅ CI/CDパイプラインと同じ結果
+- ❌ 実行は遅い（プロジェクト全体をチェック）
+
+### 3. Serena - シンボル分析
+**使用場面**: リファクタリングや特定シンボルの型を調査したい時
+```
+serena__find_symbol
+```
+- ✅ シンボル単位での型情報取得
+- ✅ リファクタリング時の参照箇所追跡
+- ❌ 型エラー一覧の取得には不向き
+
+## 推奨ワークフロー
+
+1. **初期確認**: `mcp__ts__get_diagnostics`で素早くエラーを特定
+2. **修正作業**: エラーを修正
+3. **修正確認**: 再度`mcp__ts__get_diagnostics`で確認
+4. **全体確認**: `pnpm typecheck | grep -c "error TS"`でエラー数確認
+5. **最終検証**: `pnpm typecheck`で全体を検証
+
+### 実例
+```bash
+# scenario-converter.test.tsの型エラー修正の流れ
+1. mcp__ts__get_diagnostics (特定ファイルのエラー確認)
+2. 修正を適用
+3. mcp__ts__get_diagnostics (修正確認)
+4. pnpm typecheck | grep "scenario-converter.test.ts" (ファイル固有のエラー確認)
+5. pnpm typecheck (プロジェクト全体の最終確認)
+```
+
 # memory mcp
 memory mcpを利用している場合、タスクを実行した最後に保存したほうがいいKnowledgeをmemory mcpで保存してください。
 

@@ -81,11 +81,11 @@ fi
 JSON_PAYLOAD=$(jq -n \
   --arg diff "$DIFF" \
   '{
-    model: "qwen/qwen3-8b",
+    model: "google/gemma-3-12b",
     messages: [
       {
         role: "system",
-        content: "Generate git commit messages using conventional commits format (feat/fix/docs/style/refactor/test/chore). Output ONLY the commit message without any markdown, labels, or formatting. Keep subject line under 50 chars. Add body only if needed, wrapped at 72 chars."
+        content: "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/style/refactor/test/chore). Do not include any explanations, markdown formatting, code blocks, or additional text. Output the raw commit message only. Subject line must be under 50 chars. Add body only if needed, wrapped at 72 chars. Never add text like \"Here is the commit message:\" or \"Commit message:\". Start directly with the commit type."
       },
       {
         role: "user",
