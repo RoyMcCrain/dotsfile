@@ -223,6 +223,7 @@ M.setup = function()
   -- biome
   lspconfig.biome.setup {
     capabilities = capabilities,
+    cmd = { "npx", "@biomejs/biome", "lsp-proxy" },
     root_dir = function(fname) return lu.find_nearest_file(fname, 'biome.json') end,
     on_attach = function(client, bufnr)
       -- Biome ではフォーマットを優先し、補完を無効化
