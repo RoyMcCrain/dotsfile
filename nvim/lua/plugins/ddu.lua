@@ -141,6 +141,35 @@ M.setup = function()
     ':call ddu#start(#{name: "grep", sources:[#{name: "rg", params: #{input: expand("<cword>")}}] })<CR>',
     { noremap = true })
 
+  -- Git diff files (カスタムソースを使用)
+  vim.keymap.set('n', '[ddu]d', function()
+    vim.fn['ddu#start']({
+      sources = {
+        {
+          name = 'git_diff',
+        }
+      },
+      sourceOptions = {
+        git_diff = {
+          matchers = { 'matcher_substring' },
+        }
+      },
+      kindOptions = {
+        file = {
+          defaultAction = 'open',
+        }
+      },
+      uiParams = {
+        ff = {
+          floatingTitle = "Git Diff Files [●=staged | M=modified +=added -=deleted R=renamed]",
+          startFilter = false,
+          prompt = '> ',
+          displaySourceName = 'no', -- ソース名を非表示にする
+        }
+      },
+    })
+  end, { noremap = true, desc = "List git diff files" })
+
   _G.ddu_my_ff_settings = function()
     vim.keymap.set('n', '<CR>', ':call ddu#ui#do_action("itemAction", #{name: "open"})<CR>',
       { noremap = true, buffer = 0 })

@@ -161,6 +161,10 @@ vim.api.nvim_create_user_command('SortTw', func.sort_tailwind_class, {})
 vim.api.nvim_create_user_command('Code', func.open_in_code, {})
 -- DenoでJSONをフォーマット
 vim.api.nvim_create_user_command('Format', func.format_json_with_deno, { range = true })
+-- ファイルパスをコピー
+vim.api.nvim_create_user_command('CP', function(opts)
+  func.copy_file_path(opts.args)
+end, { nargs = '?', complete = function() return { 'absolute', 'relative', 'filename' } end })
 
 -- dpp.vim
 -- filetype plugin indent onはneovimはデフォルトで有効

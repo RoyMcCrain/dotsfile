@@ -149,6 +149,27 @@ M.open_in_code = function()
   })
 end
 
+-- 現在のファイルパスをクリップボードにコピーする関数
+-- 絶対パス、相対パス、ファイル名のみの3種類のコピー方法を提供
+-- @param mode string - "absolute" (絶対パス), "relative" (相対パス), "filename" (ファイル名のみ)
+-- @return nil
+M.copy_file_path = function(mode)
+  local path
+  if mode == "absolute" then
+    path = vim.fn.expand('%:p')
+  elseif mode == "relative" then
+    path = vim.fn.expand('%')
+  elseif mode == "filename" then
+    path = vim.fn.expand('%:t')
+  else
+    path = vim.fn.expand('%:p')  -- デフォルトは絶対パス
+  end
+  
+  -- クリップボードにコピー
+  vim.fn.setreg('+', path)
+  vim.notify(string.format("Copied to clipboard: %s", path))
+end
+
 -- DenoでJSONをフォーマットする関数
 -- バッファ全体またはビジュアル選択範囲のJSONをフォーマットします
 -- @return nil
