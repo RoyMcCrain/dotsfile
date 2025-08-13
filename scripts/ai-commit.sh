@@ -109,7 +109,7 @@ USER_PROMPT="Generate a commit message for these changes:
 $DIFF"
 
 JSON_PAYLOAD=$(jq -n \
-  --arg model "qwen/qwen3-4b-thinking-2507" \
+  --arg model "qwen/qwen3-4b-2507" \
   --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/style/refactor/test/chore). NEVER use thinking tags like <think> or any XML tags. Do not include any explanations, markdown formatting, code blocks, or additional text. Output the raw commit message only. Subject line must be under 50 chars. Add body only if needed, wrapped at 72 chars. Start directly with the commit type." \
   --arg user "$USER_PROMPT" \
   '{
