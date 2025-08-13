@@ -21,9 +21,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# 設定値
-MAX_LINES=500
-CONTEXT_LINES=1
+# 設定値（環境変数でオーバーライド可能）
+MAX_LINES=${AI_COMMIT_MAX_LINES:-300}
+CONTEXT_LINES=${AI_COMMIT_CONTEXT:-0}  # デフォルトを0に変更（コンテキストなし）
+MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-3500}  # LM Studioのコンテキスト制限を考慮（4096の約85%）
+CHARS_PER_TOKEN=${AI_COMMIT_CHARS_PER_TOKEN:-4}  # 1トークンあたりの平均文字数（概算）
 
 # git diffを取得（コンテキスト行を制限）
 DIFF=$(git diff --cached -U${CONTEXT_LINES})
@@ -37,13 +39,15 @@ if [ -z "$DIFF" ]; then
     exit 1
 fi
 
-# diffの行数をチェック
+# diffの行数とトークン数を推定
 DIFF_LINES=$(echo "$DIFF" | wc -l)
+DIFF_CHARS=$(echo "$DIFF" | wc -c)
+ESTIMATED_TOKENS=$((DIFF_CHARS / CHARS_PER_TOKEN))
 
-# diffが大きすぎる場合は要約
-if [ "$DIFF_LINES" -gt "$MAX_LINES" ]; then
+# トークン数またはライン数が多い場合は要約
+if [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ] || [ "$DIFF_LINES" -gt "$MAX_LINES" ]; then
     if [ "$MESSAGE_ONLY" = false ]; then
-        echo -e "${YELLOW}Diffが大きすぎます（${DIFF_LINES}行）。要約を生成します...${NC}"
+        echo -e "${YELLOW}Diffが大きすぎます（推定${ESTIMATED_TOKENS}トークン、${DIFF_LINES}行）。要約を生成します...${NC}"
     fi
     
     # ファイルごとの変更統計を取得
@@ -52,12 +56,23 @@ if [ "$DIFF_LINES" -gt "$MAX_LINES" ]; then
     # 変更されたファイルリスト
     FILES=$(git diff --cached --name-status)
     
-    # 主要な変更部分のみを抽出（最初と最後の一部）
-    HEAD_DIFF=$(echo "$DIFF" | head -n 100)
-    TAIL_DIFF=$(echo "$DIFF" | tail -n 100)
+    # トークン数に応じて抽出行数を動的に調整
+    if [ "$ESTIMATED_TOKENS" -gt $((MAX_TOKENS * 2)) ]; then
+        # 非常に大きい場合は少なめに
+        EXTRACT_LINES=50
+    elif [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ]; then
+        # 中程度の場合
+        EXTRACT_LINES=75
+    else
+        EXTRACT_LINES=100
+    fi
+    
+    # 主要な変更部分のみを抽出
+    HEAD_DIFF=$(echo "$DIFF" | head -n $EXTRACT_LINES)
+    TAIL_DIFF=$(echo "$DIFF" | tail -n $EXTRACT_LINES)
     
     # 要約版のdiffを作成
-    DIFF="Summary of large diff (${DIFF_LINES} lines):
+    DIFF="Summary of large diff (${ESTIMATED_TOKENS} tokens, ${DIFF_LINES} lines):
 
 File Changes:
 ${FILES}
@@ -65,10 +80,10 @@ ${FILES}
 Statistics:
 ${STATS}
 
---- First 100 lines of diff ---
+--- First ${EXTRACT_LINES} lines of diff ---
 ${HEAD_DIFF}
 
---- Last 100 lines of diff ---
+--- Last ${EXTRACT_LINES} lines of diff ---
 ${TAIL_DIFF}"
 fi
 
@@ -93,7 +108,7 @@ JSON_PAYLOAD=$(jq -n \
       }
     ],
     temperature: 0.8,
-    max_tokens: 100
+    max_tokens: 200
   }')
 
 # LM Studioに問い合わせ
