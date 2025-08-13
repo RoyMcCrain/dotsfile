@@ -109,7 +109,7 @@ USER_PROMPT="Generate a commit message for these changes:
 $DIFF"
 
 JSON_PAYLOAD=$(jq -n \
-  --arg model "qwen/qwen3-8b" \
+  --arg model "qwen/qwen3-4b-thinking-2507" \
   --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/style/refactor/test/chore). NEVER use thinking tags like <think> or any XML tags. Do not include any explanations, markdown formatting, code blocks, or additional text. Output the raw commit message only. Subject line must be under 50 chars. Add body only if needed, wrapped at 72 chars. Start directly with the commit type." \
   --arg user "$USER_PROMPT" \
   '{
@@ -137,7 +137,7 @@ RESPONSE=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
 # メッセージを抽出
 MESSAGE=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
 
-# qwen/qwen3-8bは高速だが<think>タグを出力することがある
+# qwen/qwen3-4b-thinking-2507は<think>タグを出力することがある
 # その場合はデフォルトメッセージを使用
 if echo "$MESSAGE" | grep -q "^<think>"; then
     MESSAGE="feat: Improve large diff handling and optimize performance"
