@@ -92,8 +92,8 @@ JSON_PAYLOAD=$(jq -n \
         content: ("Generate a commit message for these changes:\n\n" + $diff)
       }
     ],
-    temperature: 0.5,
-    max_tokens: 80
+    temperature: 0.8,
+    max_tokens: 100
   }')
 
 # LM Studioに問い合わせ
