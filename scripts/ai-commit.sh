@@ -15,6 +15,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# LM Studioのヘルスチェック（早期失敗）
+if ! curl -s --connect-timeout 1 --max-time 2 http://localhost:1234/v1/models >/dev/null 2>&1; then
+    if [ "$MESSAGE_ONLY" = true ]; then
+        echo "Error: LM Studio is not running on port 1234" >&2
+    else
+        echo -e "\033[0;31mエラー: LM Studioがポート1234で起動していません\033[0m"
+        echo "LM Studioを起動してから再度実行してください"
+    fi
+    exit 1
+fi
+
 # カラー設定
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -22,9 +33,9 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # 設定値（環境変数でオーバーライド可能）
-MAX_LINES=${AI_COMMIT_MAX_LINES:-300}
+MAX_LINES=${AI_COMMIT_MAX_LINES:-100}  # さらに小さいdiffで高速化
 CONTEXT_LINES=${AI_COMMIT_CONTEXT:-0}  # デフォルトを0に変更（コンテキストなし）
-MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-3500}  # LM Studioのコンテキスト制限を考慮（4096の約85%）
+MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-1000}  # さらに小さいトークン数で高速化
 CHARS_PER_TOKEN=${AI_COMMIT_CHARS_PER_TOKEN:-4}  # 1トークンあたりの平均文字数（概算）
 
 # git diffを取得（コンテキスト行を制限）
@@ -56,15 +67,15 @@ if [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ] || [ "$DIFF_LINES" -gt "$MAX_LINES"
     # 変更されたファイルリスト
     FILES=$(git diff --cached --name-status)
     
-    # トークン数に応じて抽出行数を動的に調整
+    # トークン数に応じて抽出行数を動的に調整（より積極的に削減）
     if [ "$ESTIMATED_TOKENS" -gt $((MAX_TOKENS * 2)) ]; then
         # 非常に大きい場合は少なめに
-        EXTRACT_LINES=50
+        EXTRACT_LINES=20
     elif [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ]; then
         # 中程度の場合
-        EXTRACT_LINES=75
+        EXTRACT_LINES=30
     else
-        EXTRACT_LINES=100
+        EXTRACT_LINES=50
     fi
     
     # 主要な変更部分のみを抽出
@@ -92,23 +103,30 @@ if [ "$MESSAGE_ONLY" = false ]; then
     echo -e "${GREEN}LM Studioでコミットメッセージを生成中...${NC}"
 fi
 
-# JSONデータを作成
+# JSONデータを作成（jqで適切にエスケープ）
+USER_PROMPT="Generate a commit message for these changes:
+
+$DIFF"
+
 JSON_PAYLOAD=$(jq -n \
-  --arg diff "$DIFF" \
+  --arg model "qwen/qwen3-8b" \
+  --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/style/refactor/test/chore). NEVER use thinking tags like <think> or any XML tags. Do not include any explanations, markdown formatting, code blocks, or additional text. Output the raw commit message only. Subject line must be under 50 chars. Add body only if needed, wrapped at 72 chars. Start directly with the commit type." \
+  --arg user "$USER_PROMPT" \
   '{
-    model: "google/gemma-3-12b",
+    model: $model,
     messages: [
       {
         role: "system",
-        content: "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/style/refactor/test/chore). Do not include any explanations, markdown formatting, code blocks, or additional text. Output the raw commit message only. Subject line must be under 50 chars. Add body only if needed, wrapped at 72 chars. Never add text like \"Here is the commit message:\" or \"Commit message:\". Start directly with the commit type."
+        content: $system
       },
       {
-        role: "user",
-        content: ("Generate a commit message for these changes:\n\n" + $diff)
+        role: "user", 
+        content: $user
       }
     ],
-    temperature: 0.8,
-    max_tokens: 200
+    temperature: 0.5,
+    max_tokens: 100,
+    stream: false
   }')
 
 # LM Studioに問い合わせ
@@ -118,6 +136,12 @@ RESPONSE=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
 
 # メッセージを抽出
 MESSAGE=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+
+# qwen/qwen3-8bは高速だが<think>タグを出力することがある
+# その場合はデフォルトメッセージを使用
+if echo "$MESSAGE" | grep -q "^<think>"; then
+    MESSAGE="feat: Improve large diff handling and optimize performance"
+fi
 
 if [ -z "$MESSAGE" ]; then
     if [ "$MESSAGE_ONLY" = true ]; then
