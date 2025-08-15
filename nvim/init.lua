@@ -14,7 +14,7 @@ if vim.fn.has("persistent_undo") == 1 then
 end
 
 vim.api.nvim_create_user_command('Doc', function()
-  local doc_path = vim.fn.stdpath('config') .. '/doc/keymaps.txt'
+  local doc_path = vim.fn.stdpath('config') .. '/doc/keymaps.md'
   vim.cmd('tabnew ' .. doc_path)
   vim.bo.readonly = true
   vim.bo.modifiable = false
@@ -133,14 +133,17 @@ vim.keymap.set('n', '<C-t>', '<C-w>j', { noremap = true })
 vim.keymap.set('n', '<C-n>', '<C-w>k', { noremap = true })
 vim.keymap.set('n', '<C-s>', '<C-w>l', { noremap = true })
 
+-- ターミナルモードでのwindow移動（ターミナル挿入モードから直接移動）
+vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w>h', { noremap = true })
+vim.keymap.set('t', '<C-t>', '<C-\\><C-n><C-w>j', { noremap = true })
+vim.keymap.set('t', '<C-n>', '<C-\\><C-n><C-w>k', { noremap = true })
+vim.keymap.set('t', '<C-s>', '<C-\\><C-n><C-w>l', { noremap = true })
+
 -- 矩形選択が貼り付けとコンフリクトするので変更
 vim.keymap.set('n', '<C-j>', '<C-v>', { noremap = true })
 
 -- 日本語切替で被るのでvimを止める
 vim.keymap.set('i', '<C-space>', '<Nop>', { noremap = true })
-
--- Astarte配列
-vim.keymap.set({ 'n', 'v' }, 'j', 'w', { noremap = true })
 
 -- wrap
 vim.keymap.set('n', 'W', '<Cmd>set wrap<CR>', { noremap = true })
