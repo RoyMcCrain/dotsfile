@@ -159,8 +159,37 @@ rm -fr ./release.tar.gz ./release
 
 
 
-# memo
-## denopsでライブラリのエラー
+# Neovim/dpp.vim セットアップ
+
+## 初回セットアップ
+Neovimの設定はdpp.vimとDenoを使用してTypeScriptで管理されています。初回起動時は以下の手順でセットアップしてください：
+
+### 1. 設定ファイルとカスタムdduソースの依存関係をキャッシュ
+```bash
+# dpp.config.ts の依存関係をキャッシュ
+cd ~/.config/nvim
+deno cache dpp.config.ts
+
+# カスタムdduソースの依存関係をキャッシュ（git_diff.tsなど）
+cd ~/.config/nvim/denops/@ddu-sources
+deno cache *.ts
+
+# または ghq ディレクトリから実行する場合
+cd ~/ghq/github.com/RoyMcCrain/dotsfile
+deno cache nvim/dpp.config.ts
+```
+
+**注意**: `deno cache`は設定ファイルとカスタムソースで使用されているJSRパッケージをダウンロードしてキャッシュします。これにより、Neovim起動時にネットワークアクセスなしで高速に読み込めるようになります。
+
+### 2. Neovimの起動
+```bash
+nvim
+```
+初回起動時にプラグインのインストールが自動的に行われます。プラグインのインストール後、Neovim内で`:call dpp#make_state()`を実行して設定を反映させてください。
+
+## トラブルシューティング
+
+### denopsでライブラリのエラー
 ```bash
 [denops] Failed to load plugin 'dpp': TypeError: error sending request for url (https://jsr.io/@std/internal/0.225.1/format.ts):
  http2 error: stream error received: refused stream before processing any application logic                                     
@@ -172,9 +201,30 @@ Could not find co
 nstraint in the list of versions
 ```
 
-こんな感じのエラーが起きたら
+### JSRパッケージが見つからないエラー
+```
+JSR package "@shougo/dpp-vim@~4.1.0" is not installed or doesn't exist.
+```
+
+これらのエラーが起きたら以下を実行：
 ```bash
+# キャッシュをクリア
 rm -fr ~/.cache/deno
 rm -fr ~/.cache/dpp
+
+# プラグインを再インストール（Neovim内で実行）
+:call dpp#install()
+
+# 設定ファイルの依存関係を再キャッシュ
+cd ~/.config/nvim
+deno cache dpp.config.ts
+
+# カスタムdduソースの依存関係を再キャッシュ
+cd ~/.config/nvim/denops/@ddu-sources
+deno cache *.ts
+
+# Neovim内でdppの状態を再構築
+:call dpp#make_state()
 ```
-をする。なんかdenoのキャッシュが原因で上手くインストールできないときがある。
+
+Denoのキャッシュが原因で上手くインストールできないときがあるため、キャッシュクリア後に再キャッシュすることで解決します。

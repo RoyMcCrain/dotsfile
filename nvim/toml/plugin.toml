@@ -105,13 +105,21 @@ lua_add = '''
   })
 '''
 
+#----------------------------------------------------------------------------------#
+# Claude Code Integration
+#----------------------------------------------------------------------------------#
 [[plugins]]
-repo = '~/.config/nvim/denops/ddu-source-keymaps'
-merged = 0
-build = "deno cache main.ts"
+repo = 'folke/snacks.nvim'
+lua_add = '''
+require("snacks").setup({
+  terminal = {
+    enabled = true,
+  }
+})
+'''
 
 [[plugins]]
-repo = '~/.config/nvim/denops/ddu-kind-keymaps'
-merged = 0
-build = "deno cache main.ts"
+repo = 'coder/claudecode.nvim'
+depends = ['snacks.nvim']
+lua_add = 'require("plugins.claudecode").setup()'
 

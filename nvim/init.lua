@@ -101,7 +101,8 @@ vim.opt.fileformats = "unix,dos,mac" -- エンコーディングの設定
 vim.opt.maxfuncdepth = 200 -- 最大関数呼び出し深度
 vim.opt.compatible = false -- viとの互換を切る
 -- terminalモードから抜ける
-vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { noremap = true })
+-- ;;で素早く抜ける（Claude Codeで<Esc>を使うため）
+vim.keymap.set('t', ';;', '<C-\\><C-n>', { noremap = true })
 -- Terminalはinsertモードで開く
 vim.api.nvim_create_autocmd("TermOpen", {
   pattern = "*",

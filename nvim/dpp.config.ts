@@ -1,25 +1,25 @@
-import { BaseConfig } from "jsr:/@shougo/dpp-vim@~4.1.0/config";
-import { mergeFtplugins } from "jsr:/@shougo/dpp-vim@~4.1.0/utils";
+import { BaseConfig } from "jsr:@shougo/dpp-vim@~4.1.0/config";
+import { mergeFtplugins } from "jsr:@shougo/dpp-vim@~4.1.0/utils";
 
 import type {
   ContextBuilder,
   ExtOptions,
   Plugin,
-} from "jsr:/@shougo/dpp-vim@~4.1.0/types";
+} from "jsr:@shougo/dpp-vim@~4.1.0/types";
 import type {
   ConfigReturn,
   MultipleHook,
-} from "jsr:/@shougo/dpp-vim@~4.1.0/config";
+} from "jsr:@shougo/dpp-vim@~4.1.0/config";
 import type {
   Ext as TomlExt,
   Params as TomlParams,
-} from "jsr:/@shougo/dpp-ext-toml@~1.3.0";
+} from "jsr:@shougo/dpp-ext-toml@~1.3.0";
 import type {
   Ext as LazyExt,
   LazyMakeStateResult,
   Params as LazyParams,
-} from "jsr:/@shougo/dpp-ext-lazy@~1.5.0";
-import type { Denops } from "jsr:/@denops/std@~7.4.0";
+} from "jsr:@shougo/dpp-ext-lazy@~1.5.0";
+import type { Denops } from "jsr:@denops/std@~7.4.0";
 
 export class Config extends BaseConfig {
   override async config(args: {
