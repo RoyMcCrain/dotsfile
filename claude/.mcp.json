@@ -1,0 +1,60 @@
+{
+  "mcpServers": {
+    "deepwiki": {
+      "type": "http",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "description": "Documentation for GitHub repositories"
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "transport": {
+        "type": "stdio"
+      },
+      "description": "Knowledge graph for memory management"
+    },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp",
+      "description": "Sentry integration for error tracking and SDK documentation"
+    },
+    "figma": {
+      "type": "http",
+      "url": "http://127.0.0.1:3845/mcp",
+      "description": "Figma design mode integration (local server)"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "transport": {
+        "type": "stdio"
+      },
+      "description": "Tool for step-by-step problem solving and complex reasoning"
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "description": "Up-to-date documentation and code examples for libraries"
+    },
+    "ts": {
+      "command": "lsmcp-tsgo",
+      "transport": {
+        "type": "stdio"
+      },
+      "env": {
+        "PATH": "${HOME}/.local/bin:${PATH}"
+      },
+      "description": "TypeScript language server for code analysis and refactoring"
+    },
+    "go": {
+      "command": "lsmcp-gopls",
+      "transport": {
+        "type": "stdio"
+      },
+      "env": {
+        "PATH": "${HOME}/.local/bin:${PATH}"
+      },
+      "description": "Go language server (gopls) for Go code analysis and refactoring"
+    }
+  }
+}

@@ -34,7 +34,7 @@ function M.setup()
     vim.tbl_extend("force", opts, { desc = "Toggle Claude Code from terminal" }))
 
   -- Visual mode: Send selection to Claude
-  keymap("v", "<C-g>", ":ClaudeCodeSend<CR>", vim.tbl_extend("force", opts, { desc = "Send to Claude" }))
+  keymap("v", "<C-g>", ":'<,'>ClaudeCodeSend<CR>", vim.tbl_extend("force", opts, { desc = "Send to Claude" }))
 
   -- Command alias for adding current file to context
   vim.api.nvim_create_user_command("ClaudeCodeAddFile", function()
