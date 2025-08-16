@@ -13,12 +13,79 @@ if vim.fn.has("persistent_undo") == 1 then
   vim.o.undofile = true
 end
 
-vim.api.nvim_create_user_command('Doc', function()
-  local doc_path = vim.fn.stdpath('config') .. '/doc/keymaps.md'
-  vim.cmd('tabnew ' .. doc_path)
-  vim.bo.readonly = true
-  vim.bo.modifiable = false
-end, {})
+vim.api.nvim_create_user_command('Doc', function(opts)
+  local doc_dir = vim.fn.stdpath('config') .. '/doc/'
+  local doc_path
+  
+  if opts.args == '' then
+    -- 引数なしの場合はデフォルトのkeymaps.mdを表示
+    doc_path = doc_dir .. 'keymaps.md'
+  else
+    -- 引数がある場合は、対応するファイルを表示
+    -- .md拡張子が付いていない場合は自動的に追加
+    local filename = opts.args
+    if not string.match(filename, '%.md$') then
+      filename = filename .. '.md'
+    end
+    doc_path = doc_dir .. filename
+  end
+  
+  -- ファイルが存在するかチェック
+  if vim.fn.filereadable(doc_path) == 0 then
+    vim.notify('Document not found: ' .. doc_path, vim.log.levels.ERROR)
+    return
+  end
+  
+  -- フローティングウィンドウの設定
+  local width = math.floor(vim.o.columns * 0.8)
+  local height = math.floor(vim.o.lines * 0.8)
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+  
+  -- バッファを作成
+  local buf = vim.api.nvim_create_buf(false, true)
+  
+  -- ファイル内容を読み込み
+  local lines = vim.fn.readfile(doc_path)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  
+  -- バッファの設定
+  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+  
+  -- ウィンドウを作成
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' 📚 ' .. vim.fn.fnamemodify(doc_path, ':t:r') .. ' ',
+    title_pos = 'center',
+  })
+  
+  -- ウィンドウの設定
+  vim.api.nvim_win_set_option(win, 'wrap', true)
+  vim.api.nvim_win_set_option(win, 'linebreak', true)
+  vim.api.nvim_win_set_option(win, 'cursorline', true)
+  
+  -- ESCまたはqで閉じる
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':close<CR>', { noremap = true, silent = true })
+  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':close<CR>', { noremap = true, silent = true })
+end, { nargs = '?', complete = function(_, _, _)
+  -- タブ補完用：doc/ディレクトリ内の.mdファイル一覧を提供
+  local doc_dir = vim.fn.stdpath('config') .. '/doc/'
+  local files = vim.fn.glob(doc_dir .. '*.md', false, true)
+  local completions = {}
+  for _, file in ipairs(files) do
+    local filename = vim.fn.fnamemodify(file, ':t:r') -- ファイル名のみ（拡張子なし）
+    table.insert(completions, filename)
+  end
+  return completions
+end })
 
 vim.opt.swapfile = false     -- swpファイルをつくらない
 vim.opt.termguicolors = true -- trueカラーを使う

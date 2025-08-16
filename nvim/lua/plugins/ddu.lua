@@ -133,13 +133,63 @@ M.setup = function()
 
 
   -- キーマップの設定
-  vim.keymap.set('n', '[ddu]k', ':call ddu#start({}) <CR>', { noremap = true })
-  vim.keymap.set('n', '[ddu]b', ':call ddu#start(#{sources: [#{name: "buffer"}] }) <CR>', { noremap = true })
-  vim.keymap.set('n', '[ddu]m', ':call ddu#start(#{sources: [#{name: "mr"}] }) <CR>', { noremap = true })
-  vim.keymap.set('n', '[ddu]r', ':call ddu#start(#{sources: [#{name: "register"}] }) <CR>', { noremap = true })
-  vim.keymap.set('n', '[ddu]w',
-    ':call ddu#start(#{name: "grep", sources:[#{name: "rg", params: #{input: expand("<cword>")}}] })<CR>',
-    { noremap = true })
+  vim.keymap.set('n', '[ddu]k', function()
+    vim.fn['ddu#start']({
+      uiParams = {
+        ff = {
+          floatingTitle = "File Search",
+        }
+      }
+    })
+  end, { noremap = true })
+  
+  vim.keymap.set('n', '[ddu]b', function()
+    vim.fn['ddu#start']({
+      sources = {{ name = "buffer" }},
+      uiParams = {
+        ff = {
+          floatingTitle = "Buffer List",
+        }
+      }
+    })
+  end, { noremap = true })
+  
+  vim.keymap.set('n', '[ddu]m', function()
+    vim.fn['ddu#start']({
+      sources = {{ name = "mr" }},
+      uiParams = {
+        ff = {
+          floatingTitle = "Recent Files (MRU)",
+        }
+      }
+    })
+  end, { noremap = true })
+  
+  vim.keymap.set('n', '[ddu]r', function()
+    vim.fn['ddu#start']({
+      sources = {{ name = "register" }},
+      uiParams = {
+        ff = {
+          floatingTitle = "Register List",
+        }
+      }
+    })
+  end, { noremap = true })
+  vim.keymap.set('n', '[ddu]w', function()
+    local word = vim.fn.expand('<cword>')
+    vim.fn['ddu#start']({
+      name = "grep",
+      sources = {{
+        name = "rg",
+        params = { input = word }
+      }},
+      uiParams = {
+        ff = {
+          floatingTitle = "Grep: " .. word,
+        }
+      }
+    })
+  end, { noremap = true })
 
   -- Git diff files (カスタムソースを使用)
   vim.keymap.set('n', '[ddu]d', function()
