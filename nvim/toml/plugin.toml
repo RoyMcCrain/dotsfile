@@ -11,11 +11,6 @@ lua_add = 'vim.cmd([[colorscheme kanagawa]])'
 [[plugins]]
 repo = 'nvim-tree/nvim-web-devicons'
 
-[[plugins]]
-repo = 'nvim-lualine/lualine.nvim'
-depends = ['nvim-web-devicons']
-lua_add = 'require("plugins.lualine").setup()'
-
 #----------------------------------------------------------------------------------#
 # LSP
 #----------------------------------------------------------------------------------#
@@ -71,7 +66,6 @@ lua_add = 'require("gitsigns").setup({})'
 # 移動補完
 #----------------------------------------------------------------------------------#
 [[plugins]]
-# vimの移動コマンド拡張
 repo = 'smoka7/hop.nvim'
 lua_add = 'require("plugins.hop-nvim").setup()'
 
@@ -80,10 +74,6 @@ lua_add = 'require("plugins.hop-nvim").setup()'
 #----------------------------------------------------------------------------------#
 [[plugins]]
 repo = 'tpope/vim-abolish'
-# crs "SnakeCase" → "snake_case"
-# crm "mixed_case" → "MixedCase"
-# crc "camel_case" → "camelCase"
-# cru "upper_case" → "UPPER_CASE"
 
 #----------------------------------------------------------------------------------#
 # コメントアウト

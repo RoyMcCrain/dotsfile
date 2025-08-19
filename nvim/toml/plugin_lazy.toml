@@ -130,6 +130,3 @@ on_ft = 'markdown'
 depends = ['nvim-treesitter', 'nvim-web-devicons']
 lua_source = 'require("plugins.render-markdown").setup()'
 
-[[plugins]]
-repo = 'nvim-tree/nvim-web-devicons'
-on_source = 'render-markdown.nvim'

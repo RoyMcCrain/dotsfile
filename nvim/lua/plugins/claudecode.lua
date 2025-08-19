@@ -41,6 +41,14 @@ function M.setup()
     local file = vim.fn.expand("%:p")
     vim.cmd("ClaudeCodeAdd " .. file)
   end, { desc = "Add current file to Claude context" })
+
+  vim.api.nvim_create_user_command("Ca", function()
+    vim.cmd("ClaudeCodeAddFile")
+  end, { desc = "ClaudeCodeAdd" })
+
+  vim.api.nvim_create_user_command("Caf", function()
+    vim.cmd("ClaudeCodeAddFile")
+  end, { desc = "ClaudeCodeAddFile" })
 end
 
 return M
