@@ -18,7 +18,7 @@ function M.setup()
     terminal = {
       split_side = "right",         -- Terminal position: left/right/up/down
       split_width_percentage = 0.4, -- Terminal width (30% of screen)
-      provider = "auto",            -- Terminal provider: auto/snacks/vim
+      provider = "snacks",          -- Terminal provider: auto/snacks/vim
       auto_close = true,            -- Auto close terminal when done
     },
   })

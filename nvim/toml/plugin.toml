@@ -11,6 +11,11 @@ lua_add = 'vim.cmd([[colorscheme kanagawa]])'
 [[plugins]]
 repo = 'nvim-tree/nvim-web-devicons'
 
+[[plugins]]
+repo = 'nvim-lualine/lualine.nvim'
+depends = ['nvim-web-devicons']
+lua_add = 'require("plugins.lualine").setup()'
+
 #----------------------------------------------------------------------------------#
 # LSP
 #----------------------------------------------------------------------------------#

@@ -86,26 +86,98 @@ M.pritter = function()
   vim.notify("現在のファイルタイプはPrettierでサポートされていません。")
 end
 
--- ファイル保存時にeslintによるフォーマットを実行する
+-- Terminalをfloat windowでtoggle
 --- @return nil
 M.toggle_terminal = function()
-  if vim.bo.buftype == 'terminal' then
-    -- ターミナルから元のバッファに戻る
-    vim.cmd('buffer #')
-  else
-    -- すでに開いているターミナルバッファがあるか確認
-    local found = false
-    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.bo[buf].buftype == 'terminal' then
-        vim.api.nvim_set_current_buf(buf)
-        found = true
-        break
+  -- 現在のウィンドウがターミナルのフロートウィンドウかチェック
+  local current_win = vim.api.nvim_get_current_win()
+  local current_buf = vim.api.nvim_win_get_buf(current_win)
+  local config = vim.api.nvim_win_get_config(current_win)
+
+  -- 現在のウィンドウがフロートターミナルなら閉じる
+  if vim.bo[current_buf].buftype == 'terminal' and config.relative ~= '' then
+    local bufname = vim.api.nvim_buf_get_name(current_buf)
+    if not string.match(bufname:lower(), "claude") then
+      vim.api.nvim_win_close(current_win, true)
+      return
+    end
+  end
+
+  -- フロートウィンドウで開いているターミナルを探す
+  local term_win = nil
+  local term_buf = nil
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    if vim.bo[buf].buftype == 'terminal' then
+      local bufname = vim.api.nvim_buf_get_name(buf)
+      if not string.match(bufname:lower(), "claude") then
+        local win_config = vim.api.nvim_win_get_config(win)
+        if win_config.relative ~= '' then -- フロートウィンドウかチェック
+          term_win = win
+          term_buf = buf
+          break
+        end
       end
     end
-    -- ターミナルバッファがない場合、新しいターミナルを開く
-    if not found then
-      vim.cmd('terminal')
+  end
+
+  if term_win then
+    -- 既存のターミナルウィンドウにフォーカスを移す
+    vim.api.nvim_set_current_win(term_win)
+    vim.cmd('startinsert')
+  else
+    -- フロートウィンドウでターミナルを開く
+    local width = math.floor(vim.o.columns * 0.3) -- 画面幅の30%
+    local height = vim.o.lines - 4                -- 縦はほぼフルサイズ（ステータスライン分を引く）
+    local col = vim.o.columns - width             -- 右端に配置
+    local row = 1                                 -- 上端から開始
+
+    -- 既存のターミナルバッファを探す（フロートウィンドウではないもの）
+    if not term_buf then
+      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.bo[buf].buftype == 'terminal' and vim.api.nvim_buf_is_valid(buf) then
+          local bufname = vim.api.nvim_buf_get_name(buf)
+          if not string.match(bufname:lower(), "claude") then
+            -- このバッファが現在表示されていないことを確認
+            local is_displayed = false
+            for _, win in ipairs(vim.api.nvim_list_wins()) do
+              if vim.api.nvim_win_get_buf(win) == buf then
+                is_displayed = true
+                break
+              end
+            end
+            if not is_displayed then
+              term_buf = buf
+              break
+            end
+          end
+        end
+      end
     end
+
+    -- ターミナルバッファがなければ新規作成
+    if not term_buf then
+      term_buf = vim.api.nvim_create_buf(false, true)
+    end
+
+    -- フロートウィンドウを作成
+    local win = vim.api.nvim_open_win(term_buf, true, {
+      relative = 'editor',
+      width = width,
+      height = height,
+      col = col,
+      row = row,
+      style = 'minimal',
+      border = 'rounded',
+    })
+
+    -- 新規バッファの場合はターミナルを開く
+    if vim.bo[term_buf].buftype ~= 'terminal' then
+      vim.fn.termopen(vim.o.shell)
+    end
+
+    -- ターミナルモードに入る
+    vim.cmd('startinsert')
   end
 end
 
@@ -162,9 +234,9 @@ M.copy_file_path = function(mode)
   elseif mode == "filename" then
     path = vim.fn.expand('%:t')
   else
-    path = vim.fn.expand('%:p')  -- デフォルトは絶対パス
+    path = vim.fn.expand('%:p') -- デフォルトは絶対パス
   end
-  
+
   -- クリップボードにコピー
   vim.fn.setreg('+', path)
   vim.notify(string.format("Copied to clipboard: %s", path))
