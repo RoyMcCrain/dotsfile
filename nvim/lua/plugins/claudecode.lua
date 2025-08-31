@@ -2,9 +2,6 @@ local M = {}
 
 function M.setup()
   require("claudecode").setup({
-    -- Claude Code CLI command (default: "claude")
-    terminal_cmd = nil,
-
     -- Auto start Claude Code when opening Neovim
     auto_start = true,
 
