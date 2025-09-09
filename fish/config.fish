@@ -72,6 +72,42 @@ if test -d "$HOME/.claude/local"
     end
 end
 
+## codex: 共通プロンプトを自動で先頭付与
+function codex
+    set -l prompt_path "$HOME/ghq/github.com/RoyMcCrain/dotsfile/codex/common-prompt.md"
+
+    # 先頭のオプションとメッセージ本体を分離（最初の非ハイフン引数以降をメッセージ）
+    set -l opts
+    set -l msg_parts
+    set -l found 0
+    for a in $argv
+        if test $found -eq 0
+            if string match -qr '^-.*' -- $a
+                set -a opts $a
+                continue
+            else
+                set found 1
+            end
+        end
+        set -a msg_parts $a
+    end
+
+    # 実プロンプトがある場合は、共通プロンプトを先頭に付けて渡す
+    if test (count $msg_parts) -gt 0 -a -f "$prompt_path"
+        set -l merged (string join "\n" (cat "$prompt_path") "" (string join ' ' $msg_parts))
+        command codex $opts "$merged"
+        return
+    end
+
+    # 実プロンプトが無い場合は、参考表示のみして起動
+    if test -f "$prompt_path"
+        echo "===== Codex Guidelines (auto prepended) ====="
+        cat "$prompt_path"
+        echo "============================================="
+    end
+    command codex $argv
+end
+
 # Fish specific settings
 set fish_greeting ""  # 起動メッセージを非表示
 
@@ -119,4 +155,3 @@ end
 
 # ghq get の略語用に関数を設定
 abbr ghq-get 'ghq-get-cd'
-
