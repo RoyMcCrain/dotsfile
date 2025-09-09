@@ -67,6 +67,10 @@ repo = 'Shougo/ddc-sorter_rank'
 on_source = 'ddc.vim'
 
 [[plugins]]
+repo = 'Shougo/ddc-filter-sorter_lsp_kind'
+on_source = 'ddc.vim'
+
+[[plugins]]
 repo = 'matsui54/ddc-buffer'
 on_source = 'ddc.vim'
 
@@ -129,4 +133,3 @@ repo = 'MeanderingProgrammer/render-markdown.nvim'
 on_ft = 'markdown'
 depends = ['nvim-treesitter', 'nvim-web-devicons']
 lua_source = 'require("plugins.render-markdown").setup()'
-

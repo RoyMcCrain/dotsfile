@@ -99,22 +99,3 @@ lua_add = '''
       pre_hook = require('ts_context_commentstring.integrations.comment_nvim').create_pre_hook(),
   })
 '''
-
-#----------------------------------------------------------------------------------#
-# Claude Code Integration
-#----------------------------------------------------------------------------------#
-[[plugins]]
-repo = 'folke/snacks.nvim'
-lua_add = '''
-require("snacks").setup({
-  terminal = {
-    enabled = true,
-  }
-})
-'''
-
-[[plugins]]
-repo = 'coder/claudecode.nvim'
-depends = ['snacks.nvim']
-lua_add = 'require("plugins.claudecode").setup()'
-

@@ -52,22 +52,12 @@ Insert モードで自動的に動作
 - **cmdline-history** - コマンド履歴補完（マーク: H）
 - **around** - カーソル周辺の単語補完（マーク: A）
 
-### LSP補完の優先順位
-1. Field - オブジェクトプロパティ
-2. Method - メソッド
-3. Variable - 変数
-4. Function - 関数
-5. Constant - 定数
-6. Keyword - キーワード
-7. Interface - インターフェース
-8. Class - クラス
-
 ## 設定詳細
 
 ### マッチャー・ソーター・コンバーター
 - **matcher_fuzzy** - ファジーマッチング（camelCase対応）
 - **sorter_rank** - ランクベースのソート
-- **sorter_lsp-kind** - LSPの種類別ソート
+- **sorter_lsp_kind** - LSPの種類別ソート（要: ddc-filter-sorter_lsp_kind）
 - **converter_remove_overlap** - 重複項目の削除
 
 ## 使用例

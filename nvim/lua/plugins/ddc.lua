@@ -18,7 +18,7 @@ M.setup = function()
     lsp = {
       dup = 'keep',
       mark = 'LSP',
-      sorters = { 'sorter_lsp-kind' },
+      sorters = { 'sorter_lsp_kind' },
       minAutoCompleteLength = 1,
       forceCompletionPattern = '\\.\\w*|:\\w*|->\\w*|<\\w*',
       maxItems = 10,
@@ -50,7 +50,7 @@ M.setup = function()
 
   vim.fn['ddc#custom#patch_global']('filterParams', {
     matcher_fuzzy = { camelcase = true },
-    ['sorter_lsp-kind'] = {
+    ['sorter_lsp_kind'] = {
       priority = {
         'Field',     -- オブジェクトプロパティ
         'Method',    -- メソッド
