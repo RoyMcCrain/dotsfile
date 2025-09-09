@@ -94,8 +94,13 @@ M.toggle_terminal = function()
   local current_buf = vim.api.nvim_win_get_buf(current_win)
   local config = vim.api.nvim_win_get_config(current_win)
 
+  local function is_codex_buf(buf)
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+    return ok and v == true
+  end
+
   -- 現在のウィンドウがフロートターミナルなら閉じる
-  if vim.bo[current_buf].buftype == 'terminal' and config.relative ~= '' then
+  if vim.bo[current_buf].buftype == 'terminal' and config.relative ~= '' and not is_codex_buf(current_buf) then
     local bufname = vim.api.nvim_buf_get_name(current_buf)
     if not string.match(bufname:lower(), "claude") then
       vim.api.nvim_win_close(current_win, true)
@@ -108,7 +113,7 @@ M.toggle_terminal = function()
   local term_buf = nil
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     local buf = vim.api.nvim_win_get_buf(win)
-    if vim.bo[buf].buftype == 'terminal' then
+    if vim.bo[buf].buftype == 'terminal' and not is_codex_buf(buf) then
       local bufname = vim.api.nvim_buf_get_name(buf)
       if not string.match(bufname:lower(), "claude") then
         local win_config = vim.api.nvim_win_get_config(win)
@@ -135,7 +140,7 @@ M.toggle_terminal = function()
     -- 既存のターミナルバッファを探す（フロートウィンドウではないもの）
     if not term_buf then
       for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.bo[buf].buftype == 'terminal' and vim.api.nvim_buf_is_valid(buf) then
+        if vim.bo[buf].buftype == 'terminal' and vim.api.nvim_buf_is_valid(buf) and not is_codex_buf(buf) then
           local bufname = vim.api.nvim_buf_get_name(buf)
           if not string.match(bufname:lower(), "claude") then
             -- このバッファが現在表示されていないことを確認
@@ -285,6 +290,201 @@ M.format_json_with_deno = function()
     -- エラーの場合
     vim.notify('JSONフォーマットエラー: ' .. (result.stderr or 'Unknown error'), vim.log.levels.ERROR)
   end
+end
+
+-- ターミナルに現在のファイルの相対パスを追加
+-- @return nil
+M.term_put_relpath = function(prefix)
+  local path = vim.fn.expand('%')
+
+  -- 既に端末上でなければ端末を開いてフォーカス
+  if vim.bo.buftype ~= 'terminal' then
+    M.toggle_terminal()
+  end
+
+  -- 送る文字列（デフォルトはスペース接頭）
+  local p = prefix
+  if p == nil or p == '' then
+    p = ' '
+  end
+
+  -- 現在の端末ジョブに文字列を送信（改行なしで追加）
+  local job = vim.b.terminal_job_id
+  if job then
+    vim.fn.chansend(job, p .. path)
+  end
+end
+
+-- Codex用ターミナルに相対パスを追加
+M.term_put_relpath_codex = function()
+  local function current_is_codex()
+    local buf = vim.api.nvim_get_current_buf()
+    local cfg = vim.api.nvim_win_get_config(0)
+    if vim.bo.buftype ~= 'terminal' or cfg.relative == '' then
+      return false
+    end
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+    return ok and v == true
+  end
+
+  local function get_relpath()
+    local name = vim.api.nvim_buf_get_name(0)
+    if vim.bo.buftype ~= 'terminal' and name ~= '' and not name:match('^term://') then
+      return vim.fn.fnamemodify(name, ':.')
+    end
+    local alt = vim.fn.expand('#')
+    if alt ~= '' then
+      return vim.fn.fnamemodify(alt, ':.')
+    end
+    return ''
+  end
+
+  local path = get_relpath()
+  if path == '' then
+    vim.notify('送信できるファイルパスがありません', vim.log.levels.WARN)
+    return
+  end
+
+  if not current_is_codex() then
+    M.toggle_codex_terminal()
+  end
+
+  vim.defer_fn(function()
+    local job = vim.b.terminal_job_id
+    if job then
+      vim.fn.chansend(job, '@' .. path)
+    end
+  end, 120)
+end
+
+-- 通常ターミナルに相対パスを追加（Codex端末にいても通常端末へ）
+M.term_put_relpath_normal = function()
+  local function current_is_codex()
+    local buf = vim.api.nvim_get_current_buf()
+    local cfg = vim.api.nvim_win_get_config(0)
+    if vim.bo.buftype ~= 'terminal' or cfg.relative == '' then
+      return false
+    end
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+    return ok and v == true
+  end
+
+  local function get_relpath()
+    local name = vim.api.nvim_buf_get_name(0)
+    if vim.bo.buftype ~= 'terminal' and name ~= '' and not name:match('^term://') then
+      return vim.fn.fnamemodify(name, ':.')
+    end
+    local alt = vim.fn.expand('#')
+    if alt ~= '' then
+      return vim.fn.fnamemodify(alt, ':.')
+    end
+    return ''
+  end
+
+  local path = get_relpath()
+  if path == '' then
+    vim.notify('送信できるファイルパスがありません', vim.log.levels.WARN)
+    return
+  end
+
+  if vim.bo.buftype ~= 'terminal' or current_is_codex() then
+    M.toggle_terminal()
+  end
+
+  vim.defer_fn(function()
+    local job = vim.b.terminal_job_id
+    if job then
+      vim.fn.chansend(job, ' ' .. path)
+    end
+  end, 80)
+end
+
+-- Codex用ターミナルトグル（右側フロート）
+-- <C-g> で開閉。開いたら codex コマンドを起動する
+M.toggle_codex_terminal = function()
+  local current_win = vim.api.nvim_get_current_win()
+  local current_buf = vim.api.nvim_win_get_buf(current_win)
+  local cfg = vim.api.nvim_win_get_config(current_win)
+
+  local function is_codex_buf(buf)
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+    return ok and v == true
+  end
+
+  if vim.bo[current_buf].buftype == 'terminal' and cfg.relative ~= '' and is_codex_buf(current_buf) then
+    vim.api.nvim_win_close(current_win, true)
+    return
+  end
+
+  local term_win, term_buf
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    if vim.bo[buf].buftype == 'terminal' and is_codex_buf(buf) then
+      local wcfg = vim.api.nvim_win_get_config(win)
+      if wcfg.relative ~= '' then
+        term_win = win
+        term_buf = buf
+        break
+      end
+    end
+  end
+
+  if term_win then
+    vim.api.nvim_set_current_win(term_win)
+    vim.cmd('startinsert')
+    return
+  end
+
+  if not term_buf then
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == 'terminal' and is_codex_buf(buf) then
+        -- 非表示の Codex ターミナルを再利用
+        local displayed = false
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+          if vim.api.nvim_win_get_buf(win) == buf then
+            displayed = true
+            break
+          end
+        end
+        if not displayed then
+          term_buf = buf
+          break
+        end
+      end
+    end
+  end
+
+  local width = math.floor(vim.o.columns * 0.3)
+  local height = vim.o.lines - 4
+  local col = vim.o.columns - width
+  local row = 1
+
+  if not term_buf then
+    term_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_var(term_buf, 'codex_term', true)
+  end
+
+  local win = vim.api.nvim_open_win(term_buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    col = col,
+    row = row,
+    style = 'minimal',
+    border = 'rounded',
+  })
+
+  if vim.bo[term_buf].buftype ~= 'terminal' then
+    local job = vim.fn.termopen(vim.o.shell)
+    vim.defer_fn(function()
+      if job then
+        vim.fn.chansend(job, 'codex\n')
+      end
+    end, 50)
+  end
+
+  vim.api.nvim_set_current_win(win)
+  vim.cmd('startinsert')
 end
 
 return M

@@ -227,6 +227,10 @@ vim.keymap.set('v', ';', ':', { noremap = true })
 local func = require('custom-function')
 -- コマンドの設定
 vim.keymap.set('n', 'T', func.toggle_terminal, { noremap = true })
+-- Codexトグル（右側にターミナルを開いてcodex起動）
+vim.keymap.set({ 'n', 't' }, '<C-g>', function()
+  func.toggle_codex_terminal()
+end, { noremap = true, silent = true })
 -- prettier 設定
 vim.api.nvim_create_user_command('Prettier', func.pritter, {})
 -- rustywind(tailwindcssのクラス名ソート)
@@ -236,9 +240,21 @@ vim.api.nvim_create_user_command('Code', func.open_in_code, {})
 -- DenoでJSONをフォーマット
 vim.api.nvim_create_user_command('Format', func.format_json_with_deno, { range = true })
 -- ファイルパスをコピー
-vim.api.nvim_create_user_command('CP', function(opts)
+vim.api.nvim_create_user_command('Path', function(opts)
   func.copy_file_path(opts.args)
 end, { nargs = '?', complete = function() return { 'absolute', 'relative', 'filename' } end })
+
+-- (削除) Tp コマンドは廃止
+
+-- codex用ターミナルに相対パスを追加（先頭に@ を付与）
+vim.api.nvim_create_user_command('Pc', function()
+  func.term_put_relpath_codex()
+end, {})
+
+-- 通常ターミナルに相対パスを追加
+vim.api.nvim_create_user_command('Pt', function()
+  func.term_put_relpath_normal()
+end, {})
 
 -- dpp.vim
 -- filetype plugin indent onはneovimはデフォルトで有効

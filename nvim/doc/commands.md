@@ -10,6 +10,8 @@
 | :ClaudeCode | Claude Codeセッション開始 |
 | :Messages | Vimメッセージ履歴表示 |
 | :checkhealth | Neovimヘルスチェック |
+| :Pc | Codex端末に "@相対パス" を追記 |
+| :Pt | 通常端末に相対パスを追記 |
 
 ## よく使うコマンドライン
 
