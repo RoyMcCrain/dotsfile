@@ -183,6 +183,8 @@ vim.api.nvim_create_autocmd("TermOpen", {
 vim.keymap.set('n', 'Y', 'y$', { noremap = true })
 -- NNで検索のハイライトを消す
 vim.keymap.set('n', 'NN', ':noh<CR>', { noremap = true })
+-- 再描画は<Leader>rに割当（C-lはターミナルトグルに使用）
+vim.keymap.set('n', '<Leader>r', '<Cmd>redraw!<CR>', { noremap = true, silent = true })
 -- 空の行を挿入
 vim.keymap.set('n', 'O', function()
   vim.api.nvim_call_function('append', { vim.fn.line('.'), '' })
@@ -203,12 +205,6 @@ vim.keymap.set('n', '<C-t>', '<C-w>j', { noremap = true })
 vim.keymap.set('n', '<C-n>', '<C-w>k', { noremap = true })
 vim.keymap.set('n', '<C-s>', '<C-w>l', { noremap = true })
 
--- ターミナルモードでのwindow移動（ターミナル挿入モードから直接移動）
-vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w>h', { noremap = true })
-vim.keymap.set('t', '<C-t>', '<C-\\><C-n><C-w>j', { noremap = true })
-vim.keymap.set('t', '<C-n>', '<C-\\><C-n><C-w>k', { noremap = true })
-vim.keymap.set('t', '<C-s>', '<C-\\><C-n><C-w>l', { noremap = true })
-
 -- 矩形選択が貼り付けとコンフリクトするので変更
 vim.keymap.set('n', '<C-j>', '<C-v>', { noremap = true })
 
@@ -226,7 +222,8 @@ vim.keymap.set('v', ';', ':', { noremap = true })
 
 local func = require('custom-function')
 -- コマンドの設定
-vim.keymap.set('n', 'T', func.toggle_terminal, { noremap = true })
+-- 通常ターミナルトグルをCtrl-lに割当（Normal/Terminal）
+vim.keymap.set({ 'n', 't' }, '<C-l>', func.toggle_terminal, { noremap = true, silent = true })
 -- Codexトグル（右側にターミナルを開いてcodex起動）
 vim.keymap.set({ 'n', 't' }, '<C-g>', function()
   func.toggle_codex_terminal()

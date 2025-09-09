@@ -19,6 +19,10 @@ repo = 'Shougo/ddu-kind-file'
 on_source = 'ddu.vim'
 
 [[plugins]]
+repo = 'Shougo/ddu-kind-word'
+on_source = 'ddu.vim'
+
+[[plugins]]
 repo = 'Shougo/ddu-filter-matcher_substring'
 on_source = 'ddu.vim'
 

@@ -20,6 +20,7 @@
 |------|------|--------|
 | Y | 現在のカーソル位置から行末までヤンク | Normal |
 | NN | 検索ハイライトをクリア | Normal |
+| <Leader>r | 画面の再描画（redraw!） | Normal |
 | O | 現在の行の下に新しい行を挿入してインサートモード | Normal |
 | j | w の代替（astarte配列用）| Normal/Visual |
 | W | テキストの折り返しを有効化 (wrap) | Normal |
@@ -49,6 +50,7 @@
 | C-t | 上のウィンドウへ移動 | Normal |
 | C-n | 下のウィンドウへ移動 | Normal |
 | C-s | 右のウィンドウへ移動 | Normal |
+| C-l | 右側ターミナル（通常）をトグル | Normal/Terminal |
 
 ---
 

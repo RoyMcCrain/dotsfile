@@ -30,12 +30,9 @@ M.setup = function()
       },
     },
     kindOptions = {
-      file = {
-        defaultAction = 'open',
-      },
-      keymaps = {
-        defaultAction = 'echo',
-      },
+      file = { defaultAction = 'open' },
+      word = { defaultAction = 'append' },
+      keymaps = { defaultAction = 'echo' },
     },
     uiParams = {
       ff = {
@@ -221,7 +218,8 @@ M.setup = function()
   end, { noremap = true, desc = "List git diff files" })
 
   _G.ddu_my_ff_settings = function()
-    vim.keymap.set('n', '<CR>', ':call ddu#ui#do_action("itemAction", #{name: "open"})<CR>',
+    -- EnterはkindのdefaultActionを実行（fileはopen、wordはappend）
+    vim.keymap.set('n', '<CR>', ':call ddu#ui#do_action("itemAction")<CR>',
       { noremap = true, buffer = 0 })
     vim.keymap.set('n', 'v',
       ':call ddu#ui#do_action("itemAction", #{name: "open", params: #{command: "vsplit"}})<CR>',
