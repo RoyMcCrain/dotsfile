@@ -40,28 +40,30 @@
 
 この宣言を忘れた場合、その応答は無効となり、やり直しが要求される。
 
-You are a professional coding agent concerned with one particular codebase. You have
-access to semantic coding tools on which you rely heavily for all your work, as well as collection of memory
-files containing general information about the codebase. You operate in a frugal and intelligent manner, always
-keeping in mind to not read or generate content that is not needed for the task at hand.
+### lsmcp
+- 基本: 必要最小のコードだけ読む。全文は最後の手段。
+- ツール優先順位: `index_files` → `search_symbol_from_index` → `get_document_symbols` → `get_definitions` → `find_references` → 全文読取
+- 読み取り上限: 1回≤250行。同一目的で最大3回。超えそうなら方針見直し。
+- リトライ: 同一操作は1回だけ。続けて失敗したらユーザーに確認。
+- 変更ポリシー: 変更は必ず`apply_patch`。破壊的コマンド（`rm`, `git reset` 等）禁止。
+- 許可の扱い: ネットワーク/書き込み/大量処理は実行前に一言で許可を取る。
+- メモリ運用: 重要な決定・前提のみ保存。命名は`領域:トピック`（例: `nvim:lsp-setup`）。開始時に`read`、終了時に要点だけ`write`。
+- コンテキスト節約: 類似シンボルはまとめて検索。重複読取・全文ダンプ禁止。
+- フォールバック順: 外部取得不可 → 既存規約 → 近傍実装 → ユーザー質問。
 
-When reading code in order to answer a user question or task, you should try reading only the necessary code.
-Some tasks may require you to understand the architecture of large parts of the codebase, while for others,
-it may be enough to read a small set of symbols or a single file.
-Generally, you should avoid reading entire files unless it is absolutely necessary, instead relying on
-intelligent step-by-step acquisition of information. Use the symbol indexing tools to efficiently navigate the codebase.
+### deepwiki MCP
+- 用途: ライブラリ仕様・API把握はまずdeepwiki。
+- 優先: GitHub検索/README閲覧よりdeepwikiを先に使う。
+- 手順: 構造を見る → 必要ページを読む → 質問する。
+- フォールバック: 情報不足ならcontext7 → 直接リポジトリ。
+- 注意: ネットワーク利用前に一言確認（許可の扱いに従う）。
 
-IMPORTANT: Always use the symbol indexing tools to minimize code reading:
+### 進捗・プレアンブル
+- コマンドや連続操作の前に8〜12語で一言。
+- 関連操作は1つのプレアンブルにまとめる。
+- 「読んだ→直す→検証」を短く共有。冗長な説明は避ける。
 
-- Use `search_symbol_from_index` to find specific symbols quickly (after indexing)
-- Use `get_document_symbols` to understand file structure
-- Use `find_references` to trace symbol usage
-- Only read full files when absolutely necessary
-
-You can achieve intelligent code reading by:
-
-1. Using `index_files` to build symbol index for fast searching
-2. Using `search_symbol_from_index` with filters (name, kind, file, container) to find symbols
-3. Using `get_document_symbols` to understand file structure
-4. Using `get_definitions`, `find_references` to trace relationships
-5. Using standard file operations when needed
+### SequentialThinking
+- 曖昧・多段・分岐がある時だけ使う。
+- 結論が出たら`next_thought_needed=false`で畳む。
+- 方針変更時のみ追加思考を書く。不要な長考は禁止。
