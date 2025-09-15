@@ -24,11 +24,6 @@ command = "mcp-proxy"
 args = ["--transport","streamablehttp","https://mcp.deepwiki.com/mcp"]
 description = "Documentation for GitHub repositories"
 
-[mcp_servers.memory]
-command = "npx"
-args = ["-y", "@modelcontextprotocol/server-memory"]
-description = "Knowledge graph for memory management"
-
 [mcp_servers.figma]
 command = "mcp-proxy"
 args = ["--transport","streamablehttp","http://127.0.0.1:3845/mcp"]
