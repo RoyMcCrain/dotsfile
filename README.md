@@ -157,6 +157,29 @@ rm -fr ./release.tar.gz ./release
 ```
 
 
+## systemdサービス
+
+### tailscale-ssh.service
+
+```bash
+mkdir -p ~/.config/systemd/user
+ln -sf "$PWD"/scripts/tailscale-ssh.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now tailscale-ssh.service
+```
+
+### agentdesk-browser-tools-server.service
+
+```bash
+mkdir -p ~/.config/systemd/user
+ln -sf "$PWD"/scripts/agentdesk-browser-tools-server.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now agentdesk-browser-tools-server.service
+```
+
+asdfのNode.jsを使わない場合は`ExecStart`のパスを環境に合わせて変える。
+
+
 
 
 # Neovim/dpp.vim セットアップ
