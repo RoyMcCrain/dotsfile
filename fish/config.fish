@@ -75,36 +75,89 @@ end
 ## codex: 共通プロンプトを自動で先頭付与
 function codex
     set -l prompt_path "$HOME/ghq/github.com/RoyMcCrain/dotsfile/codex/common-prompt.md"
+    set -l argc (count $argv)
+    set -l idx 1
+    set -l first_nonopt 0
 
-    # 先頭のオプションとメッセージ本体を分離（最初の非ハイフン引数以降をメッセージ）
-    set -l opts
-    set -l msg_parts
-    set -l found 0
-    for a in $argv
-        if test $found -eq 0
-            if string match -qr '^-.*' -- $a
-                set -a opts $a
-                continue
-            else
-                set found 1
-            end
+    while test $idx -le $argc
+        set -l token $argv[$idx]
+
+        if test "$token" = "--"
+            set first_nonopt (math "$idx + 1")
+            break
         end
-        set -a msg_parts $a
+
+        if string match -qr '^-.*' -- $token
+            if contains -- $token -c --config -i --image -m --model -p --profile -s --sandbox -a --ask-for-approval -C --cd
+                if not string match -q '*=*' -- $token
+                    set idx (math "$idx + 1")
+                end
+            end
+            set idx (math "$idx + 1")
+            continue
+        end
+
+        set first_nonopt $idx
+        break
     end
 
-    # 実プロンプトがある場合は、共通プロンプトを先頭に付けて渡す
-    if test (count $msg_parts) -gt 0 -a -f "$prompt_path"
-        set -l merged (string join "\n" (cat "$prompt_path") "" (string join ' ' $msg_parts))
-        command codex $opts "$merged"
+    set -l msg_start $first_nonopt
+    set -l msg_end 0
+    set -l cmd_index 0
+
+    if test $msg_start -gt 0 -a $msg_start -le $argc
+        set -l subcommands exec e login logout mcp proto p completion debug apply a resume help
+        set -l i $msg_start
+        while test $i -le $argc
+            set -l part $argv[$i]
+            if contains -- $part $subcommands
+                set cmd_index $i
+                set msg_end (math "$i - 1")
+                break
+            end
+            set i (math "$i + 1")
+        end
+        if test $cmd_index -eq 0
+            set msg_end $argc
+        end
+    end
+
+    set -l message_count 0
+    if test $msg_start -gt 0 -a $msg_end -ge $msg_start
+        set message_count (math "$msg_end - $msg_start + 1")
+    end
+
+    if test $message_count -gt 0 -a -f "$prompt_path"
+        set -l before_count (math "$msg_start - 1")
+        set -l prefix
+        if test $before_count -gt 0
+            set prefix $argv[1..$before_count]
+        end
+
+        set -l suffix_start
+        if test $cmd_index -gt 0
+            set suffix_start $cmd_index
+        else if test $msg_end -lt $argc
+            set suffix_start (math "$msg_end + 1")
+        end
+
+        set -l suffix
+        if set -q suffix_start
+            set suffix $argv[$suffix_start..$argc]
+        end
+
+        set -l user_msg (string join ' ' $argv[$msg_start..$msg_end])
+        set -l merged (string join "\n" (cat "$prompt_path") "" $user_msg)
+        command codex $prefix "$merged" $suffix
         return
     end
 
-    # 実プロンプトが無い場合は、参考表示のみして起動
-    if test -f "$prompt_path"
+    if test $argc -eq 0 -a -f "$prompt_path"
         echo "===== Codex Guidelines (auto prepended) ====="
         cat "$prompt_path"
         echo "============================================="
     end
+
     command codex $argv
 end
 
