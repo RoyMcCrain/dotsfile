@@ -41,13 +41,13 @@ args = ["--transport","streamablehttp","https://mcp.context7.com/mcp"]
 description = "Up-to-date documentation and code examples for libraries"
 
 [mcp_servers.tsgo]
-command = "npx"
-args = ["-y", "@mizchi/lsmcp", "-p", "tsgo"]
+command = "fish"
+args = ["-lc", "lsmcp-tsgo"]
 description = "TypeScript language server for code analysis and refactoring"
 
 [mcp_servers.gopls]
-command = "npx"
-args = ["-y", "@mizchi/lsmcp", "-p", "gopls"]
+command = "fish"
+args = ["-lc", "lsmcp-gopls"]
 description = "Go language server (gopls) for Go code analysis and refactoring"
 
 [mcp_servers.browser-tools]
