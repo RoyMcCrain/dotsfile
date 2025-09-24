@@ -224,7 +224,13 @@ M.setup = function()
   lspconfig.biome.setup {
     capabilities = capabilities,
     cmd = { "npx", "@biomejs/biome", "lsp-proxy" },
-    root_dir = function(fname) return lu.find_nearest_file(fname, 'biome.json') end,
+    root_dir = function(fname)
+      local git_root = lu.util.find_git_ancestor(fname)
+      if git_root and vim.fn.filereadable(git_root .. '/biome.json') == 1 then
+        return git_root
+      end
+      return lu.find_nearest_file(fname, 'biome.json')
+    end,
     on_attach = function(client, bufnr)
       -- Biome ではフォーマットを優先し、補完を無効化
       client.server_capabilities.documentFormattingProvider = true

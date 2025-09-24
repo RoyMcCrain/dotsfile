@@ -208,3 +208,10 @@ end
 
 # ghq get の略語用に関数を設定
 abbr ghq-get 'ghq-get-cd'
+
+# pnpm
+set -gx PNPM_HOME "/home/roy/.local/share/pnpm"
+if not string match -q -- $PNPM_HOME $PATH
+  set -gx PATH "$PNPM_HOME" $PATH
+end
+# pnpm end

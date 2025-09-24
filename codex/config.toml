@@ -50,7 +50,7 @@ command = "fish"
 args = ["-lc", "lsmcp-gopls"]
 description = "Go language server (gopls) for Go code analysis and refactoring"
 
-[mcp_servers.browser-tools]
+[mcp_servers.chrome-devtools-mcp]
 command = "npx"
-args = ["-y", "@agentdeskai/browser-tools-mcp@1.2.0"]
-description = "Browser dev tool"
+args = ["-y", "chrome-devtools-mcp@latest", "--browserUrl=http://localhost:9222"]
+description = "Chrome dev tool"
