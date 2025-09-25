@@ -1,24 +1,9 @@
-model_reasoning_effort = "high"
-
 notify = [
   "powershell.exe",
   "-NoLogo","-NoProfile","-NonInteractive",
   "-ExecutionPolicy","Bypass","-WindowStyle","Hidden",
   "-File","C:\\Users\\roy\\toast.ps1"
 ]
-model = "gpt-5-codex"
-
-[projects."/home/roy/ghq/github.com/zero-color/agf-mall-shopify-theme"]
-trust_level = "trusted"
-
-[projects."/home/roy/ghq/github.com/zero-color/agf-cocoro-hitoiki-shopify-app"]
-trust_level = "trusted"
-
-[projects."/home/roy/ghq/github.com/zero-color/crm"]
-trust_level = "trusted"
-
-[projects."/home/roy/ghq/github.com/RoyMcCrain/dotsfile"]
-trust_level = "trusted"
 
 [mcp_servers.deepwiki]
 command = "mcp-proxy"
@@ -29,11 +14,6 @@ description = "Documentation for GitHub repositories"
 command = "mcp-proxy"
 args = ["--transport","streamablehttp","http://127.0.0.1:3845/mcp"]
 description = "Figma design mode integration (local server)"
-
-[mcp_servers.sequential-thinking]
-command = "npx"
-args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
-description = "Tool for step-by-step problem solving and complex reasoning"
 
 [mcp_servers.context7]
 command = "mcp-proxy"
