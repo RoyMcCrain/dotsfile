@@ -6,3 +6,4 @@ nvim/undo
 *.zsh.zwc
 logs
 .serena
+.lsmcp
