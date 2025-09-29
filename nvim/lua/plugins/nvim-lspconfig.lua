@@ -8,7 +8,6 @@ M.setup = function()
 
   -- 必要なモジュールをロード
   local lu = require('lsp-utils') -- lsp-utils が必要ならそのまま
-  local lspconfig = require('lspconfig')
   local navic = require('nvim-navic')
   -- require('lsp-debug-utils') -- デバッグが必要ならコメント解除
 
@@ -73,6 +72,43 @@ M.setup = function()
   -- LSP サーバー設定
   ----------------------------------------------------------------------
 
+  local function adapt_root_dir(fn)
+    return function(arg, on_dir)
+      local fname = arg
+      if type(arg) == 'number' then
+        fname = vim.api.nvim_buf_get_name(arg)
+      end
+      if not fname or fname == '' then
+        if on_dir then
+          on_dir(nil)
+        end
+        return
+      end
+      local dir = fn(fname)
+      if on_dir then
+        on_dir(dir)
+        return
+      end
+      return dir
+    end
+  end
+
+  local function configure(server, extra)
+    local overrides = extra or {}
+    if overrides.root_dir then
+      overrides = vim.tbl_deep_extend('force', {}, overrides)
+      overrides.root_dir = adapt_root_dir(overrides.root_dir)
+    end
+
+    local opts = vim.tbl_deep_extend('force', {
+      capabilities = capabilities,
+      on_attach = base_on_attach,
+    }, overrides)
+
+    vim.lsp.config(server, opts)
+    vim.lsp.enable(server)
+  end
+
   -- 共通設定を使うサーバーリスト
   local common_servers = {
     "cssls",
@@ -80,37 +116,36 @@ M.setup = function()
     "rust_analyzer",
     "lua_ls",
     "pyright",
-    "graphql", -- root_dir は後で追加
+    "graphql",
     "rubocop",
     "ruby_lsp",
-    "yamlls", -- settings は後で追加
+    "yamlls",
     "vimls",
     "protols",
-    "sqls", -- cmd は後で追加
+    "sqls",
   }
 
   for _, server_name in ipairs(common_servers) do
-    local server_opts = {
-      capabilities = capabilities,
-      on_attach = base_on_attach, -- 共通の on_attach を使用
-    }
-
-    -- サーバー固有の設定を追加
+    local extra
     if server_name == "yamlls" then
-      server_opts.settings = {
-        yaml = { schemas = { ["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*" } },
+      extra = {
+        settings = {
+          yaml = { schemas = { ["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*" } },
+        },
       }
     elseif server_name == "graphql" then
-      server_opts.root_dir = function(fname)
-        return lu.find_nearest_file(fname,
-          { '.graphqlrc*', '.graphql.config.*', 'graphql.config.*' })
-      end
+      extra = {
+        root_dir = function(fname)
+          return lu.find_nearest_file(fname,
+            { '.graphqlrc*', '.graphql.config.*', 'graphql.config.*' })
+        end,
+      }
     elseif server_name == "sqls" then
-      server_opts.cmd = { "sqls", "-config", "~/.config/sqls/config.yml" }
+      extra = {
+        cmd = { "sqls", "-config", "~/.config/sqls/config.yml" },
+      }
     end
-    -- 他にもあればここに追加...
-
-    lspconfig[server_name].setup(server_opts)
+    configure(server_name, extra)
   end
 
   -- 個別の設定が必要なサーバー
@@ -127,24 +162,7 @@ M.setup = function()
   -- TypeScript/JavaScript用のLSP設定
   if is_tsgo_available() then
     -- tsgoのカスタム設定を追加
-    local configs = require('lspconfig.configs')
-    if not configs.tsgo then
-      configs.tsgo = {
-        default_config = {
-          cmd = { "npx", "tsgo", "--lsp", "--stdio" },
-          filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
-          root_dir = function(fname)
-            return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
-          end,
-          single_file_support = true,
-          settings = {},
-        },
-      }
-    end
-
-    -- tsgo設定 (高速なTypeScript Language Server)
-    lspconfig.tsgo.setup {
-      capabilities = capabilities,
+    configure('tsgo', {
       on_attach = function(client, bufnr)
         base_on_attach(client, bufnr) -- 共通処理を呼び出し
 
@@ -180,11 +198,10 @@ M.setup = function()
           },
         },
       },
-    }
+    })
   else
     -- tsgoが使えない場合はvtslsを使用
-    lspconfig.vtsls.setup {
-      capabilities = capabilities,
+    configure('vtsls', {
       on_attach = function(client, bufnr)
         base_on_attach(client, bufnr)
 
@@ -217,12 +234,11 @@ M.setup = function()
           },
         },
       },
-    }
+    })
   end
 
   -- biome
-  lspconfig.biome.setup {
-    capabilities = capabilities,
+  configure('biome', {
     cmd = { "npx", "@biomejs/biome", "lsp-proxy" },
     root_dir = function(fname)
       local git_root = lu.util.find_git_ancestor(fname)
@@ -294,12 +310,11 @@ M.setup = function()
         desc = "Organize Imports on Save (Biome)",
       })
     end,
-  }
+  })
 
 
   -- denols
-  lspconfig.denols.setup {
-    capabilities = capabilities,
+  configure('denols', {
     on_attach = function(client, bufnr)
       base_on_attach(client, bufnr) -- 共通処理を呼び出し
       -- denols 固有処理: Deno プロジェクトでなければ停止
@@ -309,11 +324,10 @@ M.setup = function()
     end,
     filetypes = { "typescript", "javascript" },
     root_dir = function(fname) return lu.find_nearest_file(fname, { "deno.json", "deno.jsonc" }) end,
-  }
+  })
 
   -- gopls
-  lspconfig.gopls.setup {
-    capabilities = capabilities,
+  configure('gopls', {
     on_attach = function(client, bufnr)
       base_on_attach(client, bufnr) -- 共通処理を呼び出し
 
@@ -382,18 +396,17 @@ M.setup = function()
         gofumpt = true
       }
     },
-  }
+  })
 
   -- tailwindcss
-  lspconfig.tailwindcss.setup {
-    capabilities = capabilities,
+  configure('tailwindcss', {
     on_attach = function(client, bufnr)
       -- Tailwind では補完を無効化（必要に応じて）
       client.server_capabilities.completionProvider = false
       base_on_attach(client, bufnr) -- 共通処理を呼び出し
     end,
     filetypes = { "javascriptreact", "typescriptreact", "vue" },
-  }
+  })
 
   ----------------------------------------------------------------------
   -- TailwindCSS トグル機能 (元のままでOKそう)
