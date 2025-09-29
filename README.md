@@ -89,6 +89,13 @@ chmod +x ./scripts/build_env/asdf_install_plugin.sh
 ./scripts/build_env/asdf_install_plugin.sh
 ```
 
+## corepack
+
+```bash
+corepack enable pnpm
+corepack enable yarn
+```
+
 ## 不必要なaptで入れたgolang削除
 
 ```bash

@@ -387,14 +387,26 @@ M.setup = function()
   })
 
   -- biome
+  local biome_config_files = {
+    'biome.json',
+    'biome.jsonc',
+    'biome.config.json',
+    'biome.config.jsonc',
+    'biome.toml',
+  }
+
   configure('biome', {
     cmd = { "npx", "@biomejs/biome", "lsp-proxy" },
     root_dir = function(fname)
       local git_root = lu.util.find_git_ancestor(fname)
-      if git_root and vim.fn.filereadable(git_root .. '/biome.json') == 1 then
-        return git_root
+      if git_root then
+        for _, name in ipairs(biome_config_files) do
+          if vim.fn.filereadable(git_root .. '/' .. name) == 1 then
+            return git_root
+          end
+        end
       end
-      return lu.find_nearest_file(fname, 'biome.json')
+      return lu.find_nearest_file(fname, biome_config_files)
     end,
     on_attach = function(client, bufnr)
       -- Biome ではフォーマットを優先し、補完を無効化

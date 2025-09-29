@@ -5,8 +5,7 @@ vim-language-server
 graphql-language-service-cli
 stylelint-lsp
 typescript
-yarn
 neovim
-pnpm
 @vtsls/language-server
 @typescript/native-preview
+corepack
