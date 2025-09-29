@@ -165,19 +165,16 @@ M.setup = function()
   if is_tsgo_available() then
     -- tsgoのカスタム設定を追加
     configure('tsgo', {
-      on_attach = function(client, bufnr)
-        base_on_attach(client, bufnr) -- 共通処理を呼び出し
-
-        -- tsgo 固有処理: Deno プロジェクトなら停止
-        if lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
-          pcall(client.stop)
-        end
-      end,
+      on_attach = base_on_attach,
       root_dir = function(fname)
+        if lu.is_find_nearest_file(fname, { 'deno.json', 'deno.jsonc' }) then
+          return nil
+        end
         return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
       end,
       filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
       cmd = { "npx", "tsgo", "--lsp", "--stdio" },
+      workspace_required = true,
 
       -- tsgoの設定
       settings = {
@@ -204,18 +201,15 @@ M.setup = function()
   else
     -- tsgoが使えない場合はvtslsを使用
     configure('vtsls', {
-      on_attach = function(client, bufnr)
-        base_on_attach(client, bufnr)
-
-        -- Deno プロジェクトなら停止
-        if lu.is_find_nearest_file(vim.api.nvim_buf_get_name(bufnr), { "deno.json", "deno.jsonc" }) then
-          pcall(client.stop)
-        end
-      end,
+      on_attach = base_on_attach,
       root_dir = function(fname)
+        if lu.is_find_nearest_file(fname, { 'deno.json', 'deno.jsonc' }) then
+          return nil
+        end
         return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
       end,
       filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
+      workspace_required = true,
       settings = {
         typescript = {
           suggest = {
@@ -238,6 +232,114 @@ M.setup = function()
       },
     })
   end
+
+  configure('astro', {
+    cmd = { 'astro-ls', '--stdio' },
+    filetypes = { 'astro' },
+    init_options = {
+      typescript = {},
+    },
+    root_dir = function(fname)
+      return lu.find_nearest_file(fname, { 'package.json', 'tsconfig.json', 'jsconfig.json', '.git' })
+    end,
+    before_init = function(params, config)
+      config.init_options = config.init_options or {}
+      config.init_options.typescript = config.init_options.typescript or {}
+      local typescript = config.init_options.typescript
+
+      if typescript.tsdk and typescript.tsdk ~= '' then
+        return
+      end
+
+      local search_targets = { 'tsserverlibrary.js', 'typescript.js' }
+
+      local function validate_tsdk(path)
+        if not path or path == '' then
+          return nil
+        end
+
+        local real = vim.uv.fs_realpath(path) or path
+        local stat = vim.uv.fs_stat(real)
+        if not stat then
+          return nil
+        end
+
+        local dir = real
+        if stat.type == 'file' then
+          dir = vim.fs.dirname(real)
+        elseif stat.type ~= 'directory' then
+          return nil
+        end
+
+        local ok = false
+        for _, target in ipairs(search_targets) do
+          if vim.fn.filereadable(vim.fs.joinpath(dir, target)) == 1 then
+            ok = true
+            break
+          end
+        end
+
+        if ok then
+          return dir
+        end
+
+        return nil
+      end
+
+      local function set_tsdk(path)
+        local dir = validate_tsdk(path)
+        if not dir then
+          return false
+        end
+        typescript.tsdk = dir
+        return true
+      end
+
+      local function find_tsdk(start)
+        if not start or start == '' then
+          return false
+        end
+        local found = vim.fs.find(search_targets, {
+          path = start,
+          type = 'file',
+          limit = 1,
+        })
+        if not found or not found[1] then
+          return false
+        end
+        return set_tsdk(found[1])
+      end
+
+      local exe = vim.fn.exepath('astro-ls')
+      if exe ~= '' then
+        exe = vim.uv.fs_realpath(exe) or exe
+        local bin_dir = vim.fs.dirname(exe)
+        local ls_root = bin_dir and vim.fs.dirname(bin_dir)
+        if ls_root and ls_root ~= '' then
+          if set_tsdk(vim.fs.joinpath(ls_root, 'node_modules', 'typescript', 'lib')) or find_tsdk(ls_root) then
+            return
+          end
+        end
+      end
+
+      local get_ts_path = vim.lsp and vim.lsp.get_typescript_server_path
+      if type(get_ts_path) == 'function' then
+        local ok, path = pcall(get_ts_path)
+        if ok and set_tsdk(path) then
+          return
+        end
+      end
+
+      local root = params.rootUri and vim.uri_to_fname(params.rootUri) or params.rootPath
+      if not root or root == '' then
+        root = nil
+      end
+
+      if root and (set_tsdk(vim.fs.joinpath(root, 'node_modules', 'typescript', 'lib')) or find_tsdk(root)) then
+        return
+      end
+    end,
+  })
 
   -- biome
   configure('biome', {
@@ -325,7 +427,9 @@ M.setup = function()
       end
     end,
     filetypes = { "typescript", "javascript" },
-    root_dir = function(fname) return lu.find_nearest_file(fname, { "deno.json", "deno.jsonc" }) end,
+    single_file_support = false,
+    workspace_required = true,
+    root_markers = { 'deno.json', 'deno.jsonc' },
   })
 
   -- gopls
