@@ -9,6 +9,7 @@ M.setup = function()
   -- 必要なモジュールをロード
   local lu = require('lsp-utils') -- lsp-utils が必要ならそのまま
   local navic = require('nvim-navic')
+  local navic_buffers = {}
   -- require('lsp-debug-utils') -- デバッグが必要ならコメント解除
 
   -- 共通の capabilities を作成
@@ -48,8 +49,9 @@ M.setup = function()
 
     -- nvim-navic のアタッチ (必要ならコメント解除！)
     -- navic が documentSymbolProvider をサポートしているか確認
-    if client.server_capabilities.documentSymbolProvider then
+    if client.server_capabilities.documentSymbolProvider and not navic_buffers[bufnr] then
       navic.attach(client, bufnr)
+      navic_buffers[bufnr] = true
     end
 
     -- 注意: ここでは Autocmd を定義しない！
