@@ -33,15 +33,4 @@ if command -q fzf
     # fzf用のコマンド設定
     set -gx FZF_CTRL_T_COMMAND 'find . -type f -not -path "*/\.git/*" -not -path "*/node_modules/*" -not -path "*/\.next/*"'
     set -gx FZF_ALT_C_COMMAND 'find . -type d -not -path "*/\.git/*" -not -path "*/node_modules/*" -not -path "*/\.next/*"'
-    
-    # 手動でキーバインドを設定（統合ファイルが見つからない場合）
-    bind \ct ghq-fzf        # Ctrl+T でghqリポジトリ選択
-    bind \cr fzf-history-widget
-    bind \ec fzf-cd-widget
-    bind \cz fancy-ctrl-z   # Ctrl+Z でvim再開機能
-    
 end
-
-# カスタムfzf関数
-# Ctrl+G でファイル検索（元のCtrl+T機能）
-bind \cg fzf-file-widget
