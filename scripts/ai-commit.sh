@@ -109,7 +109,7 @@ USER_PROMPT="Generate a commit message for these changes:
 $DIFF"
 
 JSON_PAYLOAD=$(jq -n \
-  --arg model "qwen/qwen3-4b-2507" \
+  --arg model "qwen/qwen3-vl-30b" \
   --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/style/refactor/test/chore). NEVER use thinking tags like <think> or any XML tags. Do not include any explanations, markdown formatting, code blocks, or additional text. Output the raw commit message only. Subject line must be under 50 chars. Add body only if needed, wrapped at 72 chars. Start directly with the commit type." \
   --arg user "$USER_PROMPT" \
   '{
@@ -134,8 +134,21 @@ RESPONSE=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d "$JSON_PAYLOAD")
 
-# メッセージを抽出
-MESSAGE=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+# メッセージを抽出（テキスト配列と文字列両対応）
+MESSAGE=$(echo "$RESPONSE" | jq -r '
+  def to_text:
+    if . == null then ""
+    elif type == "string" then .
+    elif type == "number" or type == "boolean" then tostring
+    elif type == "array" then map(to_text) | join("")
+    elif type == "object" then
+      (.text // .string // .value // "")
+      | to_text
+    else
+      ""
+    end;
+  (.choices[0].message.content // empty) | to_text
+' 2>/dev/null)
 
 # qwen/qwen3-4b-thinking-2507は<think>タグを出力することがある
 # その場合はデフォルトメッセージを使用

@@ -43,16 +43,8 @@ if test -f "$HOME/.asdf/plugins/java/set-java-home.fish"
     source "$HOME/.asdf/plugins/java/set-java-home.fish"
 end
 
-# pip
 if test -d "$HOME/.local/bin"
     fish_add_path $HOME/.local/bin
-end
-
-# sdkman
-set -gx SDKMAN_DIR "$HOME/.sdkman"
-if test -s "$HOME/.sdkman/bin/sdkman-init.sh"
-    # sdkmanはbash専用なので、必要な時だけbashで実行
-    # fish用の代替手段を使うか、手動でPATHを設定
 end
 
 # direnv
