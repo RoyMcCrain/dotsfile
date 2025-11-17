@@ -1,3 +1,4 @@
+# windows用
 notify = [
   "powershell.exe",
   "-NoLogo","-NoProfile","-NonInteractive",
@@ -5,19 +6,23 @@ notify = [
   "-File","C:\\Users\\roy\\toast.ps1"
 ]
 
+[features]
+rmcp_client = true
+
+[mcp_servers.sentry]
+url = "https://mcp.sentry.dev/mcp"
+description = "Sentry"
+
 [mcp_servers.deepwiki]
-command = "mcp-proxy"
-args = ["--transport","streamablehttp","https://mcp.deepwiki.com/mcp"]
+url = "https://mcp.deepwiki.com/mcp"
 description = "Documentation for GitHub repositories"
 
 [mcp_servers.figma]
-command = "mcp-proxy"
-args = ["--transport","streamablehttp","http://127.0.0.1:3845/mcp"]
+url = "http://127.0.0.1:3845/mcp"
 description = "Figma design mode integration (local server)"
 
 [mcp_servers.context7]
-command = "mcp-proxy"
-args = ["--transport","streamablehttp","https://mcp.context7.com/mcp"]
+url = "https://mcp.context7.com/mcp"
 description = "Up-to-date documentation and code examples for libraries"
 
 [mcp_servers.tsgo]

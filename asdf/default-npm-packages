@@ -9,3 +9,4 @@ yarn
 neovim
 pnpm
 @vtsls/language-server
+@typescript/native-preview
