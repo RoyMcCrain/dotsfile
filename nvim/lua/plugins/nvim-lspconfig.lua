@@ -351,6 +351,11 @@ M.setup = function()
       end
       return lu.find_nearest_file(fname, 'biome.json')
     end,
+    on_new_config = function(config, root)
+      if root then
+        config.cmd_cwd = root
+      end
+    end,
     on_attach = function(client, bufnr)
       -- Biome ではフォーマットを優先し、補完を無効化
       client.server_capabilities.documentFormattingProvider = true

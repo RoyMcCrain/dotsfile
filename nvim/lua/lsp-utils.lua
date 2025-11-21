@@ -66,6 +66,17 @@ end
 function M.format_on_save()
   local filename = vim.fn.expand('%:t')
   if not string.find(filename, 'no_fmt') then
+    local biome_active = false
+    for _, client in ipairs(vim.lsp.get_active_clients({ bufnr = 0 })) do
+      if client.name == 'biome' then
+        biome_active = true
+        break
+      end
+    end
+    if biome_active then
+      vim.lsp.buf.format({ name = 'biome' })
+      return
+    end
     vim.lsp.buf.format()
   end
 end

@@ -118,3 +118,15 @@ if not string match -q -- $PNPM_HOME $PATH
   set -gx PATH "$PNPM_HOME" $PATH
 end
 # pnpm end
+
+# gcloud
+set -l GCLOUD_PATH "$HOME/.local/google-cloud-sdk/bin"
+if not string match -q -- $GCLOUD_PATH $PATH
+  set -gx PATH "$GCLOUD_PATH" $PATH
+end
+# gcloud end
+
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/roy/.lmstudio/bin
+# End of LM Studio CLI section
+
