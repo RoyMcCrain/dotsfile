@@ -118,7 +118,6 @@ M.setup = function()
     "rust_analyzer",
     "lua_ls",
     "pyright",
-    "graphql",
     "rubocop",
     "ruby_lsp",
     "yamlls",
@@ -135,13 +134,6 @@ M.setup = function()
           yaml = { schemas = { ["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*" } },
         },
       }
-    elseif server_name == "graphql" then
-      extra = {
-        root_dir = function(fname)
-          return lu.find_nearest_file(fname,
-            { '.graphqlrc*', '.graphql.config.*', 'graphql.config.*' })
-        end,
-      }
     elseif server_name == "sqls" then
       extra = {
         cmd = { "sqls", "-config", "~/.config/sqls/config.yml" },
@@ -152,86 +144,139 @@ M.setup = function()
 
   -- 個別の設定が必要なサーバー
 
-  -- tsgoコマンドの存在チェック関数
-  local function is_tsgo_available()
-    local has_npx = vim.fn.executable('npx') == 1
-    local tsgo_version = vim.fn.system('npx tsgo --version 2>&1')
-    -- バージョン文字列をチェック（"Version"を含むかどうか）
-    local has_tsgo = tsgo_version:match('Version') ~= nil or tsgo_version:match('tsgo') ~= nil
-    return has_npx and has_tsgo
+  -- tsgoの利用可否をプロジェクトディレクトリでチェック
+  local function is_tsgo_available_in_dir(dir)
+    if vim.fn.executable('npx') ~= 1 then
+      return false
+    end
+    local result = vim.system({ 'npx', 'tsgo', '--version' }, { cwd = dir, text = true }):wait()
+    local output = result.stdout or ''
+    return output:match('Version') ~= nil or output:match('%d+%.%d+') ~= nil
+  end
+
+  -- tsgoが動作するrootディレクトリを探す（tsconfig/package.jsonがある場所を下から上に探索）
+  local tsgo_root_cache = {}
+  local function find_tsgo_root(fname)
+    if lu.is_find_nearest_file(fname, { 'deno.json', 'deno.jsonc' }) then
+      return nil
+    end
+
+    -- tsconfig.json または package.json があるディレクトリを全て取得（下から上へ）
+    local candidates = {}
+    local dir = vim.fs.dirname(fname)
+    while dir and dir ~= '/' do
+      if vim.fn.filereadable(dir .. '/tsconfig.json') == 1 or
+         vim.fn.filereadable(dir .. '/package.json') == 1 then
+        table.insert(candidates, dir)
+      end
+      dir = vim.fs.dirname(dir)
+    end
+
+    -- 下から順にtsgoが動作するか確認
+    for _, candidate in ipairs(candidates) do
+      if tsgo_root_cache[candidate] ~= nil then
+        if tsgo_root_cache[candidate] then
+          return candidate
+        end
+      elseif is_tsgo_available_in_dir(candidate) then
+        tsgo_root_cache[candidate] = true
+        return candidate
+      else
+        tsgo_root_cache[candidate] = false
+      end
+    end
+
+    return nil
+  end
+
+  -- vtsls用のroot_dir（通常の最も近いtsconfig/package.json）
+  local function find_vtsls_root(fname)
+    if lu.is_find_nearest_file(fname, { 'deno.json', 'deno.jsonc' }) then
+      return nil
+    end
+    return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
   end
 
   -- TypeScript/JavaScript用のLSP設定
-  if is_tsgo_available() then
-    -- tsgoのカスタム設定を追加
-    configure('tsgo', {
-      on_attach = base_on_attach,
-      root_dir = function(fname)
-        if lu.is_find_nearest_file(fname, { 'deno.json', 'deno.jsonc' }) then
-          return nil
-        end
-        return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
-      end,
-      filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
-      cmd = { "npx", "tsgo", "--lsp", "--stdio" },
-      workspace_required = true,
+  local ts_filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" }
+  local ts_settings = {
+    typescript = {
+      suggest = {
+        includeCompletionsForImportStatements = true,
+        autoImports = "on",
+      },
+      preferences = {
+        includePackageJsonAutoImports = "on",
+      },
+    },
+    javascript = {
+      suggest = {
+        includeCompletionsForImportStatements = true,
+        autoImports = "on",
+      },
+      preferences = {
+        includePackageJsonAutoImports = "on",
+      },
+    },
+  }
 
-      -- tsgoの設定
-      settings = {
-        typescript = {
-          suggest = {
-            includeCompletionsForImportStatements = true,
-            autoImports = "on",
-          },
-          preferences = {
-            includePackageJsonAutoImports = "on",
-          },
-        },
-        javascript = {
-          suggest = {
-            includeCompletionsForImportStatements = true,
-            autoImports = "on",
-          },
-          preferences = {
-            includePackageJsonAutoImports = "on",
-          },
-        },
-      },
-    })
-  else
-    -- tsgoが使えない場合はvtslsを使用
-    configure('vtsls', {
-      on_attach = base_on_attach,
-      root_dir = function(fname)
-        if lu.is_find_nearest_file(fname, { 'deno.json', 'deno.jsonc' }) then
-          return nil
+  -- TypeScript LSPはfiletypesを空にして自動起動を防ぐ
+  vim.lsp.config('tsgo', {
+    capabilities = capabilities,
+    on_attach = base_on_attach,
+    root_dir = adapt_root_dir(find_tsgo_root),
+    filetypes = {}, -- 自動起動しない
+    cmd = { "npx", "tsgo", "--lsp", "--stdio" },
+    workspace_required = true,
+    settings = ts_settings,
+  })
+
+  vim.lsp.config('vtsls', {
+    capabilities = capabilities,
+    on_attach = base_on_attach,
+    root_dir = adapt_root_dir(find_vtsls_root),
+    filetypes = {}, -- 自動起動しない
+    workspace_required = true,
+    settings = ts_settings,
+  })
+
+  -- ファイルを開いた時にtsgo/vtslsを動的に選択して起動
+  vim.api.nvim_create_autocmd("FileType", {
+    pattern = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
+    callback = function(args)
+      local fname = vim.api.nvim_buf_get_name(args.buf)
+      if lu.is_find_nearest_file(fname, { 'deno.json', 'deno.jsonc' }) then
+        return -- Denoプロジェクトはスキップ
+      end
+
+      local tsgo_root = find_tsgo_root(fname)
+      if tsgo_root then
+        -- tsgoを起動（bufnrを指定してアタッチ）
+        vim.lsp.start({
+          name = 'tsgo',
+          cmd = { 'npx', 'tsgo', '--lsp', '--stdio' },
+          cmd_cwd = tsgo_root, -- npxをtsgo_rootで実行
+          root_dir = tsgo_root,
+          capabilities = capabilities,
+          on_attach = base_on_attach,
+          settings = ts_settings,
+        }, { bufnr = args.buf })
+      else
+        -- vtslsを起動
+        local vtsls_root = find_vtsls_root(fname)
+        if vtsls_root then
+          vim.lsp.start({
+            name = 'vtsls',
+            cmd = { 'vtsls', '--stdio' },
+            root_dir = vtsls_root,
+            capabilities = capabilities,
+            on_attach = base_on_attach,
+            settings = ts_settings,
+          }, { bufnr = args.buf })
         end
-        return lu.find_nearest_file(fname, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
-      end,
-      filetypes = { "typescript", "javascript", "typescriptreact", "javascriptreact" },
-      workspace_required = true,
-      settings = {
-        typescript = {
-          suggest = {
-            includeCompletionsForImportStatements = true,
-            autoImports = "on",
-          },
-          preferences = {
-            includePackageJsonAutoImports = "on",
-          },
-        },
-        javascript = {
-          suggest = {
-            includeCompletionsForImportStatements = true,
-            autoImports = "on",
-          },
-          preferences = {
-            includePackageJsonAutoImports = "on",
-          },
-        },
-      },
-    })
-  end
+      end
+    end,
+  })
 
   configure('astro', {
     cmd = { 'astro-ls', '--stdio' },
@@ -350,11 +395,6 @@ M.setup = function()
         return git_root
       end
       return lu.find_nearest_file(fname, 'biome.json')
-    end,
-    on_new_config = function(config, root)
-      if root then
-        config.cmd_cwd = root
-      end
     end,
     on_attach = function(client, bufnr)
       -- Biome ではフォーマットを優先し、補完を無効化
