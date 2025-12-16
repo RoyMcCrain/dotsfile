@@ -55,6 +55,41 @@
   - 関数切り出しの基準: 「複数箇所で使う」か「名前をつけると意図が明確になる」場合のみ。1箇所でしか使わない処理はインラインで書く
   - 三項演算子は1段階まで。ネストしたら変数代入かif文に分ける
 
+#### React useEffectについて
+**原則: Effectは外部システムとの同期専用。それ以外は使わない。**
+
+##### Effectが不要なケース（これらでuseEffectを使うのは禁止）
+- **props/stateからの計算** → レンダリング中に計算する（変数代入で十分）
+- **高価な計算のキャッシュ** → `useMemo`を使う
+- **prop変更時のstate全リセット** → `key`を変える
+- **prop変更時の一部state調整** → IDを保存して計算で導出する
+- **イベントハンドラ間の共有ロジック** → 関数に抽出してハンドラから呼ぶ
+- **ユーザー操作によるPOST** → イベントハンドラで直接実行
+- **Effectのチェーン（Effect→setState→Effect）** → イベントハンドラで全て計算
+- **親への状態通知** → イベントハンドラ内で親のonChangeも呼ぶ
+- **親へのデータ渡し** → 親でfetchして子にpropsで渡す
+
+##### Effectが必要なケース
+- コンポーネント表示時のanalytics送信
+- 外部ストア購読（ただし`useSyncExternalStore`優先）
+- データフェッチ（クリーンアップ必須、カスタムHook推奨）
+
+##### フェッチのrace condition対策（必須）
+```tsx
+useEffect(() => {
+  let ignore = false;
+  fetch(url).then(res => res.json()).then(data => {
+    if (!ignore) setData(data);
+  });
+  return () => { ignore = true; };
+}, [url]);
+```
+
+##### 判断基準
+- 「ユーザー操作が原因か？」→ イベントハンドラ
+- 「コンポーネント表示が原因か？」→ Effect
+- 「計算で出せるか？」→ レンダリング中に計算
+
 ### lsmcp
 - 基本: 必要最小のコードだけ読む。全文は最後の手段。
 - ツール優先順位: `index_files` → `search_symbol_from_index` → `get_document_symbols` → `get_definitions` → `find_references` → 全文読取
