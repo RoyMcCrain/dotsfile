@@ -7,18 +7,6 @@ set -gx GIT_EDITOR nvim
 set -gx EDITOR nvim
 set -gx TERM xterm-256color
 
-# pnpm
-if test -f "$HOME/.local/share/pnpm/pnpm"
-    set -gx PNPM_HOME "$HOME/.local/share/pnpm"
-    fish_add_path $PNPM_HOME
-end
-
-# bun
-if test -d "$HOME/.bun/bin"
-    set -gx BUN_INSTALL "$HOME/.bun"
-    fish_add_path $BUN_INSTALL/bin
-end
-
 # devbox
 set -gx SHELL fish
 devbox global shellenv --init-hook | source
@@ -30,11 +18,6 @@ end
 # direnv
 if command -q direnv
     direnv hook fish | source
-end
-
-# Linuxbrew
-if test -d "/home/linuxbrew"
-    eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 end
 
 # Fish specific settings
@@ -84,13 +67,6 @@ end
 
 # ghq get の略語用に関数を設定
 abbr ghq-get 'ghq-get-cd'
-
-# pnpm
-set -gx PNPM_HOME "/home/roy/.local/share/pnpm"
-if not string match -q -- $PNPM_HOME $PATH
-  set -gx PATH "$PNPM_HOME" $PATH
-end
-# pnpm end
 
 # gcloud
 set -l GCLOUD_PATH "$HOME/.local/google-cloud-sdk/bin"

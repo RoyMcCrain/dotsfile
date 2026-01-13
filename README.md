@@ -4,60 +4,42 @@
 
 ## init
 
-必要そうなやつをaptでいれる
+### Mac
+
+Xcode Command Line Toolsをインストール：
+```bash
+xcode-select --install
+```
+
+### Linux (WSL2)
+
 ```bash
 sudo apt update && sudo apt install -y build-essential zsh zip language-pack-ja
 ```
 
-zsh をログインシェルにする
+## ghのインストール
+
+devboxを先にインストールしてghを追加：
 ```bash
-chsh -s $(which zsh)
+curl -fsSL https://get.jetify.com/devbox | bash
+devbox global add gh
+devbox global install
+eval "$(devbox global shellenv)"
 ```
 
-## ghの設定
-
-https://github.com/cli/cli/blob/trunk/docs/install_linux.md
-
-```bash
-(type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
-	&& sudo mkdir -p -m 755 /etc/apt/keyrings \
-        && out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-        && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
-	&& sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-	&& sudo apt update \
-	&& sudo apt install gh -y
-```
-
-ghのインストール後
+## SSH鍵の設定
 
 ```bash
 gh auth login
 ```
 
-Githubとsshができるようにする
-
-## homebrewのインストール
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-https://brew.sh/ja/
-
-最新のインストール方法を確認する
-
-
-## ghqの設定
-
-devboxでインストール済みの場合はスキップ。
-
-https://github.com/x-motemen/ghq?tab=readme-ov-file#macos
+SSHを選択してGitHubと接続する
 
 ## dotsfilesのclone
 
 ```bash
-ghq get git@github.com:RoyMcCrain/dotsfile.git
+mkdir -p ~/ghq/github.com/RoyMcCrain
+git clone git@github.com:RoyMcCrain/dotsfile.git ~/ghq/github.com/RoyMcCrain/dotsfile
 cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```
 
@@ -65,40 +47,26 @@ cd ~/ghq/github.com/RoyMcCrain/dotsfile
 
 https://www.jetify.com/devbox/docs/installing_devbox/
 
-```bash
-curl -fsSL https://get.jetify.com/devbox | bash
-```
+ghインストール時に導入済み。
 
 ### ツールのインストール
 
-```bash
-devbox global add bat direnv eza fish fzf gh ghq go gopls imagemagick jj jq \
-  lua-language-server neovim yq zellij nodejs_22 deno bun rustup temurin-bin-21 \
-  opentofu uv difftastic
-```
-
-### fish設定
-
-config.fishに以下を追加（create_symlinkで自動設定される）：
-```fish
-set -gx SHELL fish
-devbox global shellenv --init-hook | source
-```
-
-### npmグローバルパッケージ（Neovim LSP用）
+`setup_fish.sh`実行後（devbox.jsonのシンボリックリンク作成後）：
 
 ```bash
-npm install -g vscode-langservers-extracted yaml-language-server \
-  @tailwindcss/language-server vim-language-server graphql-language-service-cli \
-  stylelint-lsp typescript neovim @vtsls/language-server @typescript/native-preview
+devbox global install
 ```
 
-## corepack
-
+設定は`devbox/devbox.json`で管理。パッケージ追加時は：
 ```bash
-corepack enable pnpm
-corepack enable yarn
+devbox global add <package>
 ```
+
+### corepack / LSP
+
+`devbox/devbox.json`で管理：
+- corepack: `DEVBOX_COREPACK_ENABLED`環境変数で自動有効化
+- LSP: nixpkgsパッケージ + init_hookで自動インストール
 
 ## 不必要なaptで入れたgolang削除
 

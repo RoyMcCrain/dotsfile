@@ -24,16 +24,22 @@
     "bun@latest",
     "temurin-bin-21@latest",
     "opentofu@latest",
-    "difftastic@latest"
+    "difftastic@latest",
+    "vscode-langservers-extracted@latest",
+    "yaml-language-server@latest",
+    "tailwindcss-language-server@latest",
+    "vim-language-server@latest",
+    "graphql-language-service-cli@latest",
+    "stylelint-lsp@latest",
+    "vtsls@latest"
   ],
+  "env": {
+    "DEVBOX_COREPACK_ENABLED": "true"
+  },
   "shell": {
     "init_hook": [
-      "echo 'Welcome to devbox!' > /dev/null"
+      "npm list -g neovim typescript @typescript/native-preview > /dev/null 2>&1 || npm install -g neovim typescript @typescript/native-preview"
     ],
-    "scripts": {
-      "test": [
-        "echo \"Error: no test specified\" && exit 1"
-      ]
-    }
+    "scripts": {}
   }
 }
