@@ -6,12 +6,21 @@ abbr js 'jobs'
 # fg %1 でそのjobsの復帰
 
 # eza（または ls）のエイリアス
+# s/sa/ss/ssa は Cuyz配列で l が小指位置のため追加
 if command -q eza
+    abbr s 'eza -TF -L=1 --icons'
+    abbr sa 'eza -aTF -L=1 --icons'
+    abbr ss 'eza -lTF -L=1 --icons'
+    abbr ssa 'eza -alTF -L=1 --icons'
     abbr ls 'eza -TF -L=1 --icons'
     abbr la 'eza -aTF -L=1 --icons'
     abbr ll 'eza -lTF -L=1 --icons'
     abbr lla 'eza -alTF -L=1 --icons'
 else
+    abbr s 'ls'
+    abbr sa 'ls -a'
+    abbr ss 'ls -lh'
+    abbr ssa 'ls -lha'
     abbr la 'ls -a'
     abbr ll 'ls -lh'
     abbr lla 'ls -lha'
