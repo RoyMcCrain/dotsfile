@@ -8,7 +8,7 @@
 [ghq]
 	root = ~/ghq
 [diff]
-	tool = nvimdiff
+	external = difft
 [merge]
 	tool = nvimdiff
 [difftool "nvimdiff"]

@@ -9,6 +9,7 @@ plugins=(
   "ripgrep"
   "lua-language-server"
   "direnv"
+  "mise"
 )
 
 for plugin in ${plugins[@]}; do

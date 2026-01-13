@@ -19,29 +19,9 @@ if test -d "$HOME/.bun/bin"
     fish_add_path $BUN_INSTALL/bin
 end
 
-# asdf
-if test -d "$HOME/.asdf"
-    set -gx ASDF_DATA_DIR "$HOME/.asdf"
-    fish_add_path $ASDF_DATA_DIR/shims
-    
-    # asdf.fishファイルが存在する場合のみ読み込み
-    if test -f ~/.asdf/asdf.fish
-        source ~/.asdf/asdf.fish
-    else
-        # asdf.fishがない場合は手動で関数を定義
-        function asdf
-            command asdf $argv
-        end
-        
-        # 基本的な環境変数を設定
-        set -gx ASDF_DIR "$HOME/.asdf"
-    end
-end
-
-# JAVA_HOME (asdf)
-if test -f "$HOME/.asdf/plugins/java/set-java-home.fish"
-    source "$HOME/.asdf/plugins/java/set-java-home.fish"
-end
+# devbox
+set -gx SHELL fish
+devbox global shellenv --init-hook | source
 
 if test -d "$HOME/.local/bin"
     fish_add_path $HOME/.local/bin
@@ -55,13 +35,6 @@ end
 # Linuxbrew
 if test -d "/home/linuxbrew"
     eval (/home/linuxbrew/.linuxbrew/bin/brew shellenv)
-end
-
-# claude
-if test -d "$HOME/.claude/local"
-    function claude
-        $HOME/.claude/local/claude $argv
-    end
 end
 
 # Fish specific settings
