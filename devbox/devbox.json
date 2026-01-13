@@ -35,12 +35,13 @@
     "pnpm@latest"
   ],
   "env": {
-    "PNPM_HOME": "$HOME/.local/share/pnpm"
+    "PNPM_HOME": "$HOME/.local/share/pnpm",
+    "NPM_CONFIG_PREFIX": "$HOME/.local/share/npm-global"
   },
   "shell": {
-    "init_hook": [
-      "npm list -g neovim typescript @typescript/native-preview > /dev/null 2>&1 || npm install -g neovim typescript @typescript/native-preview"
-    ],
-    "scripts": {}
+    "init_hook": [],
+    "scripts": {
+      "setup-npm": "npm install -g neovim typescript @typescript/native-preview"
+    }
   }
 }

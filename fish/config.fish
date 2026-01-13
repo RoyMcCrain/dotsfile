@@ -1,6 +1,14 @@
 # Fish shell configuration
 # zshからの移行版 ✨
 
+# 基本パス（source時にPATHが壊れている場合の対策）
+set -gx PATH /usr/local/bin /usr/bin /bin /usr/sbin /sbin $PATH
+
+# devboxパス
+if test -d "$HOME/.local/bin"
+    fish_add_path $HOME/.local/bin
+end
+
 # 環境変数
 set -gx LANG ja_JP.UTF-8
 set -gx GIT_EDITOR nvim
@@ -9,10 +17,20 @@ set -gx TERM xterm-256color
 
 # devbox
 set -gx SHELL fish
-devbox global shellenv --init-hook | source
+devbox global shellenv | source
 
-if test -d "$HOME/.local/bin"
-    fish_add_path $HOME/.local/bin
+# JAVA_HOME (devbox's temurin)
+if command -q java
+    set -l java_path (command -v java)
+    if test -L $java_path
+        set java_path (readlink -f $java_path)
+    end
+    set -gx JAVA_HOME (string replace -r '/bin/java$' '' $java_path)
+end
+
+# npm global packages path
+if test -d "$HOME/.local/share/npm-global/bin"
+    fish_add_path $HOME/.local/share/npm-global/bin
 end
 
 # direnv
@@ -54,10 +72,10 @@ switch (uname)
 end
 
 # 略語設定を読み込み
-source (dirname (status --current-filename))/abbreviations.fish
+source $__fish_config_dir/abbreviations.fish
 
 # fzf設定を読み込み
-source (dirname (status --current-filename))/fzf.fish
+source $__fish_config_dir/fzf.fish
 
 # ghq-get-cd function (fishバージョン)
 function ghq-get-cd

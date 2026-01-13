@@ -62,11 +62,20 @@ devbox global install
 devbox global add <package>
 ```
 
+### npmグローバルパッケージのインストール
+
+初回セットアップ時、またはNode.js更新後に実行：
+```bash
+devbox global run setup-npm
+```
+
+これにより`neovim`, `typescript`, `@typescript/native-preview`がインストールされる。
+
 ### pnpm / LSP
 
 `devbox/devbox.json`で管理：
 - pnpm: nixpkgsパッケージ
-- LSP: nixpkgsパッケージ + init_hookで自動インストール
+- LSP: nixpkgsパッケージ
 
 ## create_symlink
 
