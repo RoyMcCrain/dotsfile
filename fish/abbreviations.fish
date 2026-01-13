@@ -25,7 +25,7 @@ abbr mv 'mv -i'
 abbr mkdir 'mkdir -p'
 
 # Editor and tools
-abbr a 'nvim'
+abbr i 'nvim'
 abbr code 'code -n .' # vscode
 abbr exp 'explorer.exe .' # explorer
 
