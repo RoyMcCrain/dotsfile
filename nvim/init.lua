@@ -215,9 +215,8 @@ vim.keymap.set('i', '<C-space>', '<Nop>', { noremap = true })
 vim.keymap.set('n', 'W', '<Cmd>set wrap<CR>', { noremap = true })
 vim.keymap.set('n', 'WW', '<Cmd>set nowrap<CR>', { noremap = true })
 
-vim.keymap.set('n', ':', ';', { noremap = true })
+-- ;でコマンドモードに入る
 vim.keymap.set('n', ';', ':', { noremap = true })
-vim.keymap.set('v', ':', ';', { noremap = true })
 vim.keymap.set('v', ';', ':', { noremap = true })
 
 local func = require('custom-function')
