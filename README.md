@@ -68,23 +68,6 @@ devbox global add <package>
 - corepack: `DEVBOX_COREPACK_ENABLED`環境変数で自動有効化
 - LSP: nixpkgsパッケージ + init_hookで自動インストール
 
-## 不必要なaptで入れたgolang削除
-
-```bash
-sudo apt remove golang
-sudo rm -rf ~/go
-```
-ディレクトリは要確認
-
-
-## antigen(zshのプラグインマネージャー)
-
-[antigen](https://github.com/zsh-users/antigen)
-
-```bash
-git clone https://github.com/zsh-users/antigen.git ~/.antigen
-```
-
 ## create_symlink
 
 ```bash
@@ -94,18 +77,7 @@ chmod +x ./scripts/build_env/create_symlink.sh
 
 上記で、シンボリックリンクを作成できる
 
-## eza
-
-devboxでインストール済み。Linuxで個別にインストールする場合：
-https://github.com/eza-community/eza/blob/main/INSTALL.md#debian-and-ubuntu
-
-## zshrcの読み込み
-
-```bash
-source ~/.zshrc
-```
-
-## xsel
+## xsel (Linux)
 ```bash
 sudo apt install xsel
 ```
@@ -125,31 +97,6 @@ cd release
 cd ../
 rm -fr ./release.tar.gz ./release
 ```
-
-
-## systemdサービス
-
-### tailscale-ssh.service
-
-```bash
-mkdir -p ~/.config/systemd/user
-ln -sf "$PWD"/scripts/tailscale-ssh.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now tailscale-ssh.service
-```
-
-### agentdesk-browser-tools-server.service
-
-```bash
-mkdir -p ~/.config/systemd/user
-ln -sf "$PWD"/scripts/agentdesk-browser-tools-server.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now agentdesk-browser-tools-server.service
-```
-
-devboxのNode.jsを使わない場合は`ExecStart`のパスを環境に合わせて変える。
-
-
 
 
 # Neovim/dpp.vim セットアップ
