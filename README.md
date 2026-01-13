@@ -62,10 +62,10 @@ devbox global install
 devbox global add <package>
 ```
 
-### corepack / LSP
+### pnpm / LSP
 
 `devbox/devbox.json`で管理：
-- corepack: `DEVBOX_COREPACK_ENABLED`環境変数で自動有効化
+- pnpm: nixpkgsパッケージ
 - LSP: nixpkgsパッケージ + init_hookで自動インストール
 
 ## create_symlink

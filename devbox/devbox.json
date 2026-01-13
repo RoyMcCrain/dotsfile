@@ -31,10 +31,11 @@
     "vim-language-server@latest",
     "graphql-language-service-cli@latest",
     "stylelint-lsp@latest",
-    "vtsls@latest"
+    "vtsls@latest",
+    "pnpm@latest"
   ],
   "env": {
-    "DEVBOX_COREPACK_ENABLED": "true"
+    "PNPM_HOME": "$HOME/.local/share/pnpm"
   },
   "shell": {
     "init_hook": [
