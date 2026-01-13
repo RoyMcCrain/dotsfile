@@ -113,14 +113,16 @@ end
 
 echo ""
 
-# ASDF設定ファイル
-echo "📦 Setting up ASDF configuration..."
-set ASDF_ITEMS default-npm-packages asdfrc
-for item in $ASDF_ITEMS
-    create_symlink $BASE_DIR/asdf/$item ~/.$item "ASDF config: $item"
+# devbox設定ファイル
+echo "📦 Setting up devbox configuration..."
+set DEVBOX_GLOBAL_DIR ~/.local/share/devbox/global/default
+if not test -d $DEVBOX_GLOBAL_DIR
+    mkdir -p $DEVBOX_GLOBAL_DIR
 end
+create_symlink $BASE_DIR/devbox/devbox.json $DEVBOX_GLOBAL_DIR/devbox.json "devbox global config"
 
 echo ""
+
 echo "🎉 Fish configuration setup completed!"
 echo ""
 echo "📋 Next steps:"

@@ -50,9 +50,7 @@ https://brew.sh/ja/
 
 ## ghqの設定
 
-```bash
-brew install ghq
-```
+devboxでインストール済みの場合はスキップ。
 
 https://github.com/x-motemen/ghq?tab=readme-ov-file#macos
 
@@ -63,30 +61,36 @@ ghq get git@github.com:RoyMcCrain/dotsfile.git
 cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```
 
-## asdf
+## devbox
 
-https://asdf-vm.com/guide/getting-started.html#install-asdf
+https://www.jetify.com/devbox/docs/installing_devbox/
 
-Versionは最新のものを使う
 ```bash
-brew install asdf
+curl -fsSL https://get.jetify.com/devbox | bash
 ```
 
-## asdf_init_plugin
+### ツールのインストール
 
 ```bash
-chmod +x ./scripts/build_env/asdf_init_plugin.sh
-./scripts/build_env/asdf_init_plugin.sh
+devbox global add bat direnv eza fish fzf gh ghq go gopls imagemagick jj jq \
+  lua-language-server neovim yq zellij nodejs_22 deno bun rustup temurin-bin-21 \
+  opentofu uv difftastic
 ```
 
-上記で、asdf plugin add を行う
+### fish設定
 
+config.fishに以下を追加（create_symlinkで自動設定される）：
+```fish
+set -gx SHELL fish
+devbox global shellenv --init-hook | source
+```
 
-## asdf_install_plugin
+### npmグローバルパッケージ（Neovim LSP用）
 
 ```bash
-chmod +x ./scripts/build_env/asdf_install_plugin.sh
-./scripts/build_env/asdf_install_plugin.sh
+npm install -g vscode-langservers-extracted yaml-language-server \
+  @tailwindcss/language-server vim-language-server graphql-language-service-cli \
+  stylelint-lsp typescript neovim @vtsls/language-server @typescript/native-preview
 ```
 
 ## corepack
@@ -123,18 +127,9 @@ chmod +x ./scripts/build_env/create_symlink.sh
 上記で、シンボリックリンクを作成できる
 
 ## eza
-https://github.com/eza-community/eza
 
+devboxでインストール済み。Linuxで個別にインストールする場合：
 https://github.com/eza-community/eza/blob/main/INSTALL.md#debian-and-ubuntu
-
-```bash
-sudo mkdir -p /etc/apt/keyrings
-wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
-echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | sudo tee /etc/apt/sources.list.d/gierens.list
-sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
-sudo apt update
-sudo apt install -y eza
-```
 
 ## zshrcの読み込み
 
@@ -184,7 +179,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now agentdesk-browser-tools-server.service
 ```
 
-asdfのNode.jsを使わない場合は`ExecStart`のパスを環境に合わせて変える。
+devboxのNode.jsを使わない場合は`ExecStart`のパスを環境に合わせて変える。
 
 
 
