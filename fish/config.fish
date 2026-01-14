@@ -55,8 +55,16 @@ function fish_prompt
 end
 
 function fish_right_prompt
-    # Git情報を表示（fish_git_promptを使用）
-    if command -q git
+    if command -q jj; and test -d .jj
+        set_color green
+        set -l bm (jj log -r @ -T 'bookmarks' --no-graph 2>/dev/null)
+        if test -z "$bm"
+            # bookmark がなければ親の bookmark を表示
+            set bm (jj log -r @- -T 'bookmarks' --no-graph 2>/dev/null)
+        end
+        printf '%s' $bm
+        set_color normal
+    else if command -q git
         set_color green
         printf '%s' (fish_git_prompt)
         set_color normal
