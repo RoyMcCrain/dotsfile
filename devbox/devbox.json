@@ -13,7 +13,7 @@
     "go@latest",
     "gopls@latest",
     "imagemagick@latest",
-    "jj@latest",
+    "jujutsu@latest",
     "jq@latest",
     "lua-language-server@latest",
     "neovim@latest",

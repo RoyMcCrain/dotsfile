@@ -9,6 +9,11 @@ if test -d "$HOME/.local/bin"
     fish_add_path $HOME/.local/bin
 end
 
+# cargo (Rust)
+if test -d "$HOME/.cargo/bin"
+    fish_add_path $HOME/.cargo/bin
+end
+
 # 環境変数
 set -gx LANG ja_JP.UTF-8
 set -gx GIT_EDITOR nvim
