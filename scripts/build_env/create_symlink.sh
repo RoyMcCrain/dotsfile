@@ -42,3 +42,9 @@ do
 
   ln -s ${BASE_DIR}/asdf/${ITEM} ${DESTINATION}
 done
+
+# Create ~/.local/bin if not exists
+mkdir -p ~/.local/bin
+
+# Create symlink for ai-commit
+ln -s ${BASE_DIR}/scripts/ai-commit.sh ~/.local/bin/ai-commit

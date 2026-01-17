@@ -11,20 +11,16 @@ function fish_user_key_bindings --description 'Set custom key bindings and keep 
         fzf_key_bindings
     end
 
-    set -l os (uname)
-    switch $os
-        case Darwin
-            if functions -q ghq-fzf
-                bind \ct ghq-fzf
-                bind -M insert \ct ghq-fzf
-            end
+    # ghq-fzf: Ctrl+T
+    if functions -q ghq-fzf
+        bind \ct ghq-fzf
+        bind -M insert \ct ghq-fzf
+    end
 
-            if functions -q fzf-file-widget
-                bind \cg fzf-file-widget
-                bind -M insert \cg fzf-file-widget
-            end
-        case '*'
-            # Keep default fzf bindings on other platforms
+    # fzf-file-widget: Ctrl+G
+    if functions -q fzf-file-widget
+        bind \cg fzf-file-widget
+        bind -M insert \cg fzf-file-widget
     end
 
     if functions -q fancy-ctrl-z
