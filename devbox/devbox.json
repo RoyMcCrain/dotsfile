@@ -32,10 +32,11 @@
     "graphql-language-service-cli@latest",
     "stylelint-lsp@latest",
     "vtsls@latest",
-    "pnpm@latest"
+    "pnpm@latest",
+    "git@latest"
   ],
   "env": {
-    "PNPM_HOME": "$HOME/.local/share/pnpm",
+    "PNPM_HOME":         "$HOME/.local/share/pnpm",
     "NPM_CONFIG_PREFIX": "$HOME/.local/share/npm-global"
   },
   "shell": {
