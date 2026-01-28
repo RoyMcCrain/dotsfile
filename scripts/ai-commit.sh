@@ -15,6 +15,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# リポジトリタイプの検出（jj優先）
+if [ -d ".jj" ]; then
+    REPO_TYPE="jj"
+elif [ -d ".git" ]; then
+    REPO_TYPE="git"
+else
+    echo "Error: Not a git or jj repository" >&2
+    exit 1
+fi
+
 # LM Studioのヘルスチェック（早期失敗）
 if ! curl -s --connect-timeout 1 --max-time 2 http://localhost:1234/v1/models >/dev/null 2>&1; then
     if [ "$MESSAGE_ONLY" = true ]; then
@@ -38,14 +48,18 @@ CONTEXT_LINES=${AI_COMMIT_CONTEXT:-0}  # デフォルトを0に変更（コン�
 MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-1000}  # さらに小さいトークン数で高速化
 CHARS_PER_TOKEN=${AI_COMMIT_CHARS_PER_TOKEN:-4}  # 1トークンあたりの平均文字数（概算）
 
-# git diffを取得（コンテキスト行を制限）
-DIFF=$(git diff --cached -U${CONTEXT_LINES})
+# diffを取得（リポジトリタイプに応じて）
+if [ "$REPO_TYPE" = "jj" ]; then
+    DIFF=$(jj diff --context ${CONTEXT_LINES})
+else
+    DIFF=$(git diff --cached -U${CONTEXT_LINES})
+fi
 
 if [ -z "$DIFF" ]; then
     if [ "$MESSAGE_ONLY" = true ]; then
-        echo "Error: No staged changes" >&2
+        echo "Error: No changes" >&2
     else
-        echo -e "${YELLOW}ステージングされた変更がありません${NC}"
+        echo -e "${YELLOW}変更がありません${NC}"
     fi
     exit 1
 fi
@@ -61,11 +75,14 @@ if [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ] || [ "$DIFF_LINES" -gt "$MAX_LINES"
         echo -e "${YELLOW}Diffが大きすぎます（推定${ESTIMATED_TOKENS}トークン、${DIFF_LINES}行）。要約を生成します...${NC}"
     fi
     
-    # ファイルごとの変更統計を取得
-    STATS=$(git diff --cached --stat)
-    
-    # 変更されたファイルリスト
-    FILES=$(git diff --cached --name-status)
+    # ファイルごとの変更統計と変更されたファイルリストを取得
+    if [ "$REPO_TYPE" = "jj" ]; then
+        STATS=$(jj diff --stat)
+        FILES=$(jj diff --summary)
+    else
+        STATS=$(git diff --cached --stat)
+        FILES=$(git diff --cached --name-status)
+    fi
     
     # トークン数に応じて抽出行数を動的に調整（より積極的に削減）
     if [ "$ESTIMATED_TOKENS" -gt $((MAX_TOKENS * 2)) ]; then
@@ -181,11 +198,20 @@ read -r answer
 
 case "$answer" in
     y|Y)
-        git commit -m "$MESSAGE"
-        echo -e "${GREEN}コミット完了${NC}"
+        if [ "$REPO_TYPE" = "jj" ]; then
+            jj describe -m "$MESSAGE"
+            echo -e "${GREEN}describe完了${NC}"
+        else
+            git commit -m "$MESSAGE"
+            echo -e "${GREEN}コミット完了${NC}"
+        fi
         ;;
     e|E)
-        git commit -e -m "$MESSAGE"
+        if [ "$REPO_TYPE" = "jj" ]; then
+            jj describe
+        else
+            git commit -e -m "$MESSAGE"
+        fi
         ;;
     *)
         echo "キャンセル"

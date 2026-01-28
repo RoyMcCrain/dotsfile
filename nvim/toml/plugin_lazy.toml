@@ -128,12 +128,3 @@ repo = 'windwp/nvim-ts-autotag'
 on_event = 'InsertEnter'
 lua_source = 'require("nvim-ts-autotag").setup({})'
 
-#----------------------------------------------------------------------------------#
-# Markdown Preview & Rendering
-#----------------------------------------------------------------------------------#
-
-[[plugins]]
-repo = 'MeanderingProgrammer/render-markdown.nvim'
-on_ft = 'markdown'
-depends = ['nvim-treesitter', 'nvim-web-devicons']
-lua_source = 'require("plugins.render-markdown").setup()'

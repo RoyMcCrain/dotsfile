@@ -38,13 +38,6 @@ abbr i 'nvim'
 abbr code 'code -n .' # vscode
 abbr exp 'explorer.exe .' # explorer
 
-# Bundle (Ruby)
-abbr be 'bundle exec '
-abbr bi 'bundle install '
-abbr rails 'bundle exec rails'
-abbr rails-s 'bundle exec rails s -p 3001'
-abbr rspec 'bundle exec rspec'
-
 abbr sortp 'npx sort-package-json'
 
 # pnpm
@@ -71,8 +64,8 @@ switch (uname)
         # Mac用の設定（必要に応じて追加）
 end
 
+# Git
 abbr g 'git'
-# Git abbreviations
 abbr ac 'ai-commit'
 abbr sw 'switch'
 abbr rs 'restore'
@@ -86,6 +79,21 @@ abbr dt 'difftool'
 abbr pl 'pull'
 abbr pp 'pull --prune'
 abbr ps 'push'
+
+# jj (jujutsu)
+abbr j 'jj'
+abbr l 'lazyjj'
+abbr -p anywhere ne 'new'
+abbr -p anywhere ed 'edit'
+abbr -p anywhere sq 'squash'
+abbr -p anywhere sqi 'squash -i'
+abbr -p anywhere bo 'bookmark'
+abbr -p anywhere bos 'bookmark set'
+abbr -p anywhere bol 'bookmark list'
+abbr -p anywhere ab 'abandon'
+abbr -p anywhere gp 'git push'
+abbr -p anywhere gpc 'git push -c @'
+abbr -p anywhere gf 'git fetch'
 
 # Fish specific
 abbr sf 'source ~/.config/fish/config.fish'

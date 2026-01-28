@@ -1,20 +1,44 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true",
+    "ENABLE_LSP_TOOL": "true",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "enabledPlugins": {
+    "feature-dev@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "figma@claude-plugins-official": true,
+    "sentry@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "explanatory-output-style@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "lua-lsp@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "learning-output-style@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true
+  },
+  "language": "japanese",
   "hooks": {
-    "Stop": [
+    "PostToolUse": [
       {
-        "matcher": "",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -ExecutionPolicy Bypass -Command \"Import-Module BurntToast -Force; New-BurntToastNotification -Text 'Claude Code', 'タスクが完了しました'\""
+            "command": "/Users/roy/.claude/hooks/open-md-arto.sh",
+            "timeout": 5
           }
         ]
       }
     ]
-  },
-  "feedbackSurveyState": {
-    "lastShownTime": 1754016719333
   },
   "allowedCommands": [
     "mcp__context7__resolve-library-id",

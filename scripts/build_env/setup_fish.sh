@@ -102,7 +102,7 @@ echo ""
 
 # 共通設定ファイル
 echo "🛠️  Setting up common configuration files..."
-set COMMON_ITEMS nvim gemrc gitconfig
+set COMMON_ITEMS nvim gitconfig
 for item in $COMMON_ITEMS
     if test $item = "nvim"
         create_symlink $BASE_DIR/$item ~/.config/$item "Neovim configuration"
@@ -120,6 +120,12 @@ if not test -d $DEVBOX_GLOBAL_DIR
     mkdir -p $DEVBOX_GLOBAL_DIR
 end
 create_symlink $BASE_DIR/devbox/devbox.json $DEVBOX_GLOBAL_DIR/devbox.json "devbox global config"
+
+echo ""
+
+# jujutsu設定ファイル
+echo "Setting up jujutsu configuration..."
+create_symlink $BASE_DIR/jjconfig.toml ~/.config/jj/config.toml "jujutsu config"
 
 echo ""
 

@@ -19,6 +19,7 @@ set -gx LANG ja_JP.UTF-8
 set -gx GIT_EDITOR nvim
 set -gx EDITOR nvim
 set -gx TERM xterm-256color
+set -gx DFT_DISPLAY side-by-side-show-both
 
 # devbox
 set -gx SHELL fish
@@ -98,6 +99,23 @@ end
 
 # ghq get の略語用に関数を設定
 abbr ghq-get 'ghq-get-cd'
+
+# jj describe with AI commit message
+function aid
+    set_color yellow
+    echo "メッセージ生成中..."
+    set_color normal
+    set -l msg (ai-commit -m)
+    echo
+    set_color green
+    echo "生成されたメッセージ:"
+    set_color normal
+    echo "$msg"
+    echo
+    jj describe -m "$msg"
+end
+
+
 
 # gcloud
 set -l GCLOUD_PATH "$HOME/.local/google-cloud-sdk/bin"

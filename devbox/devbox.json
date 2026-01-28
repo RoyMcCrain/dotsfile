@@ -33,7 +33,8 @@
     "stylelint-lsp@latest",
     "vtsls@latest",
     "pnpm@latest",
-    "git@latest"
+    "git@latest",
+    "delta@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",

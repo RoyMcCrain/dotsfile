@@ -233,6 +233,14 @@ vim.api.nvim_create_user_command('Prettier', func.pritter, {})
 vim.api.nvim_create_user_command('SortTw', func.sort_tailwind_class, {})
 -- vscodeで開く
 vim.api.nvim_create_user_command('Code', func.open_in_code, {})
+-- ArtoでMarkdownを開く
+vim.api.nvim_create_user_command('Arto', function()
+  if vim.bo.filetype ~= 'markdown' then
+    vim.notify('Arto: markdown only', vim.log.levels.WARN)
+    return
+  end
+  vim.fn.system('open -a Arto ' .. vim.fn.shellescape(vim.fn.expand('%:p')))
+end, {})
 -- DenoでJSONをフォーマット
 vim.api.nvim_create_user_command('Format', func.format_json_with_deno, { range = true })
 -- ファイルパスをコピー
