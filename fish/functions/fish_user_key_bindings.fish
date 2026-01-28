@@ -17,6 +17,12 @@ function fish_user_key_bindings --description 'Set custom key bindings and keep 
         bind -M insert \ct ghq-fzf
     end
 
+    # ghq-fzf-jj: Ctrl+K
+    if functions -q ghq-fzf-jj
+        bind \ck ghq-fzf-jj
+        bind -M insert \ck ghq-fzf-jj
+    end
+
     # fzf-file-widget: Ctrl+G
     if functions -q fzf-file-widget
         bind \cg fzf-file-widget

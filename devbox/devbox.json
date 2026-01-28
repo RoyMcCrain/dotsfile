@@ -38,7 +38,10 @@
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
-    "NPM_CONFIG_PREFIX": "$HOME/.local/share/npm-global"
+    "NPM_CONFIG_PREFIX": "$HOME/.local/share/npm-global",
+    "GOBIN":             "$HOME/.local/bin",
+    "GOPATH":            "$HOME/.local/share/go",
+    "GOMODCACHE":        "$HOME/.cache/go/mod"
   },
   "shell": {
     "init_hook": [],
