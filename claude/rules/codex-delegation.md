@@ -7,5 +7,5 @@ Codexに相談すべきケース：
 - リファクタリング方針の検討
 
 相談方法：
-- `/codex-review` でコードレビュー依頼
-- `/codex-design` で設計相談
+- `/codex review` でコードレビュー依頼
+- `/codex design` で設計相談

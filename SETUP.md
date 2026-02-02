@@ -46,7 +46,13 @@ cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ```bash
 chmod +x ./scripts/build_env/setup_fish.sh
 ./scripts/build_env/setup_fish.sh
+chmod +x ./scripts/build_env/create_symlink.sh
+./scripts/build_env/create_symlink.sh
 ```
+
+これにより以下がシンボリックリンクされる：
+- nvim, fish, gitconfig等の基本設定
+- claude/, codex/, gemini/ のAI Tools設定
 
 ## devboxツールのインストール
 

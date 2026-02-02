@@ -48,6 +48,13 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
   - `config.fish`, `abbreviations.fish`, `/functions/`
 - `/devbox/devbox.json` - Tool definitions (symlinked to ~/.local/share/devbox/global/default/)
 - `/scripts/build_env/` - Setup scripts
+- `/claude/` - Claude Code config (symlinked to ~/.claude/)
+  - `/rules/` - Coding rules (KISS, TypeScript, React, etc.)
+  - `/skills/` - Custom skills (arto, jj, line, codex-*, gemini-*)
+  - `/hooks/` - Automation hooks
+  - `settings.json` - Claude Code settings
+- `/codex/` - OpenAI Codex CLI config (symlinked to ~/.codex/)
+- `/gemini/` - Google Gemini CLI config (symlinked to ~/.gemini/)
 - `gitconfig`, `jjconfig.toml` - VCS configs
 
 ## Architecture
@@ -65,3 +72,8 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
 ### VCS
 - **jujutsu (jj)** as primary, git-compatible
 - Config: `jjconfig.toml` (symlinked to ~/.config/jj/config.toml)
+
+### AI Tools
+- **Claude Code** - Primary AI assistant with custom rules/skills/hooks
+- **Codex CLI** - OpenAI Codex for design consultation and code review
+- **Gemini CLI** - Google Gemini for research and documentation

@@ -16,3 +16,6 @@ diffs = ["diff", "--git", "--config=ui.pager=delta -s"]
 
 [remotes.origin]
 auto-track-bookmarks = "glob:*"
+
+[experimental-advance-branches]
+enabled-branches = ["main"]

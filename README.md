@@ -42,3 +42,13 @@ refresh-global  # devboxが自動定義するalias
 `devbox/devbox.json`で管理：
 - pnpm: nixpkgsパッケージ
 - LSP: nixpkgsパッケージ
+
+## AI Tools
+
+Claude Code, Codex CLI, Gemini CLIの設定を管理。
+
+```
+claude/   → ~/.claude/    # rules, skills, hooks
+codex/    → ~/.codex/     # AGENTS.md, instructions.md
+gemini/   → ~/.gemini/    # GEMINI.md, instructions.md
+```

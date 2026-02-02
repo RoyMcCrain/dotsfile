@@ -1,3 +1,10 @@
+---
+name: gemini-research
+description: Gemini CLIで調査・リサーチを実行
+metadata:
+  target_agent: claude
+---
+
 # /gemini-research
 
 Gemini CLIで調査・リサーチを実行するスキル。
