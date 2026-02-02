@@ -258,7 +258,11 @@ M.setup = function()
           cmd_cwd = tsgo_root, -- npxをtsgo_rootで実行
           root_dir = tsgo_root,
           capabilities = capabilities,
-          on_attach = base_on_attach,
+          on_attach = function(client, bufnr)
+            -- フォーマットはoxcに任せる
+            client.server_capabilities.documentFormattingProvider = false
+            base_on_attach(client, bufnr)
+          end,
           settings = ts_settings,
         }, { bufnr = args.buf })
       else
@@ -270,7 +274,11 @@ M.setup = function()
             cmd = { 'vtsls', '--stdio' },
             root_dir = vtsls_root,
             capabilities = capabilities,
-            on_attach = base_on_attach,
+            on_attach = function(client, bufnr)
+              -- フォーマットはoxcに任せる
+              client.server_capabilities.documentFormattingProvider = false
+              base_on_attach(client, bufnr)
+            end,
             settings = ts_settings,
           }, { bufnr = args.buf })
         end
@@ -473,6 +481,59 @@ M.setup = function()
     end,
   })
 
+
+  -- oxc (oxlint + oxfmt)
+  local oxc_config_files = {
+    -- リンター設定
+    'oxlint.json',
+    '.oxlintrc.json',
+    'oxlint.config.js',
+    'oxlint.config.mjs',
+    'oxlint.config.cjs',
+    -- フォーマッター設定
+    '.oxfmtrc.json',
+  }
+
+  -- oxlint (リンター専用)
+  configure('oxlint', {
+    cmd = { "npx", "oxlint", "--lsp", "--type-aware" },
+    filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+    root_dir = function(fname)
+      local git_root = lu.util.find_git_ancestor(fname)
+      if git_root then
+        for _, name in ipairs(oxc_config_files) do
+          if vim.fn.filereadable(git_root .. '/' .. name) == 1 then
+            return git_root
+          end
+        end
+      end
+      return lu.find_nearest_file(fname, oxc_config_files)
+    end,
+    settings = {
+      oxc = { typeAware = true },
+    },
+    on_attach = function(client, bufnr)
+      -- oxlintはリンター専用、フォーマット・補完は他に任せる
+      client.server_capabilities.documentFormattingProvider = false
+      client.server_capabilities.completionProvider = false
+      base_on_attach(client, bufnr)
+    end,
+  })
+
+  -- oxfmt (フォーマッター専用)
+  configure('oxfmt', {
+    cmd = { "npx", "oxfmt", "--lsp" },
+    filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+    root_dir = function(fname)
+      -- .oxfmtrc.json またはpackage.jsonを探す
+      return lu.find_nearest_file(fname, { '.oxfmtrc.json', 'package.json' })
+    end,
+    on_attach = function(client, bufnr)
+      -- フォーマット専用
+      client.server_capabilities.completionProvider = false
+      base_on_attach(client, bufnr)
+    end,
+  })
 
   -- denols
   configure('denols', {

@@ -113,11 +113,11 @@
     "mcp__ts__write_memory",
     "mcp__ts__delete_memory"
   ],
-  "deniedCommands": [
-    "terraform apply",
-    "jj git push"
-  ],
   "permissions": {
+    "deny": [
+      "Bash(jj git push*)",
+      "Bash(terraform apply*)"
+    ],
     "allow": [
       "Bash(find *)",
       "Bash(grep *)",
@@ -141,7 +141,21 @@
       "Bash(type *)",
       "Bash(jq *)",
       "Bash(tr *)",
-      "Bash(jj *)",
+      "Bash(jj status*)",
+      "Bash(jj log*)",
+      "Bash(jj diff*)",
+      "Bash(jj describe*)",
+      "Bash(jj bookmark*)",
+      "Bash(jj show*)",
+      "Bash(jj file*)",
+      "Bash(jj new*)",
+      "Bash(jj edit*)",
+      "Bash(jj squash*)",
+      "Bash(jj abandon*)",
+      "Bash(jj undo*)",
+      "Bash(jj op*)",
+      "Bash(jj config*)",
+      "Bash(jj git fetch*)",
       "Bash(python3 */.claude/skills/*/scripts/*.py *)",
       "Read(~/ghq/**)"
     ]

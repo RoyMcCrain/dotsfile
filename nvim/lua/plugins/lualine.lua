@@ -63,7 +63,8 @@ M.setup = function()
                 :gsub('stylelint_lsp', 'stylelint')
                 :gsub('cssls', 'css')
                 :gsub('denols', 'deno')
-            
+                :gsub('oxlint', 'oxl')
+                :gsub('oxfmt', 'oxf')
           end,
         }
       },
