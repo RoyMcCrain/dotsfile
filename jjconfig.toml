@@ -18,4 +18,4 @@ diffs = ["diff", "--git", "--config=ui.pager=delta -s"]
 auto-track-bookmarks = "glob:*"
 
 [experimental-advance-branches]
-enabled-branches = ["main"]
+enabled-branches = ["glob:*"]
