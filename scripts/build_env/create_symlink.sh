@@ -48,3 +48,23 @@ mkdir -p ~/.local/bin
 
 # Create symlink for ai-commit
 ln -s ${BASE_DIR}/scripts/ai-commit.sh ~/.local/bin/ai-commit
+
+# Claude Code
+mkdir -p ~/.claude
+ln -sf ${BASE_DIR}/claude/agents ~/.claude/agents
+ln -sf ${BASE_DIR}/claude/hooks ~/.claude/hooks
+ln -sf ${BASE_DIR}/claude/rules ~/.claude/rules
+ln -sf ${BASE_DIR}/claude/skills ~/.claude/skills
+ln -sf ${BASE_DIR}/claude/settings.json ~/.claude/settings.json
+
+# Codex
+mkdir -p ~/.codex/skills
+ln -sf ${BASE_DIR}/codex/AGENTS.md ~/.codex/AGENTS.md
+ln -sf ${BASE_DIR}/codex/instructions.md ~/.codex/instructions.md
+ln -sf ${BASE_DIR}/codex/skills/context-loader ~/.codex/skills/context-loader
+
+# Gemini
+mkdir -p ~/.gemini/skills
+ln -sf ${BASE_DIR}/gemini/GEMINI.md ~/.gemini/GEMINI.md
+ln -sf ${BASE_DIR}/gemini/instructions.md ~/.gemini/instructions.md
+ln -sf ${BASE_DIR}/gemini/skills/context-loader ~/.gemini/skills/context-loader

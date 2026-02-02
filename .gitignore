@@ -7,3 +7,4 @@ nvim/undo
 logs
 .serena
 .lsmcp
+__pycache__/

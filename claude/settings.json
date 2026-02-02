@@ -17,7 +17,7 @@
     "figma@claude-plugins-official": true,
     "sentry@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "explanatory-output-style@claude-plugins-official": true,
+    "explanatory-output-style@claude-plugins-official": false,
     "gopls-lsp@claude-plugins-official": true,
     "lua-lsp@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
@@ -27,13 +27,57 @@
   },
   "language": "japanese",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME\"/.claude/hooks/agent-router.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME\"/.claude/hooks/check-codex-before-write.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/roy/.claude/hooks/open-md-arto.sh",
+            "command": "\"$HOME\"/.claude/hooks/post-implementation-review.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME\"/.claude/hooks/post-test-analysis.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME\"/.claude/hooks/check-codex-after-plan.sh",
             "timeout": 5
           }
         ]
@@ -70,6 +114,36 @@
     "mcp__ts__delete_memory"
   ],
   "deniedCommands": [
-    "terraform apply"
-  ]
+    "terraform apply",
+    "jj git push"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(cat *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(cut *)",
+      "Bash(xargs *)",
+      "Bash(diff *)",
+      "Bash(file *)",
+      "Bash(stat *)",
+      "Bash(ls *)",
+      "Bash(tree *)",
+      "Bash(du *)",
+      "Bash(which *)",
+      "Bash(type *)",
+      "Bash(jq *)",
+      "Bash(tr *)",
+      "Bash(jj *)",
+      "Bash(python3 */.claude/skills/*/scripts/*.py *)",
+      "Read(~/ghq/**)"
+    ]
+  }
 }

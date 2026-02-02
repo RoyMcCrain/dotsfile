@@ -34,7 +34,9 @@
     "vtsls@latest",
     "pnpm@latest",
     "git@latest",
-    "delta@latest"
+    "delta@latest",
+    "gemini-cli@latest",
+    "wget@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
@@ -46,7 +48,7 @@
   "shell": {
     "init_hook": [],
     "scripts": {
-      "setup-npm": "npm install -g neovim typescript @typescript/native-preview"
+      "setup-npm": "npm install -g neovim typescript @typescript/native-preview @openai/codex"
     }
   }
 }
