@@ -102,7 +102,7 @@ echo ""
 
 # 共通設定ファイル
 echo "🛠️  Setting up common configuration files..."
-set COMMON_ITEMS nvim gitconfig
+set COMMON_ITEMS nvim gitconfig bash_profile
 for item in $COMMON_ITEMS
     if test $item = "nvim"
         create_symlink $BASE_DIR/$item ~/.config/$item "Neovim configuration"

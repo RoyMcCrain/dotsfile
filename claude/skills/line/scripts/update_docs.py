@@ -6,6 +6,7 @@ Usage:
     python update_docs.py              # Update all docs
     python update_docs.py --liff       # Update LIFF only
     python update_docs.py --messaging  # Update Messaging API only
+    python update_docs.py --login      # Update LINE Login only
 """
 
 import subprocess
@@ -23,6 +24,10 @@ DOCS = {
     "messaging": {
         "url": "https://developers.line.biz/ja/reference/messaging-api/index.html.md",
         "output": SKILL_DIR / "messaging-api/references/developers.line.biz/ja/reference/messaging-api/index.md",
+    },
+    "login": {
+        "url": "https://developers.line.biz/ja/reference/line-login/index.html.md",
+        "output": SKILL_DIR / "line-login/references/developers.line.biz/ja/reference/line-login/index.md",
     },
 }
 
@@ -73,6 +78,7 @@ def main():
     parser = argparse.ArgumentParser(description="Update LINE API documentation")
     parser.add_argument("--liff", action="store_true", help="Update LIFF docs only")
     parser.add_argument("--messaging", action="store_true", help="Update Messaging API docs only")
+    parser.add_argument("--login", action="store_true", help="Update LINE Login docs only")
     args = parser.parse_args()
 
     targets = []
@@ -80,6 +86,8 @@ def main():
         targets.append("liff")
     if args.messaging:
         targets.append("messaging")
+    if args.login:
+        targets.append("login")
     if not targets:
         targets = list(DOCS.keys())
 
