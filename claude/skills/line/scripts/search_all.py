@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-search_all.py - Search all LINE documentation (LIFF + Messaging API + LINE Login)
+search_all.py - Search all LINE documentation (LIFF + Messaging API + LINE Login + Mini App)
 """
 
 import sys
@@ -39,6 +39,12 @@ def main():
     for r in login_results:
         r["file"] = f"line-login/{r['file']}"
     all_results.extend(login_results)
+
+    # Search Mini App
+    mini_results = search_docs(skill_dir / "mini-app", args.query, args.max_results)
+    for r in mini_results:
+        r["file"] = f"mini-app/{r['file']}"
+    all_results.extend(mini_results)
 
     # Sort by matches
     all_results.sort(key=lambda x: x["matches"], reverse=True)

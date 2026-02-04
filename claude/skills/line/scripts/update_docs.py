@@ -7,6 +7,7 @@ Usage:
     python update_docs.py --liff       # Update LIFF only
     python update_docs.py --messaging  # Update Messaging API only
     python update_docs.py --login      # Update LINE Login only
+    python update_docs.py --mini-app   # Update Mini App only
 """
 
 import subprocess
@@ -28,6 +29,10 @@ DOCS = {
     "login": {
         "url": "https://developers.line.biz/ja/reference/line-login/index.html.md",
         "output": SKILL_DIR / "line-login/references/developers.line.biz/ja/reference/line-login/index.md",
+    },
+    "mini-app": {
+        "url": "https://developers.line.biz/ja/reference/line-mini-app/index.html.md",
+        "output": SKILL_DIR / "mini-app/references/developers.line.biz/ja/reference/line-mini-app/index.md",
     },
 }
 
@@ -79,6 +84,7 @@ def main():
     parser.add_argument("--liff", action="store_true", help="Update LIFF docs only")
     parser.add_argument("--messaging", action="store_true", help="Update Messaging API docs only")
     parser.add_argument("--login", action="store_true", help="Update LINE Login docs only")
+    parser.add_argument("--mini-app", action="store_true", help="Update Mini App docs only")
     args = parser.parse_args()
 
     targets = []
@@ -88,6 +94,8 @@ def main():
         targets.append("messaging")
     if args.login:
         targets.append("login")
+    if getattr(args, "mini_app", False):
+        targets.append("mini-app")
     if not targets:
         targets = list(DOCS.keys())
 

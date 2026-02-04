@@ -1,6 +1,6 @@
 ---
 name: line
-description: LINE Platform API documentation (LIFF, Messaging API, LINE Login)
+description: LINE Platform API documentation (LIFF, Messaging API, LINE Login, Mini App)
 metadata:
   target_agent: claude
 ---
@@ -16,6 +16,7 @@ LINE Platform APIのドキュメントを提供するスキルです。
 - `/line 更新 liff` - LIFF のみ更新
 - `/line 更新 messaging` - Messaging API のみ更新
 - `/line 更新 login` - LINE Login のみ更新
+- `/line 更新 mini-app` - Mini App のみ更新
 
 When user says "更新", run update_docs.py:
 ```bash
@@ -23,6 +24,7 @@ python scripts/update_docs.py           # 全更新
 python scripts/update_docs.py --liff    # LIFF のみ
 python scripts/update_docs.py --messaging  # Messaging API のみ
 python scripts/update_docs.py --login   # LINE Login のみ
+python scripts/update_docs.py --mini-app  # Mini App のみ
 ```
 
 ## Documentation
@@ -30,6 +32,7 @@ python scripts/update_docs.py --login   # LINE Login のみ
 - `liff/references/` - LIFF (LINE Front-end Framework) API
 - `messaging-api/references/` - LINE Messaging API
 - `line-login/references/` - LINE Login v2.1 API
+- `mini-app/references/` - LINE Mini App API
 
 ## Search Tool
 
@@ -41,6 +44,7 @@ python scripts/search_all.py "<query>"
 python liff/scripts/search_docs.py "<query>"
 python messaging-api/scripts/search_docs.py "<query>"
 python line-login/scripts/search_docs.py "<query>"
+python mini-app/scripts/search_docs.py "<query>"
 ```
 
 Options:
@@ -57,6 +61,7 @@ python scripts/update_docs.py
 python scripts/update_docs.py --liff
 python scripts/update_docs.py --messaging
 python scripts/update_docs.py --login
+python scripts/update_docs.py --mini-app
 ```
 
 Requirements: curl
@@ -80,6 +85,11 @@ Requirements: curl
 - **IDトークン** - JWT verification, claims
 - **ユーザー情報** - userinfo, profile
 - **友だち確認** - friendship status
+
+### Mini App
+- **サービスメッセージ** - notificationToken, send
+- **共通プロフィール** - liff.$commonProfile
+- **フォーム自動入力** - data-liff-autocomplete
 
 ## Response Format
 
