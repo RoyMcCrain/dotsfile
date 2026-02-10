@@ -9,23 +9,53 @@
     "commit": "",
     "pr": ""
   },
-  "enabledPlugins": {
-    "feature-dev@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "code-review@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
-    "figma@claude-plugins-official": true,
-    "sentry@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "explanatory-output-style@claude-plugins-official": false,
-    "gopls-lsp@claude-plugins-official": true,
-    "lua-lsp@claude-plugins-official": true,
-    "context7@claude-plugins-official": false,
-    "security-guidance@claude-plugins-official": true,
-    "learning-output-style@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true
+  "permissions": {
+    "allow": [
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(cat *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(cut *)",
+      "Bash(xargs *)",
+      "Bash(diff *)",
+      "Bash(file *)",
+      "Bash(stat *)",
+      "Bash(ls *)",
+      "Bash(tree *)",
+      "Bash(du *)",
+      "Bash(which *)",
+      "Bash(type *)",
+      "Bash(jq *)",
+      "Bash(tr *)",
+      "Bash(jj status*)",
+      "Bash(jj log*)",
+      "Bash(jj diff*)",
+      "Bash(jj describe*)",
+      "Bash(jj bookmark*)",
+      "Bash(jj show*)",
+      "Bash(jj file*)",
+      "Bash(jj new*)",
+      "Bash(jj edit*)",
+      "Bash(jj squash*)",
+      "Bash(jj abandon*)",
+      "Bash(jj undo*)",
+      "Bash(jj op*)",
+      "Bash(jj config*)",
+      "Bash(jj git fetch*)",
+      "Bash(python3 */.claude/skills/*/scripts/*.py *)",
+      "Read(~/ghq/**)"
+    ],
+    "deny": [
+      "Bash(jj git push*)",
+      "Bash(terraform apply*)"
+    ]
   },
-  "language": "japanese",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -84,6 +114,23 @@
       }
     ]
   },
+  "enabledPlugins": {
+    "feature-dev@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "figma@claude-plugins-official": true,
+    "sentry@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "explanatory-output-style@claude-plugins-official": false,
+    "gopls-lsp@claude-plugins-official": true,
+    "lua-lsp@claude-plugins-official": true,
+    "context7@claude-plugins-official": false,
+    "security-guidance@claude-plugins-official": true,
+    "learning-output-style@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true
+  },
+  "language": "japanese",
   "allowedCommands": [
     "mcp__context7__resolve-library-id",
     "mcp__context7__get-library-docs",
@@ -112,52 +159,5 @@
     "mcp__ts__read_memory",
     "mcp__ts__write_memory",
     "mcp__ts__delete_memory"
-  ],
-  "permissions": {
-    "deny": [
-      "Bash(jj git push*)",
-      "Bash(terraform apply*)"
-    ],
-    "allow": [
-      "Bash(find *)",
-      "Bash(grep *)",
-      "Bash(sed *)",
-      "Bash(awk *)",
-      "Bash(head *)",
-      "Bash(tail *)",
-      "Bash(cat *)",
-      "Bash(wc *)",
-      "Bash(sort *)",
-      "Bash(uniq *)",
-      "Bash(cut *)",
-      "Bash(xargs *)",
-      "Bash(diff *)",
-      "Bash(file *)",
-      "Bash(stat *)",
-      "Bash(ls *)",
-      "Bash(tree *)",
-      "Bash(du *)",
-      "Bash(which *)",
-      "Bash(type *)",
-      "Bash(jq *)",
-      "Bash(tr *)",
-      "Bash(jj status*)",
-      "Bash(jj log*)",
-      "Bash(jj diff*)",
-      "Bash(jj describe*)",
-      "Bash(jj bookmark*)",
-      "Bash(jj show*)",
-      "Bash(jj file*)",
-      "Bash(jj new*)",
-      "Bash(jj edit*)",
-      "Bash(jj squash*)",
-      "Bash(jj abandon*)",
-      "Bash(jj undo*)",
-      "Bash(jj op*)",
-      "Bash(jj config*)",
-      "Bash(jj git fetch*)",
-      "Bash(python3 */.claude/skills/*/scripts/*.py *)",
-      "Read(~/ghq/**)"
-    ]
-  }
+  ]
 }

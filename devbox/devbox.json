@@ -36,7 +36,8 @@
     "git@latest",
     "delta@latest",
     "gemini-cli@latest",
-    "wget@latest"
+    "wget@latest",
+    "gettext@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",

@@ -1,29 +1,22 @@
 ---
 name: codex
-description: Codex CLIでコードレビュー・設計相談を実行
+description: Codex CLIでコード実装を実行
 metadata:
   target_agent: claude
 ---
 
 # /codex
 
-Codex CLIを使ったコードレビューと設計相談のスキル。
+Codex CLIを使ったコード実装のスキル。
 
 ## コマンド
 
-- `/codex review [対象]` - コードレビュー
-- `/codex design [課題]` - 設計相談
+- `/codex [指示]` - コード実装
 
-## コードレビュー
-
-```bash
-codex --approval-mode full-auto "以下のコードをレビューしてください。バグ、セキュリティ問題、改善点を指摘してください: [対象]"
-```
-
-## 設計相談
+## 実装
 
 ```bash
-codex --approval-mode full-auto "以下の設計について検討してください。トレードオフと推奨アプローチを提示してください: [課題]"
+codex --approval-mode auto-edit "以下を実装してください: [指示]"
 ```
 
 ## 実行手順
