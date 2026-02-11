@@ -1,8 +1,8 @@
 local M = {}
 
 M.setup = function()
-  vim.keymap.set('n', '<Leader>w', '<Cmd>Fern . -reveal=%<CR>', { noremap = true })
-  vim.keymap.set('n', '<Leader>f', '<Cmd>Fern . -drawer -reveal=% -width=50 -toggle <CR>', { noremap = true })
+  vim.keymap.set('n', '<Leader>m', '<Cmd>Fern . -reveal=%<CR>', { noremap = true })
+  vim.keymap.set('n', '<Leader>w', '<Cmd>Fern . -drawer -reveal=% -width=50 -toggle <CR>', { noremap = true })
   vim.g['fern#disable_default_mappings'] = 1
   vim.g['fern#default_hidden'] = 1
 

@@ -6,7 +6,6 @@
 | Y | 現在のカーソル位置から行末までヤンク | Normal |
 | NN | 検索ハイライトをクリア | Normal |
 | O | 現在の行の下に新しい行を挿入してインサートモード | Normal |
-| j | w の代替（astarte配列用）| Normal/Visual |
 | W | テキストの折り返しを有効化 (wrap) | Normal |
 | WW | テキストの折り返しを無効化 (nowrap) | Normal |
 | zR | すべての折りたたみを展開 | Normal |

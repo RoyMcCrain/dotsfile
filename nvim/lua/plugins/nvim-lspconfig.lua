@@ -37,11 +37,11 @@ M.setup = function()
       vim.tbl_extend('force', { desc = "ワークスペースで検索" }, opts))
     vim.keymap.set('n', '[LSP]I', '<Cmd>lua vim.lsp.buf.implementation()<CR>',
       vim.tbl_extend('force', { desc = "実装" }, opts))
-    vim.keymap.set('n', '[LSP]d', '<Cmd>lua vim.lsp.buf.document_symbol()<CR>',
+    vim.keymap.set('n', '[LSP]s', '<Cmd>lua vim.lsp.buf.document_symbol()<CR>',
       vim.tbl_extend('force', { desc = "今開いているファイルから検索" }, opts))
-    vim.keymap.set('n', '[LSP]k', '<Cmd>lua vim.diagnostic.goto_prev()<CR>',
+    vim.keymap.set('n', '[LSP]d', '<Cmd>lua vim.diagnostic.goto_prev()<CR>',
       vim.tbl_extend('force', { desc = "前のエラーへ移動" }, opts))
-    vim.keymap.set('n', '[LSP]s', '<Cmd>lua vim.diagnostic.goto_next()<CR>',
+    vim.keymap.set('n', '[LSP]n', '<Cmd>lua vim.diagnostic.goto_next()<CR>',
       vim.tbl_extend('force', { desc = "次のエラーへ移動" }, opts))
     vim.keymap.set('n', '[LSP]l', '<Cmd>lua vim.diagnostic.setloclist()<CR>',
       vim.tbl_extend('force', { desc = "診断情報一覧" }, opts))

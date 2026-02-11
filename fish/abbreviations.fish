@@ -6,7 +6,7 @@ abbr js 'jobs'
 # fg %1 でそのjobsの復帰
 
 # eza（または ls）のエイリアス
-# s/sa/ss/ssa は Cuyz配列で l が小指位置のため追加
+# s/sa/ss/ssa は BEAKL-15p配列で l が下段のため追加
 if command -q eza
     abbr s 'eza -TF -L=1 --icons'
     abbr sa 'eza -aTF -L=1 --icons'
@@ -34,7 +34,7 @@ abbr mv 'mv -i'
 abbr mkdir 'mkdir -p'
 
 # Editor and tools
-abbr i 'nvim'
+abbr a 'nvim'
 abbr code 'code -n .' # vscode
 abbr exp 'explorer.exe .' # explorer
 
@@ -46,11 +46,6 @@ abbr pr 'pnpm run'
 abbr pi 'pnpm i'
 abbr pa 'pnpm add'
 abbr px 'pnpm dlx'
-
-# Docker
-abbr d 'docker'
-abbr dc 'docker compose'
-abbr dcp 'docker compose exec php'
 
 # ghq shortcuts
 abbr ghq-get 'ghq-get-cd'
@@ -65,23 +60,10 @@ switch (uname)
 end
 
 # Git
-abbr g 'git'
 abbr ac 'ai-commit'
-abbr sw 'switch'
-abbr rs 'restore'
-abbr rb 'rebase'
-abbr cm 'commit'
-abbr st 'status'
-abbr br 'branch'
-abbr lg 'log --graph --pretty=format:\'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset\' --abbrev-commit --date=relative'
-abbr mt 'mergetool'
-abbr dt 'difftool'
-abbr pl 'pull'
-abbr pp 'pull --prune'
-abbr ps 'push'
 
 # jj (jujutsu)
-abbr j 'jj'
+abbr g 'jj'
 abbr l 'lazyjj'
 abbr -p anywhere ne 'new'
 abbr -p anywhere ed 'edit'
@@ -98,6 +80,3 @@ abbr -p anywhere gf 'git fetch'
 # Fish specific
 abbr sf 'source ~/.config/fish/config.fish'
 abbr rc 'restore-command'  # 保存したコマンドを復元
-
-# serena
-abbr serena-index 'uvx --from git+https://github.com/oraios/serena serena project index'

@@ -6,7 +6,7 @@ M.setup = function()
 
   -- hop.nvimの基本設定
   hop.setup({
-    keys = 'yacdtlue\'hnf',  -- キーボードレイアウトに応じて調整可能
+    keys = 'ieasdtn\'houc',  -- キーボードレイアウトに応じて調整可能
     multi_windows = true,    -- 複数ウィンドウ対応
     case_insensitive = true, -- スマートケース
   })
@@ -19,19 +19,20 @@ M.setup = function()
   vim.keymap.set('n', '[Hop]', '<Nop>', { noremap = true })
   vim.keymap.set('n', 't', '[Hop]', { remap = true })
 
-  -- '行内の任意の文字にジャンプ
-  vim.keymap.set('n', '[Hop]s', function()
+  -- '行内の任意の文字にジャンプ(右方向)
+  vim.keymap.set('n', '[Hop]n', function()
     hop.hint_char1({ direction = directions.AFTER_CURSOR, current_line_only = true })
   end, { noremap = true })
-  vim.keymap.set('n', '[Hop]k', function()
+  -- 行内の任意の文字にジャンプ(左方向)
+  vim.keymap.set('n', '[Hop]d', function()
     hop.hint_char1({ direction = directions.BEFORE_CURSOR, current_line_only = true })
   end, { noremap = true })
   -- 行ジャンプ(カーソル下)
-  vim.keymap.set({ 'n', 'v' }, '[Hop]t', function()
+  vim.keymap.set({ 'n', 'v' }, '[Hop]s', function()
     hop.hint_lines({ direction = directions.AFTER_CURSOR })
   end, { noremap = true })
   -- 行ジャンプ(カーソル上)
-  vim.keymap.set({ 'n', 'v' }, '[Hop]n', function()
+  vim.keymap.set({ 'n', 'v' }, '[Hop]t', function()
     hop.hint_lines({ direction = directions.BEFORE_CURSOR })
   end, { noremap = true })
   -- 単語ジャンプ

@@ -11,16 +11,16 @@ function fish_user_key_bindings --description 'Set custom key bindings and keep 
         fzf_key_bindings
     end
 
-    # ghq-fzf: Ctrl+T
+    # ghq-fzf: Ctrl+S (BEAKL: sはホームロー下方向)
     if functions -q ghq-fzf
-        bind \ct ghq-fzf
-        bind -M insert \ct ghq-fzf
+        bind \cs ghq-fzf
+        bind -M insert \cs ghq-fzf
     end
 
-    # ghq-fzf-jj: Ctrl+K
+    # ghq-fzf-jj: Ctrl+T (BEAKL: tはホームロー上方向)
     if functions -q ghq-fzf-jj
-        bind \ck ghq-fzf-jj
-        bind -M insert \ck ghq-fzf-jj
+        bind \ct ghq-fzf-jj
+        bind -M insert \ct ghq-fzf-jj
     end
 
     # fzf-file-widget: Ctrl+G

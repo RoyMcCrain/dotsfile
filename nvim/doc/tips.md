@@ -23,6 +23,6 @@
 ## カスタマイズのヒント
 
 - Leader キーは Space に設定（変更可能）
-- astarte配列用の設定は init.lua で調整可能
+- BEAKL-15p配列用の設定は init.lua で調整可能
 - プラグイン設定は nvim/plugins/ ディレクトリで管理
 - dpp.vim設定は TypeScript で記述（nvim/dpp/）

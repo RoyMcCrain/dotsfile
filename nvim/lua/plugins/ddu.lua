@@ -65,7 +65,7 @@ M.setup = function()
   })
 
   vim.keymap.set('n', '[ddu]', '<Nop>', { noremap = true })
-  vim.keymap.set('n', 'k', '[ddu]', { remap = true })
+  vim.keymap.set('n', ',', '[ddu]', { remap = true })
 
   -- GrepActionLua関数の定義
   _G.grep_action = function()
@@ -130,7 +130,7 @@ M.setup = function()
 
 
   -- キーマップの設定
-  vim.keymap.set('n', '[ddu]k', function()
+  vim.keymap.set('n', '[ddu],', function()
     vim.fn['ddu#start']({
       uiParams = {
         ff = {

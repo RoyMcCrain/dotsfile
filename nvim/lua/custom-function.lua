@@ -94,13 +94,13 @@ M.toggle_terminal = function()
   local current_buf = vim.api.nvim_win_get_buf(current_win)
   local config = vim.api.nvim_win_get_config(current_win)
 
-  local function is_codex_buf(buf)
-    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+  local function is_ai_agent_buf(buf)
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'ai_agent_term')
     return ok and v == true
   end
 
   -- 現在のウィンドウがフロートターミナルなら閉じる
-  if vim.bo[current_buf].buftype == 'terminal' and config.relative ~= '' and not is_codex_buf(current_buf) then
+  if vim.bo[current_buf].buftype == 'terminal' and config.relative ~= '' and not is_ai_agent_buf(current_buf) then
     local bufname = vim.api.nvim_buf_get_name(current_buf)
     if not string.match(bufname:lower(), "claude") then
       vim.api.nvim_win_close(current_win, true)
@@ -113,7 +113,7 @@ M.toggle_terminal = function()
   local term_buf = nil
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     local buf = vim.api.nvim_win_get_buf(win)
-    if vim.bo[buf].buftype == 'terminal' and not is_codex_buf(buf) then
+    if vim.bo[buf].buftype == 'terminal' and not is_ai_agent_buf(buf) then
       local bufname = vim.api.nvim_buf_get_name(buf)
       if not string.match(bufname:lower(), "claude") then
         local win_config = vim.api.nvim_win_get_config(win)
@@ -140,7 +140,7 @@ M.toggle_terminal = function()
     -- 既存のターミナルバッファを探す（フロートウィンドウではないもの）
     if not term_buf then
       for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.bo[buf].buftype == 'terminal' and vim.api.nvim_buf_is_valid(buf) and not is_codex_buf(buf) then
+        if vim.bo[buf].buftype == 'terminal' and vim.api.nvim_buf_is_valid(buf) and not is_ai_agent_buf(buf) then
           local bufname = vim.api.nvim_buf_get_name(buf)
           if not string.match(bufname:lower(), "claude") then
             -- このバッファが現在表示されていないことを確認
@@ -315,15 +315,15 @@ M.term_put_relpath = function(prefix)
   end
 end
 
--- Codex用ターミナルに相対パスを追加
-M.term_put_relpath_codex = function()
-  local function current_is_codex()
+-- AI Agent用ターミナルに相対パスを追加
+M.term_put_relpath_ai_agent = function()
+  local function current_is_ai_agent()
     local buf = vim.api.nvim_get_current_buf()
     local cfg = vim.api.nvim_win_get_config(0)
     if vim.bo.buftype ~= 'terminal' or cfg.relative == '' then
       return false
     end
-    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'ai_agent_term')
     return ok and v == true
   end
 
@@ -345,8 +345,8 @@ M.term_put_relpath_codex = function()
     return
   end
 
-  if not current_is_codex() then
-    M.toggle_codex_terminal()
+  if not current_is_ai_agent() then
+    M.toggle_ai_agent_terminal()
   end
 
   vim.defer_fn(function()
@@ -357,15 +357,15 @@ M.term_put_relpath_codex = function()
   end, 120)
 end
 
--- 通常ターミナルに相対パスを追加（Codex端末にいても通常端末へ）
+-- 通常ターミナルに相対パスを追加（AI Agent端末にいても通常端末へ）
 M.term_put_relpath_normal = function()
-  local function current_is_codex()
+  local function current_is_ai_agent()
     local buf = vim.api.nvim_get_current_buf()
     local cfg = vim.api.nvim_win_get_config(0)
     if vim.bo.buftype ~= 'terminal' or cfg.relative == '' then
       return false
     end
-    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'ai_agent_term')
     return ok and v == true
   end
 
@@ -387,7 +387,7 @@ M.term_put_relpath_normal = function()
     return
   end
 
-  if vim.bo.buftype ~= 'terminal' or current_is_codex() then
+  if vim.bo.buftype ~= 'terminal' or current_is_ai_agent() then
     M.toggle_terminal()
   end
 
@@ -399,19 +399,19 @@ M.term_put_relpath_normal = function()
   end, 80)
 end
 
--- Codex用ターミナルトグル（右側フロート）
--- <C-g> で開閉。開いたら codex コマンドを起動する
-M.toggle_codex_terminal = function()
+-- AI Agent用ターミナルトグル（右側フロート）
+-- <C-g> で開閉。開いたら claude コマンドを起動する
+M.toggle_ai_agent_terminal = function()
   local current_win = vim.api.nvim_get_current_win()
   local current_buf = vim.api.nvim_win_get_buf(current_win)
   local cfg = vim.api.nvim_win_get_config(current_win)
 
-  local function is_codex_buf(buf)
-    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'codex_term')
+  local function is_ai_agent_buf(buf)
+    local ok, v = pcall(vim.api.nvim_buf_get_var, buf, 'ai_agent_term')
     return ok and v == true
   end
 
-  if vim.bo[current_buf].buftype == 'terminal' and cfg.relative ~= '' and is_codex_buf(current_buf) then
+  if vim.bo[current_buf].buftype == 'terminal' and cfg.relative ~= '' and is_ai_agent_buf(current_buf) then
     vim.api.nvim_win_close(current_win, true)
     return
   end
@@ -419,7 +419,7 @@ M.toggle_codex_terminal = function()
   local term_win, term_buf
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     local buf = vim.api.nvim_win_get_buf(win)
-    if vim.bo[buf].buftype == 'terminal' and is_codex_buf(buf) then
+    if vim.bo[buf].buftype == 'terminal' and is_ai_agent_buf(buf) then
       local wcfg = vim.api.nvim_win_get_config(win)
       if wcfg.relative ~= '' then
         term_win = win
@@ -437,8 +437,8 @@ M.toggle_codex_terminal = function()
 
   if not term_buf then
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == 'terminal' and is_codex_buf(buf) then
-        -- 非表示の Codex ターミナルを再利用
+      if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == 'terminal' and is_ai_agent_buf(buf) then
+        -- 非表示の AI Agent ターミナルを再利用
         local displayed = false
         for _, win in ipairs(vim.api.nvim_list_wins()) do
           if vim.api.nvim_win_get_buf(win) == buf then
@@ -461,7 +461,7 @@ M.toggle_codex_terminal = function()
 
   if not term_buf then
     term_buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_var(term_buf, 'codex_term', true)
+    vim.api.nvim_buf_set_var(term_buf, 'ai_agent_term', true)
   end
 
   local win = vim.api.nvim_open_win(term_buf, true, {
@@ -478,7 +478,7 @@ M.toggle_codex_terminal = function()
     local job = vim.fn.termopen(vim.o.shell)
     vim.defer_fn(function()
       if job then
-        vim.fn.chansend(job, 'codex\n')
+        vim.fn.chansend(job, 'claude\n')
       end
     end, 50)
   end

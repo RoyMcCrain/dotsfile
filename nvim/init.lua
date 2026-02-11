@@ -200,10 +200,10 @@ vim.keymap.set('n', 'vs', '<Cmd>vsplit<CR>', { noremap = true })
 vim.keymap.set('n', 'S', '<Cmd>split<CR>', { noremap = true })
 
 -- window移動
-vim.keymap.set('n', '<C-k>', '<C-w>h', { noremap = true })
-vim.keymap.set('n', '<C-t>', '<C-w>j', { noremap = true })
-vim.keymap.set('n', '<C-n>', '<C-w>k', { noremap = true })
-vim.keymap.set('n', '<C-s>', '<C-w>l', { noremap = true })
+vim.keymap.set('n', '<C-d>', '<C-w>h', { noremap = true })
+vim.keymap.set('n', '<C-s>', '<C-w>j', { noremap = true })
+vim.keymap.set('n', '<C-t>', '<C-w>k', { noremap = true })
+vim.keymap.set('n', '<C-n>', '<C-w>l', { noremap = true })
 
 -- 矩形選択が貼り付けとコンフリクトするので変更
 vim.keymap.set('n', '<C-j>', '<C-v>', { noremap = true })
@@ -223,9 +223,9 @@ local func = require('custom-function')
 -- コマンドの設定
 -- 通常ターミナルトグルをCtrl-lに割当（Normal/Terminal）
 vim.keymap.set({ 'n', 't' }, '<C-l>', func.toggle_terminal, { noremap = true, silent = true })
--- Codexトグル（右側にターミナルを開いてcodex起動）
+-- AI Agentトグル（右側にターミナルを開いてclaude起動）
 vim.keymap.set({ 'n', 't' }, '<C-g>', function()
-  func.toggle_codex_terminal()
+  func.toggle_ai_agent_terminal()
 end, { noremap = true, silent = true })
 -- prettier 設定
 vim.api.nvim_create_user_command('Prettier', func.pritter, {})
@@ -248,11 +248,9 @@ vim.api.nvim_create_user_command('Path', function(opts)
   func.copy_file_path(opts.args)
 end, { nargs = '?', complete = function() return { 'absolute', 'relative', 'filename' } end })
 
--- (削除) Tp コマンドは廃止
-
--- codex用ターミナルに相対パスを追加（先頭に@ を付与）
+-- AI Agent用ターミナルに相対パスを追加（先頭に@ を付与）
 vim.api.nvim_create_user_command('Pc', function()
-  func.term_put_relpath_codex()
+  func.term_put_relpath_ai_agent()
 end, {})
 
 -- 通常ターミナルに相対パスを追加
