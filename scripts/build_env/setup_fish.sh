@@ -129,6 +129,8 @@ create_symlink $BASE_DIR/jjconfig.toml ~/.config/jj/config.toml "jujutsu config"
 
 echo ""
 
+echo ""
+
 echo "🎉 Fish configuration setup completed!"
 echo ""
 echo "📋 Next steps:"

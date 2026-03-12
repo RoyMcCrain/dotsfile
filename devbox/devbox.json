@@ -37,7 +37,8 @@
     "delta@latest",
     "gemini-cli@latest",
     "wget@latest",
-    "gettext@latest"
+    "gettext@latest",
+    "shopify-cli@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",

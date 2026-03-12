@@ -10,51 +10,7 @@
     "pr": ""
   },
   "permissions": {
-    "allow": [
-      "Bash(find *)",
-      "Bash(grep *)",
-      "Bash(sed *)",
-      "Bash(awk *)",
-      "Bash(head *)",
-      "Bash(tail *)",
-      "Bash(cat *)",
-      "Bash(wc *)",
-      "Bash(sort *)",
-      "Bash(uniq *)",
-      "Bash(cut *)",
-      "Bash(xargs *)",
-      "Bash(diff *)",
-      "Bash(file *)",
-      "Bash(stat *)",
-      "Bash(ls *)",
-      "Bash(tree *)",
-      "Bash(du *)",
-      "Bash(which *)",
-      "Bash(type *)",
-      "Bash(jq *)",
-      "Bash(tr *)",
-      "Bash(jj status*)",
-      "Bash(jj log*)",
-      "Bash(jj diff*)",
-      "Bash(jj describe*)",
-      "Bash(jj bookmark*)",
-      "Bash(jj show*)",
-      "Bash(jj file*)",
-      "Bash(jj new*)",
-      "Bash(jj edit*)",
-      "Bash(jj squash*)",
-      "Bash(jj abandon*)",
-      "Bash(jj undo*)",
-      "Bash(jj op*)",
-      "Bash(jj config*)",
-      "Bash(jj git fetch*)",
-      "Bash(python3 */.claude/skills/*/scripts/*.py *)",
-      "Read(~/ghq/**)"
-    ],
-    "deny": [
-      "Bash(jj git push*)",
-      "Bash(terraform apply*)"
-    ]
+    "defaultMode": "bypassPermissions"
   },
   "hooks": {
     "UserPromptSubmit": [
@@ -76,6 +32,16 @@
           {
             "type": "command",
             "command": "\"$HOME\"/.claude/hooks/check-codex-before-write.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME\"/.claude/hooks/block-dangerous-commands.sh",
             "timeout": 5
           }
         ]
@@ -128,9 +94,16 @@
     "context7@claude-plugins-official": false,
     "security-guidance@claude-plugins-official": true,
     "learning-output-style@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true
+    "code-simplifier@claude-plugins-official": true,
+    "atlassian@claude-plugins-official": true
   },
   "language": "japanese",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false
+  },
+  "skipDangerousModePermissionPrompt": true,
   "allowedCommands": [
     "mcp__context7__resolve-library-id",
     "mcp__context7__get-library-docs",
