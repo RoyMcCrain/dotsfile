@@ -56,6 +56,7 @@ ln -sf ${BASE_DIR}/claude/hooks ~/.claude/hooks
 ln -sf ${BASE_DIR}/claude/rules ~/.claude/rules
 ln -sf ${BASE_DIR}/claude/skills ~/.claude/skills
 ln -sf ${BASE_DIR}/claude/settings.json ~/.claude/settings.json
+ln -sf ${BASE_DIR}/claude/.mcp.json ~/.claude/.mcp.json
 
 # Codex
 mkdir -p ~/.codex/skills

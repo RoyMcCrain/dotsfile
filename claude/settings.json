@@ -13,29 +13,7 @@
     "defaultMode": "bypassPermissions"
   },
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME\"/.claude/hooks/agent-router.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME\"/.claude/hooks/check-codex-before-write.sh",
-            "timeout": 5
-          }
-        ]
-      },
       {
         "matcher": "Bash",
         "hooks": [
@@ -67,16 +45,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "Task",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME\"/.claude/hooks/check-codex-after-plan.sh",
-            "timeout": 5
-          }
-        ]
       }
     ]
   },
@@ -88,10 +56,8 @@
     "figma@claude-plugins-official": true,
     "sentry@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "explanatory-output-style@claude-plugins-official": false,
     "gopls-lsp@claude-plugins-official": true,
     "lua-lsp@claude-plugins-official": true,
-    "context7@claude-plugins-official": false,
     "security-guidance@claude-plugins-official": true,
     "learning-output-style@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
@@ -103,34 +69,5 @@
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false
   },
-  "skipDangerousModePermissionPrompt": true,
-  "allowedCommands": [
-    "mcp__context7__resolve-library-id",
-    "mcp__context7__get-library-docs",
-    "mcp__sequential-thinking__sequentialthinking",
-    "mcp__ts__get_hover",
-    "mcp__ts__find_references",
-    "mcp__ts__get_definitions",
-    "mcp__ts__get_diagnostics",
-    "mcp__ts__get_all_diagnostics",
-    "mcp__ts__get_document_symbols",
-    "mcp__ts__get_workspace_symbols",
-    "mcp__ts__get_completion",
-    "mcp__ts__get_signature_help",
-    "mcp__ts__format_document",
-    "mcp__ts__check_capabilities",
-    "mcp__ts__index_symbols",
-    "mcp__ts__search_symbol_from_index",
-    "mcp__ts__get_index_stats_from_index",
-    "mcp__ts__clear_index",
-    "mcp__ts__get_project_overview",
-    "mcp__ts__list_dir",
-    "mcp__ts__find_file",
-    "mcp__ts__search_for_pattern",
-    "mcp__ts__get_symbols_overview",
-    "mcp__ts__list_memories",
-    "mcp__ts__read_memory",
-    "mcp__ts__write_memory",
-    "mcp__ts__delete_memory"
-  ]
+  "skipDangerousModePermissionPrompt": true
 }
