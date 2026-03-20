@@ -58,10 +58,9 @@ end
 function fish_right_prompt
     if command -q jj; and test -d .jj
         set_color green
-        set -l bm (jj log -r @ -T 'bookmarks' --no-graph 2>/dev/null)
+        set -l bm (jj log -r @ -T 'bookmarks' --no-graph 2>/dev/null | string replace -ra '[*?]' '')
         if test -z "$bm"
-            # bookmark がなければ親の bookmark を表示
-            set bm (jj log -r @- -T 'bookmarks' --no-graph 2>/dev/null)
+            set bm (jj log -r @- -T 'bookmarks' --no-graph 2>/dev/null | string replace -ra '[*?]' '')
         end
         printf '%s' $bm
         set_color normal

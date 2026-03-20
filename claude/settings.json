@@ -69,8 +69,10 @@
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false,
     "network": {
-      "allowLocalBinding": true
-    }
+      "allowLocalBinding": true,
+      "allowAllUnixSockets": true
+    },
+    "enableWeakerNetworkIsolation": true
   },
   "skipDangerousModePermissionPrompt": true
 }
