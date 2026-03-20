@@ -11,6 +11,7 @@ diff-editor = ["nvim", "-d", "$left", "$right"]
 diff-formatter = ["difft", "--color=always", "$left", "$right"]
 
 [aliases]
+current = ["log", "-r", "@ | @-"]
 diffn = ["diff", "--git", "--config=ui.pager=delta -n"]
 diffs = ["diff", "--git", "--config=ui.pager=delta -s"]
 

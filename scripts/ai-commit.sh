@@ -119,9 +119,47 @@ Diff:
 ${DIFF}"
 fi
 
-if [ "$MESSAGE_ONLY" = false ]; then
-    echo -e "${GREEN}LM Studioで変更を分析中...${NC}"
+# --message-only: シンプルなプロンプトで直接メッセージ生成
+if [ "$MESSAGE_ONLY" = true ]; then
+    SIMPLE_PAYLOAD=$(jq -n \
+      --arg model "$MODEL" \
+      --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/refactor/test/chore). Output the raw commit message only. Subject line must be under 50 chars. No explanation." \
+      --arg user "Generate a commit message for these changes: $LLM_INPUT" \
+      '{
+        model: $model,
+        messages: [
+          { role: "system", content: $system },
+          { role: "user", content: $user }
+        ],
+        temperature: 0.3,
+        max_tokens: 8000,
+        stream: false
+      }')
+    SIMPLE_RESP=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
+      -H "Content-Type: application/json" \
+      -d "$SIMPLE_PAYLOAD")
+    CLEAN_RESP=$(echo "$SIMPLE_RESP" | tr -d '\000-\037')
+    CONTENT=$(echo "$CLEAN_RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+    REASONING=$(echo "$CLEAN_RESP" | jq -r '.choices[0].message.reasoning_content // empty' 2>/dev/null)
+    ALL_TEXT="${CONTENT}
+${REASONING}"
+    CLEANED=$(echo "$ALL_TEXT" | perl -0pe 's/<think>.*?<\/think>//gs')
+    # conventional commits形式の行を優先
+    MESSAGE=$(echo "$CLEANED" | grep -E '^(feat|fix|refactor|docs|chore|test|ci|perf|style|build|revert)(\(.+\))?:' | head -1)
+    # 見つからなければcontentの最初の非空行をフォールバック
+    if [ -z "$MESSAGE" ] && [ -n "$(echo "$CONTENT" | tr -d '[:space:]')" ]; then
+        MESSAGE=$(echo "$CONTENT" | sed '/^$/d' | head -1)
+    fi
+    if [ -n "$MESSAGE" ]; then
+        echo "$MESSAGE"
+    else
+        echo "Error: Failed to generate commit message" >&2
+        exit 1
+    fi
+    exit 0
 fi
+
+echo -e "${GREEN}LM Studioで変更を分析中...${NC}"
 
 # システムプロンプト: JSON出力で分類+メッセージ+分割提案
 SYSTEM_PROMPT='You are a commit analyzer. Analyze the given diff and file changes, then output ONLY valid JSON (no markdown, no explanation, no thinking tags).
@@ -172,11 +210,13 @@ RESPONSE=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
 
 # レスポンスからコンテンツを抽出
 # reasoning_contentに制御文字が含まれるとjqが失敗するため除去してからパース
-CLEAN_RESPONSE=$(echo "$RESPONSE" | tr -d '\000-\010\013\014\016-\037')
-RAW_CONTENT=$(echo "$CLEAN_RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
-# thinkingモデルはcontentが空になることがある → reasoning_contentから取得
+CLEAN_RESPONSE=$(echo "$RESPONSE" | tr -d '\000-\037')
+RESP_CONTENT=$(echo "$CLEAN_RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+RESP_REASONING=$(echo "$CLEAN_RESPONSE" | jq -r '.choices[0].message.reasoning_content // empty' 2>/dev/null)
+# content優先、空ならreasoning_contentから取得
+RAW_CONTENT="$RESP_CONTENT"
 if [ -z "$(echo "$RAW_CONTENT" | tr -d '[:space:]')" ]; then
-    RAW_CONTENT=$(echo "$CLEAN_RESPONSE" | jq -r '.choices[0].message.reasoning_content // empty' 2>/dev/null)
+    RAW_CONTENT="$RESP_REASONING"
 fi
 
 # <think>タグを除去（複数行対応）
@@ -193,60 +233,63 @@ fi
 
 # JSONとしてパースできるか検証
 if ! echo "$JSON_CONTENT" | jq . >/dev/null 2>&1; then
-    if [ "$MESSAGE_ONLY" = true ]; then
-        echo "Error: Failed to parse AI response as JSON" >&2
-        echo "$RAW_CONTENT" >&2
-    else
-        echo -e "${RED}エラー: AI応答のJSONパースに失敗しました${NC}"
-        echo -e "${YELLOW}生の応答:${NC}"
-        echo "$RAW_CONTENT"
-        echo ""
-        echo -e "従来のコミットメッセージ生成にフォールバックしますか？ (y/n): \c"
-        read -r fallback
-        if [ "$fallback" = "y" ] || [ "$fallback" = "Y" ]; then
-            # 従来方式: シンプルなメッセージ生成
-            SIMPLE_PAYLOAD=$(jq -n \
-              --arg model "$MODEL" \
-              --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format. NEVER use thinking tags. Output the raw commit message only. Subject line must be under 50 chars." \
-              --arg user "Generate a commit message for these changes: $LLM_INPUT" \
-              '{
-                model: $model,
-                messages: [
-                  { role: "system", content: $system },
-                  { role: "user", content: $user }
-                ],
-                temperature: 0.5,
-                max_tokens: 100,
-                stream: false
-              }')
-            SIMPLE_RESP=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
-              -H "Content-Type: application/json" \
-              -d "$SIMPLE_PAYLOAD")
-            MESSAGE=$(echo "$SIMPLE_RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
-            MESSAGE=$(echo "$MESSAGE" | sed 's/<think>.*<\/think>//g' | sed '/^$/d')
-            if [ -n "$MESSAGE" ]; then
-                echo -e "\n${GREEN}生成されたメッセージ:${NC}"
-                echo "$MESSAGE"
-                echo -e "\n使用する？ (y/n/e[dit]): \c"
-                read -r answer
-                case "$answer" in
-                    y|Y)
-                        if [ "$REPO_TYPE" = "jj" ]; then
-                            jj describe -m "$MESSAGE"
-                            echo -e "${GREEN}describe完了${NC}"
-                        else
-                            git commit -m "$MESSAGE"
-                            echo -e "${GREEN}コミット完了${NC}"
-                        fi
-                        ;;
-                    e|E)
-                        if [ "$REPO_TYPE" = "jj" ]; then jj describe; else git commit -e -m "$MESSAGE"; fi
-                        ;;
-                    *) echo "キャンセル" ;;
-                esac
-            else
-                echo -e "${RED}フォールバックも失敗しました${NC}"
-            fi
+    echo -e "${RED}エラー: AI応答のJSONパースに失敗しました${NC}"
+    echo -e "${YELLOW}生の応答:${NC}"
+    echo "$RAW_CONTENT"
+    echo ""
+    echo -e "従来のコミットメッセージ生成にフォールバックしますか？ (y/n): \c"
+    read -r fallback
+    if [ "$fallback" = "y" ] || [ "$fallback" = "Y" ]; then
+        # 従来方式: シンプルなメッセージ生成
+        SIMPLE_PAYLOAD=$(jq -n \
+          --arg model "$MODEL" \
+          --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format (feat/fix/docs/refactor/test/chore). Output the raw commit message only. Subject line must be under 50 chars. No explanation." \
+          --arg user "Generate a commit message for these changes: $LLM_INPUT" \
+          '{
+            model: $model,
+            messages: [
+              { role: "system", content: $system },
+              { role: "user", content: $user }
+            ],
+            temperature: 0.3,
+            max_tokens: 8000,
+            stream: false
+          }')
+        SIMPLE_RESP=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
+          -H "Content-Type: application/json" \
+          -d "$SIMPLE_PAYLOAD")
+        CLEAN_FALLBACK=$(echo "$SIMPLE_RESP" | tr -d '\000-\037')
+        FB_CONTENT=$(echo "$CLEAN_FALLBACK" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+        FB_REASONING=$(echo "$CLEAN_FALLBACK" | jq -r '.choices[0].message.reasoning_content // empty' 2>/dev/null)
+        FB_ALL="${FB_CONTENT}
+${FB_REASONING}"
+        FB_CLEANED=$(echo "$FB_ALL" | perl -0pe 's/<think>.*?<\/think>//gs')
+        MESSAGE=$(echo "$FB_CLEANED" | grep -E '^(feat|fix|refactor|docs|chore|test|ci|perf|style|build|revert)(\(.+\))?:' | head -1)
+        if [ -z "$MESSAGE" ] && [ -n "$(echo "$FB_CONTENT" | tr -d '[:space:]')" ]; then
+            MESSAGE=$(echo "$FB_CONTENT" | sed '/^$/d' | head -1)
+        fi
+        if [ -n "$MESSAGE" ]; then
+            echo -e "\n${GREEN}生成されたメッセージ:${NC}"
+            echo "$MESSAGE"
+            echo -e "\n使用する？ (y/n/e[dit]): \c"
+            read -r answer
+            case "$answer" in
+                y|Y)
+                    if [ "$REPO_TYPE" = "jj" ]; then
+                        jj describe -m "$MESSAGE"
+                        echo -e "${GREEN}describe完了${NC}"
+                    else
+                        git commit -m "$MESSAGE"
+                        echo -e "${GREEN}コミット完了${NC}"
+                    fi
+                    ;;
+                e|E)
+                    if [ "$REPO_TYPE" = "jj" ]; then jj describe; else git commit -e -m "$MESSAGE"; fi
+                    ;;
+                *) echo "キャンセル" ;;
+            esac
+        else
+            echo -e "${RED}フォールバックも失敗しました${NC}"
         fi
     fi
     exit 1
@@ -257,13 +300,9 @@ fi
 SHOULD_SPLIT=$(echo "$JSON_CONTENT" | jq -r '.should_split')
 NUM_GROUPS=$(echo "$JSON_CONTENT" | jq '.groups | length')
 
-# メッセージのみモード
+# メッセージのみモード（--message-onlyは早期returnで到達しないが念のため）
 if [ "$MESSAGE_ONLY" = true ]; then
-    if [ "$SHOULD_SPLIT" = "true" ]; then
-        echo "$JSON_CONTENT" | jq -r '.groups[0].message'
-    else
-        echo "$JSON_CONTENT" | jq -r '.groups[0].message'
-    fi
+    echo "$JSON_CONTENT" | jq -r '.groups[0].message'
     exit 0
 fi
 
