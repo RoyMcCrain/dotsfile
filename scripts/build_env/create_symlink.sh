@@ -51,6 +51,7 @@ ln -s ${BASE_DIR}/scripts/ai-commit.sh ~/.local/bin/ai-commit
 
 # Claude Code
 mkdir -p ~/.claude
+ln -sf ${BASE_DIR}/claude/commands ~/.claude/commands
 ln -sf ${BASE_DIR}/claude/agents ~/.claude/agents
 ln -sf ${BASE_DIR}/claude/hooks ~/.claude/hooks
 ln -sf ${BASE_DIR}/claude/rules ~/.claude/rules

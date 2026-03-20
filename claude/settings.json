@@ -67,7 +67,10 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
-    "allowUnsandboxedCommands": false
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowLocalBinding": true
+    }
   },
   "skipDangerousModePermissionPrompt": true
 }
