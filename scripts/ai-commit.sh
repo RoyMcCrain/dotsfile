@@ -63,9 +63,8 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # 設定値（環境変数でオーバーライド可能）
-MAX_LINES=${AI_COMMIT_MAX_LINES:-100}
 CONTEXT_LINES=${AI_COMMIT_CONTEXT:-0}
-MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-1000}
+MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-3000}
 CHARS_PER_TOKEN=${AI_COMMIT_CHARS_PER_TOKEN:-4}
 if [ "$THINK_MODEL" = true ]; then
     MODEL=${AI_COMMIT_MODEL_THINK:-"qwen3.5-35b-a3b"}
@@ -91,47 +90,33 @@ if [ -z "$DIFF" ]; then
     exit 1
 fi
 
-# diffの行数とトークン数を推定
-DIFF_LINES=$(echo "$DIFF" | wc -l)
+# LLMに送る入力を構築
+# thinkingモデルはトークンを多く消費するため、入力はコンパクトに
+if [ "$REPO_TYPE" = "jj" ]; then
+    STATS=$(jj diff --stat)
+else
+    STATS=$(git diff --cached --stat)
+fi
+
 DIFF_CHARS=$(echo "$DIFF" | wc -c)
 ESTIMATED_TOKENS=$((DIFF_CHARS / CHARS_PER_TOKEN))
 
-# トークン数またはライン数が多い場合は要約
-if [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ] || [ "$DIFF_LINES" -gt "$MAX_LINES" ]; then
-    if [ "$MESSAGE_ONLY" = false ]; then
-        echo -e "${YELLOW}Diffが大きいため要約します（推定${ESTIMATED_TOKENS}トークン、${DIFF_LINES}行）${NC}"
-    fi
+# 小さいdiffはそのまま、大きいdiffはファイルリスト+statのみ
+if [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ]; then
+    LLM_INPUT="File Changes:
+${STATUS}
 
-    if [ "$REPO_TYPE" = "jj" ]; then
-        STATS=$(jj diff --stat)
-    else
-        STATS=$(git diff --cached --stat)
-    fi
-
-    if [ "$ESTIMATED_TOKENS" -gt $((MAX_TOKENS * 2)) ]; then
-        EXTRACT_LINES=20
-    elif [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ]; then
-        EXTRACT_LINES=30
-    else
-        EXTRACT_LINES=50
-    fi
-
-    HEAD_DIFF=$(echo "$DIFF" | head -n $EXTRACT_LINES)
-    TAIL_DIFF=$(echo "$DIFF" | tail -n $EXTRACT_LINES)
-
-    DIFF="Summary of large diff (${ESTIMATED_TOKENS} tokens, ${DIFF_LINES} lines):
-
-File Changes:
+Statistics:
+${STATS}"
+else
+    LLM_INPUT="File Changes:
 ${STATUS}
 
 Statistics:
 ${STATS}
 
---- First ${EXTRACT_LINES} lines of diff ---
-${HEAD_DIFF}
-
---- Last ${EXTRACT_LINES} lines of diff ---
-${TAIL_DIFF}"
+Diff:
+${DIFF}"
 fi
 
 if [ "$MESSAGE_ONLY" = false ]; then
@@ -164,11 +149,7 @@ Rules:
 
 USER_PROMPT="Analyze these changes:
 
-File list:
-${STATUS}
-
-Diff:
-${DIFF}"
+${LLM_INPUT}"
 
 JSON_PAYLOAD=$(jq -n \
   --arg model "$MODEL" \
@@ -181,7 +162,7 @@ JSON_PAYLOAD=$(jq -n \
       { role: "user", content: $user }
     ],
     temperature: 0.3,
-    max_tokens: 2000,
+    max_tokens: 8000,
     stream: false
   }')
 
@@ -190,16 +171,13 @@ RESPONSE=$(curl -s -X POST http://localhost:1234/v1/chat/completions \
   -d "$JSON_PAYLOAD")
 
 # レスポンスからコンテンツを抽出
-RAW_CONTENT=$(echo "$RESPONSE" | jq -r '
-  def to_text:
-    if . == null then ""
-    elif type == "string" then .
-    elif type == "array" then map(to_text) | join("")
-    elif type == "object" then (.text // .string // .value // "") | to_text
-    else ""
-    end;
-  (.choices[0].message.content // empty) | to_text
-' 2>/dev/null)
+# reasoning_contentに制御文字が含まれるとjqが失敗するため除去してからパース
+CLEAN_RESPONSE=$(echo "$RESPONSE" | tr -d '\000-\010\013\014\016-\037')
+RAW_CONTENT=$(echo "$CLEAN_RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+# thinkingモデルはcontentが空になることがある → reasoning_contentから取得
+if [ -z "$(echo "$RAW_CONTENT" | tr -d '[:space:]')" ]; then
+    RAW_CONTENT=$(echo "$CLEAN_RESPONSE" | jq -r '.choices[0].message.reasoning_content // empty' 2>/dev/null)
+fi
 
 # <think>タグを除去（複数行対応）
 RAW_CONTENT=$(echo "$RAW_CONTENT" | perl -0pe 's/<think>.*?<\/think>//gs' | sed '/^$/d')
@@ -230,7 +208,7 @@ if ! echo "$JSON_CONTENT" | jq . >/dev/null 2>&1; then
             SIMPLE_PAYLOAD=$(jq -n \
               --arg model "$MODEL" \
               --arg system "You are a git commit message generator. Generate ONLY the commit message text using conventional commits format. NEVER use thinking tags. Output the raw commit message only. Subject line must be under 50 chars." \
-              --arg user "Generate a commit message for these changes: $DIFF" \
+              --arg user "Generate a commit message for these changes: $LLM_INPUT" \
               '{
                 model: $model,
                 messages: [

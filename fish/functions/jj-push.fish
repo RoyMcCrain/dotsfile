@@ -9,11 +9,21 @@ function jj-push --description 'Push current revision to bookmark'
     # bookmark未指定: 現在のリビジョンのbookmarkを検索
     # bookmarks テンプレートは "main*" のようにdirtyマーカーを含むので除去
     if test -z "$bookmark"
-        set bookmark (jj log -r @ --no-graph -T 'bookmarks' 2>/dev/null | string trim | string replace -ra '[*]' '' | string split ' ' | head -1)
+        set bookmark (jj log -r @ --no-graph -T 'bookmarks' 2>/dev/null | string trim | string replace -ra '[*?]' '' | string split ' ' | string match -rv '@' | head -1)
     end
 
-    # bookmarkが見つからない場合
+    # bookmarkが見つからない場合、親のbookmarkを探す
     if test -z "$bookmark"
+        set bookmark (jj log -r @- --no-graph -T 'bookmarks' 2>/dev/null | string trim | string replace -ra '[*?]' '' | string split ' ' | string match -rv '@' | head -1)
+    end
+
+    # それでも見つからない場合
+    if test -z "$bookmark"
+        # 対話環境ならユーザーに確認、非対話ならエラー終了
+        if not isatty stdin
+            echo "Error: bookmarkが見つかりません" >&2
+            return 1
+        end
         echo "現在のリビジョンにbookmarkがありません"
         echo ""
         jj log -r @ --no-graph
