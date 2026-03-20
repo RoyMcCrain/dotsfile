@@ -35,3 +35,9 @@ jjコマンドの詳細は `/jj` スキルを使用して確認する。
 - jjはauto-commitなのでgit addは不要
 - コミットメッセージは `jj describe -m "message"` で設定
 - 不明な点は `/jj` で確認
+
+## 安全ルール
+
+- bookmarkを新規作成する前にユーザーに確認する
+- 作業前に `jj status` / `jj log -r @` で現在のリビジョンを確認する
+- 複数bookmarkにまたがる作業では、どの変更がどのbookmarkに属するか確認してから操作する

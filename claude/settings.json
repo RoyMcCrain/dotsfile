@@ -72,7 +72,11 @@
       "allowLocalBinding": true,
       "allowAllUnixSockets": true
     },
-    "enableWeakerNetworkIsolation": true
+    "enableWeakerNetworkIsolation": true,
+    "excludedCommands": ["gemini", "gh", "ssh", "go", "deno", "bun", "npm", "npx", "cargo", "opentofu"],
+    "filesystem": {
+      "allowWrite": ["~/.gemini", "~/.local/share/devbox"]
+    }
   },
   "skipDangerousModePermissionPrompt": true
 }
