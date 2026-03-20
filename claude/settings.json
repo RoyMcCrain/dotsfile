@@ -73,7 +73,7 @@
       "allowAllUnixSockets": true
     },
     "enableWeakerNetworkIsolation": true,
-    "excludedCommands": ["gemini", "gh", "ssh", "go", "deno", "bun", "npm", "npx", "cargo", "opentofu"],
+    "excludedCommands": ["gemini", "gh", "ssh", "go", "deno", "bun", "npm", "npx", "cargo", "opentofu", "jj", "fish"],
     "filesystem": {
       "allowWrite": ["~/.gemini", "~/.local/share/devbox"]
     }
