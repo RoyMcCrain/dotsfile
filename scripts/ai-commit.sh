@@ -3,28 +3,22 @@
 
 # オプション解析
 MESSAGE_ONLY=false
-THINK_MODEL=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --message-only|-m)
       MESSAGE_ONLY=true
       shift
       ;;
-    --think|-t)
-      THINK_MODEL=true
-      shift
-      ;;
     --help|-h)
       echo "Usage: ai-commit [options]"
       echo ""
       echo "Options:"
-      echo "  --think, -t     大きいモデル (qwen3.5-35b-a3b) で分析"
       echo "  --message-only, -m  メッセージのみ出力（対話なし）"
       echo "  --help, -h      このヘルプを表示"
       echo ""
       echo "Environment:"
-      echo "  AI_COMMIT_MODEL       デフォルトモデル (default: qwen3.5-9b)"
-      echo "  AI_COMMIT_MODEL_THINK  --think時のモデル (default: qwen3.5-35b-a3b)"
+      echo "  AI_COMMIT_MODEL       デフォルトモデル (default: google/gemma-4-26b-a4b)"
+      echo "  AI_COMMIT_LINES_PER_FILE  大きいdiff時のファイルあたりの行数 (default: 20)"
       exit 0
       ;;
     *)
@@ -66,15 +60,11 @@ NC='\033[0m'
 CONTEXT_LINES=${AI_COMMIT_CONTEXT:-0}
 MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-3000}
 CHARS_PER_TOKEN=${AI_COMMIT_CHARS_PER_TOKEN:-4}
-if [ "$THINK_MODEL" = true ]; then
-    MODEL=${AI_COMMIT_MODEL_THINK:-"qwen3.5-35b-a3b"}
-else
-    MODEL=${AI_COMMIT_MODEL:-"qwen3.5-9b"}
-fi
+MODEL=${AI_COMMIT_MODEL:-"google/gemma-4-26b-a4b"}
 
 # diffを取得（リポジトリタイプに応じて）
 if [ "$REPO_TYPE" = "jj" ]; then
-    DIFF=$(jj diff --context ${CONTEXT_LINES})
+    DIFF=$(jj diff --context ${CONTEXT_LINES} --git)
     STATUS=$(jj diff --summary)
 else
     DIFF=$(git diff --cached -U${CONTEXT_LINES})
@@ -101,13 +91,55 @@ fi
 DIFF_CHARS=$(echo "$DIFF" | wc -c)
 ESTIMATED_TOKENS=$((DIFF_CHARS / CHARS_PER_TOKEN))
 
-# 小さいdiffはそのまま、大きいdiffはファイルリスト+statのみ
+# 小さいdiffはそのまま、大きいdiffはファイルごとに先頭を切り出して要約
 if [ "$ESTIMATED_TOKENS" -gt "$MAX_TOKENS" ]; then
+    # ファイルごとにdiffを先頭LINES_PER_FILE行に切り詰め
+    LINES_PER_FILE=${AI_COMMIT_LINES_PER_FILE:-20}
+    SUMMARIZED_DIFF=""
+    CURRENT_FILE=""
+    CURRENT_LINES=""
+    LINE_COUNT=0
+
+    while IFS= read -r line; do
+        if echo "$line" | grep -qE '^diff --git '; then
+            # 前のファイルのバッファをフラッシュ
+            if [ -n "$CURRENT_FILE" ]; then
+                SUMMARIZED_DIFF="${SUMMARIZED_DIFF}${CURRENT_LINES}
+"
+                if [ "$LINE_COUNT" -gt "$LINES_PER_FILE" ]; then
+                    SUMMARIZED_DIFF="${SUMMARIZED_DIFF}... (truncated)
+"
+                fi
+            fi
+            CURRENT_FILE="$line"
+            CURRENT_LINES="$line"
+            LINE_COUNT=0
+        else
+            LINE_COUNT=$((LINE_COUNT + 1))
+            if [ "$LINE_COUNT" -le "$LINES_PER_FILE" ]; then
+                CURRENT_LINES="${CURRENT_LINES}
+${line}"
+            fi
+        fi
+    done <<< "$DIFF"
+    # 最後のファイルをフラッシュ
+    if [ -n "$CURRENT_FILE" ]; then
+        SUMMARIZED_DIFF="${SUMMARIZED_DIFF}${CURRENT_LINES}
+"
+        if [ "$LINE_COUNT" -gt "$LINES_PER_FILE" ]; then
+            SUMMARIZED_DIFF="${SUMMARIZED_DIFF}... (truncated)
+"
+        fi
+    fi
+
     LLM_INPUT="File Changes:
 ${STATUS}
 
 Statistics:
-${STATS}"
+${STATS}
+
+Diff (summarized, ${LINES_PER_FILE} lines per file):
+${SUMMARIZED_DIFF}"
 else
     LLM_INPUT="File Changes:
 ${STATUS}

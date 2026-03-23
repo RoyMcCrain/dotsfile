@@ -64,10 +64,10 @@ abbr ac 'ai-commit'
 
 # jj (jujutsu)
 abbr g 'jj'
-abbr l 'lazyjj'
 abbr pu 'jj-push'
 abbr ac 'ai-commit'
 abbr bm 'jj-bookmark'
+abbr sw 'jj-switch'
 abbr -p anywhere ne 'new'
 abbr -p anywhere ed 'edit'
 abbr -p anywhere sq 'squash'

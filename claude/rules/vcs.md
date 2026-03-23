@@ -30,6 +30,15 @@ jjコマンドの詳細は `/jj` スキルを使用して確認する。
 | git branch | jj bookmark |
 | git checkout | jj edit / jj new |
 
+## 環境変数
+
+jjコマンド実行時は必ず `JJ_EDITOR=true` を設定する。エディタ起動による編集待ちタイムアウトを防ぐ。
+
+```bash
+JJ_EDITOR=true jj describe -m "message"
+JJ_EDITOR=true jj split
+```
+
 ## 注意
 
 - jjはauto-commitなのでgit addは不要
@@ -38,6 +47,6 @@ jjコマンドの詳細は `/jj` スキルを使用して確認する。
 
 ## 安全ルール
 
-- bookmarkを新規作成する前にユーザーに確認する
+- bookmarkの新規作成時、ユーザーから名前の指定があればその名前を使う。指定がなければ変更内容から適切な名前を自動生成して作成する（確認不要）
 - 作業前に `jj status` / `jj log -r @` で現在のリビジョンを確認する
 - 複数bookmarkにまたがる作業では、どの変更がどのbookmarkに属するか確認してから操作する

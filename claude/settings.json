@@ -61,7 +61,16 @@
     "security-guidance@claude-plugins-official": true,
     "learning-output-style@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
-    "atlassian@claude-plugins-official": true
+    "atlassian@claude-plugins-official": true,
+    "dbt@dbt-agent-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "dbt-agent-marketplace": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/dbt-labs/dbt-agent-skills.git"
+      }
+    }
   },
   "language": "japanese",
   "sandbox": {
@@ -69,14 +78,30 @@
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false,
     "network": {
-      "allowLocalBinding": true,
-      "allowAllUnixSockets": true
+      "allowAllUnixSockets": true,
+      "allowLocalBinding": true
+    },
+    "filesystem": {
+      "allowWrite": [
+        "~/.gemini",
+        "~/.local/share/devbox"
+      ]
     },
     "enableWeakerNetworkIsolation": true,
-    "excludedCommands": ["gemini", "gh", "ssh", "go", "deno", "bun", "npm", "npx", "cargo", "opentofu", "jj", "fish"],
-    "filesystem": {
-      "allowWrite": ["~/.gemini", "~/.local/share/devbox"]
-    }
+    "excludedCommands": [
+      "gemini",
+      "gh",
+      "ssh",
+      "go",
+      "deno",
+      "bun",
+      "npm",
+      "npx",
+      "cargo",
+      "opentofu",
+      "jj",
+      "fish"
+    ]
   },
   "skipDangerousModePermissionPrompt": true
 }

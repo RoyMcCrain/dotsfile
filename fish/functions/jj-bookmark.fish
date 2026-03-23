@@ -17,7 +17,7 @@ function jj-bookmark --description 'Create bookmark from commit message'
         # LM Studioが起動しているか確認
         if curl -s --connect-timeout 1 --max-time 2 http://localhost:1234/v1/models >/dev/null 2>&1
             set -l payload (echo '{}' | jq -n \
-                --arg model "qwen3.5-9b" \
+                --arg model "google/gemma-4-26b-a4b" \
                 --arg desc "$desc" \
                 '{
                     model: $model,
