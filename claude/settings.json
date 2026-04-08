@@ -3,7 +3,8 @@
   "env": {
     "ENABLE_TOOL_SEARCH": "true",
     "ENABLE_LSP_TOOL": "true",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "CLOUDSDK_PROXY_TYPE": "http"
   },
   "attribution": {
     "commit": "",
@@ -79,12 +80,19 @@
     "allowUnsandboxedCommands": false,
     "network": {
       "allowAllUnixSockets": true,
-      "allowLocalBinding": true
+      "allowLocalBinding": true,
+      "allowedHosts": [
+        "sqladmin.googleapis.com",
+        "secretmanager.googleapis.com",
+        "storage.googleapis.com",
+        "www.googleapis.com"
+      ]
     },
     "filesystem": {
       "allowWrite": [
         "~/.gemini",
-        "~/.local/share/devbox"
+        "~/.local/share/devbox",
+        "~/.config/gcloud"
       ]
     },
     "enableWeakerNetworkIsolation": true,
@@ -100,7 +108,8 @@
       "cargo",
       "opentofu",
       "jj",
-      "fish"
+      "fish",
+      "cld"
     ]
   },
   "skipDangerousModePermissionPrompt": true
