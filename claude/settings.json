@@ -4,7 +4,7 @@
     "ENABLE_TOOL_SEARCH": "true",
     "ENABLE_LSP_TOOL": "true",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
-    "CLOUDSDK_PROXY_TYPE": "http"
+    "CLAUDE_CODE_NO_FLICKER": "1"
   },
   "attribution": {
     "commit": "",
@@ -92,6 +92,7 @@
       "allowWrite": [
         "~/.gemini",
         "~/.local/share/devbox",
+        "~/.local/share/pnpm",
         "~/.config/gcloud"
       ]
     },

@@ -44,6 +44,11 @@ if command -q direnv
     direnv hook fish | source
 end
 
+# jj dynamic completions
+if command -q jj
+    COMPLETE=fish jj | source
+end
+
 # Fish specific settings
 set fish_greeting ""  # 起動メッセージを非表示
 
