@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --help, -h      このヘルプを表示"
       echo ""
       echo "Environment:"
-      echo "  AI_COMMIT_MODEL       デフォルトモデル (default: google/gemma-4-26b-a4b)"
+      echo "  AI_COMMIT_MODEL       デフォルトモデル (default: google/gemma-4-e4b)"
       echo "  AI_COMMIT_LINES_PER_FILE  大きいdiff時のファイルあたりの行数 (default: 20)"
       exit 0
       ;;
@@ -60,7 +60,7 @@ NC='\033[0m'
 CONTEXT_LINES=${AI_COMMIT_CONTEXT:-0}
 MAX_TOKENS=${AI_COMMIT_MAX_TOKENS:-3000}
 CHARS_PER_TOKEN=${AI_COMMIT_CHARS_PER_TOKEN:-4}
-MODEL=${AI_COMMIT_MODEL:-"google/gemma-4-26b-a4b"}
+MODEL=${AI_COMMIT_MODEL:-"google/gemma-4-e4b"}
 
 # diffを取得（リポジトリタイプに応じて）
 if [ "$REPO_TYPE" = "jj" ]; then

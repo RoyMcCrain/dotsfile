@@ -5,6 +5,7 @@ name = "RoyMcCrain"
 email = "me@rrrr.dev"
 
 [ui]
+editor = "nvim"
 default-command = "log"
 pager = "less -FRX"
 diff-editor = ["nvim", "-d", "$left", "$right"]
