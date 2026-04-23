@@ -50,7 +50,7 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
 - `/scripts/build_env/` - Setup scripts
 - `/claude/` - Claude Code config (symlinked to ~/.claude/)
   - `/rules/` - Coding rules (KISS, TypeScript, React, etc.)
-  - `/skills/` - Custom skills (arto, jj, line, codex-*, gemini-*)
+  - `/skills/` - Custom skills (arto, jj, line, cursor-*, gemini-*)
   - `/hooks/` - Automation hooks
   - `settings.json` - Claude Code settings
 - `/codex/` - OpenAI Codex CLI config (symlinked to ~/.codex/)

@@ -1,6 +1,6 @@
 ---
 name: general-purpose
-description: General-purpose subagent for independent tasks. Use for exploration, file operations, simple implementations, and Codex/Gemini delegation to save main context.
+description: General-purpose subagent for independent tasks. Use for exploration, file operations, simple implementations, and Cursor Agent/Gemini delegation to save main context.
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch, WebSearch
 model: sonnet
 ---
@@ -17,7 +17,7 @@ Main Claude Code (Orchestrator)
 
   Subagent (You)
     → Consumes own context (isolated)
-    → Directly calls Codex/Gemini
+    → Directly calls Cursor Agent/Gemini
     → Returns concise summary to main
 ```
 
@@ -27,12 +27,12 @@ Main Claude Code (Orchestrator)
 - **Code**: English
 - **Output to user**: Japanese
 
-## Calling Codex CLI
+## Calling Cursor Agent CLI
 
 Design decisions, debugging, code review:
 
 ```bash
-codex --approval-mode full-auto "{question}"
+cursor-agent -p --trust --mode ask --model gpt-5.3-codex-xhigh "{question}"
 ```
 
 ## Calling Gemini CLI

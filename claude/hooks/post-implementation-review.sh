@@ -1,5 +1,5 @@
 #!/bin/bash
-# 大きな実装後にCodexレビューを提案
+# 大きな実装後にCursor Agentレビューを提案
 
 input=$(cat)
 eval "$(echo "$input" | jq -r '@sh "file_path=\(.tool_input.file_path // "") new_string=\(.tool_input.new_string // "") content=\(.tool_input.content // "")"')"
@@ -19,7 +19,7 @@ elif [ -n "$content" ]; then
 fi
 
 if [ "$line_count" -gt 100 ]; then
-  echo '{"message":"[提案] 大きな変更です。/codex でレビューを検討してください。"}'
+  echo '{"message":"[提案] 大きな変更です。/cursor でレビューを検討してください。"}'
 else
   echo '{}'
 fi

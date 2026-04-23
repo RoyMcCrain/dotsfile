@@ -36,12 +36,14 @@
     "git@latest",
     "delta@latest",
     "gemini-cli@latest",
+    "cursor-cli@latest",
     "wget@latest",
     "gettext@latest",
     "shopify-cli@latest",
     "grafana-loki@latest",
     "postgresql@latest",
-    "cloud-sql-proxy@latest"
+    "cloud-sql-proxy@latest",
+    "grpcurl@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
@@ -53,7 +55,7 @@
   "shell": {
     "init_hook": [],
     "scripts": {
-      "setup-npm": "npm install -g neovim typescript @typescript/native-preview @openai/codex"
+      "setup-npm": "npm install -g neovim typescript @typescript/native-preview @openai/codex cf"
     }
   }
 }

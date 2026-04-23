@@ -35,6 +35,7 @@ abbr mkdir 'mkdir -p'
 
 # Editor and tools
 abbr a 'nvim'
+abbr cur 'cursor-agent'
 abbr code 'code -n .' # vscode
 abbr exp 'explorer.exe .' # explorer
 

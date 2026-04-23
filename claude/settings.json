@@ -63,13 +63,21 @@
     "learning-output-style@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "atlassian@claude-plugins-official": true,
-    "dbt@dbt-agent-marketplace": true
+    "dbt@dbt-agent-marketplace": true,
+    "cloudflare@claude-plugins-official": true,
+    "slack@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "dbt-agent-marketplace": {
       "source": {
         "source": "git",
         "url": "https://github.com/dbt-labs/dbt-agent-skills.git"
+      }
+    },
+    "cloudflare": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills"
       }
     }
   },
@@ -80,20 +88,15 @@
     "allowUnsandboxedCommands": false,
     "network": {
       "allowAllUnixSockets": true,
-      "allowLocalBinding": true,
-      "allowedHosts": [
-        "sqladmin.googleapis.com",
-        "secretmanager.googleapis.com",
-        "storage.googleapis.com",
-        "www.googleapis.com"
-      ]
+      "allowLocalBinding": true
     },
     "filesystem": {
       "allowWrite": [
         "~/.gemini",
         "~/.local/share/devbox",
         "~/.local/share/pnpm",
-        "~/.config/gcloud"
+        "~/.config/gcloud",
+        "~/ghq"
       ]
     },
     "enableWeakerNetworkIsolation": true,
@@ -109,9 +112,11 @@
       "cargo",
       "opentofu",
       "jj",
+      "git",
       "fish",
       "cld"
     ]
   },
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "remoteControlAtStartup": true
 }
