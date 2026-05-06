@@ -43,7 +43,8 @@
     "grafana-loki@latest",
     "postgresql@latest",
     "cloud-sql-proxy@latest",
-    "grpcurl@latest"
+    "grpcurl@latest",
+    "temporal-cli@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",

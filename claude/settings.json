@@ -96,6 +96,7 @@
         "~/.local/share/devbox",
         "~/.local/share/pnpm",
         "~/.config/gcloud",
+        "~/.cursor",
         "~/ghq"
       ]
     },
