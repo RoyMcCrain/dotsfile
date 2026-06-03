@@ -132,3 +132,9 @@ end
 set -gx PATH $PATH /Users/roy/.lmstudio/bin
 # End of LM Studio CLI section
 
+# SSH 鍵を agent に常駐させる（claude サンドボックスで秘密鍵ファイルを read-deny するため）
+# agent に鍵が無ければ一度だけ追加する（push を agent 経由にして鍵ファイルを読ませない）
+if status is-login; and command -q ssh-add; and test -e ~/.ssh/id_ed25519
+    ssh-add -l >/dev/null 2>&1; or ssh-add --apple-use-keychain ~/.ssh/id_ed25519 2>/dev/null
+end
+

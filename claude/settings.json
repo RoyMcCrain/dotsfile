@@ -11,7 +11,10 @@
     "pr": ""
   },
   "permissions": {
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Read(~/.config/gh/**)"
+    ]
   },
   "hooks": {
     "PreToolUse": [
@@ -83,7 +86,7 @@
   },
   "language": "japanese",
   "sandbox": {
-    "enabled": true,
+    "enabled": false,
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false,
     "network": {

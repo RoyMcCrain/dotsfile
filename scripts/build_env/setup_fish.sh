@@ -129,6 +129,12 @@ create_symlink $BASE_DIR/jjconfig.toml ~/.config/jj/config.toml "jujutsu config"
 
 echo ""
 
+# Claudeサンドボックスプロファイル
+echo "🔒 Setting up Claude sandbox profile..."
+create_symlink $BASE_DIR/claude/sandbox/claude-sandbox.sb ~/.claude/sandbox/claude-sandbox.sb "Claude sandbox profile"
+
+echo ""
+
 echo ""
 
 echo "🎉 Fish configuration setup completed!"
