@@ -11,10 +11,9 @@
 (deny file-write* (subpath (string-append (param "HOME") "/.ssh")))
 (deny file-write* (subpath (string-append (param "HOME") "/.gnupg")))
 
-;; --- 再ログインで戻る認証情報（任意・不要なら消してよい） ---
-(deny file-write* (subpath (string-append (param "HOME") "/.config/gcloud")))
-(deny file-write* (subpath (string-append (param "HOME") "/.docker")))
-(deny file-write* (subpath (string-append (param "HOME") "/.aws")))
+;; ※ ~/.config/gcloud / ~/.docker / ~/.aws は write-deny しない：
+;;   gcloud secret access / cloud-sql-proxy がトークンキャッシュを書き込むため。
+;;   いずれも再ログインで復旧できる認証情報なので保護対象から外す。
 
 ;; TODO(user): 他に「消されたら困る」ものがあればここに追記する
 ;;   例: (deny file-write* (subpath (string-append (param "HOME") "/.password-store")))
