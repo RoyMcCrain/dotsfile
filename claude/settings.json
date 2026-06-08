@@ -28,28 +28,6 @@
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME\"/.claude/hooks/post-implementation-review.sh",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME\"/.claude/hooks/post-test-analysis.sh",
-            "timeout": 5
-          }
-        ]
-      }
     ]
   },
   "enabledPlugins": {
@@ -64,11 +42,11 @@
     "lua-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
-    "atlassian@claude-plugins-official": true,
     "dbt@dbt-agent-marketplace": true,
     "cloudflare@claude-plugins-official": true,
     "slack@claude-plugins-official": true,
-    "shopify-ai-toolkit@claude-plugins-official": true
+    "shopify-ai-toolkit@claude-plugins-official": true,
+    "stripe@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "dbt-agent-marketplace": {
@@ -121,6 +99,7 @@
       "cld"
     ]
   },
+  "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
   "remoteControlAtStartup": true
 }
