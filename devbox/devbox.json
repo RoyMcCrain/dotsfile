@@ -44,7 +44,8 @@
     "postgresql@latest",
     "cloud-sql-proxy@latest",
     "grpcurl@latest",
-    "temporal-cli@latest"
+    "temporal-cli@latest",
+    "bitwarden-cli@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",

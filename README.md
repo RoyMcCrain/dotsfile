@@ -52,3 +52,37 @@ claude/   → ~/.claude/    # rules, skills, hooks
 codex/    → ~/.codex/     # AGENTS.md, instructions.md
 gemini/   → ~/.gemini/    # GEMINI.md, instructions.md
 ```
+
+## Bitwarden
+
+パスワード/シークレット管理。CLI (`bw`) は `devbox/devbox.json` で管理。
+
+### vault のアンロック
+
+`bw-unlock` (fish function) でアンロックし、`BW_SESSION` をシェルに設定する。
+
+```fish
+bw-unlock              # マスターパスワード入力 → BW_SESSION を export
+bw list items --search github
+bw lock                # ロック
+```
+
+### SSH 鍵管理（Desktop SSH Agent）
+
+SSH 秘密鍵はディスクに置かず、Bitwarden Desktop アプリの内蔵 SSH Agent で管理する。
+
+- アプリの設定で「SSH エージェント」を有効化するとソケットが生成される
+  ```
+  ~/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock
+  ```
+- `fish/config.fish` がソケット存在時のみ `SSH_AUTH_SOCK` をそこへ向ける
+- 鍵の追加は SSH キー型アイテムとして登録（既存鍵はファイルからインポート、または新規生成）
+- git/ssh 利用には **アプリ起動 + vault アンロック** が必要
+
+新規鍵を GitHub に登録する例:
+
+```fish
+ssh-add -L > /tmp/key.pub          # agent が供給する公開鍵を取得
+gh ssh-key add /tmp/key.pub --title "Bitwarden (MBP)"
+ssh -T git@github.com              # 疎通確認（アプリの承認ダイアログを承認）
+```
