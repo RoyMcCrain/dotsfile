@@ -1,0 +1,5 @@
+# SSH 鍵は Bitwarden Desktop の SSH agent で管理する（秘密鍵をディスクに置かない）
+# 接続時に必ず Bitwarden の socket を使うので、シェル起動タイミングに依存しない
+# 利用には Bitwarden Desktop の起動 + vault アンロックが必要
+Host *
+    IdentityAgent ~/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock
