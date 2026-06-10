@@ -75,7 +75,7 @@ SSH 秘密鍵はディスクに置かず、Bitwarden Desktop アプリの内蔵 
   ```
   ~/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock
   ```
-- `fish/config.fish` がソケット存在時のみ `SSH_AUTH_SOCK` をそこへ向ける
+- `ssh/config`（`~/.ssh/config` に symlink）の `IdentityAgent` でこのソケットを常用する。接続時に解決されるため、シェルや Bitwarden の起動順に依存しない
 - 鍵の追加は SSH キー型アイテムとして登録（既存鍵はファイルからインポート、または新規生成）
 - git/ssh 利用には **アプリ起動 + vault アンロック** が必要
 

@@ -133,9 +133,5 @@ set -gx PATH $PATH /Users/roy/.lmstudio/bin
 # End of LM Studio CLI section
 
 # SSH 鍵は Bitwarden Desktop の SSH agent で管理する（秘密鍵をディスクに置かない）
-# アプリ起動時のみソケットが存在するので、その時だけ SSH_AUTH_SOCK を向ける
-set -l bw_ssh_sock ~/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock
-if test -S $bw_ssh_sock
-    set -gx SSH_AUTH_SOCK $bw_ssh_sock
-end
+# socket の指定は ~/.ssh/config の IdentityAgent に一本化（接続時解決でシェル起動順に依存しない）
 
