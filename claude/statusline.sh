@@ -37,5 +37,7 @@ LIMITS=""
 [ -n "$WEEK" ] && LIMITS="${LIMITS} | 7d: $(printf '%.0f' "$WEEK")%"
 
 COST_FMT=$(printf '$%.2f' "$COST")
+# 1行目: [モデル名] 📁 ディレクトリ名 | 🌿 ブランチ名(なければ短縮ハッシュ)
 echo -e "${CYAN}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
+# 2行目: コンテキストバー 使用率% | セッションコスト | 経過時間 | 5h/7dレート制限使用率
 echo -e "${BAR_COLOR}${BAR}${RESET} ${PCT}% | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s${LIMITS}"
