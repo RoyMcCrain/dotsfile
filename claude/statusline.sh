@@ -21,9 +21,14 @@ BAR="${FILL// /█}${PAD// /░}"
 
 MINS=$((DURATION_MS / 60000)); SECS=$(((DURATION_MS % 60000) / 1000))
 
-# jjはdetached HEADでブランチ名が空になるため短縮ハッシュにフォールバック
+# jjなら直近のブックマークと@の位置、gitならブランチ名(なければ短縮ハッシュ)
+# --ignore-working-copy: statusline実行で勝手にスナップショットさせない
 BRANCH=""
-if git -C "$DIR" rev-parse --git-dir > /dev/null 2>&1; then
+if jj -R "$DIR" --ignore-working-copy root > /dev/null 2>&1; then
+  BOOKMARK=$(jj -R "$DIR" --ignore-working-copy log -r 'heads(::@ & bookmarks())' --no-graph -T 'bookmarks' 2>/dev/null)
+  AT=$(jj -R "$DIR" --ignore-working-copy log -r @ --no-graph -T 'change_id.shortest(8)' 2>/dev/null)
+  BRANCH=" | 🔖 ${BOOKMARK:-(no bookmark)} @ $AT"
+elif git -C "$DIR" rev-parse --git-dir > /dev/null 2>&1; then
   NAME=$(git -C "$DIR" branch --show-current 2>/dev/null)
   [ -z "$NAME" ] && NAME=$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null)
   [ -n "$NAME" ] && BRANCH=" | 🌿 $NAME"
@@ -37,7 +42,7 @@ LIMITS=""
 [ -n "$WEEK" ] && LIMITS="${LIMITS} | 7d: $(printf '%.0f' "$WEEK")%"
 
 COST_FMT=$(printf '$%.2f' "$COST")
-# 1行目: [モデル名] 📁 ディレクトリ名 | 🌿 ブランチ名(なければ短縮ハッシュ)
+# 1行目: [モデル名] 📁 ディレクトリ名 | 🔖 ブックマーク @ change-id (jj) / 🌿 ブランチ名 (git)
 echo -e "${CYAN}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
 # 2行目: コンテキストバー 使用率% | セッションコスト | 経過時間 | 5h/7dレート制限使用率
 echo -e "${BAR_COLOR}${BAR}${RESET} ${PCT}% | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s${LIMITS}"
