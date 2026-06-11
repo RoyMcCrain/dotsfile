@@ -138,6 +138,7 @@ echo ""
 # Claudeサンドボックスプロファイル
 echo "🔒 Setting up Claude sandbox profile..."
 create_symlink $BASE_DIR/claude/sandbox/claude-sandbox.sb ~/.claude/sandbox/claude-sandbox.sb "Claude sandbox profile"
+create_symlink $BASE_DIR/claude/statusline.sh ~/.claude/statusline.sh "Claude status line script"
 
 echo ""
 

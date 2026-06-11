@@ -16,6 +16,10 @@
     ],
     "defaultMode": "bypassPermissions"
   },
+  "statusLine": {
+    "type": "command",
+    "command": "\"$HOME\"/.claude/statusline.sh"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -101,5 +105,6 @@
   },
   "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
-  "remoteControlAtStartup": true
+  "remoteControlAtStartup": true,
+  "model": "claude-fable-5[1m]"
 }
