@@ -29,6 +29,13 @@ if git -C "$DIR" rev-parse --git-dir > /dev/null 2>&1; then
   [ -n "$NAME" ] && BRANCH=" | 🌿 $NAME"
 fi
 
+# レート制限はPro/Max限定かつ初回API応答後のみ存在するため、absent時は非表示
+FIVE_H=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
+WEEK=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+LIMITS=""
+[ -n "$FIVE_H" ] && LIMITS=" | 5h: $(printf '%.0f' "$FIVE_H")%"
+[ -n "$WEEK" ] && LIMITS="${LIMITS} | 7d: $(printf '%.0f' "$WEEK")%"
+
 COST_FMT=$(printf '$%.2f' "$COST")
 echo -e "${CYAN}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
-echo -e "${BAR_COLOR}${BAR}${RESET} ${PCT}% | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s"
+echo -e "${BAR_COLOR}${BAR}${RESET} ${PCT}% | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s${LIMITS}"
