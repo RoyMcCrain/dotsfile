@@ -3,7 +3,7 @@
 
 input=$(cat)
 command=$(echo "$input" | jq -r '.tool_input.command // ""')
-block_msg='{"decision":"block","reason":"mainへのpushはClaude内では実行禁止です。手動で実行してください。"}'
+block_msg='{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"mainへのpushはClaude内では実行禁止です。手動で実行してください。"}}'
 
 # jj git push: 引数なし or -b main を拒否
 if echo "$command" | grep -qE 'jj git push.*-b\s+main|jj git push\s*(;|&&|\||$)'; then
@@ -17,4 +17,5 @@ if echo "$command" | grep -qE 'git push\s+\S+\s+main|git push\s*(;|&&|\||$)'; th
   exit 0
 fi
 
-echo '{"decision":"allow"}'
+# 出力なし = 許可
+exit 0
