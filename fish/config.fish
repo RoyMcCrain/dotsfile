@@ -128,9 +128,10 @@ if not string match -q -- $GCLOUD_PATH $PATH
 end
 # gcloud end
 
-# Added by LM Studio CLI (lms)
-set -gx PATH $PATH /Users/roy/.lmstudio/bin
-# End of LM Studio CLI section
+# LM Studio CLI (lms)
+if test -d "$HOME/.lmstudio/bin"
+    fish_add_path --append $HOME/.lmstudio/bin
+end
 
 # SSH 鍵は Bitwarden Desktop の SSH agent で管理する（秘密鍵をディスクに置かない）
 # socket の指定は ~/.ssh/config の IdentityAgent に一本化（接続時解決でシェル起動順に依存しない）

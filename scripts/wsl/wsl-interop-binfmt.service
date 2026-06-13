@@ -1,0 +1,12 @@
+[Unit]
+Description=Register WSL interop binfmt entry (.exe execution)
+# WSLではsystemd-binfmt.serviceがConditionVirtualization=!wslでスキップされ、
+# さらにqemu等のbinfmt登録がWSLInteropを消すことがあるため、ここで直接登録する
+ConditionPathExists=/proc/sys/fs/binfmt_misc/register
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '[ -e /proc/sys/fs/binfmt_misc/WSLInterop ] || echo ":WSLInterop:M::MZ::/init:PF" > /proc/sys/fs/binfmt_misc/register'
+
+[Install]
+WantedBy=multi-user.target

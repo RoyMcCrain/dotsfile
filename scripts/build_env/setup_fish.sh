@@ -133,12 +133,24 @@ echo ""
 echo "🔑 Setting up SSH configuration..."
 create_symlink $BASE_DIR/ssh/config ~/.ssh/config "SSH config"
 
+# WSL2のみ: Bitwarden SSH agent ブリッジ（Windows named pipe -> unix socket）
+if string match -q '*microsoft*' (uname -r)
+    echo "🪟 Setting up Bitwarden SSH agent bridge (WSL2)..."
+    create_symlink $BASE_DIR/scripts/wsl/bitwarden-ssh-agent.service ~/.config/systemd/user/bitwarden-ssh-agent.service "Bitwarden SSH agent bridge"
+    systemctl --user daemon-reload
+    systemctl --user enable --now bitwarden-ssh-agent.service
+end
+
 echo ""
 
-# Claudeサンドボックスプロファイル
-echo "🔒 Setting up Claude sandbox profile..."
-create_symlink $BASE_DIR/claude/sandbox/claude-sandbox.sb ~/.claude/sandbox/claude-sandbox.sb "Claude sandbox profile"
+# Claude Code 設定（settings.json が参照する hooks/statusline も含めて一式リンクする）
+echo "🤖 Setting up Claude Code configuration..."
+create_symlink $BASE_DIR/claude/settings.json ~/.claude/settings.json "Claude settings"
 create_symlink $BASE_DIR/claude/statusline.sh ~/.claude/statusline.sh "Claude status line script"
+set CLAUDE_ITEMS agents commands hooks rules skills sandbox
+for item in $CLAUDE_ITEMS
+    create_symlink $BASE_DIR/claude/$item ~/.claude/$item "Claude $item"
+end
 
 echo ""
 

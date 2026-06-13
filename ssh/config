@@ -1,5 +1,15 @@
 # SSH 鍵は Bitwarden Desktop の SSH agent で管理する（秘密鍵をディスクに置かない）
-# 接続時に必ず Bitwarden の socket を使うので、シェル起動タイミングに依存しない
 # 利用には Bitwarden Desktop の起動 + vault アンロックが必要
-Host *
+# socket が存在する Match だけが成立するので macOS / WSL2 で共用できる
+
+# macOS: Bitwarden Desktop が直接 socket を公開する
+Match exec "test -S ~/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock"
     IdentityAgent ~/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock
+
+# WSL2: systemd user service (bitwarden-ssh-agent.service) が
+# Windows 側の named pipe を socat + npiperelay で中継する
+# IdentitiesOnly + 公開鍵指定で、vault内の他デバイスの鍵ではなくWSL用の鍵を使う
+Match exec "test -S ~/.bitwarden-ssh-agent.sock"
+    IdentityAgent ~/.bitwarden-ssh-agent.sock
+    IdentityFile ~/.ssh/id_ed25519_wsl.pub
+    IdentitiesOnly yes
