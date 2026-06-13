@@ -22,7 +22,8 @@ set -gx TERM xterm-256color
 set -gx DFT_DISPLAY side-by-side-show-both
 
 # devbox
-set -gx SHELL fish
+# SSH の Match exec が $SHELL を execve するため絶対パスを設定する（裸の "fish" だと exec 失敗）
+set -gx SHELL (status fish-path)
 devbox global shellenv | source
 
 # JAVA_HOME (devbox's temurin)
