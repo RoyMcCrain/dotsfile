@@ -1,0 +1,12 @@
+[Unit]
+Description=Bitwarden SSH agent bridge (Windows named pipe -> WSL unix socket)
+
+[Service]
+# Windows側 Bitwarden Desktop の SSH agent (named pipe) を WSL の unix socket に中継する
+# npiperelay.exe の実行には WSL interop (binfmt) が必要
+ExecStart=%h/.local/share/devbox/global/default/.devbox/nix/profile/default/bin/socat UNIX-LISTEN:%h/.bitwarden-ssh-agent.sock,fork,unlink-early,umask=177 EXEC:"/mnt/c/Users/roy/bin/npiperelay.exe -ei -s //./pipe/openssh-ssh-agent",nofork
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

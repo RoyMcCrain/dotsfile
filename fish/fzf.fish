@@ -5,20 +5,9 @@
 if command -q fzf
     
     # fzf fish integration
-    # Ubuntu/Debianの場合の標準的なパス
-    if test -f /usr/share/doc/fzf/examples/key-bindings.fish
-        source /usr/share/doc/fzf/examples/key-bindings.fish
-    end
-    
-    # fzf completions
-    if test -f /usr/share/doc/fzf/examples/completion.fish
-        source /usr/share/doc/fzf/examples/completion.fish
-    end
-    
-    # Homebrewの場合（Macなど）
-    if test -f /opt/homebrew/opt/fzf/shell/key-bindings.fish
-        source /opt/homebrew/opt/fzf/shell/key-bindings.fish
-    end
+    # fzf 0.48+ はインストール元（devbox/apt/Homebrew）に関わらず
+    # key bindings と補完を自前で生成できる
+    fzf --fish | source
     
     # fzf設定
     set -gx FZF_DEFAULT_OPTS '

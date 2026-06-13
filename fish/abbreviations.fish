@@ -55,7 +55,12 @@ abbr gc 'ghq-cd'  # ghq cd shortcut
 # OS specific
 switch (uname)
     case Linux
-        abbr open 'xdg-open'
+        if string match -q '*microsoft*' (uname -r)
+            # WSL2: explorer.exe ならWindows側のブラウザ/エクスプローラーで開ける
+            abbr open 'explorer.exe'
+        else
+            abbr open 'xdg-open'
+        end
     case Darwin
         # Mac用の設定（必要に応じて追加）
 end
