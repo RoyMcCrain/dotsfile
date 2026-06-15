@@ -20,7 +20,6 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-fable-5[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -87,7 +86,11 @@
         "~/.local/share/pnpm",
         "~/.config/gcloud",
         "~/.cursor",
-        "~/ghq"
+        "~/ghq",
+        "~/.ssh"
+      ],
+      "allowRead": [
+        "~/.ssh/google_compute_engine"
       ]
     },
     "enableWeakerNetworkIsolation": true,
@@ -108,7 +111,7 @@
       "cld"
     ]
   },
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
   "remoteControlAtStartup": true
 }
