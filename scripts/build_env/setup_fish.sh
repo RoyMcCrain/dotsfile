@@ -154,6 +154,23 @@ end
 
 echo ""
 
+# Claude Code グローバルMCP（user scope: 全プロジェクトで有効）
+# ~/.claude.json は秘密情報を含むためリンクせず、定義ファイルから import する
+echo "🔌 Setting up Claude Code global MCP servers..."
+set MCP_FILE $BASE_DIR/claude/mcp-servers.json
+if test -f $MCP_FILE; and command -q jq; and command -q claude
+    for name in (jq -r 'keys[]' $MCP_FILE)
+        claude mcp remove -s user $name >/dev/null 2>&1
+        if claude mcp add-json -s user $name (jq -c ".[\"$name\"]" $MCP_FILE) >/dev/null 2>&1
+            print_success "Registered global MCP: $name"
+        else
+            print_error "Failed to register MCP: $name"
+        end
+    end
+else
+    print_warning "Skipped MCP setup (need jq + claude + $MCP_FILE)"
+end
+
 echo ""
 
 echo "🎉 Fish configuration setup completed!"

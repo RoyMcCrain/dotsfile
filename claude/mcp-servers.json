@@ -1,0 +1,7 @@
+{
+  "clasp": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@google/clasp", "mcp"]
+  }
+}
