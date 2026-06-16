@@ -8,7 +8,6 @@
 ;; --- 復旧不能（鍵そのものが失われる）→ 必ず守る ---
 ;; ※ ~/Library/Keychains は deny しない：securityd の列挙を壊し
 ;;   「キーチェーンが見つかりません」を誘発する。実体は macOS が暗号化保護済み。
-(deny file-write* (subpath (string-append (param "HOME") "/.ssh")))
 (deny file-write* (subpath (string-append (param "HOME") "/.gnupg")))
 
 ;; ※ ~/.config/gcloud / ~/.docker / ~/.aws は write-deny しない：
