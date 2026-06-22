@@ -15,6 +15,7 @@
     "imagemagick@latest",
     "jujutsu@latest",
     "jq@latest",
+    "ripgrep@latest",
     "lua-language-server@latest",
     "neovim@latest",
     "yq@latest",
