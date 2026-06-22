@@ -4,9 +4,15 @@ function ghq-fzf-jj --description 'Select jj workspace with fzf and change direc
     set -l data_file (mktemp)
 
     # jj workspace (.jj/repo がファイルで親を参照しているもの)
-    find $ghq_root -name .jj -type d -maxdepth 5 2>/dev/null | while read jj_dir
+    fd -H -t d -d 5 '^\.jj$' $ghq_root 2>/dev/null | while read jj_dir
         if test -f $jj_dir/repo
-            echo (dirname $jj_dir)
+            set -l ws_path (dirname $jj_dir)
+            # forget済み(jj workspace listが空)なworkspaceは除外
+            set -l ws_alive (jj workspace list -R $ws_path 2>/dev/null)
+            if test -z "$ws_alive"
+                continue
+            end
+            echo $ws_path
         end
     end > $ws_file
 
@@ -87,6 +93,7 @@ function ghq-fzf-jj --description 'Select jj workspace with fzf and change direc
     if test -n "$src"
         set -l path (string split \t $src)[2]
         cd $ghq_root/$path
-        commandline -f repaint
     end
+    # 選択/キャンセル問わず再描画（escape時に表示が残るのを防ぐ）
+    commandline -f repaint
 end

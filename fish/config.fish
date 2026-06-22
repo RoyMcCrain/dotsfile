@@ -100,6 +100,7 @@ source $__fish_config_dir/fzf.fish
 function ghq-get-cd
     ghq get $argv[1]
     and cd (ghq list --exact --full-path $argv[1])
+    rm -f "$HOME/.cache/ghq-fzf-list"  # ghq-fzfキャッシュを無効化（次回再生成）
 end
 
 # ghq get の略語用に関数を設定

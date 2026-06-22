@@ -6,6 +6,7 @@
     "bat@latest",
     "direnv@latest",
     "eza@latest",
+    "fd@latest",
     "fish@latest",
     "fzf@latest",
     "gh@latest",
