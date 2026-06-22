@@ -1,0 +1,90 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+	"proxy": "",
+	"agent_ui_font_size": 18.0,
+	"agent_buffer_font_size": 16.0,
+	"ui_font_family": "PlemolJP35 Console NF",
+	"icon_theme": {
+		"mode": "system",
+		"light": "Zed (Default)",
+		"dark": "Zed (Default)",
+	},
+	"vim_mode": true,
+	"terminal": {
+		"font_size": 16.0,
+		"font_family": "PlemolJP35 Console NF",
+	},
+	"base_keymap": "VSCode",
+	"preview_tabs": {
+		"enabled": false,
+	},
+	"minimap": {
+		"show": "always",
+	},
+	"buffer_font_family": "PlemolJP35 Console NF",
+	"show_whitespaces": "boundary",
+	"show_edit_predictions": true,
+	"ensure_final_newline_on_save": true,
+	"hard_tabs": true,
+	"tab_size": 2,
+	"agent_servers": {
+		"cursor": {
+			"type": "registry",
+		},
+		"claude-acp": {
+			"type": "registry",
+		},
+	},
+	// devbox の gopls は go1.25 ビルドで Go 1.26 の new(expr) を解釈できないため、go1.26 でビルドした gopls を明示指定
+	"lsp": {
+		"gopls": {
+			"binary": {
+				"path": "/Users/roy/.local/bin/gopls",
+			},
+		},
+	},
+	// TS 系は tsgo のみ起動させる。vtsls / eslint は無効化（oxlint / oxfmt は "..." で維持）
+	"languages": {
+		"TypeScript": {
+			"language_servers": [
+				"tsgo",
+				"!vtsls",
+				"!typescript-language-server",
+				"!eslint",
+				"...",
+			],
+		},
+		"TSX": {
+			"language_servers": [
+				"tsgo",
+				"!vtsls",
+				"!typescript-language-server",
+				"!eslint",
+				"...",
+			],
+		},
+		"JavaScript": {
+			"language_servers": [
+				"tsgo",
+				"!vtsls",
+				"!typescript-language-server",
+				"!eslint",
+				"...",
+			],
+		},
+	},
+	"ui_font_size": 16.0,
+	"buffer_font_size": 15,
+	"theme": {
+		"mode": "system",
+		"light": "Gruvbox Light",
+		"dark": "Kanagawa",
+	},
+}
