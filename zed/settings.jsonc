@@ -20,6 +20,10 @@
 	"terminal": {
 		"font_size": 16.0,
 		"font_family": "PlemolJP35 Console NF",
+		// fish を使用(PATH から解決。~ 展開・ユーザー名直書きを避けるため)
+		"shell": {
+			"program": "fish",
+		},
 	},
 	"base_keymap": "VSCode",
 	"preview_tabs": {
@@ -46,7 +50,16 @@
 	"lsp": {
 		"gopls": {
 			"binary": {
-				"path": "/Users/roy/.local/bin/gopls",
+				"path": "~/.local/bin/gopls",
+			},
+		},
+		// Tailwind v4 のカスタム at-rule(@theme/@plugin/@custom-variant/@apply 等)を
+		// 内蔵 CSS LSP が "Unknown at rule" と誤検知するため警告を無効化
+		"vscode-css-language-server": {
+			"settings": {
+				"css": { "lint": { "unknownAtRules": "ignore" } },
+				"scss": { "lint": { "unknownAtRules": "ignore" } },
+				"less": { "lint": { "unknownAtRules": "ignore" } },
 			},
 		},
 	},
