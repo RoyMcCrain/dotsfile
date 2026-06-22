@@ -111,7 +111,7 @@
       "cld"
     ]
   },
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
   "remoteControlAtStartup": true
 }
