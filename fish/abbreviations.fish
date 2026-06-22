@@ -70,6 +70,7 @@ abbr ac 'ai-commit'
 
 # jj (jujutsu)
 abbr g 'jj'
+abbr jf 'jj git fetch'
 abbr pu 'jj-push'
 abbr ac 'ai-commit'
 abbr bm 'jj-bookmark'
@@ -85,6 +86,9 @@ abbr -p anywhere ab 'abandon'
 abbr -p anywhere gp 'git push'
 abbr -p anywhere gpc 'git push -c @'
 abbr -p anywhere gf 'git fetch'
+
+# cmux
+abbr claudet 'cmux claude-teams'
 
 # Fish specific
 abbr sf 'source ~/.config/fish/config.fish'
