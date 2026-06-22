@@ -129,6 +129,18 @@ create_symlink $BASE_DIR/jjconfig.toml ~/.config/jj/config.toml "jujutsu config"
 
 echo ""
 
+# cmux設定ファイル
+echo "Setting up cmux configuration..."
+create_symlink $BASE_DIR/cmux ~/.config/cmux "cmux configuration"
+
+echo ""
+
+# ghostty設定ファイル
+echo "Setting up ghostty configuration..."
+create_symlink $BASE_DIR/ghostty ~/.config/ghostty "ghostty configuration"
+
+echo ""
+
 # SSH設定ファイル（Bitwarden SSH agent を IdentityAgent で常用）
 echo "🔑 Setting up SSH configuration..."
 create_symlink $BASE_DIR/ssh/config ~/.ssh/config "SSH config"
