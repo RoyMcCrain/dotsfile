@@ -71,6 +71,7 @@ abbr ac 'ai-commit'
 # jj (jujutsu)
 abbr g 'jj'
 abbr jf 'jj git fetch'
+abbr jn 'jj new main@origin'
 abbr pu 'jj-push'
 abbr ac 'ai-commit'
 abbr bm 'jj-bookmark'
