@@ -60,6 +60,9 @@ ln -sf ${BASE_DIR}/claude/settings.json ~/.claude/settings.json
 mkdir -p ~/.codex/skills
 ln -sf ${BASE_DIR}/codex/AGENTS.md ~/.codex/AGENTS.md
 ln -sf ${BASE_DIR}/codex/instructions.md ~/.codex/instructions.md
+ln -sf ${BASE_DIR}/codex/config.toml ~/.codex/config.toml
+ln -sf ${BASE_DIR}/codex/fugu.json ~/.codex/fugu.json
+ln -sf ${BASE_DIR}/codex/fugu.config.toml ~/.codex/fugu.config.toml
 ln -sf ${BASE_DIR}/codex/skills/context-loader ~/.codex/skills/context-loader
 
 # Gemini
