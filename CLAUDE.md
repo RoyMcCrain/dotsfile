@@ -75,5 +75,6 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
 
 ### AI Tools
 - **Claude Code** - Primary AI assistant with custom rules/skills/hooks
+  - 重い MCP プラグインは `enabledPlugins` で `false` 化しオンデマンド運用（手順は `claude/rules/plugins.md`）
 - **Codex CLI** - OpenAI Codex for design consultation and code review
 - **Gemini CLI** - Google Gemini for research and documentation
