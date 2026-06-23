@@ -43,19 +43,19 @@
     "feature-dev@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
-    "figma@claude-plugins-official": true,
+    "playwright@claude-plugins-official": false,
+    "figma@claude-plugins-official": false,
     "sentry@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "lua-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
-    "dbt@dbt-agent-marketplace": true,
-    "cloudflare@claude-plugins-official": true,
-    "slack@claude-plugins-official": true,
-    "shopify-ai-toolkit@claude-plugins-official": true,
-    "stripe@claude-plugins-official": true
+    "dbt@dbt-agent-marketplace": false,
+    "cloudflare@claude-plugins-official": false,
+    "slack@claude-plugins-official": false,
+    "shopify-ai-toolkit@claude-plugins-official": false,
+    "stripe@claude-plugins-official": false
   },
   "extraKnownMarketplaces": {
     "dbt-agent-marketplace": {
