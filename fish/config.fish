@@ -21,6 +21,10 @@ set -gx EDITOR nvim
 set -gx TERM xterm-256color
 set -gx DFT_DISPLAY side-by-side-show-both
 
+# FUGU_API_KEY (Bitwarden→Keychainキャッシュ。更新は sync-fugu-key)
+set -l fugu_key (security find-generic-password -s fugu-api-key -w 2>/dev/null)
+test -n "$fugu_key"; and set -gx FUGU_API_KEY $fugu_key
+
 # devbox
 # SSH の Match exec が $SHELL を execve するため絶対パスを設定する（裸の "fish" だと exec 失敗）
 set -gx SHELL (status fish-path)
