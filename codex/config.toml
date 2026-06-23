@@ -1,0 +1,40 @@
+model = "gpt-5.5"
+personality = "pragmatic"
+[projects."/Users/roy/.config/fish"]
+trust_level = "trusted"
+
+[projects."/Users/roy/ghq/github.com/RoyMcCrain/dotsfile"]
+trust_level = "trusted"
+
+[projects."/Users/roy/ghq/github.com/zero-color/crm"]
+trust_level = "trusted"
+
+[projects."/Users/roy/ghq/github.com/zero-color/agf-cocoro-hitoiki-shopify-app"]
+trust_level = "trusted"
+
+[projects."/Users/roy/ghq/github.com/zero-color/agf-mall-shopify-app"]
+trust_level = "trusted"
+
+[projects."/Users/roy/ghq/github.com/zero-color/agf-mall-shopify-theme"]
+trust_level = "trusted"
+
+[features]
+rmcp_client = true
+
+[notice]
+hide_gpt5_1_migration_prompt = true
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+
+[notice.model_migrations]
+"gpt-5.1-codex-max" = "gpt-5.2-codex"
+"gpt-5.2-codex" = "gpt-5.4"
+
+# Sakana Fugu (profile は ~/.codex/fugu.config.toml に分離)
+[model_providers.sakana]
+name = "Sakana API"
+base_url = "https://api.sakana.ai/v1"
+env_key = "FUGU_API_KEY"
+wire_api = "responses"
+stream_idle_timeout_ms = 7200000
+stream_max_retries = 5
+request_max_retries = 4
