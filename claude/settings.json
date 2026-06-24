@@ -96,7 +96,7 @@
     },
     "enableWeakerNetworkIsolation": true,
     "excludedCommands": [
-      "gemini",
+      "agy",
       "gh",
       "ssh",
       "go",

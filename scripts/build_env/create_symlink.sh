@@ -65,8 +65,9 @@ ln -sf ${BASE_DIR}/codex/fugu.json ~/.codex/fugu.json
 ln -sf ${BASE_DIR}/codex/fugu.config.toml ~/.codex/fugu.config.toml
 ln -sf ${BASE_DIR}/codex/skills/context-loader ~/.codex/skills/context-loader
 
-# Gemini
-mkdir -p ~/.gemini/skills
-ln -sf ${BASE_DIR}/gemini/GEMINI.md ~/.gemini/GEMINI.md
-ln -sf ${BASE_DIR}/gemini/instructions.md ~/.gemini/instructions.md
-ln -sf ${BASE_DIR}/gemini/skills/context-loader ~/.gemini/skills/context-loader
+# Antigravity CLI (agy) — customization root: ~/.gemini/antigravity-cli
+# 旧 Gemini CLI の後継。グローバル指示は AGENTS.md 規約、skills/ は自動検出。
+mkdir -p ~/.gemini/antigravity-cli/skills
+ln -sf ${BASE_DIR}/antigravity/AGENTS.md ~/.gemini/antigravity-cli/AGENTS.md
+ln -sf ${BASE_DIR}/antigravity/instructions.md ~/.gemini/antigravity-cli/instructions.md
+ln -sf ${BASE_DIR}/antigravity/skills/context-loader ~/.gemini/antigravity-cli/skills/context-loader

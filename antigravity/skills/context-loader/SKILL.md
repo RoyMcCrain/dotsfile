@@ -3,7 +3,7 @@ name: context-loader
 description: Load project context from .claude/ directory at the start of every task.
 ---
 
-# Context Loader Skill for Gemini
+# Context Loader Skill for Antigravity (agy)
 
 ## Purpose
 
