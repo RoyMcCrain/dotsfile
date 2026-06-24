@@ -21,13 +21,14 @@ set -gx EDITOR nvim
 set -gx TERM xterm-256color
 set -gx DFT_DISPLAY side-by-side-show-both
 
-# FUGU_API_KEY (Bitwarden→Keychainキャッシュ。更新は sync-fugu-key)
-set -l fugu_key (security find-generic-password -s fugu-api-key -w 2>/dev/null)
-test -n "$fugu_key"; and set -gx FUGU_API_KEY $fugu_key
-
-# FIRECRAWL_API_KEY (Bitwarden→Keychainキャッシュ。更新は sync-firecrawl-key)
-set -l firecrawl_key (security find-generic-password -s firecrawl-api-key -w 2>/dev/null)
-test -n "$firecrawl_key"; and set -gx FIRECRAWL_API_KEY $firecrawl_key
+# API keys (Bitwarden→Keychainキャッシュ。更新は sync-key、新規は add-key が下行に自動追記)
+# add-key が新規アイテムを作る Bitwarden フォルダ
+set -gx BW_KEY_FOLDER "env"
+set -l api_key_items fugu-api-key firecrawl-api-key devin-api-key
+for item in $api_key_items
+    set -l val (security find-generic-password -s $item -w 2>/dev/null)
+    test -n "$val"; and set -gx (string upper (string replace -a - _ $item)) $val
+end
 
 # devbox
 # SSH の Match exec が $SHELL を execve するため絶対パスを設定する（裸の "fish" だと exec 失敗）
