@@ -8,3 +8,6 @@ logs
 .serena
 .lsmcp
 __pycache__/
+
+# firecrawl CLI のローカルキャッシュ
+.firecrawl/

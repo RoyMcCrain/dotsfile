@@ -59,7 +59,7 @@
   "shell": {
     "init_hook": [],
     "scripts": {
-      "setup-npm": "npm install -g neovim typescript @typescript/native-preview @openai/codex cf"
+      "setup-npm": "npm install -g neovim typescript @typescript/native-preview @openai/codex cf firecrawl-cli"
     }
   }
 }

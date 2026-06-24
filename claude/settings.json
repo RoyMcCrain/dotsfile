@@ -13,6 +13,7 @@
   },
   "permissions": {
     "deny": [
+      "WebSearch",
       "Read(~/.config/gh/**)",
       "Read(**/.env)",
       "Read(**/.env.local)",

@@ -25,6 +25,10 @@ set -gx DFT_DISPLAY side-by-side-show-both
 set -l fugu_key (security find-generic-password -s fugu-api-key -w 2>/dev/null)
 test -n "$fugu_key"; and set -gx FUGU_API_KEY $fugu_key
 
+# FIRECRAWL_API_KEY (Bitwarden→Keychainキャッシュ。更新は sync-firecrawl-key)
+set -l firecrawl_key (security find-generic-password -s firecrawl-api-key -w 2>/dev/null)
+test -n "$firecrawl_key"; and set -gx FIRECRAWL_API_KEY $firecrawl_key
+
 # devbox
 # SSH の Match exec が $SHELL を execve するため絶対パスを設定する（裸の "fish" だと exec 失敗）
 set -gx SHELL (status fish-path)
