@@ -1,0 +1,49 @@
+tap "nikitabobko/tap"
+# AeroSpace is an i3-like tiling window manager for macOS
+cask "nikitabobko/tap/aerospace", trusted: true
+# Tools for building Android applications
+cask "android-studio"
+# Terminal interface for Antigravity agents
+cask "antigravity-cli"
+# OpenAI's official ChatGPT desktop app
+cask "chatgpt"
+# Group chat software
+cask "chatwork"
+# Anthropic's official Claude AI desktop app
+cask "claude"
+# Screen capturing tool
+cask "cleanshot"
+# Clipboard extension app
+cask "clipy"
+# Ghostty-based terminal with vertical tabs and notifications for AI coding agents
+cask "cmux"
+# Write, edit, and chat about your code with AI
+cask "cursor"
+# App to build and share containerised applications and microservices
+cask "docker-desktop"
+# Collaborative team software
+cask "figma"
+# Terminal emulator that uses platform-native UI and GPU acceleration
+cask "ghostty"
+# Web browser
+cask "google-chrome"
+# Terminal emulator as alternative to Apple's Terminal app
+cask "iterm2"
+# Discover, download, and run local LLMs
+cask "lm-studio"
+# Reverse proxy, secure introspectable tunnels to localhost
+cask "ngrok"
+# Knowledge base that works on top of a local folder of plain text Markdown files
+cask "obsidian"
+# Toolbox companion for QMK Firmware
+cask "qmk-toolbox"
+# Control your tools with a few keystrokes
+cask "raycast"
+# Team communication and collaboration software
+cask "slack"
+# Native GUI tool for relational databases
+cask "tableplus"
+# Open-source code editor
+cask "visual-studio-code"
+# Multiplayer code editor
+cask "zed"
