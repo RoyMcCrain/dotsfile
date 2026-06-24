@@ -1,4 +1,4 @@
-# Gemini CLI - Claude Code Orchestra
+# Antigravity CLI (agy) - Claude Code Orchestra
 
 ## Role
 
@@ -7,16 +7,9 @@ Claude Codeのサブエージェントとして動作。単独使用は想定し
 ## 得意領域
 
 - 大規模コンテキストが必要な調査
-- 最新トレンド・ライブラリ情報
+- 最新トレンド・ライブラリ情報（Web検索）
 - ドキュメント比較・要約
 - マルチモーダル（PDF、画像分析）
-- ライブラリドキュメント検索（Context7経由）
-
-## MCP Servers
-
-| Server | 用途 |
-|--------|------|
-| context7 | ライブラリの最新ドキュメント・コード例を取得 |
 
 ## Context Loading
 

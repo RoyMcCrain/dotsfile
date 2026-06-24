@@ -50,11 +50,11 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
 - `/scripts/build_env/` - Setup scripts
 - `/claude/` - Claude Code config (symlinked to ~/.claude/)
   - `/rules/` - Coding rules (KISS, TypeScript, React, etc.)
-  - `/skills/` - Custom skills (arto, jj, line, cursor-*, gemini-*)
+  - `/skills/` - Custom skills (arto, jj, line, cursor-*, antigravity-*)
   - `/hooks/` - Automation hooks
   - `settings.json` - Claude Code settings
 - `/codex/` - OpenAI Codex CLI config (symlinked to ~/.codex/)
-- `/gemini/` - Google Gemini CLI config (symlinked to ~/.gemini/)
+- `/antigravity/` - Antigravity CLI (agy) config (symlinked to ~/.gemini/antigravity-cli/, 旧 Gemini CLI)
 - `gitconfig`, `jjconfig.toml` - VCS configs
 
 ## Architecture
@@ -77,4 +77,4 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
 - **Claude Code** - Primary AI assistant with custom rules/skills/hooks
   - 重い MCP プラグインは `enabledPlugins` で `false` 化しオンデマンド運用（手順は `claude/rules/plugins.md`）
 - **Codex CLI** - OpenAI Codex for design consultation and code review
-- **Gemini CLI** - Google Gemini for research and documentation
+- **Antigravity CLI (agy)** - research and documentation (旧 Gemini CLI、brew cask `antigravity-cli`)

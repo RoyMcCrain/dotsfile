@@ -37,7 +37,6 @@
     "pnpm@latest",
     "git@latest",
     "delta@latest",
-    "gemini-cli@latest",
     "cursor-cli@latest",
     "wget@latest",
     "gettext@latest",

@@ -45,12 +45,12 @@ refresh-global  # devboxが自動定義するalias
 
 ## AI Tools
 
-Claude Code, Codex CLI, Gemini CLIの設定を管理。
+Claude Code, Codex CLI, Antigravity CLI (agy) の設定を管理。
 
 ```
-claude/   → ~/.claude/    # rules, skills, hooks
-codex/    → ~/.codex/     # AGENTS.md, instructions.md
-gemini/   → ~/.gemini/    # GEMINI.md, instructions.md
+claude/        → ~/.claude/                  # rules, skills, hooks
+codex/         → ~/.codex/                   # AGENTS.md, instructions.md
+antigravity/   → ~/.gemini/antigravity-cli/  # AGENTS.md, instructions.md (旧 Gemini CLI)
 ```
 
 ## Bitwarden

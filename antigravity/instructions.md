@@ -1,4 +1,4 @@
-# Gemini CLI Instructions
+# Antigravity CLI (agy) Instructions
 
 ## Context
 - 設計決定やリサーチ結果は `~/.claude/docs/` を参照

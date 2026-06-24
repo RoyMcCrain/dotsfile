@@ -52,7 +52,7 @@ chmod +x ./scripts/build_env/create_symlink.sh
 
 これにより以下がシンボリックリンクされる：
 - nvim, fish, gitconfig等の基本設定
-- claude/, codex/, gemini/ のAI Tools設定
+- claude/, codex/, antigravity/ のAI Tools設定
 
 ## devboxツールのインストール
 
@@ -70,6 +70,16 @@ devbox global run setup-npm
 ```
 
 これにより`neovim`, `typescript`, `@typescript/native-preview`がインストールされる。
+
+## Antigravity CLI (agy)
+
+旧 Gemini CLI の後継。devbox/nixpkgsには無く Homebrew cask で配布されるため別途インストールする：
+```bash
+brew install --cask antigravity-cli   # コマンド: agy (antigravity のエイリアス)
+agy                                    # 初回のみ対話起動して Google OAuth ログイン
+```
+
+MCP は使わない（旧 Gemini の Context7 は廃止）。リサーチは `agy -p "..."` の Web 検索で代替する。
 
 ## Neovim/dpp.vim セットアップ
 
