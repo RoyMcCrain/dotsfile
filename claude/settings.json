@@ -97,6 +97,8 @@
     },
     "enableWeakerNetworkIsolation": true,
     "excludedCommands": [
+      "codex",
+      "cursor-agent",
       "agy",
       "gh",
       "ssh",
