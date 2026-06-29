@@ -30,6 +30,23 @@ jjコマンドの詳細は `/jj` スキルを使用して確認する。
 | git branch | jj bookmark |
 | git checkout | jj edit / jj new |
 
+## 調査・参照系も jj
+
+読む・調べるだけの操作でも素の git を使いがちなので、意識的に jj へ寄せる。
+
+| 用途 | git | jj |
+|------|-----|-----|
+| ファイル一覧 | git ls-files \<glob\> | jj file list 'glob:\<glob\>'（prefix なら glob: 不要） |
+| ファイル内容(特定rev) | git show \<rev\>:\<path\> | jj file show -r \<rev\> \<path\> |
+| コミット内容表示 | git show \<rev\> | jj show \<rev\> |
+| ファイル履歴 | git log -- \<path\> | jj log \<path\> |
+| 行の由来(blame) | git blame \<path\> | jj file annotate \<path\> |
+| 範囲diff | git diff A..B | jj diff --from A --to B |
+| 操作履歴(reflog) | git reflog | jj op log |
+| ブランチ一覧 | git branch -a | jj bookmark list |
+
+- `git grep` に直接相当するコマンドは無い。`jj file list` で対象を絞って `rg` を使う。
+
 ## 環境変数
 
 jjコマンド実行時は必ず `JJ_EDITOR=true` を設定する。エディタ起動による編集待ちタイムアウトを防ぐ。
