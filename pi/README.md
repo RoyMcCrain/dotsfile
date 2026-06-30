@@ -55,10 +55,31 @@ Tracked custom providers:
 Environment variables:
 
 ```bash
-export SAKANA_API_KEY="..."              # Sakana provider in models.json
 export LM_STUDIO_BASE_URL="http://localhost:1234/v1"  # Optional
 export LM_STUDIO_API_KEY="..."           # Optional; dummy key is used if unset
 ```
+
+### Sakana API key
+
+`sakana-ai-console` is a custom provider, so keep its key in Pi's auth file. The
+tracked example uses Bitwarden CLI and contains no secret:
+
+```bash
+cp pi/agent/auth.json.example ~/.pi/agent/auth.json
+chmod 600 ~/.pi/agent/auth.json
+```
+
+Before starting Pi, unlock Bitwarden in the same shell so `bw get password` can
+return the key:
+
+```fish
+set -gx BW_SESSION (bw unlock --raw)
+bw sync
+pi
+```
+
+If you do not want to use Bitwarden, edit `~/.pi/agent/auth.json` and store a
+literal API key or an environment reference such as `$SAKANA_API_KEY`.
 
 ## Extensions
 
