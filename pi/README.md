@@ -21,7 +21,7 @@ npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 ## Link this config
 
 The dotfiles setup scripts link the tracked files into `~/.pi/agent` without
-touching `auth.json`:
+touching `auth.json`. `pi/agent/AGENTS.md` is Pi's global context file:
 
 ```bash
 ./scripts/build_env/setup_fish.sh
@@ -95,6 +95,16 @@ Reload after editing extensions:
 
 ## Skills
 
-Do not duplicate shared skills here. Pi automatically discovers
-`~/.agents/skills/`, so Firecrawl and other shared agent skills are loaded from
-the existing agents skill directory.
+Do not duplicate shared skills under `pi/agent/skills/`. Pi automatically
+discovers `~/.agents/skills/`, so Firecrawl and other shared agent skills are
+loaded from the existing agents skill directory.
+
+Some routing-critical skills are tracked in this repository for reproducibility:
+
+- `.agents/skills/cmux*`
+- `claude/skills/claude-review`
+- `codex/skills/codex-review`
+
+The setup scripts link matching `~/.agents/skills/*` paths back to those tracked
+directories. Keeping separate real copies in both places causes Pi skill-collision
+warnings.

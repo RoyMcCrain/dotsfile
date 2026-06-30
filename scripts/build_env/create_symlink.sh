@@ -139,6 +139,26 @@ ln -sf ${BASE_DIR}/antigravity/skills/context-loader ~/.gemini/antigravity-cli/s
 # Pi Coding Agent
 # auth.json は秘密情報/OAuth を含むためリンクしない。
 mkdir -p ~/.pi/agent
+ln -sf ${BASE_DIR}/pi/agent/AGENTS.md ~/.pi/agent/AGENTS.md
 ln -sf ${BASE_DIR}/pi/agent/settings.json ~/.pi/agent/settings.json
 ln -sf ${BASE_DIR}/pi/agent/models.json ~/.pi/agent/models.json
 ln -sfn ${BASE_DIR}/pi/agent/extensions ~/.pi/agent/extensions
+
+# Shared agent skills
+# Keep selected skill sources tracked in this repository and expose them globally.
+mkdir -p ~/.agents/skills ~/.agents/skill-backups
+for SKILL in ${BASE_DIR}/.agents/skills/cmux*(N/) ${BASE_DIR}/claude/skills/claude-review(N/) ${BASE_DIR}/codex/skills/codex-review(N/); do
+  [ -f "${SKILL}/SKILL.md" ] || continue
+  NAME=$(basename "${SKILL}")
+  DEST="$HOME/.agents/skills/${NAME}"
+  if [ -L "${DEST}" ]; then
+    rm "${DEST}"
+  elif [ -e "${DEST}" ]; then
+    if diff -qr "${SKILL}" "${DEST}" >/dev/null 2>&1; then
+      rm -rf "${DEST}"
+    else
+      mv "${DEST}" "$HOME/.agents/skill-backups/${NAME}.backup-$(date +%Y%m%d%H%M%S)"
+    fi
+  fi
+  ln -sfn "${SKILL}" "${DEST}"
+done
