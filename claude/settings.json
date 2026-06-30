@@ -97,7 +97,6 @@
     },
     "enableWeakerNetworkIsolation": true,
     "excludedCommands": [
-      "codex",
       "cursor-agent",
       "agy",
       "gh",
@@ -117,5 +116,6 @@
   },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
-  "remoteControlAtStartup": true
+  "remoteControlAtStartup": true,
+  "model": "claude-opus-4-6[1m]"
 }

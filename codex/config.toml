@@ -1,5 +1,19 @@
-model = "gpt-5.5"
+model = "fugu-ultra"
+model_reasoning_effort = "high"
+model_provider = "sakana"
+model_catalog_json = "~/.codex/fugu.json"
 personality = "pragmatic"
+project_doc_fallback_filenames = ["CLAUDE.md"]
+developer_instructions = """
+## Per-directory instructions
+作業対象のファイルがあるディレクトリに CLAUDE.md がある場合は、
+編集の前にその CLAUDE.md を読んで従うこと。
+"""
+
+# yolo 構成: Codex 自身は承認なし・sandboxなし。最低限ガードは Codex hooks で担保する
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
 [projects."/Users/roy/.config/fish"]
 trust_level = "trusted"
 
@@ -20,6 +34,8 @@ trust_level = "trusted"
 
 [features]
 rmcp_client = true
+image_generation = false
+apps = false
 
 [notice]
 hide_gpt5_1_migration_prompt = true
@@ -29,7 +45,7 @@ hide_gpt5_1_migration_prompt = true
 "gpt-5.1-codex-max" = "gpt-5.2-codex"
 "gpt-5.2-codex" = "gpt-5.4"
 
-# Sakana Fugu (profile は ~/.codex/fugu.config.toml に分離)
+# Sakana Fugu (default は fugu-ultra。fugu profile は ~/.codex/fugu.config.toml でローカル管理)
 [model_providers.sakana]
 name = "Sakana API"
 base_url = "https://api.sakana.ai/v1"
