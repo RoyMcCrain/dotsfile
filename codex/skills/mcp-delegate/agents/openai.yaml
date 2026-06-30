@@ -1,0 +1,4 @@
+interface:
+  display_name: "MCP Delegate"
+  short_description: "MCP tasks go through Claude Code"
+  default_prompt: "Use $mcp-delegate to handle this MCP setup or authentication task through Claude Code."

@@ -1,16 +1,9 @@
-model = "fugu-ultra"
+model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
-model_provider = "sakana"
-model_catalog_json = "~/.codex/fugu.json"
+model_provider = "openai"
 personality = "pragmatic"
-project_doc_fallback_filenames = ["CLAUDE.md"]
-developer_instructions = """
-## Per-directory instructions
-作業対象のファイルがあるディレクトリに CLAUDE.md がある場合は、
-編集の前にその CLAUDE.md を読んで従うこと。
-"""
-
-# yolo 構成: Codex 自身は承認なし・sandboxなし。最低限ガードは Codex hooks で担保する
+project_doc_fallback_filenames = [ "CLAUDE.md" ]
+developer_instructions = "## Per-directory instructions\n作業対象のファイルがあるディレクトリに CLAUDE.md がある場合は、\n編集の前にその CLAUDE.md を読んで従うこと。\n"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
@@ -37,20 +30,16 @@ rmcp_client = true
 image_generation = false
 apps = false
 
-[notice]
-hide_gpt5_1_migration_prompt = true
-"hide_gpt-5.1-codex-max_migration_prompt" = true
+[mcp_servers.devin]
+url = "https://mcp.devin.ai/mcp"
+bearer_token_env_var = "DEVIN_API_KEY"
 
-[notice.model_migrations]
-"gpt-5.1-codex-max" = "gpt-5.2-codex"
-"gpt-5.2-codex" = "gpt-5.4"
+[shell_environment_policy]
+inherit = "core"
 
-# Sakana Fugu (default は fugu-ultra。fugu profile は ~/.codex/fugu.config.toml でローカル管理)
-[model_providers.sakana]
-name = "Sakana API"
-base_url = "https://api.sakana.ai/v1"
-env_key = "FUGU_API_KEY"
-wire_api = "responses"
-stream_idle_timeout_ms = 7200000
-stream_max_retries = 5
-request_max_retries = 4
+[shell_environment_policy.set]
+ENABLE_TOOL_SEARCH = "true"
+ENABLE_LSP_TOOL = "true"
+CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR = "1"
+CLAUDE_CODE_NO_FLICKER = "1"
+USE_BUILTIN_RIPGREP = "0"
