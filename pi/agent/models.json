@@ -4,13 +4,14 @@
       "name": "Sakana AI Console",
       "baseUrl": "https://api.sakana.ai/v1",
       "api": "openai-responses",
-      "apiKey": "$SAKANA_API_KEY",
       "models": [
         {
           "id": "fugu",
           "name": "Sakana Fugu",
           "reasoning": false,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "cost": {
             "input": 0,
             "output": 0,
@@ -24,7 +25,9 @@
           "id": "fugu-ultra",
           "name": "Sakana Fugu Ultra",
           "reasoning": false,
-          "input": ["text"],
+          "input": [
+            "text"
+          ],
           "cost": {
             "input": 0,
             "output": 0,
