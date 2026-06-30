@@ -62,23 +62,21 @@ export LM_STUDIO_API_KEY="..."           # Optional; dummy key is used if unset
 ### Sakana API key
 
 `sakana-ai-console` is a custom provider, so keep its key in Pi's auth file. The
-tracked example uses Bitwarden CLI and contains no secret:
+tracked example reads the key directly from macOS Keychain and contains no
+secret:
 
 ```bash
 cp pi/agent/auth.json.example ~/.pi/agent/auth.json
 chmod 600 ~/.pi/agent/auth.json
 ```
 
-Before starting Pi, unlock Bitwarden in the same shell so `bw get password` can
-return the key:
+The example expects a generic password item named `fugu-api-key`:
 
-```fish
-set -gx BW_SESSION (bw unlock --raw)
-bw sync
-pi
+```bash
+security find-generic-password -w -s fugu-api-key >/dev/null
 ```
 
-If you do not want to use Bitwarden, edit `~/.pi/agent/auth.json` and store a
+If you do not want to use Keychain, edit `~/.pi/agent/auth.json` and store a
 literal API key or an environment reference such as `$SAKANA_API_KEY`.
 
 ## Extensions

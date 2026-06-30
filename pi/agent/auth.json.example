@@ -1,6 +1,6 @@
 {
   "sakana-ai-console": {
     "type": "api_key",
-    "key": "!bw get password fugu-api-key"
+    "key": "!security find-generic-password -w -s fugu-api-key"
   }
 }
