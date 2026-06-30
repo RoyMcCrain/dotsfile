@@ -185,6 +185,17 @@ end
 
 echo ""
 
+echo "🤖 Setting up Pi Coding Agent configuration..."
+set PI_AGENT_DIR ~/.pi/agent
+if not test -d $PI_AGENT_DIR
+    mkdir -p $PI_AGENT_DIR
+end
+create_symlink $BASE_DIR/pi/agent/settings.json $PI_AGENT_DIR/settings.json "Pi settings"
+create_symlink $BASE_DIR/pi/agent/models.json $PI_AGENT_DIR/models.json "Pi custom models"
+create_symlink $BASE_DIR/pi/agent/extensions $PI_AGENT_DIR/extensions "Pi extensions"
+
+echo ""
+
 echo "🎉 Fish configuration setup completed!"
 echo ""
 echo "📋 Next steps:"

@@ -1,0 +1,6 @@
+{
+  "sakana-ai-console": {
+    "type": "api_key",
+    "key": "!bw get password sakana-api-key"
+  }
+}

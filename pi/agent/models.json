@@ -1,0 +1,40 @@
+{
+  "providers": {
+    "sakana-ai-console": {
+      "name": "Sakana AI Console",
+      "baseUrl": "https://api.sakana.ai/v1",
+      "api": "openai-responses",
+      "apiKey": "$SAKANA_API_KEY",
+      "models": [
+        {
+          "id": "fugu",
+          "name": "Sakana Fugu",
+          "reasoning": false,
+          "input": ["text"],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 128000,
+          "maxTokens": 32768
+        },
+        {
+          "id": "fugu-ultra",
+          "name": "Sakana Fugu Ultra",
+          "reasoning": false,
+          "input": ["text"],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 128000,
+          "maxTokens": 32768
+        }
+      ]
+    }
+  }
+}
