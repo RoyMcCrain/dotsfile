@@ -112,6 +112,14 @@ for SKILL in ${BASE_DIR}/claude/skills/*; do
   if [ ! -f "${SOURCE}/SKILL.md" ]; then
     continue
   fi
+
+  # Codex 独自 skill（codex/skills/* 実体）が同名で存在する場合は
+  # Codex 向けに調整済みなので claude 版で上書きしない。
+  if [ -f "${BASE_DIR}/codex/skills/${NAME}/SKILL.md" ]; then
+    echo "skip (codex-native skill): ${NAME}"
+    continue
+  fi
+
   DEST=~/.codex/skills/${NAME}
   # Codex 側に実ディレクトリ（非 symlink）が既にある場合は保護してスキップ
   if [ -e "${DEST}" ] && [ ! -L "${DEST}" ]; then
@@ -127,3 +135,10 @@ mkdir -p ~/.gemini/antigravity-cli/skills
 ln -sf ${BASE_DIR}/antigravity/AGENTS.md ~/.gemini/antigravity-cli/AGENTS.md
 ln -sf ${BASE_DIR}/antigravity/instructions.md ~/.gemini/antigravity-cli/instructions.md
 ln -sf ${BASE_DIR}/antigravity/skills/context-loader ~/.gemini/antigravity-cli/skills/context-loader
+
+# Pi Coding Agent
+# auth.json は秘密情報/OAuth を含むためリンクしない。
+mkdir -p ~/.pi/agent
+ln -sf ${BASE_DIR}/pi/agent/settings.json ~/.pi/agent/settings.json
+ln -sf ${BASE_DIR}/pi/agent/models.json ~/.pi/agent/models.json
+ln -sfn ${BASE_DIR}/pi/agent/extensions ~/.pi/agent/extensions

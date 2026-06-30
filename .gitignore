@@ -14,3 +14,10 @@ __pycache__/
 
 # Codex local profile state (hook trust etc.)
 codex/fugu.config.toml
+
+# Pi local secrets / generated state
+pi/agent/auth.json
+pi/agent/trust.json
+pi/agent/sessions/
+pi/agent/git/
+pi/agent/npm/

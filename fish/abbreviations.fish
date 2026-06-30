@@ -43,11 +43,11 @@ abbr exp 'explorer.exe .' # explorer
 abbr sortp 'npx sort-package-json'
 
 # pnpm
-abbr p 'pnpm'
-abbr pr 'pnpm run'
-abbr pi 'pnpm i'
-abbr pa 'pnpm add'
-abbr px 'pnpm dlx'
+abbr pn 'pnpm'
+abbr pnr 'pnpm run'
+abbr pni 'pnpm i'
+abbr pna 'pnpm add'
+abbr pnx 'pnpm dlx'
 
 # ghq shortcuts
 abbr ghq-get 'ghq-get-cd'
