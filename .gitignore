@@ -11,3 +11,6 @@ __pycache__/
 
 # firecrawl CLI のローカルキャッシュ
 .firecrawl/
+
+# Codex local profile state (hook trust etc.)
+codex/fugu.config.toml

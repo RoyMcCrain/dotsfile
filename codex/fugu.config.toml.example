@@ -1,0 +1,4 @@
+# Local-only fugu profile.
+# Keep shared defaults in ~/.codex/config.toml; this file is only for profile-local state.
+
+[hooks.state]
