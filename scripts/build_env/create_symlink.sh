@@ -63,21 +63,24 @@ ln -sf ${BASE_DIR}/codex/instructions.md ~/.codex/instructions.md
 ln -sf ${BASE_DIR}/codex/config.toml ~/.codex/config.toml
 ln -sf ${BASE_DIR}/codex/fugu.json ~/.codex/fugu.json
 # fugu profile は hook trust state などが追記されるためローカル実体で管理する。
-# 共有設定は ~/.codex/config.toml に集約し、profile は state だけ保持する。
-TMP_FUGU_CONFIG=$(mktemp)
+# profile 本体は example から更新し、既存の hooks.state だけ引き継ぐ。
+TMP_FUGU_HOOKS=$(mktemp)
 if [ -f ~/.codex/fugu.config.toml ]; then
-  awk 'BEGIN{keep=0} /^\[hooks\.state\]/{keep=1} keep{print}' ~/.codex/fugu.config.toml > "${TMP_FUGU_CONFIG}"
+  awk 'BEGIN{keep=0} /^\[hooks\.state\]/{keep=1} keep{print}' ~/.codex/fugu.config.toml > "${TMP_FUGU_HOOKS}"
 fi
-if [ ! -s "${TMP_FUGU_CONFIG}" ]; then
-  cp ${BASE_DIR}/codex/fugu.config.toml.example ~/.codex/fugu.config.toml
-else
-  rm -f ~/.codex/fugu.config.toml
-  cp "${TMP_FUGU_CONFIG}" ~/.codex/fugu.config.toml
+cp ${BASE_DIR}/codex/fugu.config.toml.example ~/.codex/fugu.config.toml
+if [ -s "${TMP_FUGU_HOOKS}" ]; then
+  printf "\n" >> ~/.codex/fugu.config.toml
+  cat "${TMP_FUGU_HOOKS}" >> ~/.codex/fugu.config.toml
 fi
-rm -f "${TMP_FUGU_CONFIG}"
+rm -f "${TMP_FUGU_HOOKS}"
 ln -sf ${BASE_DIR}/codex/hooks.json ~/.codex/hooks.json
 ln -sf ${BASE_DIR}/codex/hooks ~/.codex/hooks
-ln -sf ${BASE_DIR}/codex/skills/context-loader ~/.codex/skills/context-loader
+# Codex 独自 skill（codex/skills/* の実ディレクトリ）を Codex で使えるよう symlink する。
+for CODEX_SKILL in ${BASE_DIR}/codex/skills/*; do
+  [ -f "${CODEX_SKILL}/SKILL.md" ] || continue
+  ln -sfn "${CODEX_SKILL}" ~/.codex/skills/$(basename "${CODEX_SKILL}")
+done
 
 # Codex skills: Claude 向け skill を Codex でも使えるよう symlink する。
 # Codex も Claude も同じ SKILL.md 形式なので、claude/skills/* をそのまま共有できる。
