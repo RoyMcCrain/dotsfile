@@ -191,6 +191,7 @@ if not test -d $PI_AGENT_DIR
     mkdir -p $PI_AGENT_DIR
 end
 create_symlink $BASE_DIR/pi/agent/AGENTS.md $PI_AGENT_DIR/AGENTS.md "Pi global instructions"
+create_symlink $BASE_DIR/pi/agent/APPEND_SYSTEM.md $PI_AGENT_DIR/APPEND_SYSTEM.md "Pi appended system prompt"
 create_symlink $BASE_DIR/pi/agent/settings.json $PI_AGENT_DIR/settings.json "Pi settings"
 create_symlink $BASE_DIR/pi/agent/models.json $PI_AGENT_DIR/models.json "Pi custom models"
 create_symlink $BASE_DIR/pi/agent/extensions $PI_AGENT_DIR/extensions "Pi extensions"
