@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: Codex CLIでコードレビューを実行。Use when the user asks for a Codex-based review, Codex review skill, code review with Codex, PR/diff review by Codex, or wants a second-pass review separate from the current agent. Runs headless Codex in read-only mode and reports findings in Japanese.
+description: Codex CLIでコードレビューを実行。単体レビュー専用。Runs headless Codex in read-only mode and reports findings in Japanese. 並行レビューは parallel-review を使う。
 metadata:
   target_agent: Codex
 ---
@@ -11,7 +11,7 @@ Codex CLI を headless/read-only で起動し、現在の変更・PR・指定範
 
 ## コマンド
 
-- `/codex-review [レビュー対象・観点]` - Codex によるコードレビュー
+- `/codex-review [レビュー対象・観点]` - Codex による単体コードレビュー
 - Pi で明示実行する場合は `/skill:codex-review [レビュー対象・観点]`
 
 ## 実行手順
@@ -26,15 +26,15 @@ Codex CLI を headless/read-only で起動し、現在の変更・PR・指定範
 3. Bash で Codex CLI を headless 実行する。
 
 ```bash
-codex exec -p fugu -m fugu-ultra -s read-only --skip-git-repo-check --ephemeral "レビュー用プロンプト" < /dev/null
+codex exec -s read-only --ephemeral --skip-git-repo-check "レビュー用プロンプト" < /dev/null
 ```
 
-   - `-p fugu` は `~/.codex/fugu.config.toml` を読み込むための profile 指定。
-   - `-m fugu-ultra` で Fugu Ultra を明示する。
+   - Codex 標準設定の `model` / `model_provider` を使う。
    - `-s read-only` で編集・書き込みを禁止する。
    - `--ephemeral` でレビュー用セッションを保存しない。
    - `--skip-git-repo-check` でリポジトリ外でも動く。
    - `< /dev/null` で stdin 待ちブロックを防ぐ。
+   - Fugu Ultra を使う場合は `/fugu-review` を使う。
 
 4. 結果を精査して報告する。
    - 事実確認できる指摘だけ採用する。
@@ -61,14 +61,15 @@ codex exec -p fugu -m fugu-ultra -s read-only --skip-git-repo-check --ephemeral 
 - 指摘なしなら「重大な問題なし」と明記する
 ```
 
-## 出力統合ルール
+## 出力整理ルール
 
 - Codex の出力をそのまま貼らず、現在の agent が要点を再整理する。
 - レビュー指摘は `Critical` / `High` / `Medium` / `Low` / `Nit` に分類する。
 - 「対応必須」と「任意改善」を分ける。
-- 既存の `/fugu` / `/cursor` と併用した場合は、一致した指摘を高確度として扱う。
 
-## 注意
+## 関連スキル
 
-- このスキルはレビュー専用。実装修正はユーザーが依頼した場合だけ行う。
-- `Codex -p --permission-mode ...` は Claude Code 用オプションと混同しやすいので使わない。Codex CLI では `codex exec ... -s read-only` を使う。
+- `/parallel-review` - 並行レビュー（「レビューして」だけの依頼はこちらを優先）
+- `/cursor-review` - Cursor 単体レビュー
+- `/claude-review` - Claude 単体レビュー
+- `/fugu-review` - Fugu Ultra 単体レビュー

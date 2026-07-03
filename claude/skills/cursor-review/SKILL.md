@@ -1,17 +1,17 @@
 ---
-name: claude-review
-description: Claude Code CLIでコードレビューを実行。単体レビュー専用。Runs headless Claude in read-only/plan mode and reports findings in Japanese. 並行レビューは parallel-review を使う。
+name: cursor-review
+description: Cursor Agent CLIでコードレビューを実行。単体レビュー専用。「レビューして」だけの依頼では parallel-review を優先する。
 metadata:
   target_agent: claude
 ---
 
-# /claude-review
+# /cursor-review
 
-Claude Code CLI を headless/read-only で起動し、現在の変更・PR・指定範囲をレビューするスキル。
+Cursor Agent CLI (Composer 2.5) を headless/read-only で起動し、現在の変更・PR・指定範囲をレビューするスキル。
 
 ## コマンド
 
-- `/claude-review [レビュー対象・観点]` - Claude による単体コードレビュー
+- `/cursor-review [レビュー対象・観点]` - Cursor による単体コードレビュー
 
 ## 実行手順
 
@@ -22,15 +22,15 @@ Claude Code CLI を headless/read-only で起動し、現在の変更・PR・指
    - 「修正しない」「レビューだけ」「重大度順」「ファイル/行/理由/修正案」を明記する。
    - `.jj` があれば jj 前提で差分確認するよう明記する。
    - 秘密 env ファイルを読まないよう明記する。
-3. Bash で Claude Code CLI を headless 実行する。
+3. Bash で Cursor Agent CLI を headless 実行する。
 
 ```bash
-claude -p --permission-mode plan --model opus --effort high --no-session-persistence "レビュー用プロンプト"
+cursor-agent -p --trust --mode ask --model composer-2.5 --output-format text "レビュー用プロンプト"
 ```
 
-   - `--permission-mode plan` は読み取り専用調査。編集・書き込みは構造的に不可。
-   - `claude` は cwd の repo を自分で読む。差分対象は「`jj diff`（`.jj` 無ければ `git diff`）を確認してレビューせよ」とプロンプトで指示する。
-   - PR を対象にする場合は「`gh pr diff <番号>` を確認せよ」と指示する。
+   - `--mode ask` で read-only の Q&A モードにする。
+   - `--trust` は headless 実行で workspace trust prompt を避けるために使う。
+   - `--output-format text` で結果を通常テキストとして受け取る。
 
 4. 結果を精査して報告する。
    - 事実確認できる指摘だけ採用する。
@@ -59,13 +59,13 @@ claude -p --permission-mode plan --model opus --effort high --no-session-persist
 
 ## 出力整理ルール
 
-- Claude の出力をそのまま貼らず、現在の agent が要点を再整理する。
+- Cursor の出力をそのまま貼らず、現在の agent が要点を再整理する。
 - レビュー指摘は `Critical` / `High` / `Medium` / `Low` / `Nit` に分類する。
 - 「対応必須」と「任意改善」を分ける。
 
 ## 関連スキル
 
 - `/parallel-review` - 並行レビュー（「レビューして」だけの依頼はこちらを優先）
-- `/cursor-review` - Cursor 単体レビュー
 - `/codex-review` - Codex 単体レビュー
+- `/claude-review` - Claude 単体レビュー
 - `/fugu-review` - Fugu Ultra 単体レビュー
