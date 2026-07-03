@@ -102,6 +102,9 @@ loaded from the existing agents skill directory.
 Some routing-critical skills are tracked in this repository for reproducibility:
 
 - `.agents/skills/cmux*`
+- `.agents/skills/cursor-review`
+- `.agents/skills/fugu-review`
+- `.agents/skills/parallel-review`
 - `claude/skills/claude-review`
 - `codex/skills/codex-review`
 
