@@ -10,10 +10,7 @@ This file provides global instructions for Pi Coding Agent sessions.
 - Prefer `ast-grep` for syntax-aware code search and codemods when plain text search may be unsafe.
 - Prefer `sd` for simple literal/regex replacements in shell workflows; use precise edit tools for small source-file edits.
 - Prefer `taplo` for TOML formatting and validation.
-- Prefer `stylua` for Lua formatting.
 - Prefer `shellcheck` and `shfmt` for shell script validation and formatting.
-- Prefer `hyperfine` when comparing command performance.
-- Prefer `just` when a project provides a `justfile`/`Justfile` for common tasks.
 - Prefer non-interactive, machine-readable commands in automated agent workflows; avoid interactive tools such as `fzf` unless explicitly requested.
 
 ## AI Agent Routing

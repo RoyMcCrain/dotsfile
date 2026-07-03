@@ -52,10 +52,7 @@
     "sd@latest",
     "shellcheck@latest",
     "shfmt@latest",
-    "taplo@latest",
-    "stylua@latest",
-    "hyperfine@latest",
-    "just@latest"
+    "taplo@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
