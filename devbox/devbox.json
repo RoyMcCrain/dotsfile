@@ -47,7 +47,15 @@
     "grpcurl@latest",
     "temporal-cli@latest",
     "bitwarden-cli@latest",
-    "socat@latest"
+    "socat@latest",
+    "ast-grep@latest",
+    "sd@latest",
+    "shellcheck@latest",
+    "shfmt@latest",
+    "taplo@latest",
+    "stylua@latest",
+    "hyperfine@latest",
+    "just@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",

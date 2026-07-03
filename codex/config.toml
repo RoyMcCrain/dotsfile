@@ -25,6 +25,9 @@ trust_level = "trusted"
 [projects."/Users/roy/ghq/github.com/zero-color/agf-mall-shopify-theme"]
 trust_level = "trusted"
 
+[projects."/Users/roy/ghq/github.com/zero-color/crm-sentry-7588951588"]
+trust_level = "trusted"
+
 [features]
 rmcp_client = true
 image_generation = false
