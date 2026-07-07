@@ -222,7 +222,7 @@ for OLD_NAME in cursor fugu
         mv $OLD_DEST $BACKUP
     end
 end
-set SHARED_AGENT_SKILLS $BASE_DIR/.agents/skills/cmux* $BASE_DIR/.agents/skills/cursor-review $BASE_DIR/.agents/skills/fugu-review $BASE_DIR/.agents/skills/parallel-review $BASE_DIR/claude/skills/claude-review $BASE_DIR/codex/skills/codex-review
+set SHARED_AGENT_SKILLS $BASE_DIR/.agents/skills/cmux* $BASE_DIR/.agents/skills/cheap-pr $BASE_DIR/.agents/skills/cursor-review $BASE_DIR/.agents/skills/fugu-review $BASE_DIR/.agents/skills/parallel-review $BASE_DIR/claude/skills/claude-review $BASE_DIR/codex/skills/codex-review
 for SKILL in $SHARED_AGENT_SKILLS
     if not test -f $SKILL/SKILL.md
         continue
