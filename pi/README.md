@@ -93,6 +93,8 @@ Configured by `settings.json` via `extensions/*.ts`.
 | ------------------------------- | -------------------------------------------------------------------- |
 | `local-openai.ts`               | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
+| `cheap-pr-model.ts`             | Switch PR creation requests to `sakana-ai-console/fugu`.             |
+| `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
 
 Reload after editing extensions:
 
@@ -109,6 +111,7 @@ loaded from the existing agents skill directory.
 Some routing-critical skills are tracked in this repository for reproducibility:
 
 - `.agents/skills/cmux*`
+- `.agents/skills/cheap-pr`
 - `.agents/skills/cursor-review`
 - `.agents/skills/fugu-review`
 - `.agents/skills/parallel-review`
