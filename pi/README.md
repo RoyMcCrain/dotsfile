@@ -16,7 +16,13 @@ Manual install:
 
 ```bash
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+./scripts/build_env/patch_pi_min_output_tokens.sh
 ```
+
+The patch avoids OpenAI Responses API errors where Pi sends
+`max_output_tokens < 16` during a near-full compaction request. Restart Pi after
+patching; `/reload` only reloads extensions and does not reload Pi's core
+`node_modules`.
 
 ## Link this config
 
@@ -83,9 +89,10 @@ literal API key or an environment reference such as `$SAKANA_API_KEY`.
 
 Configured by `settings.json` via `extensions/*.ts`.
 
-| Extension         | Purpose                                                              |
-| ----------------- | -------------------------------------------------------------------- |
-| `local-openai.ts` | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
+| Extension                       | Purpose                                                              |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `local-openai.ts`               | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
+| `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 
 Reload after editing extensions:
 

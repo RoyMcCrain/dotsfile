@@ -195,6 +195,11 @@ create_symlink $BASE_DIR/pi/agent/APPEND_SYSTEM.md $PI_AGENT_DIR/APPEND_SYSTEM.m
 create_symlink $BASE_DIR/pi/agent/settings.json $PI_AGENT_DIR/settings.json "Pi settings"
 create_symlink $BASE_DIR/pi/agent/models.json $PI_AGENT_DIR/models.json "Pi custom models"
 create_symlink $BASE_DIR/pi/agent/extensions $PI_AGENT_DIR/extensions "Pi extensions"
+if command -q npm
+    bash $BASE_DIR/scripts/build_env/patch_pi_min_output_tokens.sh
+else
+    print_warning "Skipped Pi runtime patch (npm not found)"
+end
 
 echo ""
 echo "🤖 Setting up shared agent skills..."
