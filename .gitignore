@@ -12,6 +12,9 @@ __pycache__/
 # firecrawl CLI のローカルキャッシュ
 .firecrawl/
 
+# Claude Code local scratch (research notes, etc.)
+.claude/docs/
+
 # Codex local profile state (hook trust etc.)
 codex/fugu.config.toml
 
