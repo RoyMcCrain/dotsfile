@@ -32,6 +32,13 @@ Detect when content on a website changes and get notified by webhook or email. E
 - **Watch many things at once.** One monitor can watch many pages or diff every page discovered by a recurring site crawl.
 - **No scheduling glue.** Cron normalization and `nextRunAt` are computed for you, with natural-language schedules supported (`"every 30 minutes"`, `"hourly"`, `"daily at 9:00"`).
 
+## Target modes (choose one per monitor)
+
+- `--page <url>` — watch a single known page for changes
+- `--scrape-urls <url,url,...>` — watch a batch of known pages for changes
+- `--crawl-url <root-url>` — watch a whole site; crawls and diffs every page each check
+- `--queries <query,...> --goal <text>` — no known URL; searches the whole web each check and alerts on **new** results matching the goal
+
 ## Quick start
 
 ```bash
@@ -58,6 +65,12 @@ firecrawl monitor create --name "Docs webhook" --schedule "every 30 minutes" \
   --webhook-url https://example.com/hook \
   --webhook-events monitor.page,monitor.check.completed
 
+# Web-scale search monitor (no known URL — watches the whole web)
+firecrawl monitor create --name "New LLM releases" --schedule "hourly" \
+  --queries "new LLM model release" --goal "Alert on newly announced LLM models." \
+  --search-window 24h --max-results 10 \
+  --email alerts@example.com
+
 # Manage and inspect
 firecrawl monitor list --limit 20
 firecrawl monitor get <monitorId>
@@ -82,6 +95,11 @@ Subcommands: `create | list | get | update | delete | run | checks | check`.
 | `--page <url>`            | Single page URL to scrape on each check                              |
 | `--scrape-urls <list>`    | Comma-separated URLs to scrape on each check                         |
 | `--crawl-url <url>`       | Root URL for a crawl target (every discovered page gets diffed)      |
+| `--queries <list>`        | Comma-separated search queries for a search target (requires `--goal`) |
+| `--search-window <window>`| Search recency window: `5m`, `15m`, `1h`, `6h`, `24h`, `7d` (default: `24h`) |
+| `--max-results <n>`       | Max search results per query, 1-50 (default: 10)                     |
+| `--include-domains <list>`| Comma-separated domains to restrict search results to                |
+| `--exclude-domains <list>`| Comma-separated domains to exclude from search results                |
 | `--webhook-url <url>`     | Webhook destination                                                  |
 | `--webhook-events <list>` | `monitor.page`, `monitor.check.completed` (comma-separated)          |
 | `--email <list>`          | Comma-separated email recipients                                     |
@@ -91,7 +109,7 @@ Subcommands: `create | list | get | update | delete | run | checks | check`.
 | `-o, --output <path>`     | Output file path                                                     |
 | `--pretty`                | Pretty-print JSON output                                             |
 
-Minimum schedule interval is **15 minutes**. Monitoring is **not available for zero-data-retention teams**.
+Minimum schedule interval is **5 minutes**. Monitoring is **not available for zero-data-retention teams**.
 
 ## Writing a good `--goal`
 

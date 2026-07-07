@@ -70,5 +70,5 @@ codex exec -p fugu -m fugu-ultra -s read-only --ephemeral --skip-git-repo-check 
 
 - `/parallel-review` - 並行レビュー（「レビューして」だけの依頼はこちらを優先）
 - `/cursor-review` - Cursor 単体レビュー
-- `/codex-review` - Codex 単体レビュー
 - `/claude-review` - Claude 単体レビュー
+- codex-review (Codex CLI/Pi 専用スキル。Claude Code の skill パスには公開されていないため `/codex-review` は呼べない。Codex 単体レビューが必要な場合は `codex exec -p ... -s read-only` を直接実行する)

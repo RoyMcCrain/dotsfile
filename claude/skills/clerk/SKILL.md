@@ -29,6 +29,8 @@ Check `package.json` to determine the Clerk SDK version. This determines which p
 
 All skills are written for the current SDK. When something differs in Core 2, it's noted inline with `> **Core 2 ONLY (skip if current SDK):**` callouts. The exception is `clerk-custom-ui`, which has separate `core-2/` and `core-3/` directories for custom flow hooks since those APIs are entirely different between versions.
 
+> **Note**: This installation only includes the framework skills actually used in this environment (React, React Router, TanStack Start, plus setup/orgs/webhooks/testing/backend-api/custom-ui). The upstream Clerk skill pack also ships `clerk-nextjs-patterns`, `clerk-vue-patterns`, `clerk-nuxt-patterns`, `clerk-astro-patterns`, `clerk-expo-patterns`, `clerk-chrome-extension-patterns`, `clerk-swift`, and `clerk-android` — install them from the same source if a project needs one of those frameworks.
+
 ---
 
 ## By Task
@@ -43,12 +45,6 @@ All skills are written for the current SDK. When something differs in Core 2, it
 - Appearance and styling (themes, colors, layout)
 - `<Show>` component for conditional rendering
 
-**Advanced Next.js patterns** → Use `clerk-nextjs-patterns`
-- Server vs Client auth APIs
-- Middleware strategies
-- Server Actions, caching
-- API route protection
-
 **React patterns** → Use `clerk-react-patterns`
 - Hooks (`useAuth`, `useUser`, `useClerk`)
 - Protected routes, auth guards
@@ -59,35 +55,10 @@ All skills are written for the current SDK. When something differs in Core 2, it
 - Route protection
 - SSR auth
 
-**Vue patterns** → Use `clerk-vue-patterns`
-- Composables (`useAuth`, `useUser`, `useClerk`)
-- Vue Router guards
-- Pinia auth store integration
-
-**Nuxt patterns** → Use `clerk-nuxt-patterns`
-- Server middleware auth
-- SSR auth with composables
-- Server API routes
-
-**Astro patterns** → Use `clerk-astro-patterns`
-- SSR auth pages
-- Island components with React
-- Middleware & API routes
-
 **TanStack Start patterns** → Use `clerk-tanstack-patterns`
 - Server functions with auth
 - Route protection via loaders
 - Vinxi server integration
-
-**Expo patterns** → Use `clerk-expo-patterns`
-- Secure token storage
-- OAuth deep linking
-- Push notifications with auth
-
-**Chrome Extension patterns** → Use `clerk-chrome-extension-patterns`
-- Background scripts auth
-- Popup auth flows
-- Content scripts with sync host
 
 **B2B / Organizations** → Use `clerk-orgs`
 - Multi-tenant apps
@@ -105,17 +76,6 @@ All skills are written for the current SDK. When something differs in Core 2, it
 - Auth flow testing
 - Test utilities
 
-**Swift / native iOS auth** → Use `clerk-swift`
-- Native iOS Swift and SwiftUI projects
-- ClerkKit and ClerkKitUI implementation guidance
-- Source-driven patterns from `clerk-ios`
-
-**Android / native mobile auth** → Use `clerk-android`
-- Native Android Kotlin and Jetpack Compose projects
-- `clerk-android-api` and `clerk-android-ui` implementation guidance
-- Source-driven patterns from `clerk-android`
-- Do not use for Expo or React Native projects
-
 **Backend REST API** → Use `clerk-backend-api`
 - Browse API tags and endpoints
 - Inspect endpoint schemas
@@ -126,20 +86,12 @@ All skills are written for the current SDK. When something differs in Core 2, it
 If you know your task, you can directly access:
 - `/clerk-setup` - Framework setup
 - `/clerk-custom-ui` - Custom flows & appearance
-- `/clerk-nextjs-patterns` - Next.js patterns
 - `/clerk-react-patterns` - React patterns
 - `/clerk-react-router-patterns` - React Router patterns
-- `/clerk-vue-patterns` - Vue patterns
-- `/clerk-nuxt-patterns` - Nuxt patterns
-- `/clerk-astro-patterns` - Astro patterns
 - `/clerk-tanstack-patterns` - TanStack Start patterns
-- `/clerk-expo-patterns` - Expo patterns
-- `/clerk-chrome-extension-patterns` - Chrome Extension patterns
 - `/clerk-orgs` - Organizations
 - `/clerk-webhooks` - Webhooks
 - `/clerk-testing` - Testing
-- `/clerk-swift` - Swift/native iOS
-- `/clerk-android` - Native Android
 - `/clerk-backend-api` - Backend REST API
 
 Or describe what you need and I'll recommend the right one.

@@ -76,7 +76,7 @@ npx create-cloudflare@latest my-app
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "my-worker",
   "main": "src/index.ts",
-  "compatibility_date": "2026-01-01"
+  "compatibility_date": "2026-07-01"
 }
 ```
 
@@ -87,7 +87,7 @@ npx create-cloudflare@latest my-app
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "my-worker",
   "main": "src/index.ts",
-  "compatibility_date": "2026-01-01",
+  "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
 
   // Environment variables

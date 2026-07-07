@@ -17,7 +17,7 @@ Cursor Agent はレビューと実装委譲に使う。**実装は積極的に C
 
 ## 委譲方法
 
-- `/cursor [レビュー指示]` でレビュー依頼（Composer 2.5 + code-reviewer の並行レビュー）
+- `/cursor-review [レビュー指示]` で Cursor 単体レビュー依頼（Composer 2.5）。「レビューして」だけの依頼は `/parallel-review`（Cursor + Codex、または Cursor + Fugu の並行レビュー）を優先する
 - `/cursor-impl [実装指示]` で実装委譲（Composer 2.5）
 
 ## 実装委譲の原則

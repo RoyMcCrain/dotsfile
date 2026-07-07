@@ -43,6 +43,7 @@ Request → clerkMiddleware() → rootAuthLoader → page loader → component
 ### 1. root.tsx
 
 ```tsx
+import { Outlet } from 'react-router'
 import { rootAuthLoader } from '@clerk/react-router/server'
 import { ClerkApp } from '@clerk/react-router'
 import type { Route } from './+types/root'
