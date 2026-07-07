@@ -12,6 +12,7 @@ This file provides global instructions for Pi Coding Agent sessions.
 - Prefer `taplo` for TOML formatting and validation.
 - Prefer `shellcheck` and `shfmt` for shell script validation and formatting.
 - Prefer non-interactive, machine-readable commands in automated agent workflows; avoid interactive tools such as `fzf` unless explicitly requested.
+- Avoid re-reading the same vendor bundle (`node_modules/**/dist/*.mjs` 等) or large file across multiple turns in one session; once read, note the relevant API/lines and reuse that instead of reading again. Re-reads compound conversation history and inflate cached input tokens on every subsequent request.
 
 ## AI Agent Routing
 

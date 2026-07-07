@@ -116,6 +116,7 @@ Some routing-critical skills are tracked in this repository for reproducibility:
 - `.agents/skills/fugu-review`
 - `.agents/skills/parallel-review`
 - `claude/skills/claude-review`
+- `claude/skills/cursor-impl`
 - `codex/skills/codex-review`
 
 The setup scripts link matching `~/.agents/skills/*` paths back to those tracked
