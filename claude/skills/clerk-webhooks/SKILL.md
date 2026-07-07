@@ -30,8 +30,8 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
 const isPublicRoute = createRouteMatcher(['/api/webhooks(.*)'])
 
-export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) auth().protect()
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) await auth.protect()
 })
 ```
 
@@ -146,8 +146,8 @@ export async function POST(req: NextRequest) {
 // proxy.ts (Next.js <=15: middleware.ts)
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 const isPublicRoute = createRouteMatcher(['/api/webhooks(.*)'])
-export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) auth().protect()
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) await auth.protect()
 })
 ```
 

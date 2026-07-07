@@ -8,7 +8,7 @@ Fetch https://developers.cloudflare.com/agents/api-reference/configuration/ for 
 {
   "name": "my-agent",
   "main": "src/index.ts",
-  "compatibility_date": "2025-01-28",
+  "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   "durable_objects": {
     "bindings": [

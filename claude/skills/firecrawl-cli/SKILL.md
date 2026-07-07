@@ -20,15 +20,18 @@ If the task is to integrate Firecrawl into an application, add `FIRECRAWL_API_KE
 Must be installed. Check with `firecrawl --status`.
 
 ```
-  🔥 firecrawl cli v1.8.0
+  🔥 firecrawl cli v1.19.21
 
   ● Authenticated via FIRECRAWL_API_KEY
-  Concurrency: 0/100 jobs (parallel scrape limit)
-  Credits: 500,000 remaining
+  Concurrency: 0/2 jobs (parallel scrape limit)
+  Credits: 938 / 1,000 (94% left this cycle)
+  .firecrawl: present - 8 sites
+  .gitignore: present - .firecrawl ignored: yes
 ```
 
 - **Concurrency**: Max parallel jobs. Run parallel operations up to this limit.
-- **Credits**: Remaining API credits. Each operation consumes credits.
+- **Credits**: Remaining API credits for this billing cycle. Each operation consumes credits.
+- **.firecrawl / .gitignore**: Whether a local `.firecrawl/` output directory exists and whether it's gitignored.
 
 Authenticating gives the best results. Prefer a free account via `firecrawl init --browser` (browser login) or a `FIRECRAWL_API_KEY` whenever the human can sign up. If you cannot obtain a key and the human cannot sign up, you can still search, scrape, and interact without an API key on the keyless free tier (rate-limited). See [agent onboarding](https://www.firecrawl.dev/agent-onboarding/SKILL.md) for the full set of onboarding paths.
 
@@ -64,7 +67,7 @@ Follow this escalation pattern:
 | Bulk extract a site section | `crawl`               | Need many pages (e.g., all /docs/)                        |
 | AI-powered data extraction  | `agent`               | Need structured data from complex sites                   |
 | Interact with a page        | `scrape` + `interact` | Content requires clicks, form fills, pagination, or login |
-| Download a site to files    | `download`            | Save an entire site as local files                        |
+| Download a site to files    | `x download`          | Save an entire site as local files (experimental)         |
 | Parse a local file          | `parse`               | File on disk (PDF, DOCX, XLSX, etc.) — not a URL          |
 | Watch pages for changes     | `monitor`             | Schedule recurring scrapes/crawls, diff against snapshots |
 

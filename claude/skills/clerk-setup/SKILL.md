@@ -91,7 +91,7 @@ Execute each step from the quickstart guide:
 - Create sign-in/sign-up routes if needed
 - Test the integration
 
-> **Next.js:** Create `proxy.ts` (Next.js <=15: `middleware.ts`). See the `clerk-nextjs-patterns` skill for middleware strategies.
+> **Next.js:** Create `proxy.ts` (Next.js <=15: `middleware.ts`). Advanced middleware strategies require the `clerk-nextjs-patterns` skill from the upstream Clerk skill pack (not installed in this environment — see the note in `clerk/SKILL.md`).
 
 > **shadcn/ui detected** (`components.json` exists): ALWAYS apply the shadcn theme. See `clerk-custom-ui` skill → shadcn Theme section.
 
@@ -243,20 +243,12 @@ Also import the shadcn CSS in your global styles:
 ## See Also
 
 - `clerk-custom-ui` - Custom sign-in/up components
-- `clerk-nextjs-patterns` - Advanced Next.js patterns
 - `clerk-react-patterns` - React SPA patterns
 - `clerk-react-router-patterns` - React Router patterns
-- `clerk-vue-patterns` - Vue patterns
-- `clerk-nuxt-patterns` - Nuxt patterns
-- `clerk-astro-patterns` - Astro patterns
 - `clerk-tanstack-patterns` - TanStack Start patterns
-- `clerk-expo-patterns` - Expo patterns
-- `clerk-chrome-extension-patterns` - Chrome Extension patterns
 - `clerk-orgs` - B2B multi-tenant organizations
 - `clerk-webhooks` - Webhook → database sync
 - `clerk-testing` - E2E testing setup
-- `clerk-swift` - Native iOS auth
-- `clerk-android` - Native Android auth
 - `clerk-backend-api` - Backend REST API explorer
 
 ## Documentation

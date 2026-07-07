@@ -1,6 +1,6 @@
 ---
 name: parallel-review
-description: 並行コードレビューを実行。「レビューして」と言われたらまずこれを使う。Claude Code上では Cursor + Codex、または Cursor + Fugu を使う。単体レビューは cursor-review/codex-review/claude-review/fugu-review を使う。
+description: 並行コードレビューを実行。「レビューして」と言われたらまずこれを使う。Claude Code上では Cursor + Codex、または Cursor + Fugu を使う。単体レビューは cursor-review/claude-review/fugu-review を使う（codex単体は `codex exec` を直接実行、`/codex-review` はClaude Codeから呼べない）。
 metadata:
   target_agent: claude
 ---
@@ -85,6 +85,6 @@ codex exec -p fugu -m fugu-ultra -s read-only --ephemeral --skip-git-repo-check 
 ## 関連スキル（単体レビューはユーザーが明示したときだけ）
 
 - `/cursor-review` - Cursor 単体レビュー
-- `/codex-review` - Codex 単体レビュー
 - `/claude-review` - Claude 単体レビュー
 - `/fugu-review` - Fugu Ultra 単体レビュー
+- codex-review (Codex CLI/Pi 専用スキル。Claude Code の skill パスには公開されていないため `/codex-review` は呼べない。Codex 単体レビューが必要な場合は `codex exec -p ... -s read-only` を直接実行する)

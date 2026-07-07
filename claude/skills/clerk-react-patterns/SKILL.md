@@ -13,7 +13,7 @@ metadata:
 
 # React SPA Patterns
 
-> This skill covers `@clerk/react` for Vite/CRA SPAs. For Next.js use `clerk-nextjs-patterns`. For TanStack Start use `clerk-tanstack-patterns`.
+> This skill covers `@clerk/react` for Vite/CRA SPAs. For Next.js use the `clerk-nextjs-patterns` skill from the upstream Clerk skill pack (not installed in this environment). For TanStack Start use `clerk-tanstack-patterns`.
 
 ## What Do You Need?
 
