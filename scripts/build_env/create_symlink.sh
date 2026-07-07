@@ -149,6 +149,11 @@ ln -sf ${BASE_DIR}/pi/agent/AGENTS.md ~/.pi/agent/AGENTS.md
 ln -sf ${BASE_DIR}/pi/agent/settings.json ~/.pi/agent/settings.json
 ln -sf ${BASE_DIR}/pi/agent/models.json ~/.pi/agent/models.json
 ln -sfn ${BASE_DIR}/pi/agent/extensions ~/.pi/agent/extensions
+if command -v npm >/dev/null 2>&1; then
+  bash "${BASE_DIR}/scripts/build_env/patch_pi_min_output_tokens.sh"
+else
+  echo "skip Pi runtime patch (npm not found)"
+fi
 
 # Shared agent skills
 # Keep selected skill sources tracked in this repository and expose them globally.

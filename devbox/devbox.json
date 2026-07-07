@@ -64,7 +64,7 @@
   "shell": {
     "init_hook": [],
     "scripts": {
-      "setup-npm": "npm install -g neovim typescript @typescript/native-preview @openai/codex cf firecrawl-cli && npm install -g --ignore-scripts --min-release-age=0 @earendil-works/pi-coding-agent"
+      "setup-npm": "npm install -g neovim typescript @typescript/native-preview @openai/codex cf firecrawl-cli && npm install -g --ignore-scripts --min-release-age=0 @earendil-works/pi-coding-agent && bash $(ghq root)/github.com/RoyMcCrain/dotsfile/scripts/build_env/patch_pi_min_output_tokens.sh"
     }
   }
 }

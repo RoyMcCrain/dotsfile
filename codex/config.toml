@@ -1,5 +1,5 @@
-model = "gpt-5.3-codex"
-model_reasoning_effort = "high"
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
 model_provider = "openai"
 personality = "pragmatic"
 project_doc_fallback_filenames = [ "CLAUDE.md" ]
@@ -46,3 +46,11 @@ ENABLE_LSP_TOOL = "true"
 CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR = "1"
 CLAUDE_CODE_NO_FLICKER = "1"
 USE_BUILTIN_RIPGREP = "0"
+
+[hooks.state]
+
+[hooks.state."/Users/roy/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:24040b144c1aa832f157332887d96e444f92ac77deec3fa9667c38e8d47e471f"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 1
