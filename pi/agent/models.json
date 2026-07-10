@@ -10,7 +10,8 @@
           "name": "Sakana Fugu",
           "reasoning": false,
           "input": [
-            "text"
+            "text",
+            "image"
           ],
           "cost": {
             "input": 0,
@@ -26,7 +27,8 @@
           "name": "Sakana Fugu Ultra",
           "reasoning": false,
           "input": [
-            "text"
+            "text",
+            "image"
           ],
           "cost": {
             "input": 0,
