@@ -1,16 +1,15 @@
 /**
- * Monorepo CLAUDE.md lazy loader
+ * モノレポ CLAUDE.md 遅延ローダー
  *
- * Pi's built-in context loading only reads CLAUDE.md/AGENTS.md from the cwd and
- * its parent directories. In a monorepo where each package has its own
- * CLAUDE.md, that misses everything in sibling subtrees.
+ * Pi の組み込みコンテキスト読み込みは、cwd とその親ディレクトリの
+ * CLAUDE.md/AGENTS.md しか読まない。各パッケージが自身の CLAUDE.md を持つ
+ * モノレポでは、別サブツリー（sibling subtree）の内容がすべて漏れてしまう。
  *
- * This extension loads those files lazily: when the agent touches a file via
- * read/edit/write, it walks up from that file to the repo root and appends the
- * CLAUDE.md of every ancestor directory (shared root conventions + local rules)
- * to the tool result. So working on the frontend loads only the frontend's
- * CLAUDE.md, and touching the backend later adds the backend's — you only pay
- * for the parts you actually use. Each file is injected at most once per session.
+ * この拡張はそれらを遅延ロードする: エージェントが read/edit/write でファイルを
+ * 触ると、そのファイルから repo root まで上に辿り、各祖先ディレクトリの CLAUDE.md
+ * （共通の root 規約 + ローカル規約）を tool result に追記する。フロントを触れば
+ * フロントの CLAUDE.md だけが載り、あとでバックを触ればバックの分が追加される
+ * ——実際に使う部分のぶんだけコストを払う。各ファイルはセッション中に最大1回だけ注入する。
  */
 
 import * as fs from "node:fs";
@@ -40,7 +39,7 @@ const walkUpFrom = (startDir: string, visit: (dir: string) => boolean | void) =>
   }
 };
 
-// Walk up for a VCS marker to bound the upward search; fall back to cwd.
+// VCS マーカーを上方向に探して探索範囲を区切る。見つからなければ cwd を使う。
 const findRepoRoot = (start: string) => {
   let repoRoot = start;
   walkUpFrom(start, (dir) => {
@@ -52,9 +51,9 @@ const findRepoRoot = (start: string) => {
   return repoRoot;
 };
 
-// Ancestor CLAUDE.md paths from repo root down to the file's directory.
-// Root-first so shared conventions precede local overrides.
-// Skips directories on the cwd→root chain (already loaded by Pi's built-in loader).
+// repo root からファイルのディレクトリまでの、祖先 CLAUDE.md のパス。
+// root-first（共通規約がローカル上書きより先）で返す。
+// cwd→root チェーン上のディレクトリはスキップする（Pi の組み込みローダーが既に読むため）。
 const ancestorContextFiles = (absFile: string, repoRoot: string, cwd: string) => {
   if (!isInside(repoRoot, absFile)) return [];
 
@@ -127,7 +126,7 @@ export default function monorepoClaudeMd(pi: ExtensionAPI) {
           `--- Directory guidance from ${relPath} ---\n${content}\n--- end guidance (${relPath}) ---`,
         );
       } catch {
-        // Unreadable file: skip silently, keep the tool result intact.
+        // 読めないファイルは黙ってスキップし、tool result はそのまま保つ。
       }
     }
 
