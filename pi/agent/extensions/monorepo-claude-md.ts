@@ -1,15 +1,18 @@
 /**
- * モノレポ CLAUDE.md 遅延ローダー
+ * モノレポ AGENTS.md / CLAUDE.md 遅延ローダー
  *
  * Pi の組み込みコンテキスト読み込みは、cwd とその親ディレクトリの
- * CLAUDE.md/AGENTS.md しか読まない。各パッケージが自身の CLAUDE.md を持つ
- * モノレポでは、別サブツリー（sibling subtree）の内容がすべて漏れてしまう。
+ * AGENTS.md/CLAUDE.md しか読まない。各パッケージが自身のコンテキストファイルを
+ * 持つモノレポでは、別サブツリー（sibling subtree）の内容がすべて漏れてしまう。
  *
  * この拡張はそれらを遅延ロードする: エージェントが read/edit/write でファイルを
- * 触ると、そのファイルから repo root まで上に辿り、各祖先ディレクトリの CLAUDE.md
- * （共通の root 規約 + ローカル規約）を tool result に追記する。フロントを触れば
- * フロントの CLAUDE.md だけが載り、あとでバックを触ればバックの分が追加される
+ * 触ると、そのファイルから repo root まで上に辿り、各祖先ディレクトリのコンテキスト
+ * ファイル（共通の root 規約 + ローカル規約）を tool result に追記する。フロントを
+ * 触ればフロントのファイルだけが載り、あとでバックを触ればバックの分が追加される
  * ——実際に使う部分のぶんだけコストを払う。各ファイルはセッション中に最大1回だけ注入する。
+ *
+ * 1ディレクトリに両方ある場合は AGENTS.md を優先し、1ファイルだけ採用する
+ * （Pi 組み込みローダーおよび agents.md 規約と整合）。
  */
 
 import * as fs from "node:fs";
@@ -21,7 +24,8 @@ import {
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 
-const CONTEXT_FILE = "CLAUDE.md";
+// 1ディレクトリでの採用優先順（先頭が優先）。
+const CONTEXT_FILES = ["AGENTS.md", "CLAUDE.md"];
 const MAX_FILE_BYTES = 32 * 1024;
 
 const isInside = (from: string, to: string) => {
@@ -51,7 +55,7 @@ const findRepoRoot = (start: string) => {
   return repoRoot;
 };
 
-// repo root からファイルのディレクトリまでの、祖先 CLAUDE.md のパス。
+// repo root からファイルのディレクトリまでの、祖先コンテキストファイルのパス。
 // root-first（共通規約がローカル上書きより先）で返す。
 // cwd→root チェーン上のディレクトリはスキップする（Pi の組み込みローダーが既に読むため）。
 const ancestorContextFiles = (absFile: string, repoRoot: string, cwd: string) => {
@@ -60,8 +64,14 @@ const ancestorContextFiles = (absFile: string, repoRoot: string, cwd: string) =>
   const found: string[] = [];
   walkUpFrom(path.dirname(absFile), (dir) => {
     if (!isInside(dir, cwd)) {
-      const candidate = path.join(dir, CONTEXT_FILE);
-      if (fs.existsSync(candidate)) found.push(candidate);
+      // 1ディレクトリ1ファイルだけ（AGENTS.md 優先）。
+      for (const name of CONTEXT_FILES) {
+        const candidate = path.join(dir, name);
+        if (fs.existsSync(candidate)) {
+          found.push(candidate);
+          break;
+        }
+      }
     }
     return dir === repoRoot;
   });
