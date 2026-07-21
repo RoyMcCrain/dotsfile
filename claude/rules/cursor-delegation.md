@@ -2,12 +2,12 @@
 
 ## 基本方針
 
-Cursor Agent はレビューと実装委譲に使う。**実装は積極的に Composer 2.5 に委譲する（Claude が直接書くより速いため、これをデフォルトにする）**。実装委譲時は Claude が「正確な指示」を作って渡し、実装後の検証は Claude が行う。
+Cursor Agent はレビューと実装委譲に使う。**実装は積極的に Composer 2.5 Fast に委譲する（Claude が直接書くより速いため、これをデフォルトにする）**。レビューは Grok via Cursor をデフォルトにする。実装委譲時は Claude が「正確な指示」を作って渡し、実装後の検証は Claude が行う。
 
 ## Cursor Agent に委譲する
 
 - コードレビュー・バグ・セキュリティの指摘
-- 実装作業（Composer 2.5 に write/shell 込みで委譲）
+- 実装作業（Composer 2.5 Fast に write/shell 込みで委譲）
 
 ## Claude Code が自分でやる
 
@@ -17,8 +17,8 @@ Cursor Agent はレビューと実装委譲に使う。**実装は積極的に C
 
 ## 委譲方法
 
-- `/cursor-review [レビュー指示]` で Cursor 単体レビュー依頼（Composer 2.5）。「レビューして」だけの依頼は `/parallel-review`（Cursor + Codex、または Cursor + Fugu の並行レビュー）を優先する
-- `/cursor-impl [実装指示]` で実装委譲（Composer 2.5）
+- `/cursor-review [レビュー指示]` で Cursor 単体レビュー依頼（Cursor Grok 4.5 High）。「レビューして」だけの依頼は `/parallel-review`（Grok via Cursor + Codex、または Grok via Cursor + Fugu の並行レビュー）を優先する
+- `/cursor-impl [実装指示]` で実装委譲（Composer 2.5 Fast）
 
 ## 実装委譲の原則
 
