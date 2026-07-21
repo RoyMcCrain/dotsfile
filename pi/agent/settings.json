@@ -7,7 +7,7 @@
   "enableInstallTelemetry": false,
   "compaction": {
     "enabled": true,
-    "reserveTokens": 32768,
+    "reserveTokens": 700000,
     "keepRecentTokens": 8000
   },
   "retry": {
