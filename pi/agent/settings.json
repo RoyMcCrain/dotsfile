@@ -1,14 +1,14 @@
 {
   "defaultProvider": "sakana-ai-console",
-  "defaultModel": "fugu-ultra",
+  "defaultModel": "fugu",
   "defaultThinkingLevel": "medium",
   "theme": "dark",
   "defaultProjectTrust": "ask",
   "enableInstallTelemetry": false,
   "compaction": {
     "enabled": true,
-    "reserveTokens": 700000,
-    "keepRecentTokens": 8000
+    "reserveTokens": 50000,
+    "keepRecentTokens": 6000
   },
   "retry": {
     "enabled": true,
