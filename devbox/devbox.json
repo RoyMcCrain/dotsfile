@@ -52,7 +52,8 @@
     "sd@latest",
     "shellcheck@latest",
     "shfmt@latest",
-    "taplo@latest"
+    "taplo@latest",
+    "github:yusukebe/ax"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
