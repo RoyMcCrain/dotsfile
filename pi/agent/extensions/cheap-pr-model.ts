@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const CHEAP_PROVIDER = "sakana-ai-console";
 const CHEAP_MODEL = "fugu";
@@ -19,13 +19,18 @@ const isCreatePrRequest = (text: string) => {
   return CREATE_PR_PATTERNS.some((pattern) => pattern.test(text));
 };
 
+const isCheapModel = (model: ExtensionContext["model"]) =>
+  model?.provider === CHEAP_PROVIDER && model.id === CHEAP_MODEL;
+
 export default function cheapPrModel(pi: ExtensionAPI) {
+  let restoreModel: NonNullable<ExtensionContext["model"]> | undefined;
+
   pi.on("input", async (event, ctx) => {
     if (event.source === "extension") return;
     if (!isCreatePrRequest(event.text)) return;
-    if (ctx.model.provider === CHEAP_PROVIDER && ctx.model.id === CHEAP_MODEL) {
-      return;
-    }
+
+    const currentModel = ctx.model;
+    if (!currentModel || isCheapModel(currentModel)) return;
 
     const model = ctx.modelRegistry.find(CHEAP_PROVIDER, CHEAP_MODEL);
     if (!model) {
@@ -39,11 +44,30 @@ export default function cheapPrModel(pi: ExtensionAPI) {
     }
 
     const switched = await pi.setModel(model);
+    if (switched) {
+      restoreModel = currentModel;
+    }
+
     if (ctx.hasUI) {
       const level = switched ? "info" : "warning";
       const message = switched
         ? `PR作成のため安価モデルに切替: ${CHEAP_PROVIDER}/${CHEAP_MODEL}`
         : `PR作成用モデルに切替できませんでした: ${CHEAP_PROVIDER}/${CHEAP_MODEL}`;
+      ctx.ui.notify(message, level);
+    }
+  });
+
+  pi.on("agent_settled", async (_event, ctx) => {
+    const model = restoreModel;
+    restoreModel = undefined;
+    if (!model || !isCheapModel(ctx.model)) return;
+
+    const restored = await pi.setModel(model);
+    if (ctx.hasUI) {
+      const level = restored ? "info" : "warning";
+      const message = restored
+        ? `PR作成後にモデルを復元: ${model.provider}/${model.id}`
+        : `PR作成前のモデルに復元できませんでした: ${model.provider}/${model.id}`;
       ctx.ui.notify(message, level);
     }
   });
