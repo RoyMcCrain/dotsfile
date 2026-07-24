@@ -13,8 +13,8 @@ diff-formatter = ["difft", "--color=always", "$left", "$right"]
 
 [aliases]
 current = ["log", "-r", "@ | @-"]
-diffn = ["diff", "--git", "--config=ui.pager=delta -n"]
-diffs = ["diff", "--git", "--config=ui.pager=delta -s"]
+diffn = ["diff", "--git", "--config=ui.pager=hunk pager --line-numbers"]
+diffs = ["diff", "--git", "--config=ui.pager=hunk pager --mode split"]
 
 [remotes.origin]
 auto-track-bookmarks = "glob:*"
