@@ -1,6 +1,6 @@
 {
   "defaultProvider": "sakana-ai-console",
-  "defaultModel": "fugu",
+  "defaultModel": "fugu-ultra",
   "defaultThinkingLevel": "medium",
   "theme": "dark",
   "defaultProjectTrust": "ask",
@@ -22,5 +22,5 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.80.10"
+  "lastChangelogVersion": "0.82.0"
 }

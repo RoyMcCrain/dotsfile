@@ -181,3 +181,13 @@ for SKILL in ${BASE_DIR}/.agents/skills/cmux*(N/) ${BASE_DIR}/.agents/skills/che
   fi
   ln -sfn "${SKILL}" "${DEST}"
 done
+
+# hunk-review: stable Devbox profile path keeps the bundled skill in sync with Hunk updates
+HUNK_SKILL_SRC="$HOME/.local/share/devbox/global/default/.devbox/nix/profile/default/share/hunk/skills/hunk-review"
+HUNK_SKILL_DEST="$HOME/.agents/skills/hunk-review"
+if [ -L "${HUNK_SKILL_DEST}" ]; then
+  rm "${HUNK_SKILL_DEST}"
+elif [ -e "${HUNK_SKILL_DEST}" ]; then
+  mv "${HUNK_SKILL_DEST}" "$HOME/.agents/skill-backups/hunk-review.backup-$(date +%Y%m%d%H%M%S)"
+fi
+ln -sfn "${HUNK_SKILL_SRC}" "${HUNK_SKILL_DEST}"

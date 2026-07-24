@@ -247,6 +247,22 @@ for SKILL in $SHARED_AGENT_SKILLS
     end
 end
 
+# hunk-review: stable Devbox profile path keeps the bundled skill in sync with Hunk updates
+set HUNK_SKILL_SRC $DEVBOX_GLOBAL_DIR/.devbox/nix/profile/default/share/hunk/skills/hunk-review
+set HUNK_SKILL_DEST $AGENTS_SKILL_DIR/hunk-review
+if test -L $HUNK_SKILL_DEST
+    rm $HUNK_SKILL_DEST
+else if test -e $HUNK_SKILL_DEST
+    set BACKUP "$AGENTS_SKILL_BACKUP_DIR/hunk-review.backup-"(date +%Y%m%d%H%M%S)
+    print_warning "Backing up existing agent skill: $HUNK_SKILL_DEST -> $BACKUP"
+    mv $HUNK_SKILL_DEST $BACKUP
+end
+if ln -sfn $HUNK_SKILL_SRC $HUNK_SKILL_DEST
+    print_success "Linked agent skill: hunk-review"
+else
+    print_error "Failed to link agent skill: $HUNK_SKILL_DEST"
+end
+
 echo ""
 
 echo "🎉 Fish configuration setup completed!"
