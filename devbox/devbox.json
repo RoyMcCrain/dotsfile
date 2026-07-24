@@ -53,7 +53,8 @@
     "shellcheck@latest",
     "shfmt@latest",
     "taplo@latest",
-    "github:yusukebe/ax"
+    "github:yusukebe/ax",
+    "hunk@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
