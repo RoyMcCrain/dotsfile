@@ -114,6 +114,7 @@ Some routing-critical skills are tracked in this repository for reproducibility:
 - `.agents/skills/cheap-pr`
 - `.agents/skills/cursor-review`
 - `.agents/skills/fugu-review`
+- `.agents/skills/review-report`
 - `.agents/skills/parallel-review`
 - `claude/skills/claude-review`
 - `claude/skills/cursor-impl`

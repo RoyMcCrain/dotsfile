@@ -158,7 +158,7 @@ fi
 # Shared agent skills
 # Keep selected skill sources tracked in this repository and expose them globally.
 mkdir -p ~/.agents/skills ~/.agents/skill-backups
-for OLD_SKILL in cursor fugu; do
+for OLD_SKILL in cursor fugu large-diff-review; do
   OLD_DEST="$HOME/.agents/skills/${OLD_SKILL}"
   if [ -L "${OLD_DEST}" ]; then
     rm "${OLD_DEST}"
@@ -166,7 +166,7 @@ for OLD_SKILL in cursor fugu; do
     mv "${OLD_DEST}" "$HOME/.agents/skill-backups/${OLD_SKILL}.backup-$(date +%Y%m%d%H%M%S)"
   fi
 done
-for SKILL in ${BASE_DIR}/.agents/skills/cmux*(N/) ${BASE_DIR}/.agents/skills/cheap-pr(N/) ${BASE_DIR}/.agents/skills/cursor-review(N/) ${BASE_DIR}/.agents/skills/fugu-review(N/) ${BASE_DIR}/.agents/skills/parallel-review(N/) ${BASE_DIR}/claude/skills/claude-review(N/) ${BASE_DIR}/claude/skills/cursor-impl(N/) ${BASE_DIR}/codex/skills/codex-review(N/); do
+for SKILL in ${BASE_DIR}/.agents/skills/cmux*(N/) ${BASE_DIR}/.agents/skills/cheap-pr(N/) ${BASE_DIR}/.agents/skills/cursor-review(N/) ${BASE_DIR}/.agents/skills/fugu-review(N/) ${BASE_DIR}/.agents/skills/review-report(N/) ${BASE_DIR}/.agents/skills/parallel-review(N/) ${BASE_DIR}/claude/skills/claude-review(N/) ${BASE_DIR}/claude/skills/cursor-impl(N/) ${BASE_DIR}/codex/skills/codex-review(N/); do
   [ -f "${SKILL}/SKILL.md" ] || continue
   NAME=$(basename "${SKILL}")
   DEST="$HOME/.agents/skills/${NAME}"
