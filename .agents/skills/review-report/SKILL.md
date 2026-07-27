@@ -39,10 +39,14 @@ metadata:
 4. Stage 2 plan-aware subagent（同 sanitized diff + plan 本文のみ。fresh invocation、Stage 1 findings は渡さない）
 5. main agent が grouping / findings 統合（provenance 保持）
 6. report JSON 作成 → render_report.ts → HTML を open
-7. 人間が HTML で採用/却下/コメント → feedback を clipboard コピー
+7. 人間が HTML で採用/要調査/却下/コメント
+8. （任意）HTML で裏取りパケット生成 → **`/review-verify`**（パケット貼付でも可）→ merge → HTML 再生成
+9. フィードバックを clipboard コピー（裏取り結果があれば併記）
 ```
 
 **禁止**: main agent が plan を知った状態で事前グループ/summary を作り Stage 1 に渡すこと。Stage 1 は raw sanitized diff から intent grouping する。
+
+裏取りの自動化手順は別 skill: [../review-verify/SKILL.md](../review-verify/SKILL.md)。
 
 ## Stage 1 — blind 隔離
 
@@ -59,6 +63,28 @@ Prompt template: [references/prompts.md](references/prompts.md)
 - 同じ sanitized diff + plan 本文のみ。Stage 1 findings summary は渡さない。
 - plan を読まないと出せない指摘は `planOnly: true`（`source: plan-aware` のみ）。
 - 要件欠落・過剰実装・逸脱・テスト不足を確認。
+
+## Stage 3 — 事実の裏取り（任意・HITL 後）
+
+採用/却下/要調査（対応可否）とは直交する **事実確認**。自動化は **`/review-verify`** に委譲する。
+
+- HTML の「裏取りパケットを生成」→ パケットをコピー
+- 対象リポジトリのセッションで「裏取りして」+ パケット貼付（または `/review-verify`）
+- skill が verification → merge → HTML 再生成まで実行
+
+手動で行う場合のみ:
+
+```bash
+deno run --allow-read --allow-write \
+  .agents/skills/review-report/scripts/merge_verifications.ts \
+  report.json verification.json -o report.json
+
+deno run --allow-read --allow-write \
+  .agents/skills/review-report/scripts/render_report.ts \
+  report.json -o report.html
+```
+
+Prompt 雛形: [references/prompts.md](references/prompts.md) の Stage 3。
 
 ## 統合ルール（Stage 2 完了後、main agent）
 
@@ -86,7 +112,7 @@ deno run --allow-read \
 
 report artifact（JSON/HTML）は tracked source を汚さない **`$TMPDIR` 配下** に置くことを推奨。
 
-Renderer は risk 安定ソート、findings severity ソート、`</script>` breakout 防止、localStorage（`reportId`）で human decisions/comments を復元。
+Renderer は risk 安定ソート、findings severity ソート、`</script>` breakout 防止、localStorage（`reportId`）で human decisions/comments を復元。概要には Mermaid（CDN）で変更グループ↔指摘の関係図を自動描画し、任意の `diagrams[]` も追加表示する。`verifications[]` があれば finding に事実バッジを表示し、フィードバック Markdown にも併記する。ライトモード固定。
 
 ## Open
 
@@ -120,5 +146,6 @@ cmux markdown ではなく **HTML ファイル** を直接開く。
 ## 関連
 
 - `/parallel-review` — 通常サイズの並行レビュー（「レビューして」など plain review 依頼向け）
+- `/review-verify` — 裏取りパケットの事実確認自動化（Stage 3）
 - `hunk-review` — live Hunk session 操作（任意）
 - `/cmux-markdown` — plan 表示（本 skill の HTML レポートとは別）

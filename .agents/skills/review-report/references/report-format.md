@@ -9,6 +9,9 @@
 | `reportId` | no | string | localStorage key。欠落時は renderer が reportId 以外の report 内容全体から deterministic hash（SHA-256 先頭16桁）を生成 |
 | `title` | no | string | レポート見出し。default: `"Large diff review"` |
 | `target` | no | string | レビュー対象 rev/range（例: `@`, `main..feature`） |
+| `overview` | no | string | レポート最上部の概要文。欠落時も groups/findings から自動集計サマリを表示 |
+| `diagrams` | no | array | 追加 Mermaid 図。`{ id?, title?, mermaid }`。概要には groups/findings から自動生成した関係図も常時表示 |
+| `verifications` | no | array | Stage 3 裏取り結果。`{ findingId, verdict, summary, evidence }`。finding ごとに最大1件 |
 | `initialComment` | no | string | 全体コメント初期値（Hunk import 等）。HTML textarea に seed |
 | `plan` | no | object | `{ "provided": bool, "label": string }`。plan 不在でも render 可 |
 | `groups` | yes | array | 変更意図単位のグループ配列。空配列可 |
@@ -58,7 +61,18 @@
 | `location` | no | string | ファイル:行 |
 | `planOnly` | no | bool | true = plan を読まないと出せない指摘。`source=plan-aware` のみ |
 
-human の `採用` / `却下` / `未判定` と group/global コメントは HTML + localStorage のみ。input JSON へ書き戻さない。
+human の `採用` / `要調査` / `却下` / `未判定` と group/global コメントは HTML + localStorage のみ。input JSON へ書き戻さない。
+
+## Verification fields（Stage 3）
+
+| Field | Required | Type | Meaning |
+|-------|----------|------|---------|
+| `findingId` | yes | string | 既存 finding `id` |
+| `verdict` | yes | enum | `confirmed` / `contradicted` / `partial` / `inconclusive` |
+| `summary` | yes | non-empty string | 1〜2文の結論 |
+| `evidence` | yes | non-empty string | 確認に使ったファイル:行・コマンド・観察 |
+
+同一 `findingId` の重複は error。未知の `findingId` も error。
 
 ## Secret path rejection
 
@@ -71,6 +85,14 @@ validation で拒否: `.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*
   "reportId": "dotsfile-abc123",
   "title": "Large diff review",
   "target": "@",
+  "overview": "Auth client rename と plan 上のテスト要件を中心に検証。",
+  "diagrams": [
+    {
+      "id": "auth-flow",
+      "title": "想定コールフロー",
+      "mermaid": "flowchart LR\\n  A[Caller] --> B[auth-client]\\n  B --> C[API]"
+    }
+  ],
   "initialComment": "Hunk: please verify auth migration",
   "plan": {"provided": true, "label": "plans/001.md"},
   "groups": [
@@ -136,5 +158,9 @@ validation で拒否: `.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*
 
 「フィードバックを生成」は採用済み finding をフラットに連番化し、忖度対策の依頼文を先頭に置く:
 - `## 依頼`: 「忖度なしで妥当かどうか精査してください」フレーミング（下流の追従を防ぐ）
-- `### N. [重大|警告|注意|情報] title` + `場所 / 変更グループの意図 / 備考 / 指摘 / 根拠 / 改善案`
+- `## 指摘`: 採用済みのみ（実装対象）
+- `## 要調査`: 要調査指定（実装せず調査のみ）
+- `### N. [重大|警告|注意|情報] title` + `場所 / 変更グループの意図 / 備考 / 裏取り / 指摘 / 根拠 / 改善案`
 - `## コメント`: 人間のグループコメント・全体コメント
+
+「裏取りパケットを生成」は別 JSON（`packetType: verification-request`）を出す。採用状態は含めず、Stage 3 に渡す。既定スコープは `採用 + 要調査 + 未判定`。
