@@ -5,6 +5,7 @@ import {
   defaultReportId,
   escapeJsonForScript,
   isSecretPath,
+  mergeVerifications,
   normalizeReport,
   parseUnifiedDiff,
   renderHtml,
@@ -461,6 +462,7 @@ Deno.test("test_html_contains_required_ui_labels", () => {
   for (
     const label of [
       "採用",
+      "要調査",
       "却下",
       "未判定",
       "フィードバックを生成",
@@ -468,10 +470,20 @@ Deno.test("test_html_contains_required_ui_labels", () => {
       "レビューフィードバック",
       "忖度なしで妥当かどうか精査",
       "意図: ",
-      "指摘: ",
-      "根拠: ",
-      "改善案: ",
-      "場所: ",
+      "指摘",
+      "根拠",
+      "改善案",
+      "場所",
+      "finding-location",
+      "概要",
+      "overview-heading",
+      "変更グループ",
+      "裏取りパケットを生成",
+      "パケットをコピー",
+      "review-verify",
+      "verification-request",
+      "事実:確認",
+      "accepted-investigate-pending",
       "採用された指摘と人間コメントを、元の作業セッション",
       "aria-live",
       "copy-status",
@@ -529,6 +541,12 @@ Deno.test("test_html_typography_and_heading_styles", () => {
   assert.match(html, /\.finding\s*\{[^}]*line-height:\s*1\.65/);
   assert.match(html, /\.finding-head\s*\{[^}]*margin-bottom:\s*0\.4rem/);
   assert.match(html, /\.finding-title\s*\{[^}]*font-weight:\s*700/);
+  assert.match(
+    html,
+    /\.finding-location strong,\s*\.finding-field strong\s*\{[^}]*display:\s*block/,
+  );
+  assert.match(html, /\.finding-location code\s*\{[^}]*font-family:\s*ui-monospace/);
+  assert.match(html, /\.overview\s*\{[^}]*margin-top:\s*1rem/);
   assert.match(
     html,
     /textarea, \.feedback-output\s*\{[^}]*line-height:\s*1\.65/,
@@ -618,8 +636,16 @@ Deno.test("test_request_framing_is_anti_sycophancy", () => {
   assert.ok(
     html.includes("忖度なしで妥当かどうか精査してください"),
   );
-  assert.ok(html.includes("却下・未判定の指摘は対応対象外です"));
+  assert.ok(html.includes("「要調査」は実装せず"));
+  assert.ok(html.includes("## 要調査"));
   assert.ok(!html.includes("妥当なものを修正してください"));
+});
+
+Deno.test("test_investigate_decision_present", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(html.includes("investigate: '要調査'"));
+  assert.ok(html.includes("'accepted', 'investigate', 'rejected', 'pending'"));
+  assert.ok(html.includes("accepted-investigate-pending"));
 });
 
 Deno.test("test_severity_labels_present", () => {
@@ -635,6 +661,133 @@ Deno.test("test_feedback_field_labels_present", () => {
   assert.ok(html.includes("変更グループの意図:"));
   assert.ok(html.includes("場所:"));
   assert.ok(html.includes("改善案:"));
+});
+
+Deno.test("test_overview_section_renders_from_groups", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(html.includes('id="overview"'));
+  assert.ok(html.includes("function renderOverview()"));
+  assert.ok(html.includes("formatCountChips"));
+  assert.ok(html.includes("overview-groups"));
+  assert.ok(!html.includes("場所: ' + finding.location"));
+  assert.ok(html.includes("finding-location"));
+});
+
+Deno.test("test_mermaid_diagram_support_present", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(html.includes("buildOverviewMermaid"));
+  assert.ok(html.includes("renderMermaidDiagrams"));
+  assert.ok(html.includes("cdn.jsdelivr.net/npm/mermaid@11.6.0"));
+  assert.ok(html.includes("securityLevel: 'strict'"));
+  assert.ok(html.includes("theme: 'default'"));
+  assert.ok(html.includes("変更グループと指摘の関係"));
+  assert.ok(html.includes("diagram-fallback"));
+});
+
+Deno.test("test_light_mode_only", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(html.includes("color-scheme: light;"));
+  assert.ok(!html.includes("prefers-color-scheme: dark"));
+  assert.ok(!html.includes("color-scheme: light dark"));
+});
+
+Deno.test("test_custom_diagrams_validated_and_embedded", () => {
+  const report = {
+    ...structuredClone(SAMPLE_REPORT),
+    diagrams: [
+      {
+        id: "flow",
+        title: "想定フロー",
+        mermaid: "flowchart LR\n  A --> B",
+      },
+    ],
+  };
+  assert.deepEqual(validateReport(report), []);
+  const html = renderHtml(report);
+  assert.ok(html.includes("想定フロー"));
+  assert.ok(html.includes("flowchart LR"));
+});
+
+Deno.test("test_diagrams_require_mermaid", () => {
+  const errors = validateReport({
+    ...structuredClone(SAMPLE_REPORT),
+    diagrams: [{ title: "missing mermaid" }],
+  });
+  assert.ok(errors.some((e) => e.includes("mermaid")));
+});
+
+Deno.test("test_verifications_validated_and_rendered", () => {
+  const report = {
+    ...structuredClone(SAMPLE_REPORT),
+    verifications: [
+      {
+        findingId: "f-1",
+        verdict: "confirmed",
+        summary: "Caller still uses old name.",
+        evidence: "src/auth.ts:3 still references oldAuthClient.",
+      },
+    ],
+  };
+  assert.deepEqual(validateReport(report), []);
+  const html = renderHtml(report);
+  assert.ok(html.includes("事実:確認"));
+  assert.ok(html.includes("Caller still uses old name."));
+  assert.ok(html.includes("裏取り:"));
+});
+
+Deno.test("test_verification_unknown_finding_rejected", () => {
+  const errors = validateReport({
+    ...structuredClone(SAMPLE_REPORT),
+    verifications: [
+      {
+        findingId: "missing",
+        verdict: "confirmed",
+        summary: "x",
+        evidence: "y",
+      },
+    ],
+  });
+  assert.ok(errors.some((e) => e.includes("unknown finding")));
+});
+
+Deno.test("test_merge_verifications_overrides_by_finding_id", () => {
+  const report = {
+    ...structuredClone(SAMPLE_REPORT),
+    verifications: [
+      {
+        findingId: "f-1",
+        verdict: "inconclusive",
+        summary: "old",
+        evidence: "old evidence",
+      },
+    ],
+  };
+  const merged = mergeVerifications(report, {
+    verifications: [
+      {
+        findingId: "f-1",
+        verdict: "contradicted",
+        summary: "new",
+        evidence: "new evidence",
+      },
+    ],
+  });
+  assert.deepEqual(validateReport(merged), []);
+  assert.equal((merged.verifications as Record<string, unknown>[]).length, 1);
+  assert.equal(
+    (merged.verifications as Record<string, unknown>[])[0].verdict,
+    "contradicted",
+  );
+});
+
+Deno.test("test_overview_text_field_is_optional", () => {
+  const withOverview: Record<string, unknown> = {
+    ...structuredClone(SAMPLE_REPORT),
+    overview: "認証リネームの独立検証結果。",
+  };
+  assert.deepEqual(validateReport(withOverview), []);
+  const html = renderHtml(withOverview);
+  assert.ok(html.includes("認証リネームの独立検証結果。"));
 });
 
 Deno.test("test_validate_only_success", async () => {

@@ -44,10 +44,32 @@ interface ReviewGroup {
   findings: Finding[];
 }
 
+interface ReportDiagram {
+  id?: string;
+  title?: string;
+  mermaid: string;
+}
+
+type VerificationVerdict =
+  | "confirmed"
+  | "contradicted"
+  | "partial"
+  | "inconclusive";
+
+interface FindingVerification {
+  findingId: string;
+  verdict: VerificationVerdict;
+  summary: string;
+  evidence: string;
+}
+
 interface ReviewReport {
   reportId?: string;
   title?: string;
   target?: string;
+  overview?: string;
+  diagrams?: ReportDiagram[];
+  verifications?: FindingVerification[];
   initialComment?: string;
   plan?: PlanInfo;
   groups: ReviewGroup[];
@@ -63,6 +85,12 @@ const RISK_ORDER: Record<Risk, number> = {
 const VALID_RISKS = new Set<string>(Object.keys(RISK_ORDER));
 const VALID_SEVERITIES = VALID_RISKS;
 const VALID_SOURCES = new Set(["blind", "plan-aware", "both"]);
+const VALID_VERDICTS = new Set([
+  "confirmed",
+  "contradicted",
+  "partial",
+  "inconclusive",
+]);
 
 const SECRET_COMPONENTS = new Set(["id_rsa", "id_ed25519", ".envrc"]);
 const SECRET_SUFFIXES = [".pem", ".key", ".p12", ".pfx"];
@@ -310,9 +338,37 @@ export const validateReport = (report: unknown): string[] => {
   }
 
   for (
-    const field of ["reportId", "title", "target", "initialComment"] as const
+    const field of [
+      "reportId",
+      "title",
+      "target",
+      "overview",
+      "initialComment",
+    ] as const
   ) {
     requireString(report[field], `report.${field}`, errors);
+  }
+
+  const diagrams = report.diagrams;
+  if (diagrams !== undefined && diagrams !== null) {
+    if (!Array.isArray(diagrams)) {
+      errors.push("diagrams must be an array");
+    } else {
+      diagrams.forEach((diagram, index) => {
+        const prefix = `diagrams[${index}]`;
+        if (!isRecord(diagram)) {
+          errors.push(`${prefix} must be an object`);
+          return;
+        }
+        requireString(diagram.id, `${prefix}.id`, errors);
+        requireString(diagram.title, `${prefix}.title`, errors);
+        if (!("mermaid" in diagram)) {
+          errors.push(`${prefix} missing required field: mermaid`);
+        } else {
+          requireNonEmptyString(diagram.mermaid, `${prefix}.mermaid`, errors);
+        }
+      });
+    }
   }
 
   const plan = report.plan;
@@ -445,7 +501,78 @@ export const validateReport = (report: unknown): string[] => {
     }
   });
 
+  const verifications = report.verifications;
+  if (verifications !== undefined && verifications !== null) {
+    if (!Array.isArray(verifications)) {
+      errors.push("verifications must be an array");
+    } else {
+      const seenFindingIds = new Set<string>();
+      verifications.forEach((item, index) => {
+        const prefix = `verifications[${index}]`;
+        if (!isRecord(item)) {
+          errors.push(`${prefix} must be an object`);
+          return;
+        }
+        if (!requireNonEmptyString(item.findingId, `${prefix}.findingId`, errors)) {
+          // continue
+        } else {
+          const findingId = item.findingId as string;
+          if (!findingIds.has(findingId)) {
+            errors.push(
+              `${prefix}.findingId references unknown finding: ${findingId}`,
+            );
+          }
+          if (seenFindingIds.has(findingId)) {
+            errors.push(`duplicate verification for finding id: ${findingId}`);
+          } else {
+            seenFindingIds.add(findingId);
+          }
+        }
+        const verdict = item.verdict;
+        if (typeof verdict !== "string" || !VALID_VERDICTS.has(verdict)) {
+          errors.push(
+            `${prefix}.verdict must be one of ${[...VALID_VERDICTS].sort()}`,
+          );
+        }
+        requireNonEmptyString(item.summary, `${prefix}.summary`, errors);
+        requireNonEmptyString(item.evidence, `${prefix}.evidence`, errors);
+      });
+    }
+  }
+
   return errors;
+};
+
+export const mergeVerifications = (
+  report: Record<string, unknown>,
+  incoming: unknown,
+): Record<string, unknown> => {
+  const next: Record<string, unknown> = { ...report };
+  let list: unknown[] = [];
+  if (Array.isArray(incoming)) {
+    list = incoming;
+  } else if (isRecord(incoming) && Array.isArray(incoming.verifications)) {
+    list = incoming.verifications;
+  } else {
+    throw new Error(
+      "verification input must be an array or { verifications: [] }",
+    );
+  }
+
+  const byId = new Map<string, Record<string, unknown>>();
+  const existing = Array.isArray(next.verifications) ? next.verifications : [];
+  existing.forEach((item) => {
+    if (isRecord(item) && typeof item.findingId === "string") {
+      byId.set(item.findingId, { ...item });
+    }
+  });
+  list.forEach((item) => {
+    if (isRecord(item) && typeof item.findingId === "string") {
+      byId.set(item.findingId, { ...item });
+    }
+  });
+  next.verifications = [...byId.values()];
+  return next;
 };
 
 export const sortFindings = <T extends Record<string, unknown>>(
@@ -480,6 +607,9 @@ export const normalizeReport = (
   if (normalized.target === undefined) normalized.target = "";
   if (normalized.plan === undefined) {
     normalized.plan = { provided: false, label: "" };
+  }
+  if (normalized.verifications === undefined) {
+    normalized.verifications = [];
   }
 
   const groups = (normalized.groups as Record<string, unknown>[] | undefined) ??
@@ -694,7 +824,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
   <title>__TITLE__</title>
   <style>
     :root {
-      color-scheme: light dark;
+      color-scheme: light;
       --bg: #f7f8fa;
       --panel: #ffffff;
       --text: #1f2937;
@@ -717,32 +847,6 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       --diff-del-bg: #fef2f2;
       --diff-del-fg: #b91c1c;
       --diff-context-bg: #ffffff;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0f172a;
-        --panel: #111827;
-        --text: #e5e7eb;
-        --muted: #9ca3af;
-        --border: #374151;
-        --accent: #60a5fa;
-        --critical: #f87171;
-        --high: #fb923c;
-        --medium: #fbbf24;
-        --low: #34d399;
-        --badge-bg: #1e293b;
-        --needs-bg: #450a0a;
-        --needs-border: #991b1b;
-        --diff-gutter-bg: #1f2937;
-        --diff-meta-bg: #111827;
-        --diff-hunk-bg: #1e3a5f;
-        --diff-hunk-fg: #93c5fd;
-        --diff-add-bg: #064e3b;
-        --diff-add-fg: #6ee7b7;
-        --diff-del-bg: #450a0a;
-        --diff-del-fg: #fca5a5;
-        --diff-context-bg: #0f172a;
-      }
     }
     * { box-sizing: border-box; }
     body {
@@ -771,6 +875,89 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       padding-left: 0.65rem;
     }
     .meta { color: var(--muted); font-size: 0.9rem; }
+    .overview {
+      margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      background: var(--badge-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+    }
+    .overview h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.05rem;
+      line-height: 1.4;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      border-left: 3px solid var(--accent);
+      padding-left: 0.55rem;
+    }
+    .overview-text {
+      margin: 0 0 0.75rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .overview-stats {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      margin: 0 0 0.75rem;
+    }
+    .overview-stat {
+      font-size: 0.85rem;
+      line-height: 1.4;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+    .overview-groups {
+      margin: 0;
+      padding-left: 1.2rem;
+      line-height: 1.65;
+    }
+    .overview-groups > li { margin: 0.35rem 0; }
+    .overview-group-title {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 600;
+    }
+    .overview-findings {
+      margin: 0.25rem 0 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .overview-findings li { margin: 0.15rem 0; }
+    .overview-empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .diagrams { margin-top: 0.9rem; display: grid; gap: 0.75rem; }
+    .diagram-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .diagram-card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .diagram-card .mermaid {
+      display: flex;
+      justify-content: center;
+      margin: 0;
+      overflow-x: auto;
+    }
+    .diagram-card .mermaid svg { max-width: 100%; height: auto; }
+    .diagram-fallback {
+      margin: 0;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--muted);
+    }
     .summary {
       display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem;
     }
@@ -945,6 +1132,28 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       overflow-wrap: anywhere;
       flex: 1;
     }
+    .finding-location { margin: 0 0 0.55rem; }
+    .finding-location strong,
+    .finding-field strong {
+      display: block;
+      margin-bottom: 0.15rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .finding-location code {
+      display: inline-block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.3rem;
+      background: var(--badge-bg);
+      border: 1px solid var(--border);
+    }
+    .finding-field { margin: 0 0 0.45rem; }
     .badge {
       font-size: 0.7rem; font-weight: 600;
       padding: 0.1rem 0.45rem; border-radius: 999px;
@@ -952,6 +1161,41 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       line-height: 1.3;
     }
     .badge-plan-only { color: var(--high); border-color: var(--high); }
+    .verdict-badge {
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.1rem 0.45rem; border-radius: 999px;
+      border: 1px solid var(--border);
+      line-height: 1.3;
+    }
+    .verdict-confirmed { color: var(--low); border-color: var(--low); background: #ecfdf5; }
+    .verdict-contradicted { color: var(--critical); border-color: var(--critical); background: var(--needs-bg); }
+    .verdict-partial { color: var(--medium); border-color: var(--medium); background: #fffbeb; }
+    .verdict-inconclusive { color: var(--muted); border-color: var(--border); background: var(--badge-bg); }
+    .verification-box {
+      margin: 0.5rem 0 0.65rem;
+      padding: 0.55rem 0.65rem;
+      border-radius: 0.4rem;
+      border: 1px solid var(--border);
+      background: var(--badge-bg);
+      line-height: 1.55;
+      font-size: 0.9rem;
+    }
+    .verification-box strong {
+      display: block;
+      margin-bottom: 0.15rem;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .packet-scope {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin: 0.5rem 0 0.75rem;
+      font-size: 0.9rem;
+    }
+    .packet-scope label { display: inline-flex; gap: 0.3rem; align-items: center; cursor: pointer; }
     .decisions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
     .decisions button {
       border: 1px solid var(--border);
@@ -1013,6 +1257,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     @media (max-width: 640px) {
       header, main, footer { padding-left: 0.75rem; padding-right: 0.75rem; }
       h1 { font-size: clamp(1.45rem, 4vw, 1.6rem); }
+      .overview h2 { font-size: 1rem; }
       .group-header h2 { font-size: 1.05rem; }
       footer h2 { font-size: 1.05rem; }
     }
@@ -1022,14 +1267,31 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
   <header>
     <h1 id="report-title"></h1>
     <div class="meta" id="report-meta"></div>
+    <section class="overview" id="overview" aria-labelledby="overview-heading"></section>
     <div class="summary" id="summary"></div>
   </header>
   <main id="groups"></main>
   <footer>
     <h2>全体コメント</h2>
     <textarea id="global-comment" class="comment-box" placeholder="レビュー全体へのコメント"></textarea>
+    <h2>裏取りパケット</h2>
+    <p class="meta">指摘の事実確認用パケットです。人間の採用/却下/要調査は含めません。コピーして対象リポジトリの Cursor で「裏取りして」と一緒に貼ると、review-verify skill が検証→マージ→HTML再生成まで行います。</p>
+    <div class="packet-scope" id="verification-scope">
+      <span>対象:</span>
+      <label><input type="radio" name="verification-scope" value="accepted-investigate-pending" checked> 採用 + 要調査 + 未判定</label>
+      <label><input type="radio" name="verification-scope" value="accepted-investigate"> 採用 + 要調査</label>
+      <label><input type="radio" name="verification-scope" value="investigate"> 要調査のみ</label>
+      <label><input type="radio" name="verification-scope" value="accepted"> 採用のみ</label>
+      <label><input type="radio" name="verification-scope" value="pending"> 未判定のみ</label>
+      <label><input type="radio" name="verification-scope" value="all"> すべて</label>
+    </div>
+    <div class="actions">
+      <button type="button" id="generate-verification-packet">裏取りパケットを生成</button>
+      <button type="button" id="copy-verification-packet" class="secondary">パケットをコピー</button>
+    </div>
+    <textarea id="verification-output" class="feedback-output" readonly rows="10" placeholder="裏取り用 JSON パケットを生成します"></textarea>
     <h2>フィードバック生成</h2>
-    <p class="meta">採用された指摘と人間コメントを、元の作業セッションへ渡す Markdown にまとめます。</p>
+    <p class="meta">採用された指摘と人間コメントを、元の作業セッションへ渡す Markdown にまとめます。裏取り結果があれば併記します。</p>
     <div class="actions">
       <button type="button" id="generate-feedback">フィードバックを生成</button>
       <button type="button" id="copy-feedback" class="secondary">クリップボードにコピー</button>
@@ -1043,10 +1305,31 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     const REPORT = JSON.parse(document.getElementById('report-data').textContent);
     const STORAGE_KEY = 'review-report:' + REPORT.reportId;
     const RISK_CLASS = { critical: 'risk-critical', high: 'risk-high', medium: 'risk-medium', low: 'risk-low' };
-    const DECISIONS = ['accepted', 'rejected', 'pending'];
-    const DECISION_LABELS = { accepted: '採用', rejected: '却下', pending: '未判定' };
+    const DECISIONS = ['accepted', 'investigate', 'rejected', 'pending'];
+    const DECISION_LABELS = {
+      accepted: '採用',
+      investigate: '要調査',
+      rejected: '却下',
+      pending: '未判定',
+    };
     const SEVERITY_LABELS = { critical: '[重大]', high: '[警告]', medium: '[注意]', low: '[情報]' };
+    const RISK_LABELS = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
+    const VERDICT_LABELS = {
+      confirmed: '事実:確認',
+      contradicted: '事実:誤り',
+      partial: '事実:一部',
+      inconclusive: '事実:不明',
+    };
     const findingCards = new Map();
+    const verificationByFindingId = (function() {
+      const map = Object.create(null);
+      (REPORT.verifications || []).forEach(function(item) {
+        if (item && typeof item.findingId === 'string') {
+          map[item.findingId] = item;
+        }
+      });
+      return map;
+    })();
 
     function createInitialState() {
       const state = {
@@ -1376,6 +1659,207 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       return details;
     }
 
+    function countByRisk(items, key) {
+      const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+      items.forEach(function(item) {
+        const risk = item[key];
+        if (Object.prototype.hasOwnProperty.call(counts, risk)) counts[risk]++;
+      });
+      return counts;
+    }
+
+    function formatCountChips(counts, totalLabel) {
+      const parts = [];
+      var total = 0;
+      ['critical', 'high', 'medium', 'low'].forEach(function(risk) {
+        total += counts[risk];
+        if (counts[risk] > 0) {
+          parts.push(RISK_LABELS[risk] + ' ' + counts[risk]);
+        }
+      });
+      return totalLabel + ' ' + total + (parts.length ? '（' + parts.join(' / ') + '）' : '');
+    }
+
+    function mermaidEscapeLabel(text, maxLen) {
+      var label = String(text || '')
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/"/g, "'")
+        .replace(/[\[\]{}|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      var limit = maxLen || 42;
+      if (label.length > limit) label = label.slice(0, limit - 1) + '…';
+      return label || '(untitled)';
+    }
+
+    function buildOverviewMermaid(groups) {
+      var lines = ['flowchart TB'];
+      var riskBuckets = { critical: [], high: [], medium: [], low: [] };
+      groups.forEach(function(group, groupIndex) {
+        var risk = Object.prototype.hasOwnProperty.call(riskBuckets, group.risk)
+          ? group.risk
+          : 'low';
+        riskBuckets[risk].push({ group: group, groupIndex: groupIndex });
+      });
+
+      ['critical', 'high', 'medium', 'low'].forEach(function(risk) {
+        var bucket = riskBuckets[risk];
+        if (!bucket.length) return;
+        var subgraphId = 'risk_' + risk;
+        lines.push('  subgraph ' + subgraphId + '["' + RISK_LABELS[risk] + '"]');
+        lines.push('    direction TB');
+        bucket.forEach(function(entry) {
+          var groupNode = 'G' + entry.groupIndex;
+          lines.push(
+            '    ' + groupNode + '["' + mermaidEscapeLabel(entry.group.title, 36) + '"]',
+          );
+          (entry.group.findings || []).forEach(function(finding, findingIndex) {
+            var findingNode = groupNode + 'F' + findingIndex;
+            var findingLabel =
+              (SEVERITY_LABELS[finding.severity] || SEVERITY_LABELS.low) +
+              ' ' +
+              mermaidEscapeLabel(finding.title, 34);
+            lines.push('    ' + findingNode + '["' + findingLabel + '"]');
+            lines.push('    ' + groupNode + ' --> ' + findingNode);
+          });
+        });
+        lines.push('  end');
+      });
+
+      return lines.join(String.fromCharCode(10));
+    }
+
+    function appendDiagramCard(container, title, mermaidSource) {
+      var card = el('div', 'diagram-card');
+      if (title) card.appendChild(el('h3', null, title));
+      var pre = el('pre', 'mermaid');
+      pre.textContent = mermaidSource;
+      card.appendChild(pre);
+      container.appendChild(card);
+      return card;
+    }
+
+    function collectDiagrams(groups) {
+      var diagrams = [];
+      if (groups.length) {
+        diagrams.push({
+          title: '変更グループと指摘の関係',
+          mermaid: buildOverviewMermaid(groups),
+        });
+      }
+      (REPORT.diagrams || []).forEach(function(diagram, index) {
+        if (!diagram || typeof diagram.mermaid !== 'string' || !diagram.mermaid.trim()) return;
+        diagrams.push({
+          title: diagram.title || ('図 ' + (index + 1)),
+          mermaid: diagram.mermaid.trim(),
+        });
+      });
+      return diagrams;
+    }
+
+    function loadMermaid() {
+      if (window.mermaid) return Promise.resolve(window.mermaid);
+      return new Promise(function(resolve, reject) {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js';
+        script.async = true;
+        script.onload = function() {
+          if (window.mermaid) resolve(window.mermaid);
+          else reject(new Error('mermaid global missing'));
+        };
+        script.onerror = function() {
+          reject(new Error('failed to load mermaid'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    function renderMermaidDiagrams() {
+      var nodes = Array.prototype.slice.call(document.querySelectorAll('.diagram-card .mermaid'));
+      if (!nodes.length) return Promise.resolve();
+      return loadMermaid().then(function(mermaid) {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: 'default',
+          flowchart: { htmlLabels: false, curve: 'basis' },
+        });
+        return mermaid.run({ nodes: nodes });
+      }).catch(function() {
+        nodes.forEach(function(node) {
+          node.classList.remove('mermaid');
+          node.classList.add('diagram-fallback');
+        });
+      });
+    }
+
+    function renderOverview() {
+      const root = document.getElementById('overview');
+      root.replaceChildren();
+      const heading = el('h2', null, '概要');
+      heading.id = 'overview-heading';
+      root.appendChild(heading);
+
+      const overviewText = typeof REPORT.overview === 'string' ? REPORT.overview.trim() : '';
+      if (overviewText) {
+        root.appendChild(el('p', 'overview-text', overviewText));
+      }
+
+      const groups = REPORT.groups || [];
+      const allFindings = [];
+      groups.forEach(function(group) {
+        (group.findings || []).forEach(function(finding) {
+          allFindings.push(finding);
+        });
+      });
+
+      const groupCounts = countByRisk(groups, 'risk');
+      const findingCounts = countByRisk(allFindings, 'severity');
+      const stats = el('div', 'overview-stats');
+      stats.appendChild(el('span', 'overview-stat', formatCountChips(groupCounts, '変更グループ')));
+      stats.appendChild(el('span', 'overview-stat', formatCountChips(findingCounts, '指摘')));
+      root.appendChild(stats);
+
+      var diagrams = collectDiagrams(groups);
+      if (diagrams.length) {
+        var diagramsRoot = el('div', 'diagrams');
+        diagrams.forEach(function(diagram) {
+          appendDiagramCard(diagramsRoot, diagram.title, diagram.mermaid);
+        });
+        root.appendChild(diagramsRoot);
+      }
+
+      if (!groups.length) {
+        root.appendChild(el('p', 'overview-empty', '変更グループはありません。'));
+        return;
+      }
+
+      const list = el('ol', 'overview-groups');
+      groups.forEach(function(group) {
+        const item = el('li', null);
+        const title = el('div', 'overview-group-title');
+        title.appendChild(el('span', 'risk-badge ' + (RISK_CLASS[group.risk] || ''), group.risk));
+        title.appendChild(document.createTextNode(group.title || ''));
+        item.appendChild(title);
+
+        const findings = group.findings || [];
+        if (findings.length) {
+          const findingList = el('ul', 'overview-findings');
+          findings.forEach(function(finding) {
+            const findingItem = el('li', null);
+            const severity = SEVERITY_LABELS[finding.severity] || SEVERITY_LABELS.low;
+            findingItem.appendChild(document.createTextNode(severity + ' ' + (finding.title || '')));
+            findingList.appendChild(findingItem);
+          });
+          item.appendChild(findingList);
+        } else {
+          item.appendChild(el('div', 'overview-empty', '指摘なし'));
+        }
+        list.appendChild(item);
+      });
+      root.appendChild(list);
+    }
+
     function setDecision(findingId, decision) {
       state.findings[findingId] = decision;
       saveState(state);
@@ -1389,13 +1873,19 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     }
 
     function updateSummary() {
-      let accepted = 0, rejected = 0, pending = 0, comments = 0;
+      let accepted = 0, investigate = 0, rejected = 0, pending = 0, comments = 0;
+      let verified = 0, contradicted = 0, unverified = 0;
       REPORT.groups.forEach(function(group) {
         (group.findings || []).forEach(function(f) {
           const d = state.findings[f.id] || 'pending';
           if (d === 'accepted') accepted++;
+          else if (d === 'investigate') investigate++;
           else if (d === 'rejected') rejected++;
           else pending++;
+          const verification = verificationByFindingId[f.id];
+          if (!verification) unverified++;
+          else if (verification.verdict === 'confirmed') verified++;
+          else if (verification.verdict === 'contradicted') contradicted++;
         });
         if ((state.groupComments[group.id] || '').trim()) comments++;
       });
@@ -1404,8 +1894,12 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       summary.replaceChildren();
       [
         ['採用', accepted],
+        ['要調査', investigate],
         ['却下', rejected],
         ['未判定', pending],
+        ['事実確認', verified],
+        ['事実誤り', contradicted],
+        ['未裏取り', unverified],
         ['コメント', comments],
       ].forEach(function(pair) {
         const box = el('div', 'stat');
@@ -1479,26 +1973,48 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
           head.appendChild(el('span', 'badge', finding.severity));
           head.appendChild(el('span', 'badge', finding.source));
           if (finding.planOnly) head.appendChild(el('span', 'badge badge-plan-only', 'plan-only'));
+          const verification = verificationByFindingId[finding.id];
+          if (verification && verification.verdict) {
+            const verdictClass = 'verdict-badge verdict-' + verification.verdict;
+            const verdictLabel = VERDICT_LABELS[verification.verdict] || verification.verdict;
+            head.appendChild(el('span', verdictClass, verdictLabel));
+          }
           card.appendChild(head);
 
-          if (finding.location) card.appendChild(el('div', null, '場所: ' + finding.location));
+          if (finding.location) {
+            const loc = el('div', 'finding-location');
+            loc.appendChild(el('strong', null, '場所'));
+            loc.appendChild(el('code', null, finding.location));
+            card.appendChild(loc);
+          }
           if (finding.problem) {
-            const p = el('div', null);
-            p.appendChild(el('strong', null, '指摘: '));
+            const p = el('div', 'finding-field');
+            p.appendChild(el('strong', null, '指摘'));
             p.appendChild(document.createTextNode(finding.problem));
             card.appendChild(p);
           }
           if (finding.evidence) {
-            const p = el('div', null);
-            p.appendChild(el('strong', null, '根拠: '));
+            const p = el('div', 'finding-field');
+            p.appendChild(el('strong', null, '根拠'));
             p.appendChild(document.createTextNode(finding.evidence));
             card.appendChild(p);
           }
           if (finding.suggestion) {
-            const p = el('div', null);
-            p.appendChild(el('strong', null, '改善案: '));
+            const p = el('div', 'finding-field');
+            p.appendChild(el('strong', null, '改善案'));
             p.appendChild(document.createTextNode(finding.suggestion));
             card.appendChild(p);
+          }
+          if (verification) {
+            const box = el('div', 'verification-box');
+            box.appendChild(el('strong', null, '裏取り'));
+            const verdictLabel = VERDICT_LABELS[verification.verdict] || verification.verdict;
+            box.appendChild(document.createTextNode(verdictLabel + ' — ' + (verification.summary || '')));
+            if (verification.evidence) {
+              box.appendChild(document.createElement('br'));
+              box.appendChild(document.createTextNode(verification.evidence));
+            }
+            card.appendChild(box);
           }
 
           const decisions = el('div', 'decisions');
@@ -1533,12 +2049,99 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       });
     }
 
+    function getVerificationScope() {
+      const checked = document.querySelector('input[name="verification-scope"]:checked');
+      return checked && checked.value ? checked.value : 'accepted-investigate-pending';
+    }
+
+    function findingMatchesScope(decision, scope) {
+      if (scope === 'all') return true;
+      if (scope === 'accepted') return decision === 'accepted';
+      if (scope === 'investigate') return decision === 'investigate';
+      if (scope === 'pending') return decision === 'pending';
+      if (scope === 'accepted-investigate') {
+        return decision === 'accepted' || decision === 'investigate';
+      }
+      // accepted-investigate-pending (default)
+      return (
+        decision === 'accepted' ||
+        decision === 'investigate' ||
+        decision === 'pending'
+      );
+    }
+
+    function appendFindingMarkdown(lines, f, group, n, prefix) {
+      const severityLabel = SEVERITY_LABELS[f.severity] || SEVERITY_LABELS.low;
+      lines.push('### ' + n + '. ' + severityLabel + ' ' + f.title);
+      if (prefix) lines.push('- 判定: ' + prefix);
+      if (f.location) lines.push('- 場所: ' + f.location);
+      lines.push('- 変更グループの意図: ' + (group.intent || ''));
+      if (f.planOnly === true) {
+        lines.push('- 備考: plan を読まないと判定できない指摘です。');
+      } else if (f.source === 'both') {
+        lines.push('- 備考: blind レビューと plan 照合の両方で検出。');
+      } else if (f.source === 'plan-aware') {
+        lines.push('- 備考: plan 照合で検出。');
+      }
+      const verification = verificationByFindingId[f.id];
+      if (verification) {
+        const verdictLabel = VERDICT_LABELS[verification.verdict] || verification.verdict;
+        lines.push('- 裏取り: ' + verdictLabel + ' — ' + (verification.summary || ''));
+        if (verification.evidence) {
+          lines.push('- 裏取り根拠: ' + verification.evidence);
+        }
+      } else {
+        lines.push('- 裏取り: 未実施');
+      }
+      if (f.problem) lines.push('- 指摘: ' + f.problem);
+      if (f.evidence) lines.push('- 根拠: ' + f.evidence);
+      if (f.suggestion) lines.push('- 改善案: ' + f.suggestion);
+      lines.push('');
+    }
+
+    function generateVerificationPacket() {
+      const scope = getVerificationScope();
+      const findings = [];
+      REPORT.groups.forEach(function(group) {
+        (group.findings || []).forEach(function(f) {
+          const decision = state.findings[f.id] || 'pending';
+          if (!findingMatchesScope(decision, scope)) return;
+          findings.push({
+            id: f.id,
+            title: f.title,
+            severity: f.severity,
+            source: f.source,
+            planOnly: f.planOnly === true,
+            location: f.location || '',
+            problem: f.problem,
+            evidence: f.evidence,
+            suggestion: f.suggestion,
+            groupId: group.id,
+            groupTitle: group.title,
+            groupIntent: group.intent,
+            files: group.files || [],
+          });
+        });
+      });
+      return JSON.stringify({
+        packetType: 'verification-request',
+        reportId: REPORT.reportId || '',
+        title: REPORT.title || '',
+        target: REPORT.target || '',
+        scope: scope,
+        note: '人間の採用/却下/要調査は意図的に含めていません。事実確認のみ行ってください。',
+        findings: findings,
+      }, null, 2) + '\n';
+    }
+
     function generateFeedbackMarkdown() {
       const lines = ['# レビューフィードバック', ''];
       lines.push('## 依頼');
       lines.push('- 以下の指摘が忖度なしで妥当かどうか精査してください。妥当でないものは指摘してください。');
       lines.push('- 対応方針に迷う点があれば、実装前に確認してください。');
-      lines.push('- 却下・未判定の指摘は対応対象外です。');
+      lines.push('- 「指摘」セクションだけが実装対象です。却下・未判定は対応対象外です。');
+      lines.push('- 「要調査」は実装せず、事実確認・追加調査だけ行ってください。');
+      lines.push('- 裏取り結果が「事実:誤り」の採用指摘は、実装前に再確認してください。');
       lines.push('');
       if (REPORT.target) lines.push('対象: ' + REPORT.target);
       if (REPORT.plan && REPORT.plan.provided) {
@@ -1547,10 +2150,14 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       lines.push('');
 
       const acceptedFindings = [];
+      const investigateFindings = [];
       REPORT.groups.forEach(function(group) {
         (group.findings || []).forEach(function(f) {
-          if ((state.findings[f.id] || 'pending') === 'accepted') {
+          const decision = state.findings[f.id] || 'pending';
+          if (decision === 'accepted') {
             acceptedFindings.push({ finding: f, group: group });
+          } else if (decision === 'investigate') {
+            investigateFindings.push({ finding: f, group: group });
           }
         });
       });
@@ -1565,24 +2172,17 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
         lines.push('## 指摘');
         lines.push('');
         acceptedFindings.forEach(function(item, idx) {
-          const f = item.finding;
-          const group = item.group;
-          const n = idx + 1;
-          const severityLabel = SEVERITY_LABELS[f.severity] || SEVERITY_LABELS.low;
-          lines.push('### ' + n + '. ' + severityLabel + ' ' + f.title);
-          if (f.location) lines.push('- 場所: ' + f.location);
-          lines.push('- 変更グループの意図: ' + (group.intent || ''));
-          if (f.planOnly === true) {
-            lines.push('- 備考: plan を読まないと判定できない指摘です。');
-          } else if (f.source === 'both') {
-            lines.push('- 備考: blind レビューと plan 照合の両方で検出。');
-          } else if (f.source === 'plan-aware') {
-            lines.push('- 備考: plan 照合で検出。');
-          }
-          if (f.problem) lines.push('- 指摘: ' + f.problem);
-          if (f.evidence) lines.push('- 根拠: ' + f.evidence);
-          if (f.suggestion) lines.push('- 改善案: ' + f.suggestion);
-          lines.push('');
+          appendFindingMarkdown(lines, item.finding, item.group, idx + 1, null);
+        });
+      }
+
+      if (investigateFindings.length) {
+        lines.push('## 要調査');
+        lines.push('');
+        lines.push('実装対象外。事実関係の確認・追加調査のみ行ってください。');
+        lines.push('');
+        investigateFindings.forEach(function(item, idx) {
+          appendFindingMarkdown(lines, item.finding, item.group, idx + 1, '要調査');
         });
       }
 
@@ -1659,8 +2259,10 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       updateSummary();
     });
 
+    renderOverview();
     renderGroups();
     updateSummary();
+    renderMermaidDiagrams();
 
     document.getElementById('generate-feedback').addEventListener('click', function() {
       document.getElementById('feedback-output').value = generateFeedbackMarkdown();
@@ -1669,6 +2271,17 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     document.getElementById('copy-feedback').addEventListener('click', function() {
       const text = generateFeedbackMarkdown();
       document.getElementById('feedback-output').value = text;
+      copyText(text).catch(function() {});
+    });
+
+    document.getElementById('generate-verification-packet').addEventListener('click', function() {
+      document.getElementById('verification-output').value = generateVerificationPacket();
+      setCopyStatus('裏取りパケットを生成しました');
+    });
+
+    document.getElementById('copy-verification-packet').addEventListener('click', function() {
+      const text = generateVerificationPacket();
+      document.getElementById('verification-output').value = text;
       copyText(text).catch(function() {});
     });
   </script>
