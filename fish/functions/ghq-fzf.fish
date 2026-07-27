@@ -1,12 +1,21 @@
 function ghq-fzf --description 'Select ghq repository with fzf and change directory'
     set -l cache_file "$HOME/.cache/ghq-fzf-list"
+    set -l sig_file "$HOME/.cache/ghq-fzf-list.sig"
 
     # --refresh でキャッシュを再生成（workspace追加時など手動更新用）
     if test "$argv[1]" = --refresh
-        rm -f $cache_file
+        rm -f $cache_file $sig_file
     end
 
     set -l ghq_root (ghq root)
+
+    # .git/.jj ディレクトリ一覧を軽量シグネチャにし、clone/workspace の増減を検知する
+    # (ghq list は遅いので使わない。fd スキャンは ~0.15s で毎回実行できる)
+    set -l sig (fd -H -t d -d 5 '^\.(git|jj)$' $ghq_root 2>/dev/null | sort | shasum | string split -f1 ' ')
+    if not test -f "$sig_file"; or test "$sig" != (cat $sig_file 2>/dev/null)
+        rm -f $cache_file
+        echo $sig > $sig_file
+    end
 
     # キャッシュが無ければリストを生成して保存（clone/workspace追加時のみ更新が必要）
     if not test -f $cache_file
