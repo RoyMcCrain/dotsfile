@@ -55,6 +55,12 @@ cp "$PLAN_BODY" "$PLAN_DIR/plan-body.md"
 5. findings（source=blind）:
    - id, severity, title, location, problem, evidence, suggestion
    - 渡された差分だけから根拠を示せる指摘に限定する
+   - severity 較正（過大評価を避ける・厳守）:
+     - その指摘固有の欠陥が現実に招く最悪ケースの影響で決める。周辺機能の重大さ（例: 削除＝不可逆）を指摘へ機械的に継承しない
+     - 既存の緩和策を織り込む（例外時も操作は完走/ロールバックされる、toast 等でフィードバックが別経路に残る、ボタンが disabled 済み 等があれば下げる）
+     - 到達性・発生頻度を考慮する。レア経路・短い時間窓でしか起きないものを上げすぎない
+     - irreversibility / blast-radius 等の risk 要因は、その欠陥自体に本当に当てはまる時だけ加点する（文脈語に引きずられない）
+     - critical/high はデータ破壊・情報漏洩・不可逆な誤操作・全体停止など実害が大きく現実的なものに限る。UX 微調整・防御的コードの穴・レアな不整合は low〜medium
 
 intent を説明できないグループは needsImprovement=true + improvementReason。
 重大度順。指摘なしグループは findings 空でよい。
@@ -96,6 +102,12 @@ patch 省略・truncate した場合は explanation に明示する（silent omi
 5. findings（source=plan-aware）:
    - id, severity, title, location, problem, evidence, suggestion, planOnly
    - plan-body.md を読まないと判定できない指摘は planOnly=true、それ以外は false
+   - severity 較正（過大評価を避ける・厳守）:
+     - その指摘固有の欠陥が現実に招く最悪ケースの影響で決める。周辺機能の重大さ（例: 削除＝不可逆）を指摘へ機械的に継承しない
+     - 既存の緩和策を織り込む（例外時も操作は完走/ロールバックされる、toast 等でフィードバックが別経路に残る、ボタンが disabled 済み 等があれば下げる）
+     - 到達性・発生頻度を考慮する。レア経路・短い時間窓でしか起きないものを上げすぎない
+     - irreversibility / blast-radius 等の risk 要因は、その欠陥自体に本当に当てはまる時だけ加点する（文脈語に引きずられない）
+     - critical/high はデータ破壊・情報漏洩・不可逆な誤操作・全体停止など実害が大きく現実的なものに限る。UX 微調整・防御的コードの穴・レアな不整合は low〜medium
 
 intent を説明できないグループは needsImprovement=true + improvementReason。
 Stage 1 の結果は参照しない — 独立に判定する。
