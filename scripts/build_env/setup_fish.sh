@@ -211,7 +211,7 @@ end
 if not test -d $AGENTS_SKILL_BACKUP_DIR
     mkdir -p $AGENTS_SKILL_BACKUP_DIR
 end
-for OLD_NAME in cursor fugu
+for OLD_NAME in cursor fugu large-diff-review
     set OLD_DEST $AGENTS_SKILL_DIR/$OLD_NAME
     if test -L $OLD_DEST
         rm $OLD_DEST
@@ -222,7 +222,7 @@ for OLD_NAME in cursor fugu
         mv $OLD_DEST $BACKUP
     end
 end
-set SHARED_AGENT_SKILLS $BASE_DIR/.agents/skills/cmux* $BASE_DIR/.agents/skills/cheap-pr $BASE_DIR/.agents/skills/cursor-review $BASE_DIR/.agents/skills/fugu-review $BASE_DIR/.agents/skills/parallel-review $BASE_DIR/claude/skills/claude-review $BASE_DIR/claude/skills/cursor-impl $BASE_DIR/codex/skills/codex-review
+set SHARED_AGENT_SKILLS $BASE_DIR/.agents/skills/cmux* $BASE_DIR/.agents/skills/cheap-pr $BASE_DIR/.agents/skills/cursor-review $BASE_DIR/.agents/skills/fugu-review $BASE_DIR/.agents/skills/review-report $BASE_DIR/.agents/skills/parallel-review $BASE_DIR/claude/skills/claude-review $BASE_DIR/claude/skills/cursor-impl $BASE_DIR/codex/skills/codex-review
 for SKILL in $SHARED_AGENT_SKILLS
     if not test -f $SKILL/SKILL.md
         continue
