@@ -1,6 +1,6 @@
 {
   "defaultProvider": "sakana-ai-console",
-  "defaultModel": "fugu-ultra",
+  "defaultModel": "fugu",
   "defaultThinkingLevel": "medium",
   "theme": "dark",
   "defaultProjectTrust": "ask",

@@ -49,7 +49,7 @@ Use Pi's built-in subscription flow when possible:
 /model
 ```
 
-The default model is `sakana-ai-console/fugu-ultra` (set in `settings.json`).
+The default model is `sakana-ai-console/fugu` (set in `settings.json`).
 
 Tracked custom providers:
 
@@ -93,7 +93,7 @@ Configured by `settings.json` via `extensions/*.ts`.
 | ------------------------------- | -------------------------------------------------------------------- |
 | `local-openai.ts`               | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
-| `cheap-pr-model.ts`             | Switch PR creation requests to `sakana-ai-console/fugu`.             |
+| `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
 
 Reload after editing extensions:
@@ -101,6 +101,17 @@ Reload after editing extensions:
 ```text
 /reload
 ```
+
+### Fugu model routing
+
+`auto-fugu-model.ts` keeps `fugu` as the everyday model and promotes to
+`fugu-ultra` only when preflight rules or in-run struggle signals warrant it. PR
+creation stays on `fugu`. Explicit `fugu` / `fugu-ultra` requests override the
+automatic rules. Any temporary fugu ↔ fugu-ultra switch restores the original
+model at turn settlement; manual `/model` selection cancels auto-restore. Use
+`/auto-fugu on|off|status` to toggle automatic routing; an
+empty `/auto-fugu` toggles ON/OFF. After editing extensions or routing logic,
+run `/reload` (core `node_modules` changes still require a Pi restart).
 
 ## Skills
 
