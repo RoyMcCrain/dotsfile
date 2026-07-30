@@ -90,6 +90,7 @@ Prompt 雛形: [references/prompts.md](references/prompts.md) の Stage 3。
 
 - 両結果を main agent が統合。Stage 1 finding は「plan と整合する」という理由だけで削除しない。
 - 最終 group risk は security/correctness、blast radius、irreversibility、uncertainty、test gaps を考慮し、二レビュアーの **高い方** を基本に main agent が決める。`riskScore` は同一 risk の tie-break のみ。
+- ただし severity/risk は **その指摘固有の実害** で判断し、周辺機能の重大さ（例: 削除フロー＝不可逆）を機械的に継承しない。既存の緩和策（操作が完走/ロールバック、toast 等で別経路のフィードバックが残る、ボタン disabled 済み 等）と到達性・発生頻度を織り込み **過大評価を避ける**。irreversibility 等の risk 要因は指摘の欠陥自体に本当に当てはまる時だけ加点する。二レビュアーの高い方を採る前に、その severity が固有実害に見合うか main agent が検算する。
 - グループ表示順: `critical > high > medium > low` → `riskScore` 降順 → 入力順。
 - 各 changed hunk は（秘密除外を除き）**ちょうど1つの intent group** に所属。1 file に複数 intent があれば複数 group の `files` に出てよい。diff は論理/因果順で並べる。
 - 重複 finding は root cause + impact + remediation が同じ場合だけ merge して `source: both`。単に同じ file だから merge しない。
