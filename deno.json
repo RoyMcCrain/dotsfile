@@ -1,4 +1,8 @@
 {
+  "imports": {
+    "@earendil-works/pi-coding-agent": "npm:@earendil-works/pi-coding-agent",
+    "typebox": "npm:typebox"
+  },
   "lint": {
     "include": ["nvim/plugins/**/*.ts"],
     "rules": {
