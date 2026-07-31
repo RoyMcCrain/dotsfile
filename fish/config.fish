@@ -62,6 +62,11 @@ end
 # Fish specific settings
 set fish_greeting ""  # 起動メッセージを非表示
 
+# Ctrl+S/Ctrl+Q のフロー制御(XOFF/XON)を無効化（端末が固まるのを防ぐ）
+if status is-interactive
+    stty -ixon
+end
+
 # プロンプト設定（zshから移行）
 # %F{163}λ%f の再現
 function fish_prompt
