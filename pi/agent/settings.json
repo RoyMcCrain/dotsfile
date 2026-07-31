@@ -22,5 +22,5 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.82.0"
+  "lastChangelogVersion": "0.83.0"
 }
