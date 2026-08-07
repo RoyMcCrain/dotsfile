@@ -1,7 +1,12 @@
 {
-  "defaultProvider": "sakana-ai-console",
-  "defaultModel": "fugu",
-  "defaultThinkingLevel": "medium",
+  "defaultProvider": "cursor",
+  "defaultModel": "grok-4.5",
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "cursor/composer-2.5-fast",
+    "cursor/grok-4.5:high",
+    "cursor/grok-4.5-fast:high"
+  ],
   "theme": "dark",
   "defaultProjectTrust": "ask",
   "enableInstallTelemetry": false,
@@ -22,5 +27,8 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.83.0"
+  "lastChangelogVersion": "0.84.1",
+  "packages": [
+    "npm:@rahularya01/pi-cursor"
+  ]
 }

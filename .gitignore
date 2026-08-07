@@ -24,3 +24,6 @@ pi/agent/trust.json
 pi/agent/sessions/
 pi/agent/git/
 pi/agent/npm/
+
+# Pi local model store
+pi/agent/models-store.json
