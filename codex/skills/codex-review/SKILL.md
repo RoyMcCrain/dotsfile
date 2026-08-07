@@ -1,75 +1,37 @@
 ---
 name: codex-review
-description: Codex CLIでコードレビューを実行。単体レビュー専用。Runs headless Codex in read-only mode and reports findings in Japanese. 並行レビューは parallel-review を使う。
+description: Pi headless（OpenAI Codex GPT-5.6 Terra High）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
 metadata:
   target_agent: Codex
 ---
 
 # /codex-review
 
-Codex CLI を headless/read-only で起動し、現在の変更・PR・指定範囲をレビューするスキル。
+Codex を、再帰起動しない隔離済み Pi headless で実行する。
 
-## コマンド
+## 手順
 
-- `/codex-review [レビュー対象・観点]` - Codex による単体コードレビュー
-- Pi で明示実行する場合は `/skill:codex-review [レビュー対象・観点]`
-
-## 実行手順
-
-1. レビュー対象を決める。
-   - 指定があればそれを使う（PR番号/URL、ファイル、差分範囲、観点）。
-   - 指定がなければ現在の作業ツリー差分を対象にする。
-2. レビュー用プロンプトを作る。
-   - 「修正しない」「レビューだけ」「重大度順」「ファイル/行/理由/修正案」を明記する。
-   - `.jj` があれば jj 前提で差分確認するよう明記する。
-   - 秘密 env ファイルを読まないよう明記する。
-3. Bash で Codex CLI を headless 実行する。
+1. 対象を決める。指定なしなら現在の作業コピー差分。
+2. 呼び出し元が changed paths を先に取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
+3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。子 Pi に `jj diff` / `git diff` を再実行させない。
+4. `cursor-review` と同じ prompt を `$REVIEW_DIR/prompt.md` に保存して runner を実行する。
 
 ```bash
-codex exec -s read-only --ephemeral --skip-git-repo-check "レビュー用プロンプト" < /dev/null
+RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
+"$RUNNER" \
+  --model openai-codex/gpt-5.6-terra:high \
+  --prompt "$REVIEW_DIR/prompt.md" \
+  --input "$REVIEW_DIR/changes.patch" \
+  --cwd "$REVIEW_DIR" \
+  --timeout 120
 ```
 
-   - Codex 標準設定の `model` / `model_provider` を使う。
-   - `-s read-only` で編集・書き込みを禁止する。
-   - `--ephemeral` でレビュー用セッションを保存しない。
-   - `--skip-git-repo-check` でリポジトリ外でも動く。
-   - `< /dev/null` で stdin 待ちブロックを防ぐ。
-   - Fugu Ultra を使う場合は `/fugu-review` を使う。
+runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化した patch-only で実行する。タイムアウト時は exit 124。自動再試行・自動フォールバックはしない。
 
-4. 結果を精査して報告する。
-   - 事実確認できる指摘だけ採用する。
-   - 不確かな指摘は「要確認」として分ける。
-   - 重大な指摘を先に出す。
+## 出力
 
-## 推奨プロンプト
-
-```text
-あなたは厳格なコードレビュアーです。以下をレビューしてください。
-
-対象: {対象}
-観点: {観点 or バグ、セキュリティ、設計逸脱、テスト不足、回帰リスク}
-
-制約:
-- ファイルは編集しない
-- コマンド実行は読み取り系だけにする
-- `.jj` がある場合は git ではなく jj で状態と差分を確認する
-- 秘密envファイル（.env / .env.local / .env.*.local / .envrc.local）は読まない
-
-出力:
-- 重大度順
-- 各指摘に ファイル/行、問題、理由、修正案 を含める
-- 指摘なしなら「重大な問題なし」と明記する
-```
-
-## 出力整理ルール
-
-- Codex の出力をそのまま貼らず、現在の agent が要点を再整理する。
-- レビュー指摘は `Critical` / `High` / `Medium` / `Low` / `Nit` に分類する。
-- 「対応必須」と「任意改善」を分ける。
-
-## 関連スキル
-
-- `/parallel-review` - 並行レビュー（「レビューして」だけの依頼はこちらを優先）
-- `/cursor-review` - Cursor 単体レビュー
-- `/claude-review` - Claude 単体レビュー
-- `/fugu-review` - Fugu Ultra 単体レビュー
+- High / Medium / Low の重大度順。Nit は省略。
+- 最大8件。
+- 各指摘に `file:line`、問題、実害、根拠、最小修正案。
+- 指摘なしなら「重大な問題なし」。
+- 呼び出し元が根拠を確認してから報告する。

@@ -35,13 +35,14 @@ metadata:
 ```text
 1. preflight → changed path 一覧取得 → secret path 除外 → allowed paths のみで sanitized patch を直接生成
 2. sanitized patch を目視/検索で secret 漏れ確認 → subagent temp dir へ copy
-3. Stage 1 blind subagent（sanitized diff のみ。revision label / target / commit message / plan / repo instructions / source tree は渡さない。Stage 1 自身が intent grouping。**reviewer は既定で cursor または fugu に委譲**）
-4. Stage 2 plan-aware subagent（同 sanitized diff + plan 本文のみ。fresh invocation、Stage 1 findings は渡さない）
-5. main agent が grouping / findings 統合（provenance 保持）
-6. report JSON 作成 → render_report.ts → HTML を open
-7. 人間が HTML で採用/要調査/却下/コメント
-8. （任意）HTML で裏取りパケット生成 → **`/review-verify`**（パケット貼付でも可）→ merge → HTML 再生成
-9. フィードバックを clipboard コピー（裏取り結果があれば併記）
+3. Stage 1 blind subagent（sanitized diff のみ。revision label / target / commit message / plan / repo instructions / source tree は渡さない。Stage 1 自身が intent grouping）
+4. plan があれば Stage 2 plan-aware subagent を Stage 1 と**同時に起動**（同 sanitized diff + plan 本文のみ。fresh invocation、Stage 1 findings は渡さない）。plan がなければ省略
+5. 両 stage は隔離 runner + `cursor/grok-4.5:high` を既定にし、各180秒で打ち切る。自動再試行しない
+6. main agent が grouping / findings 統合（provenance 保持）
+7. report JSON 作成 → render_report.ts → HTML を open
+8. 人間が HTML で採用/要調査/却下/コメント
+9. （任意）HTML で裏取りパケット生成 → **`/review-verify`**（パケット貼付でも可）→ merge → HTML 再生成
+10. フィードバックを clipboard コピー（裏取り結果があれば併記）
 ```
 
 **禁止**: main agent が plan を知った状態で事前グループ/summary を作り Stage 1 に渡すこと。Stage 1 は raw sanitized diff から intent grouping する。
@@ -53,6 +54,7 @@ metadata:
 - **fresh subagent**。入力は **sanitized diff のみ**。revision label、target、commit message、plan（ファイル名・パス・本文）、repo instructions、source tree を prompt に含めない。
 - **必須**: repo 外の新規 temp directory（例: `$TMPDIR/review-report-blind-$$`）に `sanitized.patch` と `prompt.txt` だけ置く。prompt は同 dir の `sanitized.patch` を読む形式（巨大 diff を inline しない）。reviewer の working directory / workspace も temp dir に固定。repo source は見せない。
 - 出力: report contract に沿った **valid JSON**（少なくとも `groups` array）。各 group に intent、risk、diff explanation、findings（`source: blind`）。
+- 既定 reviewer は `cursor/grok-4.5:high`、timeout 180秒。Codex Terra High / Claude Opus High は fallback。Fugu は quota 制限があるため明示時だけ使い、自動再試行しない。
 
 Prompt template: [references/prompts.md](references/prompts.md)
 
@@ -63,6 +65,7 @@ Prompt template: [references/prompts.md](references/prompts.md)
 - 同じ sanitized diff + plan 本文のみ。Stage 1 findings summary は渡さない。
 - plan を読まないと出せない指摘は `planOnly: true`（`source: plan-aware` のみ）。
 - 要件欠落・過剰実装・逸脱・テスト不足を確認。
+- Stage 1 と独立しているため、plan がある場合は待たずに並行起動する。timeout 180秒。
 
 ## Stage 3 — 事実の裏取り（任意・HITL 後）
 

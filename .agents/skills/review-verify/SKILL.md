@@ -104,7 +104,15 @@ open "$REPORT_DIR/report.html"   # macOS
 }
 ```
 
-大量 finding がある場合は、必要なら **fresh subagent** に委譲してよい（プロンプト雛形は `../review-report/references/prompts.md` の Stage 3）。main agent が結果を検証・マージする。
+finding が8件以下なら main agent がそのまま検証する。9件以上なら最大8件ずつに分割し、`../parallel-review/scripts/run_pi_review.sh` で fresh reviewer を並行実行してよい。
+
+- model: `cursor/grok-4.5:high`
+- timeout: 各120秒
+- prompt: `../review-report/references/prompts.md` の Stage 3
+- main agent が各 chunk の location を解決し、秘密パターンを除外した packet と必要ソースだけを `--input` で渡す
+- runner は常時 `--no-tools`。追加検索や実行結果が必要な finding は main agent が検証する
+- 自動再試行しない。失敗 chunk は `inconclusive` と決め打ちせず、未検証として明記する
+- main agent が全結果を検証してからマージする
 
 ## 完了条件
 

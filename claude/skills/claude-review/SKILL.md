@@ -1,71 +1,37 @@
 ---
 name: claude-review
-description: Claude Code CLIでコードレビューを実行。単体レビュー専用。Runs headless Claude in read-only/plan mode and reports findings in Japanese. 並行レビューは parallel-review を使う。
+description: Pi headless（Anthropic Claude Opus 5 High）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
 metadata:
   target_agent: claude
 ---
 
 # /claude-review
 
-Claude Code CLI を headless/read-only で起動し、現在の変更・PR・指定範囲をレビューするスキル。
+Claude を、再帰起動しない隔離済み Pi headless で実行する。
 
-## コマンド
+## 手順
 
-- `/claude-review [レビュー対象・観点]` - Claude による単体コードレビュー
-
-## 実行手順
-
-1. レビュー対象を決める。
-   - 指定があればそれを使う（PR番号/URL、ファイル、差分範囲、観点）。
-   - 指定がなければ現在の作業ツリー差分を対象にする。
-2. レビュー用プロンプトを作る。
-   - 「修正しない」「レビューだけ」「重大度順」「ファイル/行/理由/修正案」を明記する。
-   - `.jj` があれば jj 前提で差分確認するよう明記する。
-   - 秘密 env ファイルを読まないよう明記する。
-3. Bash で Claude Code CLI を headless 実行する。
+1. 対象を決める。指定なしなら現在の作業コピー差分。
+2. 呼び出し元が changed paths を先に取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
+3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。子 Pi に `jj diff` / `git diff` を再実行させない。
+4. `cursor-review` と同じ prompt を `$REVIEW_DIR/prompt.md` に保存して runner を実行する。
 
 ```bash
-claude -p --permission-mode plan --model opus --effort high --no-session-persistence "レビュー用プロンプト"
+RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
+"$RUNNER" \
+  --model anthropic/claude-opus-5:high \
+  --prompt "$REVIEW_DIR/prompt.md" \
+  --input "$REVIEW_DIR/changes.patch" \
+  --cwd "$REVIEW_DIR" \
+  --timeout 120
 ```
 
-   - `--permission-mode plan` は読み取り専用調査。編集・書き込みは構造的に不可。
-   - `claude` は cwd の repo を自分で読む。差分対象は「`jj diff`（`.jj` 無ければ `git diff`）を確認してレビューせよ」とプロンプトで指示する。
-   - PR を対象にする場合は「`gh pr diff <番号>` を確認せよ」と指示する。
+runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化した patch-only で実行する。タイムアウト時は exit 124。自動再試行・自動フォールバックはしない。
 
-4. 結果を精査して報告する。
-   - 事実確認できる指摘だけ採用する。
-   - 不確かな指摘は「要確認」として分ける。
-   - 重大な指摘を先に出す。
+## 出力
 
-## 推奨プロンプト
-
-```text
-あなたは厳格なコードレビュアーです。以下をレビューしてください。
-
-対象: {対象}
-観点: {観点 or バグ、セキュリティ、設計逸脱、テスト不足、回帰リスク}
-
-制約:
-- ファイルは編集しない
-- コマンド実行は読み取り系だけにする
-- `.jj` がある場合は git ではなく jj で状態と差分を確認する
-- 秘密envファイル（.env / .env.local / .env.*.local / .envrc.local）は読まない
-
-出力:
-- 重大度順
-- 各指摘に ファイル/行、問題、理由、修正案 を含める
-- 指摘なしなら「重大な問題なし」と明記する
-```
-
-## 出力整理ルール
-
-- Claude の出力をそのまま貼らず、現在の agent が要点を再整理する。
-- レビュー指摘は `Critical` / `High` / `Medium` / `Low` / `Nit` に分類する。
-- 「対応必須」と「任意改善」を分ける。
-
-## 関連スキル
-
-- `/parallel-review` - 並行レビュー（「レビューして」だけの依頼はこちらを優先）
-- `/cursor-review` - Cursor 単体レビュー
-- `/fugu-review` - Fugu Ultra 単体レビュー
-- codex-review (Codex CLI/Pi 専用スキル。Claude Code の skill パスには公開されていないため `/codex-review` は呼べない。Codex 単体レビューが必要な場合は `codex exec -p ... -s read-only` を直接実行する)
+- High / Medium / Low の重大度順。Nit は省略。
+- 最大8件。
+- 各指摘に `file:line`、問題、実害、根拠、最小修正案。
+- 指摘なしなら「重大な問題なし」。
+- 呼び出し元が根拠を確認してから報告する。
