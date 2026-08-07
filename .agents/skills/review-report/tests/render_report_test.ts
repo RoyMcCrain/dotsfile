@@ -119,6 +119,72 @@ const reportWithoutId = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const implementationGroup = (overrides: GroupOverrides = {}) => ({
+  id: "g1",
+  title: "Group title",
+  intent: "Group intent.",
+  files: [] as string[],
+  diffs: [] as Record<string, unknown>[],
+  ...overrides,
+});
+
+const implementationOnlyReport = (
+  overrides: Record<string, unknown> = {},
+) => ({
+  review: { performed: false },
+  groups: [implementationGroup()],
+  ...overrides,
+});
+
+const minimalRepository = (overrides: Record<string, unknown> = {}) => ({
+  name: "my-repo",
+  trackedFiles: ["src/a.ts", "src/b.ts", "README.md"],
+  changes: [
+    { path: "src/a.ts", status: "modified" },
+    { path: "src/c.ts", status: "added" },
+  ],
+  ...overrides,
+});
+
+const extractClientScript = (html: string): string => {
+  const match = html.match(/<script>\s*\n([\s\S]*?)<\/script>\s*\n<\/body>/);
+  if (!match) throw new Error("client script not found in rendered HTML");
+  return match[1];
+};
+
+const extractFunctionBlock = (source: string, functionName: string): string => {
+  const start = source.indexOf(`function ${functionName}(`);
+  if (start === -1) throw new Error(`missing function ${functionName}`);
+  const braceStart = source.indexOf("{", start);
+  if (braceStart === -1) throw new Error(`missing body for ${functionName}`);
+  let depth = 0;
+  for (let i = braceStart; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  throw new Error(`unclosed function ${functionName}`);
+};
+
+const evalClientHelpers = (
+  source: string,
+  functionNames: string[],
+  context: Record<string, unknown> = {},
+): Record<string, (...args: unknown[]) => unknown> => {
+  const blocks = functionNames.map((name) => extractFunctionBlock(source, name))
+    .join("\n");
+  const keys = Object.keys(context);
+  const values = Object.values(context);
+  const fn = new Function(
+    ...keys,
+    `${blocks}\nreturn { ${functionNames.join(", ")} };`,
+  );
+  return fn(...values) as Record<string, (...args: unknown[]) => unknown>;
+};
+
 const runCli = async (args: string[]) => {
   const command = new Deno.Command(Deno.execPath(), {
     args: [
@@ -385,14 +451,35 @@ Deno.test("test_deep_copy_same_id", () => {
   assert.equal(defaultReportId(copyA), defaultReportId(copyB));
 });
 
-Deno.test("test_risk_reason_change_different_id", () => {
-  const base = reportWithoutId();
-  const changed = structuredClone(base);
-  changed.groups[0].riskReason = "Different reason.";
-  assert.notEqual(defaultReportId(base), defaultReportId(changed));
+Deno.test("test_review_enrichment_keeps_generated_id", () => {
+  const implementation = implementationOnlyReport();
+  const reviewed = {
+    ...structuredClone(implementation),
+    review: { performed: true, overview: "Review complete." },
+    plan: { provided: true, label: "plans/001.md" },
+    verifications: [
+      {
+        findingId: "f-1",
+        verdict: "confirmed",
+        summary: "Confirmed.",
+        evidence: "src/app.ts:1",
+      },
+    ],
+    groups: [
+      {
+        ...implementation.groups[0],
+        risk: "high",
+        riskScore: 80,
+        riskReason: "Review risk.",
+        initialComment: "Review comment",
+        findings: [minimalFinding()],
+      },
+    ],
+  };
+  assert.equal(defaultReportId(implementation), defaultReportId(reviewed));
 });
 
-Deno.test("test_finding_content_change_different_id", () => {
+Deno.test("test_review_content_change_keeps_generated_id", () => {
   const base = reportWithoutId({
     groups: [
       minimalGroup({
@@ -401,7 +488,15 @@ Deno.test("test_finding_content_change_different_id", () => {
     ],
   });
   const changed = structuredClone(base);
+  changed.groups[0].riskReason = "Different reason.";
   changed.groups[0].findings[0].problem = "Changed problem.";
+  assert.equal(defaultReportId(base), defaultReportId(changed));
+});
+
+Deno.test("test_implementation_content_change_changes_generated_id", () => {
+  const base = implementationOnlyReport();
+  const changed = structuredClone(base);
+  changed.groups[0].intent = "Changed implementation intent.";
   assert.notEqual(defaultReportId(base), defaultReportId(changed));
 });
 
@@ -491,6 +586,13 @@ Deno.test("test_html_contains_required_ui_labels", () => {
       "要改善",
       "スコア:",
       "リスク根拠:",
+      "変更グループ",
+      "レビュー結果",
+      'id="implementation-section"',
+      'id="review-section"',
+      'id="review-actions"',
+      "renderImplementationGroups",
+      "renderReviewGroups",
     ]
   ) {
     assert.ok(html.includes(label), `missing label: ${label}`);
@@ -545,7 +647,10 @@ Deno.test("test_html_typography_and_heading_styles", () => {
     html,
     /\.finding-location strong,\s*\.finding-field strong\s*\{[^}]*display:\s*block/,
   );
-  assert.match(html, /\.finding-location code\s*\{[^}]*font-family:\s*ui-monospace/);
+  assert.match(
+    html,
+    /\.finding-location code\s*\{[^}]*font-family:\s*ui-monospace/,
+  );
   assert.match(html, /\.overview\s*\{[^}]*margin-top:\s*1rem/);
   assert.match(
     html,
@@ -665,10 +770,11 @@ Deno.test("test_feedback_field_labels_present", () => {
 
 Deno.test("test_overview_section_renders_from_groups", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
-  assert.ok(html.includes('id="overview"'));
-  assert.ok(html.includes("function renderOverview()"));
+  assert.ok(html.includes('id="summary-section"'));
+  assert.ok(html.includes("function renderSummary()"));
+  assert.ok(html.includes("function renderReviewOverview()"));
   assert.ok(html.includes("formatCountChips"));
-  assert.ok(html.includes("overview-groups"));
+  assert.ok(html.includes("key-changes"));
   assert.ok(!html.includes("場所: ' + finding.location"));
   assert.ok(html.includes("finding-location"));
 });
@@ -682,6 +788,15 @@ Deno.test("test_mermaid_diagram_support_present", () => {
   assert.ok(html.includes("theme: 'default'"));
   assert.ok(html.includes("変更グループと指摘の関係"));
   assert.ok(html.includes("diagram-fallback"));
+  assert.ok(html.includes("renderReviewOverview"));
+  assert.match(
+    html,
+    /function collectReviewDiagrams\([\s\S]*?buildOverviewMermaid/,
+  );
+  assert.match(
+    html,
+    /function renderReviewOverview\([\s\S]*?collectReviewDiagrams/,
+  );
 });
 
 Deno.test("test_light_mode_only", () => {
@@ -1064,4 +1179,618 @@ Deno.test("test_html_diff_empty_patch_renders_card", () => {
   const html = renderHtml(report);
   assert.ok(html.includes("パッチなし"));
   assert.ok(html.includes("empty.ts"));
+});
+
+Deno.test("test_implementation_only_validates_without_review_fields", () => {
+  const errors = validateReport(implementationOnlyReport());
+  assert.deepEqual(errors, []);
+});
+
+Deno.test("test_implementation_only_rejects_nonempty_verifications", () => {
+  const errors = validateReport({
+    ...implementationOnlyReport(),
+    verifications: [
+      {
+        findingId: "f-1",
+        verdict: "confirmed",
+        summary: "x",
+        evidence: "y",
+      },
+    ],
+  });
+  assert.ok(
+    errors.some((e) => e.includes("verifications must be absent or empty")),
+  );
+});
+
+Deno.test("test_implementation_only_rejects_malformed_verifications", () => {
+  const errors = validateReport({
+    ...implementationOnlyReport(),
+    verifications: "invalid",
+  });
+  assert.ok(errors.some((e) => e.includes("verifications must be an array")));
+});
+
+Deno.test("test_performed_review_requires_review_fields", () => {
+  const group = implementationGroup();
+  const errors = validateReport({
+    review: { performed: true },
+    groups: [group],
+  });
+  assert.ok(errors.some((e) => e.includes("missing required field: risk")));
+  assert.ok(
+    errors.some((e) => e.includes("missing required field: riskReason")),
+  );
+  assert.ok(errors.some((e) => e.includes("missing required field: findings")));
+});
+
+Deno.test("test_legacy_validates_and_normalizes_performed_true", () => {
+  const report = reportWithoutId();
+  assert.deepEqual(validateReport(report), []);
+  const normalized = normalizeReport(report);
+  assert.deepEqual(normalized.review, { performed: true });
+});
+
+Deno.test("test_implementation_only_normalizes_performed_false", () => {
+  const normalized = normalizeReport(implementationOnlyReport());
+  assert.deepEqual(normalized.review, { performed: false });
+});
+
+Deno.test("test_html_has_separate_section_ids_and_headings", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(html.includes('id="summary-section"'));
+  assert.ok(html.includes('id="implementation-flow-section"'));
+  assert.ok(html.includes('id="implementation-section"'));
+  assert.ok(html.includes('id="implementation-heading"'));
+  assert.ok(html.includes('id="review-section"'));
+  assert.ok(html.includes('id="review-heading"'));
+  assert.ok(html.includes(">変更グループ<"));
+  assert.ok(html.includes(">レビュー結果<"));
+  assert.match(
+    html,
+    /id="summary-section"[\s\S]*?id="implementation-flow-section"[\s\S]*?id="implementation-section"[\s\S]*?id="implementation-groups"/,
+  );
+});
+
+Deno.test("test_implementation_only_hides_review_section_and_footer", () => {
+  const html = renderHtml(implementationOnlyReport());
+  assert.ok(html.includes("reviewSection.hidden = true"));
+  assert.ok(html.includes("reviewActions.hidden = true"));
+  assert.ok(html.includes("navReviewItem.hidden = true"));
+});
+
+Deno.test("test_reviewed_exposes_review_section_and_footer", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(html.includes("reviewSection.hidden = false"));
+  assert.ok(html.includes("reviewActions.hidden = false"));
+  assert.ok(html.includes("navReviewItem.hidden = false"));
+});
+
+Deno.test("test_reviewed_zero_findings_shows_no_findings_label", () => {
+  const html = renderHtml({
+    review: { performed: true },
+    groups: [minimalGroup({ findings: [] })],
+  });
+  const reviewBlock = html.match(
+    /function renderReviewGroups\(\)[\s\S]*?function getVerificationScope\(\)/,
+  )?.[0] ?? "";
+  assert.ok(reviewBlock.includes("指摘なし"));
+});
+
+Deno.test("test_implementation_and_review_cards_are_separated", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  const implBlock = html.match(
+    /function renderImplementationGroups\(\)[\s\S]*?function renderReviewGroups\(\)/,
+  )?.[0] ?? "";
+  const reviewBlock = html.match(
+    /function renderReviewGroups\(\)[\s\S]*?function getVerificationScope\(\)/,
+  )?.[0] ?? "";
+
+  assert.ok(implBlock.includes("renderDiffCard"));
+  assert.ok(implBlock.includes("intent"));
+  assert.ok(implBlock.includes("group.needsImprovement"));
+  assert.ok(!implBlock.includes("risk-reason"));
+  assert.ok(!implBlock.includes("'finding'"));
+  assert.ok(!implBlock.includes("risk-badge"));
+
+  assert.ok(reviewBlock.includes("risk-reason"));
+  assert.ok(reviewBlock.includes("'finding'"));
+  assert.ok(!reviewBlock.includes("group.needsImprovement"));
+  assert.ok(!reviewBlock.includes("renderDiffCard"));
+  assert.ok(!reviewBlock.includes("diff-block"));
+});
+
+Deno.test("test_verification_reviewed_behavior_remains", () => {
+  const report = {
+    ...structuredClone(SAMPLE_REPORT),
+    review: { performed: true },
+    verifications: [
+      {
+        findingId: "f-1",
+        verdict: "confirmed",
+        summary: "Caller still uses old name.",
+        evidence: "src/auth.ts:3 still references oldAuthClient.",
+      },
+    ],
+  };
+  assert.deepEqual(validateReport(report), []);
+  const html = renderHtml(report);
+  assert.ok(html.includes("事実:確認"));
+  assert.ok(html.includes("Caller still uses old name."));
+  assert.ok(html.includes("裏取り:"));
+});
+
+Deno.test("test_explicit_report_id_unchanged_after_adding_review", () => {
+  const implementation = implementationOnlyReport({
+    reportId: "custom-id",
+    groups: [
+      implementationGroup({
+        id: "impl-g1",
+        title: "Impl title",
+        intent: "Impl intent.",
+        files: ["src/a.ts"],
+        diffs: [minimalDiff({ file: "src/a.ts" })],
+      }),
+    ],
+  });
+  const enriched = {
+    ...structuredClone(implementation),
+    review: { performed: true, overview: "Review complete." },
+    groups: [
+      minimalGroup({
+        id: "impl-g1",
+        title: "Impl title",
+        intent: "Impl intent.",
+        files: ["src/a.ts"],
+        diffs: [minimalDiff({ file: "src/a.ts" })],
+        findings: [],
+      }),
+    ],
+  };
+  assert.equal(defaultReportId(implementation), "custom-id");
+  assert.equal(defaultReportId(enriched), "custom-id");
+});
+
+Deno.test("test_implementation_only_keeps_custom_diagrams_without_relationship_diagram", () => {
+  const report = {
+    ...implementationOnlyReport(),
+    diagrams: [
+      {
+        id: "flow",
+        title: "想定フロー",
+        mermaid: "flowchart LR\n  A --> B",
+      },
+    ],
+  };
+  assert.deepEqual(validateReport(report), []);
+  const html = renderHtml(report);
+  assert.ok(html.includes("想定フロー"));
+  assert.ok(html.includes("flowchart LR"));
+  const flowBlock = html.match(
+    /function renderImplementationFlow\(\)[\s\S]*?function renderSummary\(\)/,
+  )?.[0] ?? "";
+  const summaryBlock = html.match(
+    /function renderSummary\(\)[\s\S]*?function renderReviewOverview\(\)/,
+  )?.[0] ?? "";
+  assert.ok(flowBlock.includes("collectCustomDiagrams"));
+  assert.ok(!summaryBlock.includes("collectCustomDiagrams"));
+  assert.ok(!summaryBlock.includes("collectReviewDiagrams"));
+  assert.ok(!summaryBlock.includes("buildOverviewMermaid"));
+});
+
+Deno.test("test_valid_repository_metadata_passes", () => {
+  const errors = validateReport({
+    ...structuredClone(SAMPLE_REPORT),
+    repository: minimalRepository(),
+  });
+  assert.deepEqual(errors, []);
+});
+
+Deno.test("test_repository_deleted_path_not_in_tracked_files", () => {
+  const errors = validateReport({
+    ...structuredClone(SAMPLE_REPORT),
+    repository: minimalRepository({
+      trackedFiles: ["src/a.ts"],
+      changes: [{ path: "removed.ts", status: "deleted" }],
+    }),
+  });
+  assert.deepEqual(errors, []);
+});
+
+Deno.test("test_repository_malformed_types_return_errors", () => {
+  const errors = validateReport({
+    groups: [minimalGroup()],
+    repository: {
+      name: ["bad"],
+      trackedFiles: "not-array",
+      changes: "not-array",
+    },
+  });
+  assert.ok(errors.some((e) => e.includes("repository.name must be a string")));
+  assert.ok(
+    errors.some((e) => e.includes("repository.trackedFiles must be an array")),
+  );
+  assert.ok(
+    errors.some((e) => e.includes("repository.changes must be an array")),
+  );
+});
+
+Deno.test("test_repository_invalid_status_is_error", () => {
+  const errors = validateReport({
+    groups: [minimalGroup()],
+    repository: minimalRepository({
+      changes: [{ path: "src/a.ts", status: "moved" }],
+    }),
+  });
+  assert.ok(
+    errors.some((e) =>
+      e.includes("repository.changes[0].status must be one of")
+    ),
+  );
+});
+
+Deno.test("test_repository_duplicate_tracked_files_is_error", () => {
+  const errors = validateReport({
+    groups: [minimalGroup()],
+    repository: minimalRepository({
+      trackedFiles: ["src/a.ts", "src/a.ts"],
+    }),
+  });
+  assert.ok(errors.some((e) => e.includes("duplicate tracked file path")));
+});
+
+Deno.test("test_repository_duplicate_change_paths_is_error", () => {
+  const errors = validateReport({
+    groups: [minimalGroup()],
+    repository: minimalRepository({
+      changes: [
+        { path: "src/a.ts", status: "modified" },
+        { path: "src/a.ts", status: "added" },
+      ],
+    }),
+  });
+  assert.ok(errors.some((e) => e.includes("duplicate change path")));
+});
+
+Deno.test("test_repository_secret_paths_rejected", () => {
+  const errors = validateReport({
+    groups: [minimalGroup()],
+    repository: minimalRepository({
+      trackedFiles: ["config/.env.local"],
+    }),
+  });
+  assert.ok(errors.some((e) => e.includes("secret path")));
+});
+
+Deno.test("test_repository_renamed_requires_previous_path", () => {
+  const errors = validateReport({
+    groups: [minimalGroup()],
+    repository: minimalRepository({
+      changes: [{ path: "src/new.ts", status: "renamed" }],
+    }),
+  });
+  assert.ok(
+    errors.some((e) =>
+      e.includes("repository.changes[0].previousPath") &&
+      (e.includes("must be a non-empty string") ||
+        e.includes("must be a string") ||
+        e.includes("status=renamed requires a non-empty previousPath"))
+    ),
+  );
+});
+
+Deno.test("test_repository_metadata_does_not_change_generated_id", () => {
+  const base = reportWithoutId();
+  const withRepo = {
+    ...structuredClone(base),
+    repository: minimalRepository(),
+  };
+  const changedRepo = {
+    ...structuredClone(base),
+    repository: minimalRepository({
+      name: "other-repo",
+      trackedFiles: ["lib/x.ts"],
+      changes: [{ path: "lib/x.ts", status: "added" }],
+    }),
+  };
+  assert.equal(defaultReportId(base), defaultReportId(withRepo));
+  assert.equal(defaultReportId(base), defaultReportId(changedRepo));
+});
+
+Deno.test("test_report_without_repository_remains_valid", () => {
+  assert.deepEqual(validateReport(reportWithoutId()), []);
+  const html = renderHtml(reportWithoutId());
+  assert.ok(html.includes('id="repository-map-section"'));
+  assert.ok(html.includes("repositoryMapSection.hidden = true"));
+});
+
+Deno.test("test_html_report_shell_and_navigation", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  for (
+    const marker of [
+      "report-shell",
+      "report-nav",
+      "report-content",
+      'id="summary-section"',
+      'id="repository-map-section"',
+      'id="implementation-flow-section"',
+      'href="#summary-section"',
+      'href="#implementation-flow-section"',
+      'href="#implementation-section"',
+      "position: sticky",
+      "grid-template-columns",
+    ]
+  ) {
+    assert.ok(html.includes(marker), `missing marker: ${marker}`);
+  }
+});
+
+Deno.test("test_html_summary_conclusion_first", () => {
+  const report = {
+    ...structuredClone(SAMPLE_REPORT),
+    overview: "認証リネームを中心に API と呼び出し側を移行。",
+    repository: minimalRepository(),
+  };
+  const html = renderHtml(report);
+  assert.ok(html.includes("function renderSummary()"));
+  assert.ok(html.includes("overview-text"));
+  assert.ok(html.includes("overview-stat"));
+  assert.ok(html.includes("key-changes"));
+  assert.ok(html.includes("scrollToGroup"));
+  assert.ok(html.includes("(REPORT.repository.changes || []).length"));
+  assert.ok(!html.includes("String(index + 1) + '. '"));
+  assert.ok(html.includes("レビュー済み"));
+});
+
+Deno.test("test_html_repository_map_when_present", () => {
+  const report = {
+    ...structuredClone(SAMPLE_REPORT),
+    repository: minimalRepository({
+      changes: [
+        { path: "src/a.ts", status: "modified" },
+        { path: "src/new.ts", status: "renamed", previousPath: "src/old.ts" },
+      ],
+    }),
+  };
+  const html = renderHtml(report);
+  assert.ok(html.includes("function buildRepositoryTree("));
+  assert.ok(html.includes("function renderRepositoryMap()"));
+  assert.ok(html.includes("function safeDomId("));
+  assert.ok(html.includes("repo-filter-btn"));
+  assert.ok(html.includes("repo-tree"));
+  assert.ok(html.includes("changed / "));
+  assert.ok(html.includes("scrollToGroupForFile"));
+  assert.ok(html.includes("repositoryMapSection.hidden = false"));
+
+  const mapBlock = html.match(
+    /function buildGroupFileIndex\(\)[\s\S]*?function renderSummary\(\)/,
+  )?.[0] ?? "";
+  assert.ok(mapBlock.includes("file.name"));
+  assert.ok(mapBlock.includes("key + '/'"));
+  assert.ok(mapBlock.includes("repo-group-badge"));
+  assert.ok(mapBlock.includes("groupFileIndex[file.path]"));
+  assert.ok(mapBlock.includes("bChanged - aChanged"));
+  assert.ok(!mapBlock.includes("paths[change.previousPath]"));
+});
+
+Deno.test("test_html_implementation_flow_diagram", () => {
+  const implHtml = renderHtml(implementationOnlyReport());
+  assert.ok(implHtml.includes("function buildImplementationFlowMermaid()"));
+  assert.ok(implHtml.includes("function renderImplementationFlow()"));
+  const implFlowBlock = implHtml.match(
+    /function buildImplementationFlowMermaid\(\)[\s\S]*?function renderImplementationFlow\(\)/,
+  )?.[0] ?? "";
+  assert.ok(implFlowBlock.includes("Stage 0"));
+  assert.ok(implFlowBlock.includes("report.json"));
+  assert.ok(implFlowBlock.includes("report.html"));
+  assert.ok(implFlowBlock.includes("if (REVIEW_PERFORMED)"));
+  assert.ok(implFlowBlock.includes("patch --> stage12"));
+  assert.ok(!implFlowBlock.includes("stage0 --> stage12"));
+  assert.ok(implFlowBlock.includes("同じ report.json + verifications"));
+  const stage3Index = implFlowBlock.indexOf("Stage 3");
+  const ifIndex = implFlowBlock.indexOf("if (REVIEW_PERFORMED)");
+  assert.ok(ifIndex !== -1);
+  assert.ok(stage3Index === -1 || stage3Index > ifIndex);
+
+  const reviewedHtml = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(reviewedHtml.includes("Stage 1/2"));
+  assert.ok(reviewedHtml.includes("Stage 3"));
+});
+
+Deno.test("test_client_script_source_compiles", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  const source = extractClientScript(html);
+  assert.ok(source.length > 0);
+  new Function(source);
+});
+
+Deno.test("test_group_anchor_ids_avoid_normalized_collision", () => {
+  const report = {
+    groups: [
+      implementationGroup({ id: "a/b", title: "Slash group" }),
+      implementationGroup({ id: "a-b", title: "Dash group" }),
+    ],
+  };
+  const normalized = normalizeReport(report);
+  const html = renderHtml(report);
+  const source = extractClientScript(html);
+  const { groupAnchorId } = evalClientHelpers(
+    source,
+    ["safeDomId", "groupAnchorId"],
+    { REPORT: normalized },
+  );
+  const slashAnchor = groupAnchorId("a/b");
+  const dashAnchor = groupAnchorId("a-b");
+  assert.notEqual(slashAnchor, dashAnchor);
+  assert.equal(slashAnchor, "group-a-b-1");
+  assert.equal(dashAnchor, "group-a-b-2");
+  assert.equal(groupAnchorId("a/b"), slashAnchor);
+});
+
+Deno.test("test_repository_helpers_renamed_previous_path_not_tree_leaf", () => {
+  const repository = {
+    name: "repo",
+    trackedFiles: ["src/new.ts"],
+    changes: [
+      { path: "src/new.ts", status: "renamed", previousPath: "src/old.ts" },
+    ],
+  };
+  const html = renderHtml({
+    groups: [minimalGroup()],
+    repository,
+  });
+  const source = extractClientScript(html);
+  const helpers = evalClientHelpers(source, [
+    "collectRepositoryPaths",
+    "buildRepositoryTree",
+  ]);
+  const paths = helpers.collectRepositoryPaths(repository) as string[];
+  assert.ok(paths.includes("src/new.ts"));
+  assert.ok(!paths.includes("src/old.ts"));
+  const tree = helpers.buildRepositoryTree(paths) as {
+    files: { path: string }[];
+    children: Record<string, {
+      files: { path: string }[];
+      children: Record<string, unknown>;
+    }>;
+  };
+  const treePaths = [
+    ...tree.files.map((file) => file.path),
+    ...Object.values(tree.children).flatMap((child) =>
+      child.files.map((file) => file.path)
+    ),
+  ];
+  assert.deepEqual(treePaths, ["src/new.ts"]);
+});
+
+Deno.test("test_repository_helpers_node_matches_filter", () => {
+  const repository = {
+    name: "repo",
+    trackedFiles: ["src/a.ts", "src/b.ts", "lib/c.ts"],
+    changes: [
+      { path: "src/a.ts", status: "modified" },
+      { path: "lib/c.ts", status: "added" },
+    ],
+  };
+  const html = renderHtml({
+    groups: [minimalGroup()],
+    repository,
+  });
+  const source = extractClientScript(html);
+  const helpers = evalClientHelpers(source, [
+    "collectRepositoryPaths",
+    "buildRepositoryTree",
+    "buildChangeMaps",
+    "nodeMatchesFilter",
+  ]);
+  const tree = helpers.buildRepositoryTree(
+    helpers.collectRepositoryPaths(repository) as string[],
+  );
+  const changesByPath = helpers.buildChangeMaps(repository);
+  const allResult = helpers.nodeMatchesFilter(tree, "all", changesByPath) as {
+    changedCount: number;
+    matches: boolean;
+  };
+  assert.equal(allResult.changedCount, 2);
+  assert.equal(allResult.matches, true);
+  const modifiedResult = helpers.nodeMatchesFilter(
+    tree,
+    "modified",
+    changesByPath,
+  ) as { changedCount: number; matches: boolean };
+  assert.equal(modifiedResult.changedCount, 2);
+  assert.equal(modifiedResult.matches, true);
+  const addedResult = helpers.nodeMatchesFilter(
+    tree,
+    "added",
+    changesByPath,
+  ) as { changedCount: number; matches: boolean };
+  assert.equal(addedResult.changedCount, 2);
+  assert.equal(addedResult.matches, true);
+  const deletedResult = helpers.nodeMatchesFilter(
+    tree,
+    "deleted",
+    changesByPath,
+  ) as { changedCount: number; matches: boolean };
+  assert.equal(deletedResult.changedCount, 2);
+  assert.equal(deletedResult.matches, false);
+  const srcNode = (tree as { children: Record<string, unknown> }).children
+    .src;
+  const srcModified = helpers.nodeMatchesFilter(
+    srcNode,
+    "modified",
+    changesByPath,
+  ) as { changedCount: number; matches: boolean };
+  assert.equal(srcModified.changedCount, 1);
+  assert.equal(srcModified.matches, true);
+});
+
+Deno.test("test_group_file_index_deduplicates_group_refs", () => {
+  const multiGroupReport = {
+    groups: [
+      implementationGroup({
+        id: "g1",
+        files: ["shared.ts"],
+        diffs: [
+          minimalDiff({ file: "shared.ts" }),
+          minimalDiff({ file: "shared.ts", explanation: "duplicate path" }),
+        ],
+      }),
+      implementationGroup({
+        id: "g2",
+        files: ["shared.ts"],
+      }),
+    ],
+  };
+  const html = renderHtml(multiGroupReport);
+  const source = extractClientScript(html);
+  const buildGroupFileIndex = evalClientHelpers(
+    source,
+    ["buildGroupFileIndex"],
+    { REPORT: normalizeReport(multiGroupReport) },
+  ).buildGroupFileIndex;
+  const index = buildGroupFileIndex() as Record<
+    string,
+    { id: string; number: number }[]
+  >;
+  assert.equal(index["shared.ts"].length, 2);
+  assert.deepEqual(
+    index["shared.ts"].map((ref) => ref.id),
+    ["g1", "g2"],
+  );
+
+  const singleGroupReport = {
+    groups: [
+      implementationGroup({
+        id: "g1",
+        files: ["shared.ts"],
+        diffs: [
+          minimalDiff({ file: "shared.ts" }),
+          minimalDiff({ file: "shared.ts", explanation: "duplicate path" }),
+        ],
+      }),
+    ],
+  };
+  const singleIndex = evalClientHelpers(
+    extractClientScript(renderHtml(singleGroupReport)),
+    ["buildGroupFileIndex"],
+    { REPORT: normalizeReport(singleGroupReport) },
+  ).buildGroupFileIndex() as Record<string, { id: string }[]>;
+  assert.equal(singleIndex["shared.ts"].length, 1);
+  assert.equal(singleIndex["shared.ts"][0].id, "g1");
+});
+
+Deno.test("test_html_group_cards_collapsed_with_stable_ids", () => {
+  const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  const implBlock = html.match(
+    /function renderImplementationGroups\(\)[\s\S]*?function renderReviewGroups\(\)/,
+  )?.[0] ?? "";
+  assert.ok(implBlock.includes("group-header-preview"));
+  assert.ok(implBlock.includes("group-header-count"));
+  assert.ok(implBlock.includes("groupAnchorId("));
+  assert.match(
+    html,
+    /function renderDiffCard\([\s\S]*?details\.open = false/,
+  );
+  assert.ok(!implBlock.includes("section.classList.add('expanded')"));
 });

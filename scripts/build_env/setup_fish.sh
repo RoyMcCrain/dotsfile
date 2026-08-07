@@ -224,7 +224,7 @@ for OLD_NAME in cursor fugu large-diff-review
         mv $OLD_DEST $BACKUP
     end
 end
-set SHARED_AGENT_SKILLS $BASE_DIR/.agents/skills/cmux* $BASE_DIR/.agents/skills/cheap-pr $BASE_DIR/.agents/skills/cursor-review $BASE_DIR/.agents/skills/fugu-review $BASE_DIR/.agents/skills/review-report $BASE_DIR/.agents/skills/parallel-review $BASE_DIR/.agents/skills/jj-workspace $BASE_DIR/claude/skills/claude-review $BASE_DIR/claude/skills/cursor-impl $BASE_DIR/codex/skills/codex-review $BASE_DIR/codex/skills/mcp-delegate
+set SHARED_AGENT_SKILLS $BASE_DIR/.agents/skills/cmux* $BASE_DIR/.agents/skills/cheap-pr $BASE_DIR/.agents/skills/cursor-review $BASE_DIR/.agents/skills/fugu-review $BASE_DIR/.agents/skills/implementation-report $BASE_DIR/.agents/skills/review-report $BASE_DIR/.agents/skills/parallel-review $BASE_DIR/.agents/skills/jj-workspace $BASE_DIR/claude/skills/claude-review $BASE_DIR/claude/skills/cursor-impl $BASE_DIR/codex/skills/codex-review $BASE_DIR/codex/skills/mcp-delegate
 for SKILL in $SHARED_AGENT_SKILLS
     if not test -f $SKILL/SKILL.md
         continue

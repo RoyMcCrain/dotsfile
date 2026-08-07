@@ -63,11 +63,36 @@ interface FindingVerification {
   evidence: string;
 }
 
+interface ReviewInfo {
+  performed: boolean;
+  overview?: string;
+}
+
+type RepositoryChangeStatus =
+  | "added"
+  | "modified"
+  | "deleted"
+  | "renamed";
+
+interface RepositoryChange {
+  path: string;
+  status: RepositoryChangeStatus;
+  previousPath?: string;
+}
+
+interface RepositoryInfo {
+  name: string;
+  trackedFiles: string[];
+  changes: RepositoryChange[];
+}
+
 interface ReviewReport {
   reportId?: string;
   title?: string;
   target?: string;
   overview?: string;
+  repository?: RepositoryInfo;
+  review?: ReviewInfo;
   diagrams?: ReportDiagram[];
   verifications?: FindingVerification[];
   initialComment?: string;
@@ -90,6 +115,12 @@ const VALID_VERDICTS = new Set([
   "contradicted",
   "partial",
   "inconclusive",
+]);
+const VALID_CHANGE_STATUSES = new Set<string>([
+  "added",
+  "modified",
+  "deleted",
+  "renamed",
 ]);
 
 const SECRET_COMPONENTS = new Set(["id_rsa", "id_ed25519", ".envrc"]);
@@ -170,16 +201,105 @@ const validatePathList = (
   paths: unknown,
   fieldPath: string,
   errors: string[],
+  options: { unique?: boolean; requireNonEmpty?: boolean } = {},
 ) => {
+  const { unique = false, requireNonEmpty = false } = options;
   if (!Array.isArray(paths)) {
     errors.push(`${fieldPath} must be an array`);
     return;
   }
+  if (requireNonEmpty && paths.length === 0) {
+    errors.push(`${fieldPath} must be a non-empty array`);
+  }
+  const seen = new Set<string>();
   paths.forEach((path, index) => {
     const p = `${fieldPath}[${index}]`;
     if (!requireNonEmptyString(path, p, errors)) return;
-    if (isSecretPath(path)) {
+    const text = path as string;
+    if (isSecretPath(text)) {
       errors.push(`${p} references a secret path and must not be included`);
+    }
+    if (unique) {
+      if (seen.has(text)) {
+        errors.push(`duplicate tracked file path: ${text}`);
+      } else {
+        seen.add(text);
+      }
+    }
+  });
+};
+
+const validateRepository = (repository: unknown, errors: string[]) => {
+  if (repository === undefined || repository === null) return;
+  if (!isRecord(repository)) {
+    errors.push("repository must be an object");
+    return;
+  }
+
+  requireNonEmptyString(repository.name, "repository.name", errors);
+  validatePathList(
+    repository.trackedFiles,
+    "repository.trackedFiles",
+    errors,
+    { unique: true, requireNonEmpty: true },
+  );
+
+  const changes = repository.changes;
+  if (!Array.isArray(changes)) {
+    errors.push("repository.changes must be an array");
+    return;
+  }
+
+  const changePaths = new Set<string>();
+  changes.forEach((change, index) => {
+    const prefix = `repository.changes[${index}]`;
+    if (!isRecord(change)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+
+    if (!requireNonEmptyString(change.path, `${prefix}.path`, errors)) {
+      return;
+    }
+    const path = change.path as string;
+    if (isSecretPath(path)) {
+      errors.push(
+        `${prefix}.path references a secret path and must not be included`,
+      );
+    }
+    if (changePaths.has(path)) {
+      errors.push(`duplicate change path: ${path}`);
+    } else {
+      changePaths.add(path);
+    }
+
+    const status = change.status;
+    if (
+      typeof status !== "string" || !VALID_CHANGE_STATUSES.has(status)
+    ) {
+      errors.push(
+        `${prefix}.status must be one of ${[...VALID_CHANGE_STATUSES].sort()}`,
+      );
+    }
+
+    if (status === "renamed") {
+      if (
+        !requireNonEmptyString(
+          change.previousPath,
+          `${prefix}.previousPath`,
+          errors,
+        )
+      ) {
+        errors.push(
+          `${prefix} status=renamed requires a non-empty previousPath`,
+        );
+      } else if (isSecretPath(change.previousPath)) {
+        errors.push(
+          `${prefix}.previousPath references a secret path and must not be included`,
+        );
+      }
+    } else {
+      requireString(change.previousPath, `${prefix}.previousPath`, errors);
     }
   });
 };
@@ -320,13 +440,41 @@ const stableStringify = (value: unknown): string => {
   return "null";
 };
 
+const isReviewPerformed = (report: Record<string, unknown>): boolean => {
+  const review = report.review;
+  if (review === undefined || review === null) return true;
+  if (!isRecord(review)) return true;
+  return review.performed !== false;
+};
+
+const implementationGroupIdentity = (group: unknown) => {
+  if (!isRecord(group)) return group;
+  return {
+    id: group.id,
+    title: group.title,
+    intent: group.intent,
+    needsImprovement: group.needsImprovement,
+    improvementReason: group.improvementReason,
+    files: group.files,
+    diffs: group.diffs,
+  };
+};
+
+const implementationReportIdentity = (report: Record<string, unknown>) => ({
+  title: report.title,
+  target: report.target,
+  overview: report.overview,
+  diagrams: report.diagrams,
+  groups: Array.isArray(report.groups)
+    ? report.groups.map(implementationGroupIdentity)
+    : report.groups,
+});
+
 export const defaultReportId = (report: Record<string, unknown>) => {
   if (report.reportId) {
     return String(report.reportId);
   }
-  const payload = { ...report };
-  delete payload.reportId;
-  const seed = stableStringify(payload);
+  const seed = stableStringify(implementationReportIdentity(report));
   const digest = createHash("sha256").update(seed).digest("hex").slice(0, 16);
   return `review-report-${digest}`;
 };
@@ -389,6 +537,24 @@ export const validateReport = (report: unknown): string[] => {
     }
   }
 
+  const review = report.review;
+  if (review !== undefined && review !== null) {
+    if (!isRecord(review)) {
+      errors.push("review must be an object");
+    } else {
+      if (!("performed" in review)) {
+        errors.push("review missing required field: performed");
+      } else if (typeof review.performed !== "boolean") {
+        errors.push("review.performed must be a boolean");
+      }
+      requireString(review.overview, "review.overview", errors);
+    }
+  }
+
+  const performed = isReviewPerformed(report);
+
+  validateRepository(report.repository, errors);
+
   const groups = report.groups;
   if (groups === undefined) {
     errors.push("missing required field: groups");
@@ -409,8 +575,8 @@ export const validateReport = (report: unknown): string[] => {
       return;
     }
 
-    for (
-      const field of [
+    const requiredFields = performed
+      ? [
         "id",
         "title",
         "intent",
@@ -420,7 +586,9 @@ export const validateReport = (report: unknown): string[] => {
         "diffs",
         "findings",
       ] as const
-    ) {
+      : ["id", "title", "intent", "files", "diffs"] as const;
+
+    for (const field of requiredFields) {
       if (!(field in group)) {
         errors.push(`${prefix} missing required field: ${field}`);
       }
@@ -434,44 +602,126 @@ export const validateReport = (report: unknown): string[] => {
       errors,
     );
 
-    for (const field of ["title", "intent", "riskReason"] as const) {
-      requireNonEmptyString(group[field], `${prefix}.${field}`, errors);
-    }
+    requireNonEmptyString(group.title, `${prefix}.title`, errors);
+    requireNonEmptyString(group.intent, `${prefix}.intent`, errors);
 
-    const risk = group.risk;
-    if (typeof risk !== "string" || !VALID_RISKS.has(risk)) {
-      errors.push(`${prefix}.risk must be one of ${[...VALID_RISKS].sort()}`);
-    }
+    if (performed) {
+      requireNonEmptyString(group.riskReason, `${prefix}.riskReason`, errors);
 
-    let score: unknown = group.riskScore ?? 0;
-    if (score === null) score = 0;
-    if (typeof score === "boolean") {
-      errors.push(`${prefix}.riskScore must be numeric`);
-    } else if (!isFiniteNumber(score)) {
-      errors.push(`${prefix}.riskScore must be a finite number`);
-    } else if (score < 0 || score > 100) {
-      errors.push(`${prefix}.riskScore must be between 0 and 100`);
-    }
-
-    requireBool(group.needsImprovement, `${prefix}.needsImprovement`, errors);
-    requireString(
-      group.improvementReason,
-      `${prefix}.improvementReason`,
-      errors,
-    );
-    requireString(group.initialComment, `${prefix}.initialComment`, errors);
-
-    if (group.needsImprovement === true) {
-      if (
-        !requireNonEmptyString(
-          group.improvementReason,
-          `${prefix}.improvementReason`,
-          errors,
-        )
-      ) {
+      const risk = group.risk;
+      if (typeof risk !== "string" || !VALID_RISKS.has(risk)) {
         errors.push(
-          `${prefix} needsImprovement=true requires a non-empty improvementReason`,
+          `${prefix}.risk must be one of ${[...VALID_RISKS].sort()}`,
         );
+      }
+
+      let score: unknown = group.riskScore ?? 0;
+      if (score === null) score = 0;
+      if (typeof score === "boolean") {
+        errors.push(`${prefix}.riskScore must be numeric`);
+      } else if (!isFiniteNumber(score)) {
+        errors.push(`${prefix}.riskScore must be a finite number`);
+      } else if (score < 0 || score > 100) {
+        errors.push(`${prefix}.riskScore must be between 0 and 100`);
+      }
+
+      requireBool(group.needsImprovement, `${prefix}.needsImprovement`, errors);
+      requireString(
+        group.improvementReason,
+        `${prefix}.improvementReason`,
+        errors,
+      );
+      requireString(group.initialComment, `${prefix}.initialComment`, errors);
+
+      if (group.needsImprovement === true) {
+        if (
+          !requireNonEmptyString(
+            group.improvementReason,
+            `${prefix}.improvementReason`,
+            errors,
+          )
+        ) {
+          errors.push(
+            `${prefix} needsImprovement=true requires a non-empty improvementReason`,
+          );
+        }
+      }
+
+      const findings = group.findings;
+      if (!Array.isArray(findings)) {
+        errors.push(`${prefix}.findings must be an array`);
+      } else {
+        findings.forEach((finding, fIndex) =>
+          validateFinding(
+            finding,
+            `${prefix}.findings[${fIndex}]`,
+            errors,
+            findingIds,
+          )
+        );
+      }
+    } else {
+      if ("risk" in group) {
+        const risk = group.risk;
+        if (typeof risk !== "string" || !VALID_RISKS.has(risk)) {
+          errors.push(
+            `${prefix}.risk must be one of ${[...VALID_RISKS].sort()}`,
+          );
+        }
+      }
+
+      if ("riskReason" in group) {
+        requireNonEmptyString(group.riskReason, `${prefix}.riskReason`, errors);
+      }
+
+      if ("riskScore" in group) {
+        let score: unknown = group.riskScore ?? 0;
+        if (score === null) score = 0;
+        if (typeof score === "boolean") {
+          errors.push(`${prefix}.riskScore must be numeric`);
+        } else if (!isFiniteNumber(score)) {
+          errors.push(`${prefix}.riskScore must be a finite number`);
+        } else if (score < 0 || score > 100) {
+          errors.push(`${prefix}.riskScore must be between 0 and 100`);
+        }
+      }
+
+      requireBool(group.needsImprovement, `${prefix}.needsImprovement`, errors);
+      requireString(
+        group.improvementReason,
+        `${prefix}.improvementReason`,
+        errors,
+      );
+      requireString(group.initialComment, `${prefix}.initialComment`, errors);
+
+      if (group.needsImprovement === true) {
+        if (
+          !requireNonEmptyString(
+            group.improvementReason,
+            `${prefix}.improvementReason`,
+            errors,
+          )
+        ) {
+          errors.push(
+            `${prefix} needsImprovement=true requires a non-empty improvementReason`,
+          );
+        }
+      }
+
+      if ("findings" in group) {
+        const findings = group.findings;
+        if (!Array.isArray(findings)) {
+          errors.push(`${prefix}.findings must be an array`);
+        } else {
+          findings.forEach((finding, fIndex) =>
+            validateFinding(
+              finding,
+              `${prefix}.findings[${fIndex}]`,
+              errors,
+              findingIds,
+            )
+          );
+        }
       }
     }
 
@@ -485,23 +735,22 @@ export const validateReport = (report: unknown): string[] => {
         validateDiff(diff, `${prefix}.diffs[${dIndex}]`, errors)
       );
     }
-
-    const findings = group.findings;
-    if (!Array.isArray(findings)) {
-      errors.push(`${prefix}.findings must be an array`);
-    } else {
-      findings.forEach((finding, fIndex) =>
-        validateFinding(
-          finding,
-          `${prefix}.findings[${fIndex}]`,
-          errors,
-          findingIds,
-        )
-      );
-    }
   });
 
   const verifications = report.verifications;
+  if (!performed) {
+    if (verifications !== undefined && verifications !== null) {
+      if (!Array.isArray(verifications)) {
+        errors.push("verifications must be an array");
+      } else if (verifications.length > 0) {
+        errors.push(
+          "verifications must be absent or empty when review.performed is false",
+        );
+      }
+    }
+    return errors;
+  }
+
   if (verifications !== undefined && verifications !== null) {
     if (!Array.isArray(verifications)) {
       errors.push("verifications must be an array");
@@ -513,7 +762,9 @@ export const validateReport = (report: unknown): string[] => {
           errors.push(`${prefix} must be an object`);
           return;
         }
-        if (!requireNonEmptyString(item.findingId, `${prefix}.findingId`, errors)) {
+        if (
+          !requireNonEmptyString(item.findingId, `${prefix}.findingId`, errors)
+        ) {
           // continue
         } else {
           const findingId = item.findingId as string;
@@ -612,14 +863,35 @@ export const normalizeReport = (
     normalized.verifications = [];
   }
 
+  const reviewInput = normalized.review;
+  let performed = true;
+  let reviewOverview: string | undefined;
+  if (
+    reviewInput !== undefined && reviewInput !== null && isRecord(reviewInput)
+  ) {
+    performed = reviewInput.performed !== false;
+    if (typeof reviewInput.overview === "string") {
+      reviewOverview = reviewInput.overview;
+    }
+  }
+  normalized.review = reviewOverview !== undefined
+    ? { performed, overview: reviewOverview }
+    : { performed };
+
   const groups = (normalized.groups as Record<string, unknown>[] | undefined) ??
     [];
   normalized.groups = groups.map((group) => {
     const g: Record<string, unknown> = { ...group };
-    if (g.riskScore === undefined) g.riskScore = 0;
     if (g.files === undefined) g.files = [];
     if (g.diffs === undefined) g.diffs = [];
-    g.findings = sortFindings((g.findings as Record<string, unknown>[]) ?? []);
+    if (performed) {
+      if (g.riskScore === undefined) g.riskScore = 0;
+      g.findings = sortFindings(
+        (g.findings as Record<string, unknown>[]) ?? [],
+      );
+    } else if (g.findings === undefined) {
+      g.findings = [];
+    }
     return g;
   });
   normalized.reportId = defaultReportId(normalized);
@@ -859,7 +1131,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       letter-spacing: 0.015em;
       text-rendering: optimizeLegibility;
     }
-    header, main, footer { max-width: 1100px; margin: 0 auto; padding: 1rem 1.25rem; }
+    header, main, footer { max-width: 1200px; margin: 0 auto; padding: 1rem 1.25rem; }
     header {
       border-bottom: 1px solid var(--border);
       background: var(--panel);
@@ -929,6 +1201,171 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     }
     .overview-findings li { margin: 0.15rem 0; }
     .overview-empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .report-shell {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .report-nav {
+      position: sticky;
+      top: 1rem;
+      align-self: start;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+    }
+    .report-nav-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 0.35rem;
+    }
+    .report-nav-list a {
+      display: block;
+      padding: 0.35rem 0.5rem;
+      border-radius: 0.4rem;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .report-nav-list a:hover,
+    .report-nav-list a:focus {
+      background: var(--badge-bg);
+      outline: none;
+    }
+    .report-content {
+      display: grid;
+      gap: 1rem;
+      min-width: 0;
+    }
+    .report-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+    .report-panel > h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1.15rem;
+      line-height: 1.4;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      border-left: 3px solid var(--accent);
+      padding-left: 0.55rem;
+    }
+    .key-changes {
+      margin: 0;
+      padding-left: 1.2rem;
+      line-height: 1.65;
+    }
+    .key-changes > li { margin: 0.35rem 0; }
+    .key-change-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .key-change-link:hover,
+    .key-change-link:focus {
+      text-decoration: underline;
+    }
+    .repo-map-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .repo-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 0.75rem;
+    }
+    .repo-filter-btn {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      line-height: 1.3;
+    }
+    .repo-filter-btn.active {
+      border-color: var(--accent);
+      background: var(--badge-bg);
+      font-weight: 600;
+    }
+    .repo-tree {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .repo-tree details {
+      margin-left: 0.75rem;
+    }
+    .repo-tree summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.15rem 0;
+    }
+    .repo-tree summary::-webkit-details-marker { display: none; }
+    .repo-tree summary::marker { content: ''; }
+    .repo-tree summary::before {
+      content: '▸';
+      color: var(--muted);
+      transition: transform 0.15s ease;
+    }
+    .repo-tree details[open] > summary::before { transform: rotate(90deg); }
+    .repo-dir-badge,
+    .repo-file-badge,
+    .repo-group-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.05rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--badge-bg);
+      line-height: 1.3;
+    }
+    .repo-group-badge {
+      color: var(--accent);
+      cursor: pointer;
+    }
+    .repo-file-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.1rem 0 0.1rem 0.75rem;
+    }
+    .repo-file-link {
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: none;
+      background: none;
+      border: none;
+      font: inherit;
+      padding: 0;
+    }
+    .repo-file-link:hover,
+    .repo-file-link:focus {
+      text-decoration: underline;
+    }
+    .repo-status-added { color: var(--low); border-color: var(--low); }
+    .repo-status-modified { color: var(--medium); border-color: var(--medium); }
+    .repo-status-deleted { color: var(--critical); border-color: var(--critical); }
+    .repo-status-renamed { color: var(--accent); border-color: var(--accent); }
     .diagrams { margin-top: 0.9rem; display: grid; gap: 0.75rem; }
     .diagram-card {
       background: var(--panel);
@@ -981,6 +1418,39 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       padding: 0.75rem 1rem;
       cursor: pointer;
       border-bottom: 1px solid var(--border);
+    }
+    .group-header-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .group-header-title {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.45rem;
+    }
+    .group-header-number {
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .group-header-preview {
+      margin: 0.2rem 0 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    .group-header-count {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--badge-bg);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .group-header h2 {
       margin: 0;
@@ -1254,6 +1724,14 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     }
     .hidden-copy { position: absolute; left: -9999px; }
     #copy-status { min-height: 1.25rem; color: var(--muted); font-size: 0.85rem; margin-top: 0.35rem; }
+    @media (max-width: 768px) {
+      .report-shell {
+        grid-template-columns: 1fr;
+      }
+      .report-nav {
+        position: static;
+      }
+    }
     @media (max-width: 640px) {
       header, main, footer { padding-left: 0.75rem; padding-right: 0.75rem; }
       h1 { font-size: clamp(1.45rem, 4vw, 1.6rem); }
@@ -1267,11 +1745,45 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
   <header>
     <h1 id="report-title"></h1>
     <div class="meta" id="report-meta"></div>
-    <section class="overview" id="overview" aria-labelledby="overview-heading"></section>
-    <div class="summary" id="summary"></div>
   </header>
-  <main id="groups"></main>
-  <footer>
+  <main>
+    <div class="report-shell">
+      <nav class="report-nav" id="report-nav" aria-label="レポート内ナビゲーション">
+        <ul class="report-nav-list">
+          <li><a href="#summary-section">概要</a></li>
+          <li id="nav-repository-map-item" hidden><a href="#repository-map-section">リポジトリマップ</a></li>
+          <li><a href="#implementation-flow-section">実装フロー</a></li>
+          <li><a href="#implementation-section">変更グループ</a></li>
+          <li id="nav-review-item" hidden><a href="#review-section">レビュー結果</a></li>
+        </ul>
+      </nav>
+      <div class="report-content">
+        <section id="summary-section" class="report-panel" aria-labelledby="summary-heading">
+          <h2 id="summary-heading">概要</h2>
+          <div id="summary-content"></div>
+        </section>
+        <section id="repository-map-section" class="report-panel" hidden aria-labelledby="repository-map-heading">
+          <h2 id="repository-map-heading">リポジトリマップ</h2>
+          <div id="repository-map-content"></div>
+        </section>
+        <section id="implementation-flow-section" class="report-panel" aria-labelledby="implementation-flow-heading">
+          <h2 id="implementation-flow-heading">実装フロー</h2>
+          <div id="implementation-flow-content"></div>
+        </section>
+        <section id="implementation-section" class="report-panel" aria-labelledby="implementation-heading">
+          <h2 id="implementation-heading">変更グループ</h2>
+          <div id="implementation-groups"></div>
+        </section>
+        <section id="review-section" class="report-panel" aria-labelledby="review-heading" hidden>
+          <h2 id="review-heading">レビュー結果</h2>
+          <section class="overview" id="review-overview" aria-labelledby="review-overview-heading"></section>
+          <div class="summary" id="review-summary"></div>
+          <div id="review-groups"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer id="review-actions" hidden>
     <h2>全体コメント</h2>
     <textarea id="global-comment" class="comment-box" placeholder="レビュー全体へのコメント"></textarea>
     <h2>裏取りパケット</h2>
@@ -1303,6 +1815,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
   <script type="application/json" id="report-data">__REPORT_JSON__</script>
   <script>
     const REPORT = JSON.parse(document.getElementById('report-data').textContent);
+    const REVIEW_PERFORMED = !(REPORT.review && REPORT.review.performed === false);
     const STORAGE_KEY = 'review-report:' + REPORT.reportId;
     const RISK_CLASS = { critical: 'risk-critical', high: 'risk-high', medium: 'risk-medium', low: 'risk-low' };
     const DECISIONS = ['accepted', 'investigate', 'rejected', 'pending'];
@@ -1592,7 +2105,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
 
     function renderDiffCard(diff) {
       var details = el('details', 'diff-card');
-      details.open = true;
+      details.open = false;
 
       var summary = el('summary', 'diff-summary');
       summary.appendChild(el('span', 'diff-file', diff.file || ''));
@@ -1739,14 +2252,8 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       return card;
     }
 
-    function collectDiagrams(groups) {
+    function collectCustomDiagrams() {
       var diagrams = [];
-      if (groups.length) {
-        diagrams.push({
-          title: '変更グループと指摘の関係',
-          mermaid: buildOverviewMermaid(groups),
-        });
-      }
       (REPORT.diagrams || []).forEach(function(diagram, index) {
         if (!diagram || typeof diagram.mermaid !== 'string' || !diagram.mermaid.trim()) return;
         diagrams.push({
@@ -1754,6 +2261,17 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
           mermaid: diagram.mermaid.trim(),
         });
       });
+      return diagrams;
+    }
+
+    function collectReviewDiagrams(groups) {
+      var diagrams = [];
+      if (groups.length) {
+        diagrams.push({
+          title: '変更グループと指摘の関係',
+          mermaid: buildOverviewMermaid(groups),
+        });
+      }
       return diagrams;
     }
 
@@ -1793,16 +2311,402 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       });
     }
 
-    function renderOverview() {
-      const root = document.getElementById('overview');
+    function safeDomId(prefix, value) {
+      var base = String(value || '')
+        .replace(/\\/g, '/')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80);
+      if (!base) base = 'item';
+      return prefix ? prefix + '-' + base : base;
+    }
+
+    function groupAnchorId(groupId) {
+      var groupIndex = 0;
+      (REPORT.groups || []).forEach(function(group, index) {
+        if (group && group.id === groupId) {
+          groupIndex = index;
+        }
+      });
+      return 'group-' + safeDomId('', groupId) + '-' + String(groupIndex + 1);
+    }
+
+    function intentPreview(text, maxLen) {
+      var value = String(text || '').replace(/[\r\n]+/g, ' ').trim();
+      var limit = maxLen || 96;
+      if (value.length <= limit) return value;
+      return value.slice(0, limit - 1) + '…';
+    }
+
+    function countChangedFiles(group) {
+      var files = group.files || [];
+      if (files.length) return files.length;
+      var seen = Object.create(null);
+      (group.diffs || []).forEach(function(diff) {
+        if (diff && typeof diff.file === 'string' && diff.file) {
+          seen[diff.file] = true;
+        }
+      });
+      return Object.keys(seen).length;
+    }
+
+    function buildGroupFileIndex() {
+      var index = Object.create(null);
+      (REPORT.groups || []).forEach(function(group, groupIndex) {
+        var ref = {
+          id: group.id,
+          number: groupIndex + 1,
+          title: group.title || '',
+        };
+        var addFile = function(file) {
+          if (!file) return;
+          if (!index[file]) index[file] = [];
+          var alreadyAdded = index[file].some(function(item) {
+            return item.id === ref.id;
+          });
+          if (!alreadyAdded) index[file].push(ref);
+        };
+        (group.files || []).forEach(addFile);
+        (group.diffs || []).forEach(function(diff) {
+          if (diff && typeof diff.file === 'string') addFile(diff.file);
+        });
+      });
+      return index;
+    }
+
+    var groupFileIndex = buildGroupFileIndex();
+
+    function scrollToGroup(groupId) {
+      var anchorId = groupAnchorId(groupId);
+      var node = document.getElementById(anchorId);
+      if (!node) return;
+      node.classList.add('expanded');
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function scrollToGroupForFile(filePath) {
+      var refs = groupFileIndex[filePath] || [];
+      if (!refs.length) return;
+      scrollToGroup(refs[0].id);
+    }
+
+    function collectRepositoryPaths(repository) {
+      var paths = Object.create(null);
+      (repository.trackedFiles || []).forEach(function(path) {
+        paths[path] = true;
+      });
+      (repository.changes || []).forEach(function(change) {
+        if (change && typeof change.path === 'string') paths[change.path] = true;
+      });
+      return Object.keys(paths).sort();
+    }
+
+    function buildRepositoryTree(paths) {
+      var root = { name: '', children: Object.create(null), files: [] };
+      paths.forEach(function(path) {
+        var parts = path.split('/').filter(Boolean);
+        if (!parts.length) return;
+        var node = root;
+        for (var i = 0; i < parts.length; i++) {
+          var part = parts[i];
+          var isFile = i === parts.length - 1;
+          if (isFile) {
+            node.files.push({ name: part, path: path });
+          } else {
+            if (!node.children[part]) {
+              node.children[part] = {
+                name: part,
+                children: Object.create(null),
+                files: [],
+              };
+            }
+            node = node.children[part];
+          }
+        }
+      });
+      return root;
+    }
+
+    function buildChangeMaps(repository) {
+      var byPath = Object.create(null);
+      (repository.changes || []).forEach(function(change) {
+        if (change && typeof change.path === 'string') {
+          byPath[change.path] = change;
+        }
+      });
+      return byPath;
+    }
+
+    function repoStatusLabel(status) {
+      if (status === 'added') return 'Added';
+      if (status === 'modified') return 'Modified';
+      if (status === 'deleted') return 'Deleted';
+      if (status === 'renamed') return 'Renamed';
+      return 'Tracked';
+    }
+
+    function nodeMatchesFilter(node, filter, changesByPath) {
+      var changedCount = 0;
+      var matches = false;
+
+      node.files.forEach(function(file) {
+        var change = changesByPath[file.path];
+        if (!change) return;
+        changedCount++;
+        if (filter === 'all' || change.status === filter) matches = true;
+      });
+
+      var childKeys = Object.keys(node.children).sort();
+      var childChanged = 0;
+      childKeys.forEach(function(key) {
+        var child = node.children[key];
+        var childResult = nodeMatchesFilter(child, filter, changesByPath);
+        childChanged += childResult.changedCount;
+        if (childResult.matches) matches = true;
+      });
+
+      return { matches: matches, changedCount: changedCount + childChanged };
+    }
+
+    function appendRepoTreeNode(container, node, filter, changesByPath, pathPrefix) {
+      var childKeys = Object.keys(node.children).sort(function(a, b) {
+        var aChanged = nodeMatchesFilter(node.children[a], filter, changesByPath).changedCount;
+        var bChanged = nodeMatchesFilter(node.children[b], filter, changesByPath).changedCount;
+        return bChanged - aChanged || a.localeCompare(b);
+      });
+
+      childKeys.forEach(function(key) {
+        var child = node.children[key];
+        var childPrefix = pathPrefix ? pathPrefix + '/' + key : key;
+        var childResult = nodeMatchesFilter(child, filter, changesByPath);
+        if (filter !== 'all' && !childResult.matches) return;
+
+        var details = document.createElement('details');
+        details.className = 'repo-tree-dir';
+        details.open = childResult.changedCount > 0;
+        var summary = document.createElement('summary');
+        summary.appendChild(document.createTextNode(key + '/'));
+        if (childResult.changedCount > 0) {
+          summary.appendChild(
+            el('span', 'repo-dir-badge', String(childResult.changedCount)),
+          );
+        }
+        details.appendChild(summary);
+        var childContainer = el('div', 'repo-tree-children');
+        appendRepoTreeNode(childContainer, child, filter, changesByPath, childPrefix);
+        details.appendChild(childContainer);
+        container.appendChild(details);
+      });
+
+      node.files.slice().sort(function(a, b) {
+        var aChanged = changesByPath[a.path] ? 1 : 0;
+        var bChanged = changesByPath[b.path] ? 1 : 0;
+        return bChanged - aChanged || a.path.localeCompare(b.path);
+      }).forEach(function(file) {
+        var change = changesByPath[file.path];
+        if (filter !== 'all') {
+          if (!change || change.status !== filter) return;
+        }
+        var row = el('div', 'repo-file-row');
+        if (change) {
+          var link = document.createElement('button');
+          link.type = 'button';
+          link.className = 'repo-file-link';
+          link.textContent = file.name;
+          link.title = file.path;
+          link.addEventListener('click', function() {
+            scrollToGroupForFile(file.path);
+          });
+          row.appendChild(link);
+          var badge = el(
+            'span',
+            'repo-file-badge repo-status-' + change.status,
+            repoStatusLabel(change.status),
+          );
+          row.appendChild(badge);
+          (groupFileIndex[file.path] || []).forEach(function(ref) {
+            var groupLink = el('button', 'repo-group-badge', 'G' + ref.number);
+            groupLink.type = 'button';
+            groupLink.title = ref.title;
+            groupLink.setAttribute(
+              'aria-label',
+              '変更グループ ' + ref.number + ': ' + ref.title,
+            );
+            groupLink.addEventListener('click', function() {
+              scrollToGroup(ref.id);
+            });
+            row.appendChild(groupLink);
+          });
+          if (change.status === 'renamed' && change.previousPath) {
+            row.appendChild(document.createTextNode('← ' + change.previousPath));
+          }
+        } else {
+          var fileLabel = el('span', null, file.name);
+          fileLabel.title = file.path;
+          row.appendChild(fileLabel);
+        }
+        container.appendChild(row);
+      });
+    }
+
+    function renderRepositoryMap() {
+      var section = document.getElementById('repository-map-section');
+      var root = document.getElementById('repository-map-content');
       root.replaceChildren();
-      const heading = el('h2', null, '概要');
-      heading.id = 'overview-heading';
-      root.appendChild(heading);
+      var repository = REPORT.repository;
+      if (!repository) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+
+      var paths = collectRepositoryPaths(repository);
+      var tree = buildRepositoryTree(paths);
+      var changesByPath = buildChangeMaps(repository);
+      var changedCount = (repository.changes || []).length;
+      var trackedCount = (repository.trackedFiles || []).length;
+
+      var header = el('div', 'repo-map-header');
+      header.appendChild(
+        document.createTextNode(
+          changedCount + ' changed / ' + trackedCount + ' tracked — ' + repository.name,
+        ),
+      );
+      root.appendChild(header);
+
+      var filters = el('div', 'repo-filters');
+      var activeFilter = 'all';
+      var filterLabels = {
+        all: 'All',
+        added: 'Added',
+        modified: 'Modified',
+        deleted: 'Deleted',
+        renamed: 'Renamed',
+      };
+      var treeHost = el('div', 'repo-tree');
+
+      function renderTree() {
+        treeHost.replaceChildren();
+        appendRepoTreeNode(treeHost, tree, activeFilter, changesByPath, '');
+      }
+
+      Object.keys(filterLabels).forEach(function(filter) {
+        var btn = el('button', 'repo-filter-btn', filterLabels[filter]);
+        btn.type = 'button';
+        btn.dataset.filter = filter;
+        if (filter === activeFilter) btn.classList.add('active');
+        btn.addEventListener('click', function() {
+          activeFilter = filter;
+          filters.querySelectorAll('.repo-filter-btn').forEach(function(node) {
+            node.classList.toggle('active', node.dataset.filter === activeFilter);
+          });
+          renderTree();
+        });
+        filters.appendChild(btn);
+      });
+
+      root.appendChild(filters);
+      root.appendChild(treeHost);
+      renderTree();
+    }
+
+    function buildImplementationFlowMermaid() {
+      var lines = ['flowchart TB'];
+      lines.push('  patch["sanitized patch"] --> stage0["Stage 0: 実装分析"]');
+      lines.push('  stage0 --> json["report.json"]');
+      lines.push('  json --> html["report.html"]');
+      if (REVIEW_PERFORMED) {
+        lines.push('  patch --> stage12["Stage 1/2: レビュー enrich"]');
+        lines.push('  stage12 --> json');
+        lines.push('  json --> stage3["Stage 3: 裏取り検証（任意）"]');
+        lines.push('  stage3 --> verified["同じ report.json + verifications"]');
+        lines.push('  verified --> html');
+      }
+      return lines.join(String.fromCharCode(10));
+    }
+
+    function renderImplementationFlow() {
+      var root = document.getElementById('implementation-flow-content');
+      root.replaceChildren();
+      var diagramsRoot = el('div', 'diagrams');
+      appendDiagramCard(diagramsRoot, 'レポート生成フロー', buildImplementationFlowMermaid());
+      collectCustomDiagrams().forEach(function(diagram) {
+        appendDiagramCard(diagramsRoot, diagram.title, diagram.mermaid);
+      });
+      root.appendChild(diagramsRoot);
+    }
+
+    function renderSummary() {
+      const root = document.getElementById('summary-content');
+      root.replaceChildren();
 
       const overviewText = typeof REPORT.overview === 'string' ? REPORT.overview.trim() : '';
       if (overviewText) {
         root.appendChild(el('p', 'overview-text', overviewText));
+      }
+
+      const groups = REPORT.groups || [];
+      const changedFileSet = Object.create(null);
+      groups.forEach(function(group) {
+        (group.files || []).forEach(function(file) {
+          changedFileSet[file] = true;
+        });
+        (group.diffs || []).forEach(function(diff) {
+          if (diff && typeof diff.file === 'string' && diff.file) {
+            changedFileSet[diff.file] = true;
+          }
+        });
+      });
+      var changedFileCount = REPORT.repository
+        ? (REPORT.repository.changes || []).length
+        : Object.keys(changedFileSet).length;
+      var trackedFileCount = REPORT.repository
+        ? (REPORT.repository.trackedFiles || []).length
+        : 0;
+
+      const stats = el('div', 'overview-stats');
+      stats.appendChild(el('span', 'overview-stat', '変更グループ ' + groups.length));
+      stats.appendChild(el('span', 'overview-stat', '変更ファイル ' + changedFileCount));
+      if (REPORT.repository) {
+        stats.appendChild(el('span', 'overview-stat', '追跡ファイル ' + trackedFileCount));
+      }
+      stats.appendChild(
+        el('span', 'overview-stat', REVIEW_PERFORMED ? 'レビュー済み' : '実装のみ'),
+      );
+      root.appendChild(stats);
+
+      if (!groups.length) {
+        root.appendChild(el('p', 'overview-empty', '変更グループはありません。'));
+        return;
+      }
+
+      const list = el('ol', 'key-changes');
+      groups.forEach(function(group, index) {
+        const item = el('li', null);
+        const link = el('a', 'key-change-link', group.title || '');
+        link.href = '#' + groupAnchorId(group.id);
+        link.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          scrollToGroup(group.id);
+        });
+        item.appendChild(link);
+        list.appendChild(item);
+      });
+      root.appendChild(list);
+    }
+
+    function renderReviewOverview() {
+      const root = document.getElementById('review-overview');
+      root.replaceChildren();
+      const heading = el('h2', null, '概要');
+      heading.id = 'review-overview-heading';
+      root.appendChild(heading);
+
+      const reviewOverview = REPORT.review && typeof REPORT.review.overview === 'string'
+        ? REPORT.review.overview.trim()
+        : '';
+      if (reviewOverview) {
+        root.appendChild(el('p', 'overview-text', reviewOverview));
       }
 
       const groups = REPORT.groups || [];
@@ -1820,10 +2724,10 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       stats.appendChild(el('span', 'overview-stat', formatCountChips(findingCounts, '指摘')));
       root.appendChild(stats);
 
-      var diagrams = collectDiagrams(groups);
-      if (diagrams.length) {
+      var reviewDiagrams = collectReviewDiagrams(groups);
+      if (reviewDiagrams.length) {
         var diagramsRoot = el('div', 'diagrams');
-        diagrams.forEach(function(diagram) {
+        reviewDiagrams.forEach(function(diagram) {
           appendDiagramCard(diagramsRoot, diagram.title, diagram.mermaid);
         });
         root.appendChild(diagramsRoot);
@@ -1873,6 +2777,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     }
 
     function updateSummary() {
+      if (!REVIEW_PERFORMED) return;
       let accepted = 0, investigate = 0, rejected = 0, pending = 0, comments = 0;
       let verified = 0, contradicted = 0, unverified = 0;
       REPORT.groups.forEach(function(group) {
@@ -1890,7 +2795,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
         if ((state.groupComments[group.id] || '').trim()) comments++;
       });
       if ((state.globalComment || '').trim()) comments++;
-      const summary = document.getElementById('summary');
+      const summary = document.getElementById('review-summary');
       summary.replaceChildren();
       [
         ['採用', accepted],
@@ -1909,19 +2814,49 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       });
     }
 
-    function renderGroups() {
-      const root = document.getElementById('groups');
+    function sortGroupsClient(groups) {
+      return groups.map(function(group, index) {
+        return { index: index, group: group };
+      }).sort(function(a, b) {
+        var riskOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        var aRank = Object.prototype.hasOwnProperty.call(riskOrder, a.group.risk)
+          ? riskOrder[a.group.risk]
+          : 99;
+        var bRank = Object.prototype.hasOwnProperty.call(riskOrder, b.group.risk)
+          ? riskOrder[b.group.risk]
+          : 99;
+        var aScore = a.group.riskScore != null ? a.group.riskScore : 0;
+        var bScore = b.group.riskScore != null ? b.group.riskScore : 0;
+        return aRank - bRank || bScore - aScore || a.index - b.index;
+      }).map(function(entry) {
+        return entry.group;
+      });
+    }
+
+    function renderImplementationGroups() {
+      const root = document.getElementById('implementation-groups');
       root.replaceChildren();
-      findingCards.clear();
-      REPORT.groups.forEach(function(group) {
-        const section = el('section', 'group');
-        if (group.risk === 'critical' || group.risk === 'high') section.classList.add('expanded');
+      (REPORT.groups || []).forEach(function(group, index) {
+        const section = el('section', 'group implementation-group');
+        section.id = groupAnchorId(group.id);
 
         const header = el('div', 'group-header');
-        header.appendChild(el('span', 'risk-badge ' + (RISK_CLASS[group.risk] || ''), group.risk));
-        header.appendChild(el('span', 'badge', 'スコア: ' + (group.riskScore != null ? group.riskScore : 0)));
-        header.appendChild(el('h2', null, group.title));
-        header.addEventListener('click', function() { section.classList.toggle('expanded'); });
+        const headerMain = el('div', 'group-header-main');
+        const titleRow = el('div', 'group-header-title');
+        titleRow.appendChild(el('span', 'group-header-number', String(index + 1) + '.'));
+        titleRow.appendChild(el('h2', null, group.title || ''));
+        headerMain.appendChild(titleRow);
+        const preview = intentPreview(group.intent || '', 96);
+        if (preview) {
+          headerMain.appendChild(el('p', 'group-header-preview', preview));
+        }
+        header.appendChild(headerMain);
+        header.appendChild(
+          el('span', 'group-header-count', countChangedFiles(group) + ' files'),
+        );
+        header.addEventListener('click', function() {
+          section.classList.toggle('expanded');
+        });
         section.appendChild(header);
 
         const body = el('div', 'group-body');
@@ -1934,11 +2869,6 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
           const label = el('div', 'needs-label', '要改善: ' + (group.improvementReason || ''));
           body.appendChild(label);
         }
-
-        const reason = el('p', 'risk-reason');
-        reason.appendChild(el('strong', null, 'リスク根拠: '));
-        reason.appendChild(document.createTextNode(group.riskReason || ''));
-        body.appendChild(reason);
 
         if (group.files && group.files.length) {
           const files = el('p', 'files');
@@ -1965,7 +2895,38 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
           body.appendChild(block);
         });
 
-        (group.findings || []).forEach(function(finding) {
+        section.appendChild(body);
+        root.appendChild(section);
+      });
+    }
+
+    function renderReviewGroups() {
+      const root = document.getElementById('review-groups');
+      root.replaceChildren();
+      findingCards.clear();
+      sortGroupsClient(REPORT.groups || []).forEach(function(group) {
+        const section = el('section', 'group review-group');
+        if (group.risk === 'critical' || group.risk === 'high') section.classList.add('expanded');
+
+        const header = el('div', 'group-header');
+        header.appendChild(el('span', 'risk-badge ' + (RISK_CLASS[group.risk] || ''), group.risk));
+        header.appendChild(el('span', 'badge', 'スコア: ' + (group.riskScore != null ? group.riskScore : 0)));
+        header.appendChild(el('h2', null, group.title));
+        header.addEventListener('click', function() { section.classList.toggle('expanded'); });
+        section.appendChild(header);
+
+        const body = el('div', 'group-body');
+
+        const reason = el('p', 'risk-reason');
+        reason.appendChild(el('strong', null, 'リスク根拠: '));
+        reason.appendChild(document.createTextNode(group.riskReason || ''));
+        body.appendChild(reason);
+
+        const findings = group.findings || [];
+        if (!findings.length) {
+          body.appendChild(el('div', 'overview-empty', '指摘なし'));
+        }
+        findings.forEach(function(finding) {
           const card = el('div', 'finding');
           findingCards.set(finding.id, card);
           const head = el('div', 'finding-head');
@@ -2259,9 +3220,37 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       updateSummary();
     });
 
-    renderOverview();
-    renderGroups();
-    updateSummary();
+    const reviewSection = document.getElementById('review-section');
+    const reviewActions = document.getElementById('review-actions');
+    const navReviewItem = document.getElementById('nav-review-item');
+    const navRepositoryMapItem = document.getElementById('nav-repository-map-item');
+    const repositoryMapSection = document.getElementById('repository-map-section');
+    if (REVIEW_PERFORMED) {
+      reviewSection.hidden = false;
+      reviewActions.hidden = false;
+      navReviewItem.hidden = false;
+    } else {
+      reviewSection.hidden = true;
+      reviewActions.hidden = true;
+      navReviewItem.hidden = true;
+    }
+    if (REPORT.repository) {
+      repositoryMapSection.hidden = false;
+      navRepositoryMapItem.hidden = false;
+    } else {
+      repositoryMapSection.hidden = true;
+      navRepositoryMapItem.hidden = true;
+    }
+
+    renderSummary();
+    renderRepositoryMap();
+    renderImplementationFlow();
+    renderImplementationGroups();
+    if (REVIEW_PERFORMED) {
+      renderReviewOverview();
+      renderReviewGroups();
+      updateSummary();
+    }
     renderMermaidDiagrams();
 
     document.getElementById('generate-feedback').addEventListener('click', function() {
@@ -2291,13 +3280,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
 
 export const renderHtml = (report: Record<string, unknown>) => {
   const normalized = normalizeReport(report);
-  const sorted = {
-    ...normalized,
-    groups: sortGroups(
-      normalized.groups as unknown as Record<string, unknown>[],
-    ),
-  };
-  const payload = escapeJsonForScript(sorted);
+  const payload = escapeJsonForScript(normalized);
   let html = HTML_TEMPLATE;
   html = html.replace(
     "<title>__TITLE__</title>",

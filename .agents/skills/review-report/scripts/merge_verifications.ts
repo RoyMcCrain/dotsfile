@@ -1,7 +1,4 @@
-import {
-  mergeVerifications,
-  validateReport,
-} from "./render_report.ts";
+import { mergeVerifications, validateReport } from "./render_report.ts";
 
 const usage = () => {
   console.error(
@@ -49,7 +46,9 @@ export const main = async (argv: string[]) => {
     verification = JSON.parse(await Deno.readTextFile(verificationPath));
   } catch (error) {
     console.error(
-      `read/parse error: ${error instanceof Error ? error.message : String(error)}`,
+      `read/parse error: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     );
     return 1;
   }
