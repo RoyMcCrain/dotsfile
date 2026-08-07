@@ -60,6 +60,10 @@ Tracked custom providers:
   `http://localhost:1234/v1`)
 - `cursor/*` via `@rahularya01/pi-cursor` (subscription / OAuth; unofficial)
 
+Built-in subscription providers (via `/login`):
+
+- `anthropic/*` — Claude Pro/Max OAuth (built into Pi; no extra package)
+
 Environment variables:
 
 ```bash
@@ -90,6 +94,34 @@ security find-generic-password -w -s fugu-api-key >/dev/null
 
 If you do not want to use Keychain, edit `~/.pi/agent/auth.json` and store a
 literal API key or an environment reference such as `$SAKANA_API_KEY`.
+
+### Claude Pro/Max (`anthropic`)
+
+Pi 0.84+ includes Claude Pro/Max OAuth. No `pi-anthropic-oauth` package is
+required. Third-party harness usage draws from
+[extra usage](https://claude.ai/settings/usage) and is billed per token, not
+against Claude plan rate limits.
+
+```bash
+pi --list-models anthropic
+pi --model anthropic/claude-sonnet-4-6
+```
+
+Auth (pick one):
+
+1. Preferred: already logged in via Claude Code, then sync Keychain tokens:
+
+   ```bash
+   ./scripts/build_env/sync_pi_claude_auth.sh
+   ```
+
+2. Or inside pi: `/login` → **Anthropic (Claude Pro/Max)** (browser PKCE OAuth)
+
+Check readiness:
+
+```bash
+pi auth check --provider anthropic --json
+```
 
 ### Cursor models (`@rahularya01/pi-cursor`)
 
