@@ -65,7 +65,7 @@ Environment variables:
 ```bash
 export LM_STUDIO_BASE_URL="http://localhost:1234/v1"  # Optional
 export LM_STUDIO_API_KEY="..."           # Optional; dummy key is used if unset
-# Optional. Prefer the package default (or cli-2026.07.23-e383d2b).
+# Optional. The GOAWAY fix branch defaults to cli-2026.07.23-e383d2b.
 # Do NOT set this to the latest `agent --version` string — that can cause
 # resource_exhausted / wire-drift failures.
 # export PI_CURSOR_CLIENT_VERSION="cli-2026.07.23-e383d2b"
@@ -95,11 +95,13 @@ literal API key or an environment reference such as `$SAKANA_API_KEY`.
 
 Unofficial community package (most-downloaded OAuth Cursor provider on
 pi.dev). Uses Cursor subscription auth — not the official `@cursor/sdk` API-key
-path. Recorded in `settings.json` as `packages: ["npm:@rahularya01/pi-cursor"]`
-and installed under `~/.pi/agent/npm/` (not tracked).
+path. Recorded in `settings.json` as the GOAWAY-fix git branch (PR #4) until
+upstream npm publishes it:
+`git:github.com/kouvaliasnick/pi-cursor@fix/goaway-after-turn-ended`.
 
 ```bash
-pi install npm:@rahularya01/pi-cursor   # already in settings.json; re-run on a new machine
+# pi's git installer skips devDeps, so build dist via the setup script:
+./scripts/build_env/setup_pi_cursor_goaway_fix.sh
 pi --list-models cursor
 pi --model cursor/composer-2
 ```
@@ -119,12 +121,14 @@ Useful commands: `/cursor.doctor`, `/cursor.usage`, `/cursor.models`.
 Details: https://pi.dev/packages/@rahularya01/pi-cursor
 
 Note: this reverse-engineers Cursor's agent wire protocol and can break when
-Cursor changes it. Verified working against npm `1.4.8` with the package default
-client version (and with `PI_CURSOR_CLIENT_VERSION=cli-2026.07.23-e383d2b`).
-Setting `PI_CURSOR_CLIENT_VERSION` to the current `agent --version`
-(`2026.08.04-…`) currently triggers `resource_exhausted`. Open PR
-https://github.com/Rahularya01/pi-cursor/pull/4 improves GOAWAY / heartbeat
-handling but is not required for basic prompts.
+Cursor changes it. Upstream npm `1.4.8` still treats post-`turnEnded`
+`GOAWAY (errorCode=0)` as a hard error and appends wire-drift noise.
+We pin the open PR that completes those turns silently:
+https://github.com/Rahularya01/pi-cursor/pull/4
+(default client `cli-2026.07.23-e383d2b`). Do not set
+`PI_CURSOR_CLIENT_VERSION` to the current `agent --version` (`2026.08.04-…`);
+that currently triggers `resource_exhausted`. After upstream merges/publishes,
+switch `settings.json` back to `npm:@rahularya01/pi-cursor`.
 
 ## Extensions
 
@@ -136,7 +140,7 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 | `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
-| `npm:@rahularya01/pi-cursor`    | Cursor subscription models via OAuth / CLI Keychain (unofficial). |
+| `git:…/pi-cursor@fix/goaway-after-turn-ended` | Cursor models via OAuth; silences post-turn GOAWAY (PR #4). |
 
 Reload after editing extensions:
 

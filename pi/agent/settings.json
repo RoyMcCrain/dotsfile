@@ -29,6 +29,6 @@
   ],
   "lastChangelogVersion": "0.84.1",
   "packages": [
-    "npm:@rahularya01/pi-cursor"
+    "git:github.com/kouvaliasnick/pi-cursor@fix/goaway-after-turn-ended"
   ]
 }
