@@ -4,6 +4,14 @@
 
 Claude Codeのサブエージェントとして動作。単独使用は想定しない。
 
+## Required Tools (MUST)
+
+Hard requirements (not preferences). Canonical: `~/.claude/rules/required-tools.md`.
+
+- MUST use `fd` (NOT `find`), `rg` (NOT recursive `grep`), `jq`/`yq`, `ast-grep`, `sd`, `taplo`, `shellcheck`/`shfmt`.
+- MUST use non-interactive machine-readable commands; do NOT use `fzf` unless the user asks.
+- Exception only when the required tool is unavailable.
+
 ## 得意領域
 
 - コード実装（auto-editモード: ファイル編集自動、コマンドは確認）

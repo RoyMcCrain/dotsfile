@@ -6,3 +6,6 @@
 
 ## Role
 - コード実装（auto-editモード）
+
+## Required Tools (MUST)
+- Hard requirements: `fd` not `find`, `rg` not recursive `grep`, plus `jq`/`yq`, `ast-grep`, `sd`, `taplo`, `shellcheck`/`shfmt`. Canonical: `~/.claude/rules/required-tools.md`.
