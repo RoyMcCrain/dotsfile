@@ -152,6 +152,7 @@ ln -sfn ${BASE_DIR}/pi/agent/extensions ~/.pi/agent/extensions
 ln -sfn ${BASE_DIR}/pi/agent/lib ~/.pi/agent/lib
 if command -v npm >/dev/null 2>&1; then
   bash "${BASE_DIR}/scripts/build_env/patch_pi_min_output_tokens.sh"
+  bash "${BASE_DIR}/scripts/build_env/setup_pi_cursor_goaway_fix.sh"
 else
   echo "skip Pi runtime patch (npm not found)"
 fi
