@@ -54,7 +54,7 @@
     "code-simplifier@claude-plugins-official": true,
     "dbt@dbt-agent-marketplace": false,
     "cloudflare@claude-plugins-official": false,
-    "slack@claude-plugins-official": false,
+    "slack@claude-plugins-official": true,
     "shopify-ai-toolkit@claude-plugins-official": false,
     "stripe@claude-plugins-official": false
   },

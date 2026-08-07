@@ -1,4 +1,4 @@
 interface:
   display_name: "MCP Delegate"
-  short_description: "MCP tasks go through Claude Code"
-  default_prompt: "Use $mcp-delegate to handle this MCP setup or authentication task through Claude Code."
+  short_description: "Slack links and MCP tasks via Claude Code"
+  default_prompt: "Use $mcp-delegate. For Slack archive/permalink URLs, run the connection gate then the read-only Claude Slack flow. For other hosted OAuth MCP setup/auth/data tasks, delegate to Claude Code."
