@@ -9,5 +9,8 @@
 - 最新のトレンド・ライブラリ情報
 - ドキュメントの比較・要約
 
+## Required Tools (MUST)
+- Hard requirements: `fd` not `find`, `rg` not recursive `grep`, plus `jq`/`yq`, `ast-grep`, `sd`, `taplo`, `shellcheck`/`shfmt`. Canonical: `~/.claude/rules/required-tools.md`.
+
 ## Output
 - 調査結果は `~/.claude/docs/research/` に保存を推奨
