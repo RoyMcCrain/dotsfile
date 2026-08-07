@@ -1,6 +1,6 @@
 ---
 name: cursor-impl
-description: Cursor Agent CLI (Composer 2.5 Fast) に実装まで委譲する
+description: Pi headless（Cursor Composer 2.5 Fast）に実装まで委譲する
 ---
 
 # /cursor-impl
@@ -38,9 +38,12 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
    - プロンプトはファイル化して渡すと長文でも安全（例: `$TMPDIR/impl-prompt.md`）
 4. **実行**（write / shell 込み・バックグラウンド推奨）:
    ```bash
-   cursor-agent -p --force --trust --model composer-2.5-fast --output-format text "$(cat $TMPDIR/impl-prompt.md)" > "$TMPDIR/composer.log" 2>&1
+   PI_SKIP_VERSION_CHECK=1 pi -p --model cursor/composer-2.5-fast --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-prompt.md)" > "$TMPDIR/composer.log" 2>&1
    ```
-   - `--print text` モードは完了時にまとめて出力するため途中ログは空。完了通知で再開する
+   - `-p` は非対話（print）モード。完了時にまとめて出力するため途中ログは空。完了通知で再開する
+   - `--no-session` で実装用セッションを保存しない
+   - skill / context / prompt template を無効化し、子 Pi が `cursor-impl` を再帰起動するのを防ぐ
+   - 必要なプロジェクト規約は実装プロンプトへ明記する
 5. **呼び出し元エージェントによる検証**（必須）:
    - `jj diff --summary` / `git diff --stat` で全変更ファイルを目視（意図しないファイル混入・一時ファイルの確認）
    - lint（プロジェクト規約に従う。例: `cld ts lint`）
@@ -66,10 +69,10 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
 2. 各バッチを**それぞれ別の Bash 呼び出し（`run_in_background: true`）で起動**する。1 つの Bash に複数行で書くと順次実行になり並行にならないので注意。1 メッセージ内で複数の background Bash を同時に発行する:
    ```bash
    # 別々の background Bash として 1 つずつ起動（ログも分ける）
-   cursor-agent -p --force --trust --model composer-2.5-fast "$(cat $TMPDIR/impl-1.md)" > "$TMPDIR/composer-1.log" 2>&1
+   PI_SKIP_VERSION_CHECK=1 pi -p --model cursor/composer-2.5-fast --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-1.md)" > "$TMPDIR/composer-1.log" 2>&1
    ```
    ```bash
-   cursor-agent -p --force --trust --model composer-2.5-fast "$(cat $TMPDIR/impl-2.md)" > "$TMPDIR/composer-2.log" 2>&1
+   PI_SKIP_VERSION_CHECK=1 pi -p --model cursor/composer-2.5-fast --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-2.md)" > "$TMPDIR/composer-2.log" 2>&1
    ```
 3. 各 background の完了通知を待って集約 → 呼び出し元エージェントが共有グルーコードを書く → 統合して lint/test
 
@@ -81,11 +84,12 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
 
 ## 注意
 
-- `-p --force` は write / shell を許可する（`--yolo` 相当）。read-only ではない
+- `-p` は write / edit / bash を許可したまま非対話実行する（編集あり）。read-only ではない
 - バックエンド変更・コード生成（proto等）が不要なら、その旨をプロンプトで明示して暴走を防ぐ
 - 変更範囲を限定したい場合はディレクトリを明示する
+- 呼び出し元が Pi のときも、子プロセスとして別の `pi -p` を起動する（ネスト可）
 
 ## モデル
 
-`composer-2.5-fast`（Composer 2.5 Fast）。高速・コーディング特化で横展開（パターン追従）作業に強い。
-変更したい場合は `cursor-agent --list-models` で一覧確認。
+`cursor/composer-2.5-fast`（Composer 2.5 Fast）。高速・コーディング特化で横展開（パターン追従）作業に強い。
+変更したい場合は `pi --list-models cursor` で一覧確認。

@@ -49,6 +49,7 @@
     "sd@latest",
     "shellcheck@latest",
     "shfmt@latest",
+    "bats@latest",
     "taplo@latest",
     "github:yusukebe/ax",
     "hunk@latest"
