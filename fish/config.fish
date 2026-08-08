@@ -24,10 +24,12 @@ set -gx DFT_DISPLAY side-by-side-show-both
 # API keys (Bitwarden→Keychainキャッシュ。更新は sync-key、新規は add-key が下行に自動追記)
 # add-key が新規アイテムを作る Bitwarden フォルダ
 set -gx BW_KEY_FOLDER "env"
-set -l api_key_items fugu-api-key firecrawl-api-key devin-api-key
-for item in $api_key_items
-    set -l val (security find-generic-password -s $item -w 2>/dev/null)
-    test -n "$val"; and set -gx (string upper (string replace -a - _ $item)) $val
+if command -q security
+    set -l api_key_items fugu-api-key firecrawl-api-key devin-api-key
+    for item in $api_key_items
+        set -l val (security find-generic-password -s $item -w 2>/dev/null)
+        test -n "$val"; and set -gx (string upper (string replace -a - _ $item)) $val
+    end
 end
 
 # devbox
