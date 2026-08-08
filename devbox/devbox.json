@@ -52,7 +52,8 @@
     "bats@latest",
     "taplo@latest",
     "github:yusukebe/ax",
-    "hunk@latest"
+    "hunk@latest",
+    "rsgain@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
