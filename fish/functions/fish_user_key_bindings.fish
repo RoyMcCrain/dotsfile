@@ -12,22 +12,22 @@ function fish_user_key_bindings --description 'Set custom key bindings and keep 
     end
 
     # ghq-fzf: Ctrl+S (BEAKL: sはホームロー下方向)
-    # 末尾の repaint で ESC キャンセル時もプロンプトを再描画する
+    # repaint は関数内部で commandline -f repaint 済み（別トークンで渡すとbindが発火しない環境があるため単一コマンドのみ渡す）
     if functions -q ghq-fzf
-        bind \cs ghq-fzf repaint
-        bind -M insert \cs ghq-fzf repaint
+        bind \cs ghq-fzf
+        bind -M insert \cs ghq-fzf
     end
 
     # ghq-fzf-jj: Ctrl+T (BEAKL: tはホームロー上方向)
     if functions -q ghq-fzf-jj
-        bind \ct ghq-fzf-jj repaint
-        bind -M insert \ct ghq-fzf-jj repaint
+        bind \ct ghq-fzf-jj
+        bind -M insert \ct ghq-fzf-jj
     end
 
     # fzf-file-widget: Ctrl+G
     if functions -q fzf-file-widget
-        bind \cg fzf-file-widget repaint
-        bind -M insert \cg fzf-file-widget repaint
+        bind \cg fzf-file-widget
+        bind -M insert \cg fzf-file-widget
     end
 
     if functions -q fancy-ctrl-z
