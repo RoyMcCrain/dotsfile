@@ -312,13 +312,23 @@ cleanup_all() {
 
 usage() {
 	cat >&2 <<'EOF'
-Usage: run_pi_review.sh --model MODEL --prompt PATH --input PATH [--input PATH ...] [--timeout SECONDS] [--cwd PATH]
+Usage: run_pi_review.sh (--role ROLE | --model MODEL) --prompt PATH --input PATH [--input PATH ...] [--timeout SECONDS] [--cwd PATH]
 EOF
 	exit 1
 }
 
+# Roles live in model-roles.json so model IDs are defined in exactly one place.
+resolve_role() {
+	local role="$1"
+	local resolver="${MODEL_RESOLVER:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/resolve-model.sh}"
+	resolver="${resolver/#\~/$HOME}"
+	[[ -x "$resolver" ]] || die "model resolver not found: $resolver"
+	"$resolver" "$role"
+}
+
 parse_args() {
 	model=''
+	role=''
 	prompt=''
 	timeout=120
 	cwd=''
@@ -326,6 +336,11 @@ parse_args() {
 
 	while (($# > 0)); do
 		case "$1" in
+		--role)
+			shift
+			[[ $# -gt 0 ]] || usage
+			role=$1
+			;;
 		--model)
 			shift
 			[[ $# -gt 0 ]] || usage
@@ -361,7 +376,13 @@ parse_args() {
 		shift
 	done
 
-	[[ -n "$model" ]] || die "missing required argument: --model"
+	if [[ -n "$role" ]]; then
+		[[ -z "$model" ]] || die "--role and --model are mutually exclusive"
+		model=$(resolve_role "$role") || exit 1
+		[[ -n "$model" ]] || die "model role resolved to empty value: $role"
+	fi
+
+	[[ -n "$model" ]] || die "missing required argument: --role or --model"
 	[[ -n "$prompt" ]] || die "missing required argument: --prompt"
 	((${#inputs[@]} > 0)) || die "missing required argument: --input"
 }

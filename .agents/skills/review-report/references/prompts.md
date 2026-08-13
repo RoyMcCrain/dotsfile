@@ -188,18 +188,19 @@ Stage 1/2 reviewer 出力を既存 `report.json` に merge するとき:
 
 共通 runner は一時設定で retry を止め、CLIで skill / context / extension / tools
 を無効化する。Stage 0/1/2 は patch-only（Stage 2 は +plan）。Cursor provider
-だけ明示ロードする。既定は Cursor Grok 4.5 High。Codex Terra High / Claude Opus
-High は fallback。Fugu は quota
-制限があるためユーザー明示時だけ使い、自動再試行しない。
+だけ明示ロードする。既定は role `review.cursor`。`review.codex` /
+`review.claude` は fallback。Fugu（`review.fugu`）は quota
+制限があるためユーザー明示時だけ使い、自動再試行しない。実モデル ID は
+`~/.pi/agent/model-roles.json` が単一の正。
 
 plan がある場合、blind と plan-aware は互いに独立なので同時に起動する。
 
 ```bash
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
-MODEL=cursor/grok-4.5:high
+ROLE=review.cursor
 
 "$RUNNER" \
-  --model "$MODEL" \
+  --role "$ROLE" \
   --prompt "$BLIND_DIR/prompt.txt" \
   --input "$BLIND_DIR/sanitized.patch" \
   --cwd "$BLIND_DIR" \
@@ -208,7 +209,7 @@ MODEL=cursor/grok-4.5:high
 blind_pid=$!
 
 "$RUNNER" \
-  --model "$MODEL" \
+  --role "$ROLE" \
   --prompt "$PLAN_DIR/prompt.txt" \
   --input "$PLAN_DIR/sanitized.patch" \
   --input "$PLAN_DIR/plan-body.md" \
@@ -234,7 +235,7 @@ Stage 0 のみ（implementation-report）:
 
 ```bash
 "$RUNNER" \
-  --model "$MODEL" \
+  --role "$ROLE" \
   --prompt "$IMPL_DIR/prompt.txt" \
   --input "$IMPL_DIR/sanitized.patch" \
   --cwd "$IMPL_DIR" \
@@ -242,11 +243,11 @@ Stage 0 のみ（implementation-report）:
   >"$IMPL_DIR/result.json" 2>"$IMPL_DIR/analyzer.log"
 ```
 
-plan がなければ plan-aware 起動を省略する。fallback は `MODEL` だけ変更する:
+plan がなければ plan-aware 起動を省略する。fallback は `ROLE` だけ変更する:
 
-- Codex: `openai-codex/gpt-5.6-terra:high`
-- Claude: `anthropic/claude-opus-5:high`
-- Fugu（明示時のみ、timeout 60秒）: `sakana-ai-console/fugu-ultra:high`
+- Codex: `review.codex`
+- Claude: `review.claude`
+- Fugu（明示時のみ、timeout は catalog の review.fugu = 240秒）: `review.fugu`
 
 片方が timeout / provider error
 でも自動再試行せず、成功結果を保持して失敗を明記する。

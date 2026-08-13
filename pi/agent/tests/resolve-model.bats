@@ -1,0 +1,174 @@
+#!/usr/bin/env bats
+# shellcheck disable=SC2030,SC2031
+
+setup() {
+	TEST_ROOT="$BATS_TEST_TMPDIR/resolve-model"
+	mkdir -p "$TEST_ROOT"
+
+	RESOLVER="$BATS_TEST_DIRNAME/../resolve-model.sh"
+
+	CATALOG="$TEST_ROOT/model-roles.json"
+	SETTINGS="$TEST_ROOT/settings.json"
+	CODEX="$TEST_ROOT/config.toml"
+
+	export MODEL_ROLES_FILE="$CATALOG"
+	export PI_SETTINGS_FILE="$SETTINGS"
+	export CODEX_CONFIG_FILE="$CODEX"
+}
+
+write_catalog() {
+	cat >"$CATALOG" <<'EOF'
+{
+  "enabledModels": ["provider/pi-model:high", "provider/other:high"],
+  "roles": {
+    "review.test": { "pi": "provider/pi-model:high", "label": "Pi Model" },
+    "codex.default": { "id": "gpt-test-model", "label": "Codex Test" }
+  }
+}
+EOF
+}
+
+write_settings_drifted() {
+	cat >"$SETTINGS" <<'EOF'
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "runtime-selected-model",
+  "enabledModels": ["provider/stale:high"]
+}
+EOF
+}
+
+write_codex_drifted() {
+	cat >"$CODEX" <<'EOF'
+model = "stale-model-id"
+model_reasoning_effort = "medium"
+EOF
+}
+
+minimal_path_without_sd() {
+	local bin="$TEST_ROOT/minimal-path"
+	mkdir -p "$bin"
+	ln -sf "$(command -v bash)" "$bin/bash"
+	ln -sf "$(command -v jq)" "$bin/jq"
+	printf '%s\n' "$bin"
+}
+
+@test "resolves .pi for pi roles and .id fallback for codex.default" {
+	# Arrange
+	write_catalog
+
+	# Act
+	run "$RESOLVER" review.test
+	[ "$status" -eq 0 ]
+	[ "$output" = "provider/pi-model:high" ]
+
+	run "$RESOLVER" codex.default
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[ "$output" = "gpt-test-model" ]
+}
+
+@test "--apply syncs enabledModels and codex model while preserving defaultProvider and defaultModel" {
+	# Arrange
+	write_catalog
+	write_settings_drifted
+	write_codex_drifted
+
+	# Act
+	run "$RESOLVER" --apply
+	[ "$status" -eq 0 ]
+
+	# Assert
+	jq -e '.defaultProvider == "openai-codex"' "$SETTINGS" >/dev/null
+	jq -e '.defaultModel == "runtime-selected-model"' "$SETTINGS" >/dev/null
+	jq -e '.enabledModels == ["provider/pi-model:high", "provider/other:high"]' "$SETTINGS" >/dev/null
+	rg -Fq 'model = "gpt-test-model"' "$CODEX"
+}
+
+@test "--apply with sd unavailable fails before mutation and reports sd is required" {
+	# Arrange
+	write_catalog
+	write_settings_drifted
+	write_codex_drifted
+
+	local settings_before codex_before minimal_path
+	settings_before=$(cat "$SETTINGS")
+	codex_before=$(cat "$CODEX")
+	minimal_path=$(minimal_path_without_sd)
+
+	# Act
+	run env PATH="$minimal_path" "$RESOLVER" --apply
+
+	# Assert
+	[ "$status" -ne 0 ]
+	[[ "$output" == *sd\ is\ required* ]]
+	[ "$(cat "$SETTINGS")" = "$settings_before" ]
+	[ "$(cat "$CODEX")" = "$codex_before" ]
+}
+
+@test "--check reports drift and succeeds after apply" {
+	# Arrange
+	write_catalog
+	write_settings_drifted
+	write_codex_drifted
+
+	# Act
+	run "$RESOLVER" --check
+	[ "$status" -ne 0 ]
+
+	run "$RESOLVER" --apply
+	[ "$status" -eq 0 ]
+
+	run "$RESOLVER" --check
+
+	# Assert
+	[ "$status" -eq 0 ]
+}
+
+write_catalog_with_levels() {
+	cat >"$CATALOG" <<'EOF'
+{
+  "enabledModels": ["provider/pi-model:high"],
+  "roles": {
+    "review.test": { "pi": "provider/pi-model:high", "label": "Pi Model" },
+    "codex.default": { "id": "gpt-test-model", "label": "Codex Test" }
+  },
+  "reviewLevels": {
+    "1": [
+      { "pi": "cursor/fast", "base": 45, "perKb": 1 },
+      { "pi": "anthropic/sonnet:high", "base": 60, "perKb": 2 }
+    ],
+    "2": [
+      { "pi": "sakana-ai-console/fugu-ultra:high", "base": 180, "perKb": 8 }
+    ]
+  }
+}
+EOF
+}
+
+@test "--review-level prints pi, base and perKb per reviewer" {
+	# Arrange
+	write_catalog_with_levels
+
+	# Act
+	run "$RESOLVER" --review-level 1
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "$(printf 'cursor/fast\t45\t1')" ]
+	[ "${lines[1]}" = "$(printf 'anthropic/sonnet:high\t60\t2')" ]
+	[ "${#lines[@]}" -eq 2 ]
+}
+
+@test "--review-level rejects an unknown level" {
+	# Arrange
+	write_catalog_with_levels
+
+	# Act
+	run "$RESOLVER" --review-level 9
+
+	# Assert
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown review level"* ]]
+}

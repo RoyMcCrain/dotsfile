@@ -89,7 +89,7 @@ apply_runner_env() {
 	export FAKE_PI_ARGS="$ARGS_LOG"
 	export FAKE_PI_ENV="$ENV_LOG"
 	export FAKE_PI_CHILD_PID="$CHILD_PID"
-	unset FAKE_PI_SLEEP FAKE_PI_EXIT FAKE_PI_SIGNAL_PARENT PI_CURSOR_EXTENSION
+	unset FAKE_PI_SLEEP FAKE_PI_EXIT FAKE_PI_SIGNAL_PARENT PI_CURSOR_EXTENSION MODEL_RESOLVER
 }
 
 run_runner() {
@@ -193,7 +193,7 @@ assert_runner_signal() {
 	local -a cmd=()
 	while IFS= read -r -d '' token; do
 		cmd+=("$token")
-	done < <(runner_command 5 cursor/grok-4.5:high)
+	done < <(runner_command 5 cursor/fake-model:high)
 
 	run "${cmd[@]}"
 	[ "$status" -eq 0 ]
@@ -201,6 +201,56 @@ assert_runner_signal() {
 	jq -e 'index("--no-extensions")' "$ARGS_LOG" >/dev/null
 	extension=$(jq -r '.[index("--extension") + 1]' "$ARGS_LOG")
 	[ "$extension" = "$EXTENSION" ]
+}
+
+write_fake_catalog() {
+	RESOLVER_DIR="$TEST_ROOT/agent"
+	mkdir -p "$RESOLVER_DIR"
+	cat >"$RESOLVER_DIR/model-roles.json" <<'EOF'
+{
+  "enabledModels": ["provider/from-role:high"],
+  "roles": {
+    "review.test": { "pi": "provider/from-role:high", "label": "Test Model" }
+  }
+}
+EOF
+	cp "$BATS_TEST_DIRNAME/../../../../pi/agent/resolve-model.sh" "$RESOLVER_DIR/resolve-model.sh"
+	chmod +x "$RESOLVER_DIR/resolve-model.sh"
+}
+
+@test "--role resolves the model id from the catalog" {
+	write_fake_catalog
+	apply_runner_env
+	export MODEL_RESOLVER="$RESOLVER_DIR/resolve-model.sh"
+
+	run "$RUNNER" --role review.test --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT"
+	[ "$status" -eq 0 ]
+
+	model=$(jq -r '.[index("--model") + 1]' "$ARGS_LOG")
+	[ "$model" = "provider/from-role:high" ]
+}
+
+@test "--role rejects an unknown role" {
+	write_fake_catalog
+	apply_runner_env
+	export MODEL_RESOLVER="$RESOLVER_DIR/resolve-model.sh"
+
+	run "$RUNNER" --role review.missing --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *unknown\ model\ role* ]]
+}
+
+@test "--role and --model are mutually exclusive" {
+	write_fake_catalog
+	apply_runner_env
+	export MODEL_RESOLVER="$RESOLVER_DIR/resolve-model.sh"
+
+	run "$RUNNER" --role review.test --model provider/model:medium \
+		--prompt "$PROMPT" --input "$PATCH" --timeout 5 --cwd "$TEST_ROOT"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *mutually\ exclusive* ]]
 }
 
 @test "propagates exit status" {
