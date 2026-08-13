@@ -140,6 +140,12 @@ Denoのキャッシュが原因で上手くインストールできないとき�
 
 ## WSL2固有の設定
 
+### Windows Terminal: Shift+Enter → pi 改行
+
+Mac Ghostty と同じ `Shift+Enter` で pi に改行を入れるため、Windows Terminal
+の `settings.json` で `shift+enter` を `\u001b[13;2u` にリマップする。
+詳細は `pi/README.md` の「Shift+Enter (WSL / Windows Terminal)」を参照。
+
 ### xsel
 ```bash
 sudo apt install xsel
