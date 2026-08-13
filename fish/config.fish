@@ -21,6 +21,12 @@ set -gx EDITOR nvim
 set -gx TERM xterm-256color
 set -gx DFT_DISPLAY side-by-side-show-both
 
+# WSL: Bitwarden SSH agent ブリッジ socket を SSH_AUTH_SOCK に設定
+# IdentityAgent を参照しないツール(jj/git)からも agent を使えるようにする
+if test -S ~/.bitwarden-ssh-agent.sock
+    set -gx SSH_AUTH_SOCK ~/.bitwarden-ssh-agent.sock
+end
+
 # API keys (Bitwarden→Keychainキャッシュ。更新は sync-key、新規は add-key が下行に自動追記)
 # add-key が新規アイテムを作る Bitwarden フォルダ
 set -gx BW_KEY_FOLDER "env"
