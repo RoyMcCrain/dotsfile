@@ -54,6 +54,12 @@ chmod +x ./scripts/build_env/create_symlink.sh
 - nvim, fish, gitconfig等の基本設定
 - claude/, codex/, antigravity/ のAI Tools設定
 
+あわせて `create_symlink.sh` が git の `core.hooksPath` を `.githooks` に設定し、
+push 前に `scripts/run_tests.sh`（Deno + bats）が走る pre-push hook が有効になる。
+
+> **注意**: git hooks は `git push` でのみ発火する。`jj git push` は git hooks を実行しないため、
+> jj で push する場合は事前に `./scripts/run_tests.sh` を手動で実行すること。
+
 ## devboxツールのインストール
 
 `setup_fish.sh`実行後（devbox.jsonのシンボリックリンク作成後）：
