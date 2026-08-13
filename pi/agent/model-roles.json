@@ -2,7 +2,7 @@
   "description": "Single source of truth for model IDs. Skills resolve roles via resolve-model.sh; run --apply to sync enabledModels into settings.json. defaultModel is runtime state owned by Pi and is intentionally not managed here. parallel-review picks a tier from reviewLevels (1=light, 2=standard, 3=deep); tiers change precision (model/thinking) only. Each reviewer's timeout is computed from patch size as base + perKb*KB (capped by the skill), so time scales with the change, not the tier. single-reviewer skills use the review.* roles, which are defined separately and may differ from a tier's models.",
   "enabledModels": [
     "cursor/composer-2.5-fast",
-    "cursor/grok-4.6",
+    "cursor/grok-4.6-fast",
     "cursor/grok-4.6-fast:high",
     "anthropic/claude-sonnet-5:high",
     "anthropic/claude-sonnet-5:max",
@@ -17,8 +17,8 @@
   ],
   "roles": {
     "review.cursor": {
-      "pi": "cursor/grok-4.6",
-      "label": "Cursor Grok 4.6"
+      "pi": "cursor/grok-4.6-fast",
+      "label": "Cursor Grok 4.6 Fast"
     },
     "review.codex": {
       "pi": "openai-codex/gpt-5.6-terra:high",
