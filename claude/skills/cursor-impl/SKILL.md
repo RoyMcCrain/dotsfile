@@ -1,6 +1,6 @@
 ---
 name: cursor-impl
-description: Pi headless（Cursor Composer 2.5 Fast）に実装まで委譲する
+description: Pi headless（Cursor Composer Fast）に実装まで委譲する
 ---
 
 # /cursor-impl
@@ -38,8 +38,10 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
    - プロンプトはファイル化して渡すと長文でも安全（例: `$TMPDIR/impl-prompt.md`）
 4. **実行**（write / shell 込み・バックグラウンド推奨）:
    ```bash
-   PI_SKIP_VERSION_CHECK=1 pi -p --model cursor/composer-2.5-fast --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-prompt.md)" > "$TMPDIR/composer.log" 2>&1
+   MODEL=$("$HOME/.pi/agent/resolve-model.sh" impl.cursor) || exit 1
+   PI_SKIP_VERSION_CHECK=1 pi -p --model "$MODEL" --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-prompt.md)" > "$TMPDIR/composer.log" 2>&1
    ```
+   - `resolve-model.sh` は `~/.pi/agent/model-roles.json` の role を実モデル ID に解決する。モデルを変えるときはそのカタログだけを編集する
    - `-p` は非対話（print）モード。完了時にまとめて出力するため途中ログは空。完了通知で再開する
    - `--no-session` で実装用セッションを保存しない
    - skill / context / prompt template を無効化し、子 Pi が `cursor-impl` を再帰起動するのを防ぐ
@@ -69,10 +71,12 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
 2. 各バッチを**それぞれ別の Bash 呼び出し（`run_in_background: true`）で起動**する。1 つの Bash に複数行で書くと順次実行になり並行にならないので注意。1 メッセージ内で複数の background Bash を同時に発行する:
    ```bash
    # 別々の background Bash として 1 つずつ起動（ログも分ける）
-   PI_SKIP_VERSION_CHECK=1 pi -p --model cursor/composer-2.5-fast --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-1.md)" > "$TMPDIR/composer-1.log" 2>&1
+   MODEL=$("$HOME/.pi/agent/resolve-model.sh" impl.cursor) || exit 1
+   PI_SKIP_VERSION_CHECK=1 pi -p --model "$MODEL" --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-1.md)" > "$TMPDIR/composer-1.log" 2>&1
    ```
    ```bash
-   PI_SKIP_VERSION_CHECK=1 pi -p --model cursor/composer-2.5-fast --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-2.md)" > "$TMPDIR/composer-2.log" 2>&1
+   MODEL=$("$HOME/.pi/agent/resolve-model.sh" impl.cursor) || exit 1
+   PI_SKIP_VERSION_CHECK=1 pi -p --model "$MODEL" --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-2.md)" > "$TMPDIR/composer-2.log" 2>&1
    ```
 3. 各 background の完了通知を待って集約 → 呼び出し元エージェントが共有グルーコードを書く → 統合して lint/test
 
@@ -91,5 +95,8 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
 
 ## モデル
 
-`cursor/composer-2.5-fast`（Composer 2.5 Fast）。高速・コーディング特化で横展開（パターン追従）作業に強い。
-変更したい場合は `pi --list-models cursor` で一覧確認。
+role `impl.cursor`（Composer Fast）。高速・コーディング特化で横展開（パターン追従）作業に強い。
+
+現在の実 ID は `~/.pi/agent/resolve-model.sh --list` で確認する。変更するときは
+`~/.pi/agent/model-roles.json` の `roles["impl.cursor"].pi` を編集する（候補は
+`pi --list-models cursor`）。

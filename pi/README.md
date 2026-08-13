@@ -49,8 +49,40 @@ Use Pi's built-in subscription flow when possible:
 /model
 ```
 
-The default model is `cursor/grok-4.5` with thinking level `high`
-(set in `settings.json`).
+The default model is stored in `settings.json` (`defaultProvider` /
+`defaultModel`). Pi rewrites those keys whenever you switch with `/model`, so
+treat them as runtime state, not as configuration to hand-edit.
+
+### Model roles (single source of truth)
+
+Model IDs change often, so skills and review runners never hardcode them. They
+reference **roles** defined in `pi/agent/model-roles.json`:
+
+```bash
+~/.pi/agent/resolve-model.sh --list             # role -> model id -> label
+~/.pi/agent/resolve-model.sh review.cursor      # -> current model id
+~/.pi/agent/resolve-model.sh --label review.fugu
+~/.pi/agent/resolve-model.sh --apply            # sync derived config
+~/.pi/agent/resolve-model.sh --check            # verify nothing drifted
+```
+
+Current roles: `review.cursor`, `review.codex`, `review.claude`, `review.fugu`,
+`impl.cursor`, `codex.default`.
+
+To move to a new model version, edit `model-roles.json` only (the role's model ID
+and the `enabledModels` list), then run `--apply`. Skills pick it up immediately
+because `run_pi_review.sh --role ROLE` resolves through the same catalog.
+
+`--apply` / `--check` cover the config files that cannot expand variables:
+
+| Target                       | Key                    | Source role / field |
+| ---------------------------- | ---------------------- | ------------------- |
+| `pi/agent/settings.json`     | `enabledModels`        | `enabledModels`     |
+| `codex/config.toml`          | `model`                | `codex.default.id`  |
+
+`defaultProvider` / `defaultModel` in `settings.json` are intentionally *not*
+managed, because Pi rewrites them at runtime when you switch with `/model`.
+Run `--check` after editing the catalog to catch drift.
 
 Tracked custom providers:
 

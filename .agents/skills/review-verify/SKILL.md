@@ -121,7 +121,7 @@ finding が8件以下なら main agent
 がそのまま検証する。9件以上なら最大8件ずつに分割し、`../parallel-review/scripts/run_pi_review.sh`
 で fresh reviewer を並行実行してよい。
 
-- model: `cursor/grok-4.5:high`
+- role: `review.cursor`（実モデル ID は `~/.pi/agent/model-roles.json`）
 - timeout: 各120秒
 - prompt: `../review-report/references/prompts.md` の Stage 3
 - main agent が各 chunk の location を解決し、秘密パターンを除外した packet

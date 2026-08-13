@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: Pi headless（OpenAI Codex GPT-5.6 Terra High）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
+description: Pi headless（OpenAI Codex Terra）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
 metadata:
   target_agent: Codex
 ---
@@ -19,12 +19,14 @@ Codex を、再帰起動しない隔離済み Pi headless で実行する。
 ```bash
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
 "$RUNNER" \
-  --model openai-codex/gpt-5.6-terra:high \
+  --role review.codex \
   --prompt "$REVIEW_DIR/prompt.md" \
   --input "$REVIEW_DIR/changes.patch" \
   --cwd "$REVIEW_DIR" \
   --timeout 120
 ```
+
+`--role` は `~/.pi/agent/model-roles.json` から実モデル ID を解決する。モデル変更はそのカタログだけを編集する。
 
 runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化した patch-only で実行する。タイムアウト時は exit 124。自動再試行・自動フォールバックはしない。
 

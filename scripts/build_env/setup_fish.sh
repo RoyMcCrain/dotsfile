@@ -194,6 +194,8 @@ create_symlink $BASE_DIR/pi/agent/AGENTS.md $PI_AGENT_DIR/AGENTS.md "Pi global i
 create_symlink $BASE_DIR/pi/agent/APPEND_SYSTEM.md $PI_AGENT_DIR/APPEND_SYSTEM.md "Pi appended system prompt"
 create_symlink $BASE_DIR/pi/agent/settings.json $PI_AGENT_DIR/settings.json "Pi settings"
 create_symlink $BASE_DIR/pi/agent/models.json $PI_AGENT_DIR/models.json "Pi custom models"
+create_symlink $BASE_DIR/pi/agent/model-roles.json $PI_AGENT_DIR/model-roles.json "Pi model role catalog"
+create_symlink $BASE_DIR/pi/agent/resolve-model.sh $PI_AGENT_DIR/resolve-model.sh "Pi model role resolver"
 create_symlink $BASE_DIR/pi/agent/extensions $PI_AGENT_DIR/extensions "Pi extensions"
 create_symlink $BASE_DIR/pi/agent/lib $PI_AGENT_DIR/lib "Pi extension lib"
 if command -q npm

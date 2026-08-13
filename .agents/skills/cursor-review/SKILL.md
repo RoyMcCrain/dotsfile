@@ -1,6 +1,6 @@
 ---
 name: cursor-review
-description: Pi headless（Cursor Grok 4.5 High）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
+description: Pi headless（Cursor Grok）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
 metadata:
   target_agent: Codex
 ---
@@ -19,12 +19,14 @@ Cursor Grok を、再帰起動しない隔離済み Pi headless で実行する�
 ```bash
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
 "$RUNNER" \
-  --model cursor/grok-4.5:high \
+  --role review.cursor \
   --prompt "$REVIEW_DIR/prompt.md" \
   --input "$REVIEW_DIR/changes.patch" \
   --cwd "$REVIEW_DIR" \
   --timeout 120
 ```
+
+`--role` は `~/.pi/agent/model-roles.json` の `roles` から実モデル ID を解決する。モデルを変えたいときは skill ではなくそのカタログを編集する。
 
 runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化し、Cursor provider だけ明示ロードする。既定は patch-only。タイムアウト時はプロセスグループを停止して exit 124。自動再試行しない。
 

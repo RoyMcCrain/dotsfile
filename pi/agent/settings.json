@@ -1,11 +1,11 @@
 {
   "defaultProvider": "cursor",
-  "defaultModel": "grok-4.5",
+  "defaultModel": "grok-4.6",
   "defaultThinkingLevel": "high",
   "enabledModels": [
     "cursor/composer-2.5-fast",
-    "cursor/grok-4.5:high",
-    "cursor/grok-4.5-fast:high",
+    "cursor/grok-4.6",
+    "cursor/grok-4.6-fast:high",
     "anthropic/claude-sonnet-5:high",
     "anthropic/claude-sonnet-5:max",
     "anthropic/claude-opus-5:high",

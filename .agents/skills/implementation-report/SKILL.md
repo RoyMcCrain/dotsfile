@@ -90,9 +90,10 @@ Prompt template:
 - 出力: **implementation fields のみ** — top-level `overview` と各 group の
   `id`, `title`, `intent`, `files`, `diffs`（+ 任意 `needsImprovement` /
   `improvementReason`）。**risk / riskReason / findings は出力しない**。
-- 既定 analyzer は `cursor/grok-4.5:high`、timeout 180秒。Codex Terra High /
-  Claude Opus High は fallback。Fugu は quota
-  制限があるため明示時だけ使い、自動再試行しない。
+- 既定 analyzer は role `review.cursor`、timeout 180秒。`review.codex` /
+  `review.claude` は fallback。Fugu（`review.fugu`）は quota
+  制限があるため明示時だけ使い、自動再試行しない。実モデル ID は
+  `~/.pi/agent/model-roles.json` が単一の正。
 
 ## Repository metadata（main agent のみ）
 
