@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { complete } from "@earendil-works/pi-ai/compat";
 import { Type } from "typebox";
 import { createHash } from "node:crypto";
@@ -145,6 +145,7 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
     promptGuidelines: [
       "Use recall_memory near the start of a non-trivial task to load repo-specific gotchas, commands, and decisions saved from prior sessions.",
       "Treat recall_memory output as hints; current code and project instructions still win.",
+      "When recalled notes look stale, duplicated, or contradict current code, use review_memory to consolidate repo memory.",
     ],
     parameters: Type.Object({
       query: Type.Optional(
@@ -190,6 +191,7 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
     promptGuidelines: [
       "Use remember when you learn a durable repo-specific fact worth reusing later: a non-obvious command that worked, a gotcha, a design decision, or a repo convention.",
       "Do not use remember for secrets, credentials, one-off progress, or generic advice.",
+      "When repo memory has grown large or accumulated overlapping notes, use review_memory to consolidate it (dedupe/prune).",
     ],
     parameters: Type.Object({
       note: Type.String({ description: "Durable repo-specific note to save" }),
@@ -245,71 +247,155 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
     },
   });
 
-  pi.registerCommand("repo-memory-review", {
-    description: "Consolidate repo memory via one LLM pass (dedupe, prune, regroup)",
-    handler: async (_args, ctx) => {
-      let rawContent: string;
+  // Shared consolidation used by both the /repo-memory-review command (interactive,
+  // with confirm) and the review_memory tool (agent-callable, e.g. "メモリ整理して").
+  type ConsolidateResult =
+    | { status: "empty" }
+    | { status: "no-model" }
+    | { status: "no-auth"; error: string }
+    | { status: "no-output" }
+    | { status: "ready"; rawContent: string; curated: string; beforeCount: number; afterCount: number };
+
+  const consolidateMemoryText = async (ctx: ExtensionContext): Promise<ConsolidateResult> => {
+    let rawContent: string;
+    try {
+      rawContent = await readFile(memoryPath, "utf8");
+    } catch {
+      return { status: "empty" };
+    }
+    const text = rawContent.trim();
+    if (!text) return { status: "empty" };
+    if (!ctx.model) return { status: "no-model" };
+
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
+    if (!auth.ok || !auth.apiKey) {
+      return { status: "no-auth", error: auth.error ?? "API key not available" };
+    }
+
+    const response = await complete(
+      ctx.model,
+      {
+        systemPrompt: REVIEW_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: [{ type: "text", text: `<memory>${text}</memory>` }],
+            timestamp: Date.now(),
+          },
+        ],
+      },
+      { apiKey: auth.apiKey, headers: auth.headers, env: auth.env },
+    );
+
+    const curated = response.content
+      .filter((c) => c.type === "text")
+      .map((c) => c.text)
+      .join("\n")
+      .trim();
+    if (!curated) return { status: "no-output" };
+
+    return {
+      status: "ready",
+      rawContent,
+      curated,
+      beforeCount: countBullets(text),
+      afterCount: countBullets(curated),
+    };
+  };
+
+  const applyConsolidation = async (rawContent: string, curated: string) => {
+    await mkdir(join(memoryPath, ".."), { recursive: true });
+    await writeFile(`${memoryPath}.bak`, rawContent, { encoding: "utf8", mode: 0o600 });
+    const curatedText = curated.endsWith("\n") ? curated : `${curated}\n`;
+    await writeFile(memoryPath, curatedText, { encoding: "utf8", mode: 0o600 });
+    await chmod(memoryPath, 0o600).catch(() => {});
+    // Reflect the consolidated memory in the current session's injected index.
+    indexSnapshot = buildMemoryIndex(curated);
+  };
+
+  pi.registerTool({
+    name: "review_memory",
+    label: "Consolidate Repo Memory",
+    description:
+      "Consolidates this repository's local memory in one LLM pass (dedupe, prune, regroup) and keeps a .bak backup.",
+    promptSnippet: "Consolidate repo memory (dedupe, prune, regroup); keeps a .bak backup",
+    promptGuidelines: [
+      'Use review_memory when the user asks to clean up or consolidate repo memory (e.g. "メモリ整理して"), or when memory has grown large or drifted. It rewrites memory.md and keeps a .bak backup.',
+    ],
+    parameters: Type.Object({}),
+    async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+      const result = await consolidateMemoryText(ctx);
+      if (result.status === "empty") {
+        return { content: [{ type: "text", text: "No repo memory to consolidate." }] };
+      }
+      if (result.status === "no-model") {
+        return {
+          content: [{ type: "text", text: "No model selected; cannot consolidate repo memory." }],
+        };
+      }
+      if (result.status === "no-auth") {
+        return { content: [{ type: "text", text: `Cannot consolidate repo memory: ${result.error}` }] };
+      }
+      if (result.status === "no-output") {
+        return {
+          content: [{ type: "text", text: "Consolidation produced no output; memory left unchanged." }],
+        };
+      }
+
       try {
-        rawContent = await readFile(memoryPath, "utf8");
-      } catch {
-        ctx.ui.notify("No repo memory to review.", "info");
-        return;
-      }
-
-      const text = rawContent.trim();
-      if (!text) {
-        ctx.ui.notify("No repo memory to review.", "info");
-        return;
-      }
-
-      if (!ctx.model) {
-        ctx.ui.notify("No model selected", "warning");
-        return;
-      }
-
-      const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-      if (!auth.ok || !auth.apiKey) {
-        ctx.ui.notify(auth.error ?? "API key not available", "warning");
-        return;
+        await applyConsolidation(result.rawContent, result.curated);
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Failed to write consolidated memory: ${errorMessage(error)}` }],
+        };
       }
 
       if (ctx.hasUI) {
+        ctx.ui.notify(
+          `Repo memory consolidated: ${result.beforeCount} → ${result.afterCount} notes (.bak saved)`,
+          "info",
+        );
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `Repo memory consolidated: ${result.beforeCount} → ${result.afterCount} notes. A .bak backup was kept.`,
+          },
+        ],
+      };
+    },
+  });
+
+  pi.registerCommand("repo-memory-review", {
+    description: "Consolidate repo memory via one LLM pass (dedupe, prune, regroup)",
+    handler: async (_args, ctx) => {
+      if (ctx.hasUI) {
         ctx.ui.notify("Reviewing repo memory...", "info");
       }
-
-      const response = await complete(
-        ctx.model,
-        {
-          systemPrompt: REVIEW_SYSTEM,
-          messages: [
-            {
-              role: "user",
-              content: [{ type: "text", text: `<memory>${text}</memory>` }],
-              timestamp: Date.now(),
-            },
-          ],
-        },
-        { apiKey: auth.apiKey, headers: auth.headers, env: auth.env },
-      );
-
-      const curated = response.content
-        .filter((c) => c.type === "text")
-        .map((c) => c.text)
-        .join("\n")
-        .trim();
-
-      if (!curated) {
+      const result = await consolidateMemoryText(ctx);
+      if (result.status === "empty") {
+        ctx.ui.notify("No repo memory to review.", "info");
+        return;
+      }
+      if (result.status === "no-model") {
+        ctx.ui.notify("No model selected", "warning");
+        return;
+      }
+      if (result.status === "no-auth") {
+        ctx.ui.notify(result.error, "warning");
+        return;
+      }
+      if (result.status === "no-output") {
         ctx.ui.notify("Review produced no output.", "warning");
         return;
       }
 
-      const beforeCount = countBullets(text);
-      const afterCount = countBullets(curated);
-
       if (ctx.hasUI) {
         const confirmed = await ctx.ui.confirm(
           "Apply memory review?",
-          `Before: ${beforeCount} notes → After: ${afterCount} notes. Overwrite memory.md? A .bak backup is kept.`,
+          `Before: ${result.beforeCount} notes → After: ${result.afterCount} notes. Overwrite memory.md? A .bak backup is kept.`,
         );
         if (!confirmed) {
           ctx.ui.notify("Cancelled", "info");
@@ -318,17 +404,10 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
       }
 
       try {
-        await mkdir(join(memoryPath, ".."), { recursive: true });
-        await writeFile(`${memoryPath}.bak`, rawContent, { encoding: "utf8", mode: 0o600 });
-        const curatedText = curated.endsWith("\n") ? curated : `${curated}\n`;
-        await writeFile(memoryPath, curatedText, { encoding: "utf8", mode: 0o600 });
-        await chmod(memoryPath, 0o600).catch(() => {});
-
-        indexSnapshot = buildMemoryIndex(curated);
-
+        await applyConsolidation(result.rawContent, result.curated);
         if (ctx.hasUI) {
           ctx.ui.notify(
-            `Repo memory reviewed: ${beforeCount} → ${afterCount} notes (.bak saved)`,
+            `Repo memory reviewed: ${result.beforeCount} → ${result.afterCount} notes (.bak saved)`,
             "info",
           );
         }

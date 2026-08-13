@@ -225,6 +225,7 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 | `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
+| `repo-memory-local.ts`          | Local-only repo memory: `recall_memory` / `remember` / `review_memory` tools + `/repo-memory-review` command. |
 | `git:…/pi-cursor@fix/goaway-after-turn-ended` | Cursor models via OAuth; silences post-turn GOAWAY (PR #4). |
 
 Reload after editing extensions:
@@ -243,6 +244,32 @@ model at turn settlement; manual `/model` selection cancels auto-restore. Use
 `/auto-fugu on|off|status` to toggle automatic routing; an
 empty `/auto-fugu` toggles ON/OFF. After editing extensions or routing logic,
 run `/reload` (core `node_modules` changes still require a Pi restart).
+
+### Repo memory
+
+`repo-memory-local.ts` stores durable, repo-specific notes **outside** the repo
+(`~/.local/state/pi-repo-memory/<repo>-<hash>/memory.md`, `chmod 600`, never
+versioned). A small index is injected at `session_start`.
+
+- `recall_memory` — read saved notes (optional substring filter).
+- `remember` — append one durable note (deduped; `[topic]` tag optional).
+- `review_memory` — **agent-callable** consolidation tool. Saying e.g. 「メモリ整理して」
+  triggers it: it rewrites `memory.md` in one LLM pass (using the current model)
+  and keeps a `.bak` backup.
+
+The same consolidation is also available as a user slash command (interactive,
+asks to confirm before overwriting):
+
+```text
+/repo-memory-review
+```
+
+Both paths consolidate `memory.md` in **one LLM pass** (dedupe, prune
+obsolete/one-off items, regroup under `## <topic>` headings, each bullet ≤ 220
+chars, timestamps dropped) and keep a `.bak` backup. The `review_memory` tool
+overwrites directly (no confirm) since `.bak` makes it recoverable; the slash
+command asks to confirm and reports before/after note counts. The extension also
+nudges (session_start index) to consolidate once memory grows past ~8KB.
 
 ## Skills
 
