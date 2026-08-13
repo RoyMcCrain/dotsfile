@@ -171,7 +171,17 @@ for OLD_SKILL in cursor fugu large-diff-review; do
   fi
 done
 LIST_SKILLS="${BASE_DIR}/scripts/build_env/list_shared_agent_skills.sh"
-while IFS= read -r SKILL; do
+SKILL_LIST_FILE=$(mktemp)
+if ! bash "${LIST_SKILLS}" "${BASE_DIR}" >"${SKILL_LIST_FILE}"; then
+  rm -f "${SKILL_LIST_FILE}"
+  exit 1
+fi
+if [ ! -s "${SKILL_LIST_FILE}" ]; then
+  echo "no shared agent skills found" >&2
+  rm -f "${SKILL_LIST_FILE}"
+  exit 1
+fi
+while IFS= read -r SKILL <&3; do
   [ -n "${SKILL}" ] || continue
   [ -f "${SKILL}/SKILL.md" ] || continue
   NAME=$(basename "${SKILL}")
@@ -186,7 +196,8 @@ while IFS= read -r SKILL; do
     fi
   fi
   ln -sfn "${SKILL}" "${DEST}"
-done < <("${LIST_SKILLS}" "${BASE_DIR}")
+done 3<"${SKILL_LIST_FILE}"
+rm -f "${SKILL_LIST_FILE}"
 
 # hunk-review: stable Devbox profile path keeps the bundled skill in sync with Hunk updates
 HUNK_SKILL_SRC="$HOME/.local/share/devbox/global/default/.devbox/nix/profile/default/share/hunk/skills/hunk-review"

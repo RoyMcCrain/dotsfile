@@ -296,7 +296,9 @@ After changing the list, re-run your dotfiles setup (or link manually) so
 Shared skills that appear in both `.agents/skills/` and `claude/skills/` must
 be **symlinks** in `claude/skills/` pointing at `.agents/skills/` (never two
 copies of `SKILL.md`). Pi skill-collision warnings appear if both places hold
-real directories with the same name.
+real directories with the same name. Shared `SKILL.md` files do not use
+`metadata.target_agent`; exposure is controlled by which runtime directory links
+the skill.
 
 ### Pi skill inventory (by category)
 

@@ -227,7 +227,16 @@ for OLD_NAME in cursor fugu large-diff-review
     end
 end
 set LIST_SKILLS $BASE_DIR/scripts/build_env/list_shared_agent_skills.sh
-for SKILL in ($LIST_SKILLS $BASE_DIR)
+set SHARED_AGENT_SKILLS (bash $LIST_SKILLS $BASE_DIR)
+if test $status -ne 0
+    print_error "Failed to list shared agent skills"
+    exit 1
+end
+if test (count $SHARED_AGENT_SKILLS) -eq 0
+    print_error "No shared agent skills found"
+    exit 1
+end
+for SKILL in $SHARED_AGENT_SKILLS
     if not test -f $SKILL/SKILL.md
         continue
     end
