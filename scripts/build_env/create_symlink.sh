@@ -12,7 +12,6 @@ BASE_DIR=$(ghq root)/github.com/RoyMcCrain/dotsfile
 LINK_ITEMS=(
   "zprofile"
   "nvim"
-  "gemrc"
   "gitconfig"
 )
 
@@ -26,19 +25,6 @@ do
   fi
 
   ln -s ${BASE_DIR}/${ITEM} ${DESTINATION}
-done
-
-ASDF_ITEMS=(
-  "default-npm-packages"
-  "asdfrc"
-  )
-
-# Create symbolic links
-for ITEM in "${ASDF_ITEMS[@]}"
-do
-  DESTINATION=~/.${ITEM}
-
-  ln -s ${BASE_DIR}/asdf/${ITEM} ${DESTINATION}
 done
 
 # Create ~/.local/bin if not exists

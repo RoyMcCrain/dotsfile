@@ -61,12 +61,13 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
 - `/fish/` - Fish shell config
   - `config.fish`, `abbreviations.fish`, `/functions/`
 - `/devbox/devbox.json` - Tool definitions (symlinked to ~/.local/share/devbox/global/default/)
-- `/scripts/build_env/` - Setup scripts
-- `/Codex/` - Codex config (symlinked to ~/.Codex/)
+- `/scripts/build_env/` - Setup scripts (cross-environment)
+- `/scripts/wsl/` - WSL2専用の個人PC設定(systemdユニット、NAS認証情報同期等)
+- `/claude/` - Claude Code config (symlinked to ~/.claude/)
   - `/rules/` - Coding rules (KISS, TypeScript, React, etc.)
   - `/skills/` - Custom skills (jj, line, cursor-*, antigravity-*, firecrawl-*)
   - `/hooks/` - Automation hooks
-  - `settings.json` - Codex settings
+  - `settings.json` - Claude Code settings
 - `/codex/` - OpenAI Codex CLI config (symlinked to ~/.codex/)
 - `/antigravity/` - Antigravity CLI (agy) config (symlinked to ~/.gemini/antigravity-cli/, 旧 Gemini CLI)
 - `gitconfig`, `jjconfig.toml` - VCS configs
