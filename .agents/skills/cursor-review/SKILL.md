@@ -1,8 +1,6 @@
 ---
 name: cursor-review
 description: Pi headless（Cursor Grok）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
-metadata:
-  target_agent: Codex
 ---
 
 # /cursor-review

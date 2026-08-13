@@ -1,8 +1,6 @@
 ---
 name: fugu-review
 description: Pi headless（Sakana Fugu Ultra）で240秒上限の単体コードレビューを実行する。quota制限があるため明示指定時だけ使う。
-metadata:
-  target_agent: Codex
 ---
 
 # /fugu-review

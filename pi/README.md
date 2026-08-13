@@ -273,23 +273,71 @@ nudges (session_start index) to consolidate once memory grows past ~8KB.
 
 ## Skills
 
-Do not duplicate shared skills under `pi/agent/skills/`. Pi automatically
-discovers `~/.agents/skills/`, so Firecrawl and other shared agent skills are
-loaded from the existing agents skill directory.
+Do not duplicate shared skills under `pi/agent/skills/`. Pi discovers
+`~/.agents/skills/` automatically.
 
-Some routing-critical skills are tracked in this repository for reproducibility:
+### Single source of truth
 
-- `.agents/skills/cmux*`
-- `.agents/skills/cheap-pr`
-- `.agents/skills/cursor-review`
-- `.agents/skills/fugu-review`
-- `.agents/skills/implementation-report`
-- `.agents/skills/review-report`
-- `.agents/skills/parallel-review`
-- `claude/skills/claude-review`
-- `claude/skills/cursor-impl`
-- `codex/skills/codex-review`
+Which skill directories are linked into `~/.agents/skills/` is defined by
+`scripts/build_env/list_shared_agent_skills.sh`. Both `create_symlink.sh` and
+`setup_fish.sh` call it — edit that script when adding or removing Pi skills.
 
-The setup scripts link matching `~/.agents/skills/*` paths back to those tracked
-directories. Keeping separate real copies in both places causes Pi skill-collision
-warnings.
+After changing the list, re-run your dotfiles setup (or link manually) so
+`~/.agents/skills/` picks up the new symlinks.
+
+### Canonical layout
+
+| Location | Role |
+| -------- | ---- |
+| `.agents/skills/` | **Pi-canonical** for cmux, review pipeline, jj-workspace, cheap-pr |
+| `claude/skills/` | Claude Code full set; Pi-linked subset + firecrawl / research skills |
+| `codex/skills/` | Codex-native overrides (`codex-review`, `mcp-delegate`) |
+
+Shared skills that appear in both `.agents/skills/` and `claude/skills/` must
+be **symlinks** in `claude/skills/` pointing at `.agents/skills/` (never two
+copies of `SKILL.md`). Pi skill-collision warnings appear if both places hold
+real directories with the same name. Shared `SKILL.md` files do not use
+`metadata.target_agent`; exposure is controlled by which runtime directory links
+the skill.
+
+### Pi skill inventory (by category)
+
+**Review** (plain 「レビューして」 → `parallel-review` L2 default):
+
+| Skill | Trigger |
+| ----- | ------- |
+| `parallel-review` | 「レビューして」（単独） |
+| `review-report` | 「レビューレポート作って」 |
+| `implementation-report` | 「実装レポート作って」 |
+| `review-verify` | 「裏取りして」 / verification パケット |
+| `cursor-review` / `codex-review` / `claude-review` / `fugu-review` | 単体 reviewer を明示指定時 |
+| `hunk-review` | Hunk バンドル（devbox 同梱） |
+
+**Implementation & PR**:
+
+| Skill | Trigger |
+| ----- | ------- |
+| `cursor-impl` | 実装委譲（`/skill:cursor-impl`） |
+| `cheap-pr` | 「PR 作って」等 |
+
+**Workflow**:
+
+| Skill | Trigger |
+| ----- | ------- |
+| `jj-workspace` | workspace 切り、Sentry 調査 |
+| `mcp-delegate` | Slack/Sentry URL、OAuth MCP |
+
+**Web research** (Claude `claude/skills/` から Pi にもリンク):
+
+| Skill | Invoke | Notes |
+| ----- | ------ | ----- |
+| `firecrawl` | `/skill:firecrawl` | source dir: `claude/skills/firecrawl-cli` |
+| `firecrawl-agent` | `/skill:firecrawl-agent` | structured extraction |
+| `cross-research` | `/skill:cross-research` | firecrawl × agy 並列検証 |
+| `antigravity-research` | `/skill:antigravity-research` | agy のみ（未検証サマリ） |
+
+**cmux** (20 skills): `cmux`, `cmux-architecture`, … — see
+`list_shared_agent_skills.sh` (`cmux*` glob).
+
+Model IDs for review/impl roles: `pi/agent/model-roles.json` →
+`resolve-model.sh` (never hardcode in skills).
