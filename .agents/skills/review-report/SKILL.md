@@ -27,19 +27,14 @@ standalone HTML レビューレポートを出す skill。Pi では `/skill:revi
 
 ## Preflight（read-only）
 
-1. **VCS**: リポジトリ root に `.jj` があれば git ではなく jj（`jj diff`,
-   `jj log` 等）。
-2. **秘密除外**: `.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`,
-   `*.key`, `*.p12`, `*.pfx`, `id_rsa`, `id_ed25519` 等は patch/subagent/report
-   に含めない。
-   - 先に **changed path 一覧だけ** 取得し、old/new のどちらかが secret pattern
-     なら除外する。
-   - **unsanitized full patch を先に生成・保存して後から redact
-     してはいけない**（secret 値が temp file に一度でも残るため）。
-   - allowed paths だけを VCS diff コマンドに渡し、**sanitized patch
-     を直接生成**する。
-   - sanitized patch を目視/検索し、secret 値・private key marker
-     等がないことを確認してから subagent temp dir へ copy する。
+secret-safe patch と repository metadata は implementation-report の script
+を使う。手順の再掲はしない。
+
+1. **VCS**: リポジトリ root に `.jj` があれば git ではなく jj。
+2. **秘密除外**:
+   [../implementation-report/scripts/collect_sanitized_patch.sh](../implementation-report/scripts/collect_sanitized_patch.sh)
+   で sanitized patch を直接生成する。詳細は
+   [../implementation-report/references/preflight.md](../implementation-report/references/preflight.md)。
 3. **plan**: ユーザー指定または作業中 plan ファイル。**Stage 1
    には一切渡さない**（main agent も Stage 1 前に plan
    を参照してグループ化しない）。
@@ -53,17 +48,17 @@ standalone HTML レビューレポートを出す skill。Pi では `/skill:revi
    group `id/title/intent/files/diffs` 等）を **保持** し、review フィールドだけ
    merge する。
 7. **repository metadata**: 新規作成時は
-   [../implementation-report/SKILL.md](../implementation-report/SKILL.md)
-   と同手順で main agent が Stage 0 **後** に決定論的収集し、収集成功時は
-   `repository` を **必須** で含める（Stage 1/2 subagent には渡さない）。merge
-   時は既存 `repository` を **変更せず保持**。legacy report で `repository`
-   が無い場合はそのまま省略可。
+   [../implementation-report/scripts/collect_repository_metadata.ts](../implementation-report/scripts/collect_repository_metadata.ts)
+   を Stage 0 **後** に呼ぶ（Stage 1/2 subagent には渡さない）。詳細は
+   [../implementation-report/references/repository-metadata.md](../implementation-report/references/repository-metadata.md)。
+   merge 時は既存 `repository` を **変更せず保持**。legacy report で
+   `repository` が無い場合はそのまま省略可。
 
 ## ワークフロー
 
 ```text
 A. 既存 report.json / レポート dir がある（implementation-only または legacy reviewed）
-   1. preflight → sanitized patch 生成（上記と同じ secret-safe 手順）
+   1. preflight → collect_sanitized_patch.sh で sanitized patch を生成
    2. 既存 report.json を読み、reportId・`repository`・実装 overview・group id/title/intent/files/diffs を保持
    3. Stage 1 blind + Stage 2 plan-aware（plan あれば）— いずれも sanitized patch のみ（Stage 2 は +plan）。実装 summary / 既存 overview / 既存 group prose / repository metadata は reviewer に渡さない
    4. main agent が reviewer 出力を **既存 implementation group id** にマップし、risk/riskReason/findings と review.overview のみ merge（実装 prose/diffs / `repository` は上書きしない）
