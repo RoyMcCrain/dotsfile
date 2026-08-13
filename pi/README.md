@@ -40,6 +40,27 @@ PI_CODING_AGENT_DIR=$PWD/pi/agent pi --list-models
 PI_CODING_AGENT_DIR=$PWD/pi/agent pi
 ```
 
+## Shift+Enter (WSL / Windows Terminal)
+
+Mac Ghostty sends Kitty keyboard protocol for `Shift+Enter`, so pi inserts a
+newline. Windows Terminal does not, unless you remap it.
+
+In Windows Terminal `settings.json` (`Ctrl+Shift+,` → Open JSON file), bind
+`shift+enter` to Kitty CSI u `ESC[13;2u`:
+
+```json
+{
+  "command": { "action": "sendInput", "input": "\u001b[13;2u" },
+  "keys": "shift+enter"
+}
+```
+
+Do **not** send `\u001b\r` (ESC+CR). Pi treats that as a different chord, so
+`Shift+Enter` will not insert a newline.
+
+Windows Terminal usually reloads `settings.json` automatically. If it does not,
+fully close and reopen the terminal. Fallback without this remap: `Ctrl+J`.
+
 ## Model setup
 
 Use Pi's built-in subscription flow when possible:
