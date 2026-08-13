@@ -1,8 +1,6 @@
 ---
 name: parallel-review
 description: 使用中の provider を除いた隔離済み Pi reviewer を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
-metadata:
-  target_agent: Codex
 ---
 
 # /parallel-review

@@ -170,7 +170,9 @@ for OLD_SKILL in cursor fugu large-diff-review; do
     mv "${OLD_DEST}" "$HOME/.agents/skill-backups/${OLD_SKILL}.backup-$(date +%Y%m%d%H%M%S)"
   fi
 done
-for SKILL in ${BASE_DIR}/.agents/skills/cmux*(N/) ${BASE_DIR}/.agents/skills/cheap-pr(N/) ${BASE_DIR}/.agents/skills/cursor-review(N/) ${BASE_DIR}/.agents/skills/fugu-review(N/) ${BASE_DIR}/.agents/skills/implementation-report(N/) ${BASE_DIR}/.agents/skills/review-report(N/) ${BASE_DIR}/.agents/skills/parallel-review(N/) ${BASE_DIR}/.agents/skills/jj-workspace(N/) ${BASE_DIR}/claude/skills/claude-review(N/) ${BASE_DIR}/claude/skills/cursor-impl(N/) ${BASE_DIR}/codex/skills/codex-review(N/) ${BASE_DIR}/codex/skills/mcp-delegate(N/); do
+LIST_SKILLS="${BASE_DIR}/scripts/build_env/list_shared_agent_skills.sh"
+while IFS= read -r SKILL; do
+  [ -n "${SKILL}" ] || continue
   [ -f "${SKILL}/SKILL.md" ] || continue
   NAME=$(basename "${SKILL}")
   DEST="$HOME/.agents/skills/${NAME}"
@@ -184,7 +186,7 @@ for SKILL in ${BASE_DIR}/.agents/skills/cmux*(N/) ${BASE_DIR}/.agents/skills/che
     fi
   fi
   ln -sfn "${SKILL}" "${DEST}"
-done
+done < <("${LIST_SKILLS}" "${BASE_DIR}")
 
 # hunk-review: stable Devbox profile path keeps the bundled skill in sync with Hunk updates
 HUNK_SKILL_SRC="$HOME/.local/share/devbox/global/default/.devbox/nix/profile/default/share/hunk/skills/hunk-review"
