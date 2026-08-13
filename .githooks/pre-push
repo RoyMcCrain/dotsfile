@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Runs the test suite before pushing. Aborts the push on failure.
+set -euo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+exec "$REPO_ROOT/scripts/run_tests.sh"

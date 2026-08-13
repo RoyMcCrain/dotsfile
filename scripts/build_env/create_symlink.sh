@@ -195,3 +195,6 @@ elif [ -e "${HUNK_SKILL_DEST}" ]; then
   mv "${HUNK_SKILL_DEST}" "$HOME/.agents/skill-backups/hunk-review.backup-$(date +%Y%m%d%H%M%S)"
 fi
 ln -sfn "${HUNK_SKILL_SRC}" "${HUNK_SKILL_DEST}"
+
+# git hooks: run the test suite before every push (.githooks/pre-push)
+git -C "${BASE_DIR}" config --local core.hooksPath .githooks
