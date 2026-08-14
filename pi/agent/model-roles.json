@@ -50,7 +50,7 @@
     ],
     "2": [
       { "pi": "cursor/cursor-grok-4.6-fast", "base": 60, "perKb": 3 },
-      { "pi": "openai-codex/gpt-5.6-terra:high", "base": 60, "perKb": 2 },
+      { "pi": "openai-codex/gpt-5.6-sol:high", "base": 90, "perKb": 3 },
       { "pi": "anthropic/claude-opus-5:high", "base": 60, "perKb": 3 },
       { "pi": "sakana-ai-console/fugu-ultra:high", "base": 180, "perKb": 8 }
     ],

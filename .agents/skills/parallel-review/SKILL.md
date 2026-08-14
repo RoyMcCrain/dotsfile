@@ -12,7 +12,7 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 レビューは3段階から選ぶ。指定なしは **2**。レベルは **精度（モデル/thinking）を変える**。timeout は常に各モデルの完走時間（`base + perKb × KB`）なので、高精度（より遅い）モデルを使う上位レベルほど自然に長くなる。レベルを速く見せるために timeout を人為的に短縮はしない。モデルと timeout パラメータは catalog の `reviewLevels` が単一の正（`resolve-model.sh --review-level N` で引く）。
 
 - **1（簡単/速い）**: fast モデル（composer-2.5-fast / gpt-5.6-terra / claude-sonnet-5:high）。fugu なし。小さな変更の素早い確認向け。
-- **2（標準・既定）**: grok-4.6-fast / gpt-5.6-terra:high / claude-opus-5:high / fugu-ultra:high。
+- **2（標準・既定）**: grok-4.6-fast / gpt-5.6-sol:high / claude-opus-5:high / fugu-ultra:high。
 - **3（deep/高精度）**: `:high`/`:max` に上げる（grok-4.6-fast:high / gpt-5.6-sol:max / opus:max / fugu-ultra:high）。重要変更・精査向け。
 
 **timeout は変更量で可変**。各 reviewer は `timeout = base + perKb × patch_KB`（上限 900s）で算出する。`base`/`perKb` はモデルの実測速度（fugu は遅いので base 180 / perKb 8 など）。レベルで timeout を短くしない（完走させるのが目的）。
