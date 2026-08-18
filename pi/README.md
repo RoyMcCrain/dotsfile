@@ -223,6 +223,7 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | ------------------------------- | -------------------------------------------------------------------- |
 | `local-openai.ts`               | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
+| `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
 | `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
 | `repo-memory-local.ts`          | Local-only repo memory: `recall_memory` / `remember` / `review_memory` tools + `/repo-memory-review` command. |
@@ -233,6 +234,17 @@ Reload after editing extensions:
 ```text
 /reload
 ```
+
+### Codex plan usage
+
+`codex-usage.ts` keeps Pi's built-in footer and adds a compact status such as
+`Codex Pro 7d 0% ↻08/25 14:57` while an `openai-codex` model is selected. It
+reads the subscription quota through the locally authenticated `codex
+app-server`, so Codex CLI must be installed and logged in.
+
+Usage refreshes at session start, after model switches, and after each settled
+agent run. Run `/codex-usage` to force a refresh; automatic failures stay silent
+and clear stale status.
 
 ### Fugu model routing
 
