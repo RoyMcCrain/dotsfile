@@ -37,7 +37,7 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.84.1",
+  "lastChangelogVersion": "0.84.2",
   "packages": [
     "git:github.com/kouvaliasnick/pi-cursor@fix/goaway-after-turn-ended"
   ]
