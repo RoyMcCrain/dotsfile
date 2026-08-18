@@ -1,7 +1,7 @@
 {
-  "defaultProvider": "sakana-ai-console",
-  "defaultModel": "fugu",
-  "defaultThinkingLevel": "high",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "xhigh",
   "enabledModels": [
     "cursor/composer-2.5-fast",
     "cursor/cursor-grok-4.6-fast",
@@ -10,7 +10,7 @@
     "anthropic/claude-sonnet-5:max",
     "anthropic/claude-opus-5:high",
     "anthropic/claude-opus-5:max",
-    "openai-codex/gpt-5.6-sol:high",
+    "openai-codex/gpt-5.6-sol:xhigh",
     "openai-codex/gpt-5.6-sol:max",
     "openai-codex/gpt-5.6-terra:high",
     "openai-codex/gpt-5.6-terra:max",
@@ -37,7 +37,7 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.84.1",
+  "lastChangelogVersion": "0.84.2",
   "packages": [
     "git:github.com/kouvaliasnick/pi-cursor@fix/goaway-after-turn-ended"
   ]
