@@ -2,8 +2,7 @@
   "description": "Single source of truth for model IDs. Skills resolve roles via resolve-model.sh; run --apply to sync enabledModels into settings.json. defaultModel is runtime state owned by Pi and is intentionally not managed here. parallel-review picks a tier from reviewLevels (1=light, 2=standard, 3=deep); tiers change precision (model/thinking) only. Each reviewer's timeout is computed from patch size as base + perKb*KB (capped by the skill), so time scales with the change, not the tier. single-reviewer skills use the review.* roles, which are defined separately and may differ from a tier's models.",
   "enabledModels": [
     "cursor/composer-2.5-fast",
-    "cursor/cursor-grok-4.6-fast",
-    "cursor/cursor-grok-4.6-fast:high",
+    "xai/grok-4.6",
     "anthropic/claude-sonnet-5:high",
     "anthropic/claude-sonnet-5:max",
     "anthropic/claude-opus-5:high",
@@ -17,8 +16,8 @@
   ],
   "roles": {
     "review.cursor": {
-      "pi": "cursor/cursor-grok-4.6-fast",
-      "label": "Cursor Grok 4.6 Fast"
+      "pi": "cursor/composer-2.5-fast",
+      "label": "Composer 2.5 Fast"
     },
     "review.codex": {
       "pi": "openai-codex/gpt-5.6-terra:high",
@@ -37,6 +36,10 @@
       "pi": "cursor/composer-2.5-fast",
       "label": "Composer 2.5 Fast"
     },
+    "research.xai": {
+      "pi": "xai/grok-4.6",
+      "label": "Grok 4.6 (X Search research)"
+    },
     "codex.default": {
       "id": "gpt-5.6-sol",
       "label": "Codex GPT-5.6 Sol"
@@ -44,18 +47,18 @@
   },
   "reviewLevels": {
     "1": [
-      { "pi": "cursor/composer-2.5-fast", "base": 45, "perKb": 1 },
+      { "pi": "xai/grok-4.6", "base": 45, "perKb": 1 },
       { "pi": "openai-codex/gpt-5.6-terra", "base": 45, "perKb": 1 },
       { "pi": "anthropic/claude-sonnet-5:high", "base": 60, "perKb": 2 }
     ],
     "2": [
-      { "pi": "cursor/cursor-grok-4.6-fast", "base": 60, "perKb": 3 },
+      { "pi": "xai/grok-4.6", "base": 60, "perKb": 3 },
       { "pi": "openai-codex/gpt-5.6-sol:xhigh", "base": 90, "perKb": 3 },
       { "pi": "anthropic/claude-opus-5:high", "base": 60, "perKb": 3 },
       { "pi": "sakana-ai-console/fugu-ultra:high", "base": 180, "perKb": 8 }
     ],
     "3": [
-      { "pi": "cursor/cursor-grok-4.6-fast:high", "base": 120, "perKb": 5 },
+      { "pi": "xai/grok-4.6", "base": 120, "perKb": 5 },
       { "pi": "openai-codex/gpt-5.6-sol:max", "base": 90, "perKb": 3 },
       { "pi": "anthropic/claude-opus-5:max", "base": 90, "perKb": 4 },
       { "pi": "sakana-ai-console/fugu-ultra:high", "base": 180, "perKb": 8 }

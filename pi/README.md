@@ -88,7 +88,7 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ```
 
 Current roles: `review.cursor`, `review.codex`, `review.claude`, `review.fugu`,
-`impl.cursor`, `codex.default`.
+`impl.cursor`, `research.xai`, `codex.default`.
 
 To move to a new model version, edit `model-roles.json` only (the role's model ID
 and the `enabledModels` list), then run `--apply`. Skills pick it up immediately
@@ -188,7 +188,7 @@ upstream npm publishes it:
 # pi's git installer skips devDeps, so build dist via the setup script:
 ./scripts/build_env/setup_pi_cursor_goaway_fix.sh
 pi --list-models cursor
-pi --model cursor/composer-2
+pi --model cursor/composer-2.5-fast
 ```
 
 Auth (pick one):
@@ -345,7 +345,7 @@ the skill.
 | ----- | ------ | ----- |
 | `firecrawl` | `/skill:firecrawl` | source dir: `claude/skills/firecrawl-cli` |
 | `firecrawl-agent` | `/skill:firecrawl-agent` | structured extraction |
-| `cross-research` | `/skill:cross-research` | firecrawl × agy 並列検証 |
+| `cross-research` | `/skill:cross-research` | Firecrawl + agy + Grok X Search 並列検証 |
 | `antigravity-research` | `/skill:antigravity-research` | agy のみ（未検証サマリ） |
 
 **cmux** (20 skills): `cmux`, `cmux-architecture`, … — see
