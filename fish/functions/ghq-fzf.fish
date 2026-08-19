@@ -1,6 +1,7 @@
 function ghq-fzf --description 'Select ghq repository with fzf and change directory'
-    set -l cache_file "$HOME/.cache/ghq-fzf-list"
-    set -l sig_file "$HOME/.cache/ghq-fzf-list.sig"
+    set -l cache_dir "$HOME/.cache"
+    set -l cache_file "$cache_dir/ghq-fzf-list"
+    set -l sig_file "$cache_dir/ghq-fzf-list.sig"
 
     # --refresh でキャッシュを再生成（workspace追加時など手動更新用）
     if test "$argv[1]" = --refresh
@@ -9,39 +10,59 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
 
     set -l ghq_root (ghq root)
 
-    # .git/.jj ディレクトリ一覧を軽量シグネチャにし、clone/workspace の増減を検知する
-    # (ghq list は遅いので使わない。fd スキャンは ~0.15s で毎回実行できる)
-    set -l sig (fd -H -t d -d 5 '^\.(git|jj)$' $ghq_root 2>/dev/null | sort | shasum | string split -f1 ' ')
+    # .git/.jj マーカー一覧を軽量シグネチャにし、clone/workspace の増減を検知する
+    # (fd スキャン ~0.15s。ghq list は使わない)
+    set -l marker_file (mktemp)
+    fd -H -t d -t f -d 5 '^\.(git|jj)$' $ghq_root 2>/dev/null | string trim -r -c / | sort >$marker_file
+    set -l sig (shasum $marker_file | string split -f1 ' ')
+    if not test -d "$cache_dir"
+        mkdir -p $cache_dir
+    end
     if not test -f "$sig_file"; or test "$sig" != (cat $sig_file 2>/dev/null)
         rm -f $cache_file
-        echo $sig > $sig_file
+        echo $sig >$sig_file
     end
 
     # キャッシュが無ければリストを生成して保存（clone/workspace追加時のみ更新が必要）
     if not test -f $cache_file
-        mkdir -p (dirname $cache_file)
+        set -l repos_file (mktemp)
         set -l jj_file (mktemp)
         set -l jj_parent_file (mktemp)
 
-        # jj workspace (.jj/repo がファイルで親を参照しているもの)
-        fd -H -t d -d 5 '^\.jj$' $ghq_root 2>/dev/null | while read jj_dir
-            if test -f $jj_dir/repo
-                set -l ws_path (dirname $jj_dir)
-                # forget済み(jj workspace listが空)なworkspaceは除外
-                set -l ws_alive (jj workspace list -R $ws_path 2>/dev/null)
-                if test -z "$ws_alive"
-                    continue
-                end
-                set -l parent_jj (cat $jj_dir/repo)
-                set -l parent_path (dirname (dirname $parent_jj))
-                echo $ws_path
-                # workspace と親のマッピングを保存
-                printf "%s\t%s\n" $ws_path $parent_path >> $jj_parent_file
+        while read -l marker
+            # linked workspace は検証後に jj_file からのみ追加する
+            if string match -q '*/.jj' $marker; and test -f $marker/repo
+                continue
             end
-        end > $jj_file
+            dirname $marker
+        end <$marker_file | sort -u >$repos_file
 
-        # ghq list + jj workspace をマージし、jj workspace を親の直後にソート
-        begin; ghq list --full-path; cat $jj_file; end | awk -v ghq_root="$ghq_root" -v jj_parent_file="$jj_parent_file" '
+        # jj workspace (.jj/repo がファイルで親を参照しているもの)
+        while read -l marker
+            if not string match -q '*/.jj' $marker
+                continue
+            end
+            if not test -f $marker/repo
+                continue
+            end
+            set -l ws_path (dirname $marker)
+            # forget済み(jj workspace listが空)なworkspaceは除外
+            set -l ws_alive (jj workspace list -R $ws_path 2>/dev/null)
+            if test -z "$ws_alive"
+                continue
+            end
+            set -l parent_jj (cat $marker/repo)
+            set -l parent_path (dirname (dirname $parent_jj))
+            echo $ws_path
+            # workspace と親のマッピングを保存
+            printf "%s\t%s\n" $ws_path $parent_path >>$jj_parent_file
+        end <$marker_file >$jj_file
+
+        # マーカー由来のリポジトリ + jj workspace をマージし、jj workspace を親の直後にソート
+        begin
+            cat $repos_file
+            cat $jj_file
+        end | awk -v ghq_root="$ghq_root" -v jj_parent_file="$jj_parent_file" '
         BEGIN {
             while ((getline line < jj_parent_file) > 0) {
                 split(line, f, "\t")
@@ -103,14 +124,16 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
                     printf "  %s\t%s\n", repo, short
                 }
             }
-        ' > $cache_file
+        ' >$cache_file
 
-        rm -f $jj_file $jj_parent_file
+        rm -f $repos_file $jj_file $jj_parent_file
     end
+
+    rm -f $marker_file
 
     set -l preview_command
     if command -q eza
-        set preview_command "eza -TF --level=1 --icons"
+        set preview_command "eza -TF --level=1 --icons=always"
     else
         set preview_command "ls -l"
     end
