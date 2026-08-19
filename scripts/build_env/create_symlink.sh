@@ -147,7 +147,7 @@ fi
 # Shared agent skills
 # Keep selected skill sources tracked in this repository and expose them globally.
 mkdir -p ~/.agents/skills ~/.agents/skill-backups
-for OLD_SKILL in cursor fugu large-diff-review; do
+for OLD_SKILL in cursor fugu large-diff-review cursor-review; do
   OLD_DEST="$HOME/.agents/skills/${OLD_SKILL}"
   if [ -L "${OLD_DEST}" ]; then
     rm "${OLD_DEST}"

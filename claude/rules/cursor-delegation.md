@@ -19,7 +19,7 @@ Cursor Agent はレビューと実装委譲に使う。**実装は積極的に C
 
 ## 委譲方法
 
-- `/cursor-review [レビュー指示]` で Cursor 単体レビュー依頼（role `review.cursor`）。「レビューして」だけの依頼は `/parallel-review`（reviewLevels の3段階：1=簡単 / 2=標準・既定 / 3=deep。現在使用中の provider と同じ reviewer は除外）を優先する。Fugu 単体を明示したい場合は `/fugu-review`
+- role `review.cursor`（Grok via Cursor）は `parallel-review` runner 経由で使う。「レビューして」だけの依頼は `/parallel-review`（reviewLevels の3段階：1=簡単 / 2=標準・既定 / 3=deep。現在使用中の provider と同じ reviewer は除外）を優先する。Fugu 単体を明示したい場合は `/fugu-review`
 - `/cursor-impl [実装指示]` で実装委譲（role `impl.cursor` → `cursor-agent` を直接起動）
 
 ## 実装委譲の原則

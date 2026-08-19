@@ -191,8 +191,7 @@ cursor-agent --list-models
 ```
 
 - `impl.cursor` → `composer-2.5-fast` (implementation via `cursor-impl` skill)
-- `review.cursor` → `cursor-grok-4.6-high` (read-only review via `cursor-review` /
-  `parallel-review` runner)
+- `review.cursor` → `cursor-grok-4.6-high` (read-only review via `parallel-review` runner)
 
 Auth is independent from Pi. Use `cursor-agent status` / `cursor-agent login`.
 Model IDs live in `model-roles.json`; resolve Cursor roles with `--field cursor`.
@@ -308,7 +307,7 @@ the skill.
 | `review-report` | 「レビューレポート作って」 |
 | `implementation-report` | 「実装レポート作って」 |
 | `review-verify` | 「裏取りして」 / verification パケット |
-| `cursor-review` / `codex-review` / `claude-review` / `fugu-review` | 単体 reviewer を明示指定時 |
+| `codex-review` / `claude-review` / `fugu-review` | 単体 reviewer を明示指定時 |
 | `hunk-review` | Hunk バンドル（devbox 同梱） |
 
 **Implementation & PR**:

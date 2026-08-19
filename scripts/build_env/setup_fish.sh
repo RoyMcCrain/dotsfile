@@ -214,7 +214,7 @@ end
 if not test -d $AGENTS_SKILL_BACKUP_DIR
     mkdir -p $AGENTS_SKILL_BACKUP_DIR
 end
-for OLD_NAME in cursor fugu large-diff-review
+for OLD_NAME in cursor fugu large-diff-review cursor-review
     set OLD_DEST $AGENTS_SKILL_DIR/$OLD_NAME
     if test -L $OLD_DEST
         rm $OLD_DEST
