@@ -44,8 +44,8 @@
 
 ## Implementation Delegation
 
-- 非自明な実装は、原則として `cursor-impl` skill（role `impl.cursor`）に委譲する。
-- モデル ID を直書きしない。skill / script は role 名で指定し、実体は `~/.pi/agent/model-roles.json` で一元管理する（`~/.pi/agent/resolve-model.sh --list` で確認）。
+- 非自明な実装は、原則として `cursor-impl` skill（role `impl.cursor`）に委譲する。実体は `cursor-agent` を直接起動し、Pi 子プロセスは使わない。
+- モデル ID を直書きしない。skill / script は role 名で指定し、実体は `~/.pi/agent/model-roles.json` で一元管理する。Cursor 用 role は `~/.pi/agent/resolve-model.sh --field cursor ROLE` で解決する（`--list` で確認）。
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
 - 委譲後は必ず diff 目視、lint、test、仕様充足チェックで検証し、投げっぱなしにしない。

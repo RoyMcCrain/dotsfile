@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run one isolated, tool-less Pi review with bounded process cleanup.
+# Run one isolated Pi or Cursor Agent review with bounded process cleanup.
 # shellcheck disable=SC2329
 set -uo pipefail
 
@@ -25,7 +25,8 @@ watchdog_pid=''
 watchdog_timer_file=''
 timeout_marker=''
 temp_config_dir=''
-pi_cmd=()
+review_cmd=()
+runner='pi'
 
 die() {
 	printf '%s\n' "$1" >&2
@@ -196,31 +197,6 @@ validate_input() {
 	done <<<"$content"
 }
 
-find_cursor_extension() {
-	local config_dir="$1"
-	local candidate candidates=()
-
-	if [[ -n "${PI_CURSOR_EXTENSION:-}" ]]; then
-		require_file "$PI_CURSOR_EXTENSION"
-		return 0
-	fi
-
-	local f
-	for f in "$config_dir"/git/github.com/*/pi-cursor/dist/index.js; do
-		[[ -f "$f" ]] && candidates+=("$f")
-	done
-	while IFS= read -r f; do
-		[[ -n "$f" ]] && candidates+=("$f")
-	done < <(find "$config_dir/npm" -path '*/pi-cursor/dist/index.js' 2>/dev/null || true)
-
-	if ((${#candidates[@]} == 0)); then
-		die "pi-cursor extension not found; set PI_CURSOR_EXTENSION"
-	fi
-
-	candidate=$(printf '%s\n' "${candidates[@]}" | sort | sed -n '1p')
-	resolve_path "$candidate"
-}
-
 make_isolated_config() {
 	local source="$1"
 	local target="$2"
@@ -313,17 +289,35 @@ cleanup_all() {
 usage() {
 	cat >&2 <<'EOF'
 Usage: run_pi_review.sh (--role ROLE | --model MODEL) --prompt PATH --input PATH [--input PATH ...] [--timeout SECONDS] [--cwd PATH]
+
+Runs an isolated Pi headless review or a read-only Cursor Agent review, depending on the role definition.
 EOF
 	exit 1
+}
+
+model_resolver() {
+	printf '%s\n' "${MODEL_RESOLVER:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/resolve-model.sh}"
 }
 
 # Roles live in model-roles.json so model IDs are defined in exactly one place.
 resolve_role() {
 	local role="$1"
-	local resolver="${MODEL_RESOLVER:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/resolve-model.sh}"
+	local field="${2:-}"
+	local resolver resolved
+	resolver=$(model_resolver)
 	resolver="${resolver/#\~/$HOME}"
 	[[ -x "$resolver" ]] || die "model resolver not found: $resolver"
-	"$resolver" "$role"
+	if [[ -n "$field" ]]; then
+		resolved=$("$resolver" --field "$field" "$role") || return 1
+	else
+		resolved=$("$resolver" "$role") || return 1
+	fi
+	printf '%s\n' "$resolved"
+}
+
+role_has_cursor() {
+	local role="$1"
+	resolve_role "$role" cursor >/dev/null 2>&1
 }
 
 parse_args() {
@@ -333,6 +327,7 @@ parse_args() {
 	timeout=120
 	cwd=''
 	inputs=()
+	runner='pi'
 
 	while (($# > 0)); do
 		case "$1" in
@@ -378,7 +373,13 @@ parse_args() {
 
 	if [[ -n "$role" ]]; then
 		[[ -z "$model" ]] || die "--role and --model are mutually exclusive"
-		model=$(resolve_role "$role") || exit 1
+		if role_has_cursor "$role"; then
+			runner='cursor'
+			model=$(resolve_role "$role" cursor) || exit 1
+		else
+			runner='pi'
+			model=$(resolve_role "$role") || exit 1
+		fi
 		[[ -n "$model" ]] || die "model role resolved to empty value: $role"
 	fi
 
@@ -387,27 +388,38 @@ parse_args() {
 	((${#inputs[@]} > 0)) || die "missing required argument: --input"
 }
 
-build_command() {
+build_pi_command() {
 	local model="$1"
 	local prompt_path="$2"
-	local source_config="$3"
-	shift 3
+	shift 2
 	local -a input_paths=("$@")
-	local input_path extension
+	local input_path
 
-	pi_cmd=("${PI_REVIEW_BIN:-pi}" -p --model "$model" --system-prompt "$SYSTEM_PROMPT"
+	review_cmd=("${PI_REVIEW_BIN:-pi}" -p --model "$model" --system-prompt "$SYSTEM_PROMPT"
 		--no-session --no-skills --no-prompt-templates --no-context-files
 		--no-approve --no-extensions --no-tools)
 
-	if [[ "$model" == cursor/* ]]; then
-		extension=$(find_cursor_extension "$source_config")
-		pi_cmd+=(--extension "$extension")
-	fi
+	for input_path in "${input_paths[@]}"; do
+		review_cmd+=("@$input_path")
+	done
+	review_cmd+=("@$prompt_path" 'Follow the supplied prompt and review inputs.')
+}
+
+build_cursor_command() {
+	local model="$1"
+	local prompt_path="$2"
+	local workspace="$3"
+	shift 3
+	local -a input_paths=("$@")
+	local input_path input_names=()
 
 	for input_path in "${input_paths[@]}"; do
-		pi_cmd+=("@$input_path")
+		input_names+=("$(basename "$input_path")")
 	done
-	pi_cmd+=("@$prompt_path" 'Follow the supplied prompt and review inputs.')
+
+	review_cmd=("${CURSOR_REVIEW_BIN:-cursor-agent}" -p --mode ask --trust
+		--model "$model" --workspace "$workspace"
+		"Read and follow the review prompt in $(basename "$prompt_path") at $prompt_path. Review the supplied inputs: ${input_names[*]}. Do not modify files.")
 }
 
 main() {
@@ -431,16 +443,22 @@ main() {
 	fi
 	cwd=$(cd "$cwd" && pwd -P)
 
-	source_config="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
-	source_config="${source_config/#\~/$HOME}"
-	if [[ -d "$source_config" ]]; then
-		source_config=$(cd "$source_config" && pwd -P)
-	fi
+	if [[ "$runner" == pi ]]; then
+		local source_config
+		source_config="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+		source_config="${source_config/#\~/$HOME}"
+		if [[ -d "$source_config" ]]; then
+			source_config=$(cd "$source_config" && pwd -P)
+		fi
 
-	temp_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/pi-review-config-XXXXXX")
-	trap cleanup_all EXIT
-	make_isolated_config "$source_config" "$temp_config_dir"
-	build_command "$model" "$prompt_path" "$source_config" "${resolved_inputs[@]}"
+		temp_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/pi-review-config-XXXXXX")
+		trap cleanup_all EXIT
+		make_isolated_config "$source_config" "$temp_config_dir"
+		build_pi_command "$model" "$prompt_path" "${resolved_inputs[@]}"
+	else
+		trap cleanup_all EXIT
+		build_cursor_command "$model" "$prompt_path" "$cwd" "${resolved_inputs[@]}"
+	fi
 
 	trap 'on_signal 143' TERM
 	trap 'on_signal 129' HUP
@@ -448,14 +466,18 @@ main() {
 
 	local status
 	cd "$cwd" || die "working directory not found: $cwd"
-	export PI_CODING_AGENT_DIR="$temp_config_dir"
-	export PI_SKIP_VERSION_CHECK=1
-
-	timeout_marker="$temp_config_dir/timed-out"
-	watchdog_timer_file="$temp_config_dir/watchdog-timer.pid"
+	if [[ "$runner" == pi ]]; then
+		export PI_CODING_AGENT_DIR="$temp_config_dir"
+		export PI_SKIP_VERSION_CHECK=1
+		timeout_marker="$temp_config_dir/timed-out"
+		watchdog_timer_file="$temp_config_dir/watchdog-timer.pid"
+	else
+		timeout_marker="${TMPDIR:-/tmp}/cursor-review-timed-out-$$"
+		watchdog_timer_file="${TMPDIR:-/tmp}/cursor-review-watchdog-$$.pid"
+	fi
 
 	set -m
-	"${pi_cmd[@]}" &
+	"${review_cmd[@]}" &
 	child_pid=$!
 	set +m
 

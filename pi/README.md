@@ -80,11 +80,13 @@ Model IDs change often, so skills and review runners never hardcode them. They
 reference **roles** defined in `pi/agent/model-roles.json`:
 
 ```bash
-~/.pi/agent/resolve-model.sh --list             # role -> model id -> label
-~/.pi/agent/resolve-model.sh review.cursor      # -> current model id
+~/.pi/agent/resolve-model.sh --list                      # role -> model id -> label
+~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
+~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
+~/.pi/agent/resolve-model.sh --field cursor review.cursor
 ~/.pi/agent/resolve-model.sh --label review.fugu
-~/.pi/agent/resolve-model.sh --apply            # sync derived config
-~/.pi/agent/resolve-model.sh --check            # verify nothing drifted
+~/.pi/agent/resolve-model.sh --apply                      # sync derived config
+~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
 Current roles: `review.cursor`, `review.codex`, `review.claude`, `review.fugu`,
@@ -111,21 +113,20 @@ Tracked custom providers:
 - `sakana-ai-console/fugu-ultra`
 - `lm-studio/*` (dynamically loaded from `LM_STUDIO_BASE_URL` or
   `http://localhost:1234/v1`)
-- `cursor/*` via `@rahularya01/pi-cursor` (subscription / OAuth; unofficial)
 
 Built-in subscription providers (via `/login`):
 
 - `anthropic/*` — Claude Pro/Max OAuth (built into Pi; no extra package)
+
+`enabledModels` lists only models consumed by Pi itself. Cursor roles (`impl.cursor`,
+`review.cursor`) are resolved with `--field cursor` and consumed by the local
+`cursor-agent` CLI, not Pi.
 
 Environment variables:
 
 ```bash
 export LM_STUDIO_BASE_URL="http://localhost:1234/v1"  # Optional
 export LM_STUDIO_API_KEY="..."           # Optional; dummy key is used if unset
-# Optional. The GOAWAY fix branch defaults to cli-2026.07.23-e383d2b.
-# Do NOT set this to the latest `agent --version` string — that can cause
-# resource_exhausted / wire-drift failures.
-# export PI_CURSOR_CLIENT_VERSION="cli-2026.07.23-e383d2b"
 ```
 
 ### Sakana API key
@@ -176,44 +177,30 @@ Check readiness:
 pi auth check --provider anthropic --json
 ```
 
-### Cursor models (`@rahularya01/pi-cursor`)
+### Cursor Agent delegation (`cursor-agent`)
 
-Unofficial community package (most-downloaded OAuth Cursor provider on
-pi.dev). Uses Cursor subscription auth — not the official `@cursor/sdk` API-key
-path. Recorded in `settings.json` as the GOAWAY-fix git branch (PR #4) until
-upstream npm publishes it:
-`git:github.com/kouvaliasnick/pi-cursor@fix/goaway-after-turn-ended`.
+Implementation and Cursor review roles delegate to the official/local `cursor-agent`
+CLI directly — not through Pi or a Pi extension package.
 
 ```bash
-# pi's git installer skips devDeps, so build dist via the setup script:
-./scripts/build_env/setup_pi_cursor_goaway_fix.sh
-pi --list-models cursor
-pi --model cursor/composer-2.5-fast
+cursor-agent status
+cursor-agent login
+cursor-agent --list-models
+~/.pi/agent/resolve-model.sh --field cursor impl.cursor
+~/.pi/agent/resolve-model.sh --field cursor review.cursor
 ```
 
-Auth (pick one):
+- `impl.cursor` → `composer-2.5-fast` (implementation via `cursor-impl` skill)
+- `review.cursor` → `cursor-grok-4.6-high` (read-only review via `cursor-review` /
+  `parallel-review` runner)
 
-1. Preferred: already logged in via `agent login` / Cursor Desktop, then sync
-   Keychain tokens into Pi's auth store:
+Auth is independent from Pi. Use `cursor-agent status` / `cursor-agent login`.
+Model IDs live in `model-roles.json`; resolve Cursor roles with `--field cursor`.
 
-   ```bash
-   ./scripts/build_env/sync_pi_cursor_auth.sh
-   ```
-
-2. Or inside pi: `/login cursor` (browser PKCE OAuth)
-
-Useful commands: `/cursor.doctor`, `/cursor.usage`, `/cursor.models`.
-Details: https://pi.dev/packages/@rahularya01/pi-cursor
-
-Note: this reverse-engineers Cursor's agent wire protocol and can break when
-Cursor changes it. Upstream npm `1.4.8` still treats post-`turnEnded`
-`GOAWAY (errorCode=0)` as a hard error and appends wire-drift noise.
-We pin the open PR that completes those turns silently:
-https://github.com/Rahularya01/pi-cursor/pull/4
-(default client `cli-2026.07.23-e383d2b`). Do not set
-`PI_CURSOR_CLIENT_VERSION` to the current `agent --version` (`2026.08.04-…`);
-that currently triggers `resource_exhausted`. After upstream merges/publishes,
-switch `settings.json` back to `npm:@rahularya01/pi-cursor`.
+**Chat persistence:** Each `cursor-agent` invocation writes local chat state under
+`~/.cursor/chats/`, even when the process is fresh and the review workspace is
+temporary. Pi's former `--no-session` isolation is not available in the current
+Cursor CLI help; do not assume non-persistent delegation.
 
 ## Extensions
 
@@ -227,7 +214,6 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
 | `repo-memory-local.ts`          | Local-only repo memory: `recall_memory` / `remember` / `review_memory` tools + `/repo-memory-review` command. |
-| `git:…/pi-cursor@fix/goaway-after-turn-ended` | Cursor models via OAuth; silences post-turn GOAWAY (PR #4). |
 
 Reload after editing extensions:
 

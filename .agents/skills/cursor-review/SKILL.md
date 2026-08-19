@@ -1,17 +1,17 @@
 ---
 name: cursor-review
-description: Pi headless（Cursor Grok）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
+description: cursor-agent（Cursor Grok）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
 ---
 
 # /cursor-review
 
-Cursor Grok を、再帰起動しない隔離済み Pi headless で実行する。
+Cursor Grok を、再帰起動しない隔離済み `cursor-agent`（read-only `--mode ask`）で実行する。
 
 ## 手順
 
 1. 対象を決める。指定なしなら現在の作業コピー差分。
 2. 呼び出し元が changed paths を先に取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
-3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。子 Pi に `jj diff` / `git diff` を再実行させない。
+3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。子プロセスに `jj diff` / `git diff` を再実行させない。
 4. 下の prompt を `$REVIEW_DIR/prompt.md` に保存して runner を実行する。
 
 ```bash
@@ -24,9 +24,11 @@ RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
   --timeout 120
 ```
 
-`--role` は `~/.pi/agent/model-roles.json` の `roles` から実モデル ID を解決する。モデルを変えたいときは skill ではなくそのカタログを編集する。
+`--role` は `~/.pi/agent/model-roles.json` の `roles` から Cursor 用モデル ID を `--field cursor` で解決する。モデルを変えたいときは skill ではなくそのカタログを編集する。
 
-runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化し、Cursor provider だけ明示ロードする。既定は patch-only。タイムアウト時はプロセスグループを停止して exit 124。自動再試行しない。
+runner は role に `.cursor` がある場合 `cursor-agent -p --mode ask --trust` を直接起動し、短いプロンプトで検証済み prompt/input ファイルを読むよう指示する。Pi ロールは従来どおり隔離 Pi headless。タイムアウト時はプロセスグループを停止して exit 124。自動再試行しない。
+
+read-only でも各起動は fresh プロセスだが、Cursor はローカルチャット履歴を `~/.cursor/chats/` に残す（作業ディレクトリは一時的でも同様）。
 
 ## Prompt
 

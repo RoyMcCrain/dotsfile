@@ -17,6 +17,7 @@ setup() {
 	PLAN="$TEST_ROOT/plan.md"
 	ARGS_LOG="$TEST_ROOT/args.json"
 	ENV_LOG="$TEST_ROOT/env.json"
+	CURSOR_ARGS_LOG="$TEST_ROOT/cursor-args.json"
 	CHILD_PID="$TEST_ROOT/child.pid"
 
 	printf '%s\n' 'Review this patch' >"$PROMPT"
@@ -58,6 +59,28 @@ printf '%s\n' 'review complete'
 exit "${FAKE_PI_EXIT:-0}"
 EOF
 	chmod +x "$FAKE_PI" "$RUNNER"
+
+	FAKE_CURSOR="$TEST_ROOT/fake_cursor_agent.sh"
+	cat >"$FAKE_CURSOR" <<'EOF'
+#!/usr/bin/env bash
+set -uo pipefail
+
+printf '%s\n' "$@" | jq -R . | jq -s . >"$FAKE_CURSOR_ARGS"
+
+if [[ -n "${FAKE_CURSOR_SLEEP:-}" ]]; then
+	sleep 60 &
+	child=$!
+	printf '%s\n' "$child" >"$FAKE_CURSOR_CHILD_PID"
+	if [[ -n "${FAKE_CURSOR_SIGNAL_PARENT:-}" ]]; then
+		kill "-$FAKE_CURSOR_SIGNAL_PARENT" "$PPID"
+	fi
+	sleep 60
+fi
+
+printf '%s\n' 'cursor review complete'
+exit "${FAKE_CURSOR_EXIT:-0}"
+EOF
+	chmod +x "$FAKE_CURSOR"
 }
 
 runner_command() {
@@ -89,7 +112,11 @@ apply_runner_env() {
 	export FAKE_PI_ARGS="$ARGS_LOG"
 	export FAKE_PI_ENV="$ENV_LOG"
 	export FAKE_PI_CHILD_PID="$CHILD_PID"
-	unset FAKE_PI_SLEEP FAKE_PI_EXIT FAKE_PI_SIGNAL_PARENT PI_CURSOR_EXTENSION MODEL_RESOLVER
+	export CURSOR_REVIEW_BIN="$FAKE_CURSOR"
+	export FAKE_CURSOR_ARGS="$CURSOR_ARGS_LOG"
+	export FAKE_CURSOR_CHILD_PID="$CHILD_PID"
+	unset FAKE_PI_SLEEP FAKE_PI_EXIT FAKE_PI_SIGNAL_PARENT \
+		FAKE_CURSOR_SLEEP FAKE_CURSOR_EXIT FAKE_CURSOR_SIGNAL_PARENT MODEL_RESOLVER
 }
 
 run_runner() {
@@ -182,25 +209,59 @@ assert_runner_signal() {
 	jq -e --arg plan "@$PLAN" 'index($plan)' "$ARGS_LOG" >/dev/null
 }
 
-@test "cursor loads only explicit provider extension" {
-	EXTENSION="$TEST_ROOT/cursor-extension.js"
-	: >"$EXTENSION"
-	EXTENSION=$(resolve_test_path "$EXTENSION")
-
+@test "--role review.cursor uses cursor-agent in ask mode" {
+	write_fake_catalog_with_cursor
 	apply_runner_env
-	export PI_CURSOR_EXTENSION="$EXTENSION"
+	export MODEL_RESOLVER="$RESOLVER_DIR/resolve-model.sh"
 
-	local -a cmd=()
-	while IFS= read -r -d '' token; do
-		cmd+=("$token")
-	done < <(runner_command 5 cursor/fake-model:high)
-
-	run "${cmd[@]}"
+	run "$RUNNER" --role review.cursor --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT"
 	[ "$status" -eq 0 ]
 
-	jq -e 'index("--no-extensions")' "$ARGS_LOG" >/dev/null
-	extension=$(jq -r '.[index("--extension") + 1]' "$ARGS_LOG")
-	[ "$extension" = "$EXTENSION" ]
+	jq -e 'index("-p")' "$CURSOR_ARGS_LOG" >/dev/null
+	mode=$(jq -r '.[index("--mode") + 1]' "$CURSOR_ARGS_LOG")
+	[ "$mode" = "ask" ]
+	jq -e 'index("--trust")' "$CURSOR_ARGS_LOG" >/dev/null
+	if jq -e 'index("--force")' "$CURSOR_ARGS_LOG" >/dev/null 2>&1; then
+		fail "--force should not be present for cursor review"
+	fi
+
+	model=$(jq -r '.[index("--model") + 1]' "$CURSOR_ARGS_LOG")
+	[ "$model" = "cursor-grok-4.6-high" ]
+	workspace=$(jq -r '.[index("--workspace") + 1]' "$CURSOR_ARGS_LOG")
+	expected_cwd=$(cd "$TEST_ROOT" && pwd -P)
+	[ "$workspace" = "$expected_cwd" ]
+
+	prompt_arg=$(jq -r '.[-1]' "$CURSOR_ARGS_LOG")
+	[[ "$prompt_arg" == *prompt.md* ]]
+	[[ "$prompt_arg" == *changes.patch* ]]
+
+	[ ! -f "$ARGS_LOG" ]
+}
+
+@test "cursor role propagates exit status" {
+	write_fake_catalog_with_cursor
+	apply_runner_env
+	export MODEL_RESOLVER="$RESOLVER_DIR/resolve-model.sh"
+	export FAKE_CURSOR_EXIT=7
+
+	run "$RUNNER" --role review.cursor --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT"
+	[ "$status" -eq 7 ]
+}
+
+@test "cursor role timeout kills process group" {
+	write_fake_catalog_with_cursor
+	apply_runner_env
+	export MODEL_RESOLVER="$RESOLVER_DIR/resolve-model.sh"
+	export FAKE_CURSOR_SLEEP=1
+
+	run "$RUNNER" --role review.cursor --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 1 --cwd "$TEST_ROOT"
+	[ "$status" -eq 124 ]
+	[[ "$output" == *timed\ out* ]]
+	[ -f "$CHILD_PID" ]
+	assert_process_gone "$(cat "$CHILD_PID")"
 }
 
 write_fake_catalog() {
@@ -210,6 +271,22 @@ write_fake_catalog() {
 {
   "enabledModels": ["provider/from-role:high"],
   "roles": {
+    "review.test": { "pi": "provider/from-role:high", "label": "Test Model" }
+  }
+}
+EOF
+	cp "$BATS_TEST_DIRNAME/../../../../pi/agent/resolve-model.sh" "$RESOLVER_DIR/resolve-model.sh"
+	chmod +x "$RESOLVER_DIR/resolve-model.sh"
+}
+
+write_fake_catalog_with_cursor() {
+	RESOLVER_DIR="$TEST_ROOT/agent"
+	mkdir -p "$RESOLVER_DIR"
+	cat >"$RESOLVER_DIR/model-roles.json" <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.cursor": { "cursor": "cursor-grok-4.6-high", "label": "Cursor Grok" },
     "review.test": { "pi": "provider/from-role:high", "label": "Test Model" }
   }
 }
