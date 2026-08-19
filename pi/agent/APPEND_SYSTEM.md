@@ -108,7 +108,7 @@
 
 - Web検索、URL本文取得、scrape、crawl、構造化抽出は firecrawl 系 skill を基本にする。
 - 検索や複数URL調査、SPA、crawl、構造化抽出では `firecrawl` / `firecrawl-*` skill を使う。
-- 重要な調査は firecrawl 単独で終えず、`cross-research` skill で firecrawl と `agy` を並行して突き合わせる。
+- 重要な調査は firecrawl 単独で終えず、`cross-research` skill で Firecrawl、`agy`、Grok X Search を並行して突き合わせる。
 
 次のどれか1つでも該当したら `cross-research` に昇格する:
 
@@ -118,7 +118,7 @@
 - ソースの矛盾が予想される。
 
 - 純粋な横断要約だけでよい場合は `antigravity-research` skill を使ってよい。
-- `agy` 単独の結果は確証扱いせず、重要な事実は firecrawl または `cross-research` で裏取りする。
+- `agy` 単独の結果は確証扱いせず、重要な事実は firecrawl または `cross-research`（Firecrawl + agy + Grok X Search）で裏取りする。
 - 判断に迷ったら `cross-research` に昇格する。
-- firecrawl がクレジット枯渇、rate limit、API error、未認証で使えない場合は `firecrawl --status` で状態を確認し、`agy` にフォールバックして一次ソース未裏取りであることを明記する。
+- firecrawl がクレジット枯渇、rate limit、API error、未認証で使えない場合は `firecrawl --status` で状態を確認し、`agy` と Grok X Search にフォールバックして canonical 一次ソース未裏取りであることを明記する（X は公式ドキュメントの代替にならない）。
 - firecrawl の取得結果は `.firecrawl/` の既存保存結果を再利用し、不要な再取得を避ける。

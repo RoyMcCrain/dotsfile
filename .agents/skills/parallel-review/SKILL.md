@@ -5,21 +5,21 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 
 # /parallel-review
 
-同じ patch を複数の Pi reviewer（Cursor Grok・Codex Terra・Claude Opus・Fugu Ultra）に同時に渡し、結果を統合する。子 Pi の skill 再読込による再帰起動を禁止する。
+同じ patch を複数の Pi reviewer（xAI Grok 4.6・Codex・Claude・Fugu Ultra）に同時に渡し、結果を統合する。子 Pi の skill 再読込による再帰起動を禁止する。
 
 ## レベル（1/2/3）
 
 レビューは3段階から選ぶ。指定なしは **2**。レベルは **精度（モデル/thinking）を変える**。timeout は常に各モデルの完走時間（`base + perKb × KB`）なので、高精度（より遅い）モデルを使う上位レベルほど自然に長くなる。レベルを速く見せるために timeout を人為的に短縮はしない。モデルと timeout パラメータは catalog の `reviewLevels` が単一の正（`resolve-model.sh --review-level N` で引く）。
 
-- **1（簡単/速い）**: fast モデル（composer-2.5-fast / gpt-5.6-terra / claude-sonnet-5:high）。fugu なし。小さな変更の素早い確認向け。
-- **2（標準・既定）**: grok-4.6-fast / gpt-5.6-sol:high / claude-opus-5:high / fugu-ultra:high。
-- **3（deep/高精度）**: `:high`/`:max` に上げる（grok-4.6-fast:high / gpt-5.6-sol:max / opus:max / fugu-ultra:high）。重要変更・精査向け。
+- **1（簡単/速い）**: xai/grok-4.6 / gpt-5.6-terra / claude-sonnet-5:high。fugu なし。小さな変更の素早い確認向け。
+- **2（標準・既定）**: xai/grok-4.6 / gpt-5.6-sol:xhigh / claude-opus-5:high / fugu-ultra:high。
+- **3（deep/高精度）**: xai/grok-4.6 / gpt-5.6-sol:max / opus:max / fugu-ultra:high。重要変更・精査向け。xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じモデル ID を使う。
 
 **timeout は変更量で可変**。各 reviewer は `timeout = base + perKb × patch_KB`（上限 900s）で算出する。`base`/`perKb` はモデルの実測速度（fugu は遅いので base 180 / perKb 8 など）。レベルで timeout を短くしない（完走させるのが目的）。
 
 **失敗時は1回だけリトライ**するが、対象は**一過性失敗（provider error / rate limit 等）のみ**。**timeout（exit 124）はリトライしない**（timeout はモデルの完走時間に合わせているので、同じ時間での再実行は待ち時間を倍にするだけ）。2回目も失敗ならその reviewer は失敗扱い。**fugu（sakana-ai-console）は quota 方針でリトライしない**（AGENTS.md の quota/rate-limit 方針に合わせる）。
 
-どのレベルでも **現在セッションで使用中のモデル（`PI_PROVIDER`）と同じ provider の reviewer は除外**する（自分自身にレビューさせない）。各 provider は1対1（cursor / openai-codex / anthropic / sakana-ai-console）。Fugu は週次 quota が厳しく遅いので大量に回さない。
+どのレベルでも **現在セッションで使用中のモデル（`PI_PROVIDER`）と同じ provider の reviewer は除外**する（自分自身にレビューさせない）。各 provider は1対1（xai / openai-codex / anthropic / sakana-ai-console）。Fugu は週次 quota が厳しく遅いので大量に回さない。
 
 ## Preflight（1回だけ）
 
@@ -99,16 +99,16 @@ for provider in "${!pids[@]}"; do
 done
 ```
 
-runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化した patch-only を強制する。Cursor provider だけ明示ロードする。timeout時はプロセスグループを終了して exit 124。
+runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化した patch-only を強制する。xAI は Pi 組み込み provider を使う。timeout時はプロセスグループを終了して exit 124。
 
 ## 大きい patch（分割レビュー）
 
-レビューの遅さは入力トークン数と thinking level の両方に依存する。実測では grok-4.6 の支配的要因は `:high` の推論オーバーヘッドで、**4.8KB chunk でさえ `:high` は120sを超えて timeout**した（no-high なら同 chunk 73s、no-high・6.6KBで 95s）。したがって grok を使うなら **分割だけでは不十分で、thinking を下げる必要がある**。`changes.patch` が大きい（目安 ≥ 15KB または ≥ 400 行）ときは `diff --git` 境界で chunk に分割し、chunk ごとにレビューする。ファイル単位は分割しないので各 chunk は単体で有効な patch。
+レビューの遅さは入力トークン数とモデルの推論量に依存する。xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、`changes.patch` が大きい（目安 ≥ 15KB または ≥ 400 行）ときは `diff --git` 境界で chunk に分割し、chunk ごとにレビューする。ファイル単位は分割しないので各 chunk は単体で有効な patch。
 
 ```bash
 SPLITTER="$HOME/.agents/skills/parallel-review/scripts/split_patch.sh"
 CHUNK_DIR="$REVIEW_DIR/chunks"
-# Codex/Claude 中心なら 12000 程度。grok を使うなら no-high モデル + ≤ 6000 推奨
+# reviewer ごとの文脈を保ちつつ並列負荷を抑えるため 12000 bytes 程度に分割
 mapfile -t CHUNKS < <("$SPLITTER" --input "$REVIEW_DIR/changes.patch" --out "$CHUNK_DIR" --max-bytes 12000)
 ```
 

@@ -1,7 +1,7 @@
 ---
 name: firecrawl-search
 description: |
-  Web search with full page content extraction. Use this skill whenever the user asks to search the web, find articles, research a topic, look something up, find recent news, discover sources, or says "search for", "find me", "look up", "what are people saying about", or "find articles about". Returns real search results with optional full-page markdown — not just snippets. Provides capabilities beyond Claude's built-in WebSearch. However, when the research needs multi-source verification, affects a technical/design/dependency decision, or recency matters, do not finish here — escalate to `/cross-research` (parallel firecrawl×agy cross-checking).
+  Web search with full page content extraction. Use this skill whenever the user asks to search the web, find articles, research a topic, look something up, find recent news, discover sources, or says "search for", "find me", "look up", "what are people saying about", or "find articles about". Returns real search results with optional full-page markdown — not just snippets. Provides capabilities beyond Claude's built-in WebSearch. However, when the research needs multi-source verification, affects a technical/design/dependency decision, or recency matters, do not finish here — escalate to `/cross-research` (parallel Firecrawl + agy + Grok X Search cross-checking).
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
