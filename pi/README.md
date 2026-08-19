@@ -83,13 +83,12 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --list                      # role -> model id -> label
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
 ~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
-~/.pi/agent/resolve-model.sh --field cursor review.cursor
 ~/.pi/agent/resolve-model.sh --label review.fugu
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Current roles: `review.cursor`, `review.codex`, `review.claude`, `review.fugu`,
+Current roles: `review.codex`, `review.claude`, `review.fugu`,
 `impl.cursor`, `research.xai`, `codex.default`.
 
 To move to a new model version, edit `model-roles.json` only (the role's model ID
@@ -118,8 +117,8 @@ Built-in subscription providers (via `/login`):
 
 - `anthropic/*` — Claude Pro/Max OAuth (built into Pi; no extra package)
 
-`enabledModels` lists only models consumed by Pi itself. Cursor roles (`impl.cursor`,
-`review.cursor`) are resolved with `--field cursor` and consumed by the local
+`enabledModels` lists only models consumed by Pi itself. The Cursor implementation
+role (`impl.cursor`) is resolved with `--field cursor` and consumed by the local
 `cursor-agent` CLI, not Pi.
 
 Environment variables:
@@ -179,7 +178,7 @@ pi auth check --provider anthropic --json
 
 ### Cursor Agent delegation (`cursor-agent`)
 
-Implementation and Cursor review roles delegate to the official/local `cursor-agent`
+Implementation work delegates to the official/local `cursor-agent`
 CLI directly — not through Pi or a Pi extension package.
 
 ```bash
@@ -187,19 +186,17 @@ cursor-agent status
 cursor-agent login
 cursor-agent --list-models
 ~/.pi/agent/resolve-model.sh --field cursor impl.cursor
-~/.pi/agent/resolve-model.sh --field cursor review.cursor
 ```
 
 - `impl.cursor` → `composer-2.5-fast` (implementation via `cursor-impl` skill)
-- `review.cursor` → `cursor-grok-4.6-high` (read-only review via `parallel-review` runner)
 
 Auth is independent from Pi. Use `cursor-agent status` / `cursor-agent login`.
-Model IDs live in `model-roles.json`; resolve Cursor roles with `--field cursor`.
+Model IDs live in `model-roles.json`; resolve the implementation role with `--field cursor`.
 
 **Chat persistence:** Each `cursor-agent` invocation writes local chat state under
-`~/.cursor/chats/`, even when the process is fresh and the review workspace is
-temporary. Pi's former `--no-session` isolation is not available in the current
-Cursor CLI help; do not assume non-persistent delegation.
+`~/.cursor/chats/`, even when the process is fresh. Pi's former `--no-session`
+isolation is not available in the current Cursor CLI help; do not assume
+non-persistent delegation.
 
 ## Extensions
 

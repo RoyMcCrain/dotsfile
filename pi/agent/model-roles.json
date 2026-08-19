@@ -14,10 +14,6 @@
     "sakana-ai-console/fugu-ultra:high"
   ],
   "roles": {
-    "review.cursor": {
-      "cursor": "cursor-grok-4.6-high",
-      "label": "Cursor Grok 4.6 High"
-    },
     "review.codex": {
       "pi": "openai-codex/gpt-5.6-terra:high",
       "label": "Codex GPT-5.6 Terra High"
