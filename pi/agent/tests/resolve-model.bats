@@ -22,6 +22,7 @@ write_catalog() {
   "enabledModels": ["provider/pi-model:high", "provider/other:high"],
   "roles": {
     "review.test": { "pi": "provider/pi-model:high", "label": "Pi Model" },
+    "impl.cursor": { "cursor": "composer-fast", "label": "Composer Fast" },
     "codex.default": { "id": "gpt-test-model", "label": "Codex Test" }
   }
 }
@@ -159,6 +160,30 @@ EOF
 	[ "${lines[0]}" = "$(printf 'cursor/fast\t45\t1')" ]
 	[ "${lines[1]}" = "$(printf 'anthropic/sonnet:high\t60\t2')" ]
 	[ "${#lines[@]}" -eq 2 ]
+}
+
+@test "--field cursor resolves .cursor consumer model ids" {
+	# Arrange
+	write_catalog
+
+	# Act
+	run "$RESOLVER" --field cursor impl.cursor
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[ "$output" = "composer-fast" ]
+}
+
+@test "--list includes cursor roles with cursor model ids" {
+	# Arrange
+	write_catalog
+
+	# Act
+	run "$RESOLVER" --list
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"impl.cursor"$'\t'"composer-fast"$'\t'"Composer Fast"* ]]
 }
 
 @test "--review-level rejects an unknown level" {

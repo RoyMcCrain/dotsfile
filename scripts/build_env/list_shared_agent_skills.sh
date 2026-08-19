@@ -32,7 +32,7 @@ if ((cmux_count == 0)); then
 	exit 1
 fi
 
-for name in cheap-pr cursor-review fugu-review implementation-report review-report review-verify parallel-review jj-workspace; do
+for name in cheap-pr fugu-review implementation-report review-report review-verify parallel-review jj-workspace; do
 	emit_required "${BASE_DIR}/.agents/skills/${name}"
 done
 

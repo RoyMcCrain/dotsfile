@@ -200,7 +200,6 @@ create_symlink $BASE_DIR/pi/agent/extensions $PI_AGENT_DIR/extensions "Pi extens
 create_symlink $BASE_DIR/pi/agent/lib $PI_AGENT_DIR/lib "Pi extension lib"
 if command -q npm
     bash $BASE_DIR/scripts/build_env/patch_pi_min_output_tokens.sh
-    bash $BASE_DIR/scripts/build_env/setup_pi_cursor_goaway_fix.sh
 else
     print_warning "Skipped Pi runtime patch (npm not found)"
 end
@@ -215,7 +214,7 @@ end
 if not test -d $AGENTS_SKILL_BACKUP_DIR
     mkdir -p $AGENTS_SKILL_BACKUP_DIR
 end
-for OLD_NAME in cursor fugu large-diff-review
+for OLD_NAME in cursor fugu large-diff-review cursor-review
     set OLD_DEST $AGENTS_SKILL_DIR/$OLD_NAME
     if test -L $OLD_DEST
         rm $OLD_DEST

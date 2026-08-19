@@ -162,11 +162,8 @@ Stage 1/2 reviewer 出力を既存 `report.json` に merge するとき:
 
 ## Subagent 起動例（read-only、fresh、temp workspace 固定）
 
-共通 runner は一時設定で retry を止め、CLIで skill / context / extension / tools
-を無効化する。Stage 0 は implementation-report 規定の入力、Stage 1 は
-patch-only、Stage 2 は patch + plan。Cursor provider だけ明示ロードする。既定は
-role `review.cursor`。`review.codex` / `review.claude` は
-fallback。Fugu（`review.fugu`）は quota
+共通 runner は隔離 Pi headless を起動する。Stage 0 は implementation-report 規定の入力、Stage 1 は
+patch-only、Stage 2 は patch + plan。`review.claude` は fallback。Fugu（`review.fugu`）は quota
 制限があるためユーザー明示時だけ使い、自動再試行しない。実モデル ID は
 `~/.pi/agent/model-roles.json` が単一の正。
 
@@ -174,7 +171,7 @@ plan がある場合、blind と plan-aware は互いに独立なので同時に
 
 ```bash
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
-ROLE=review.cursor
+ROLE=review.codex
 
 "$RUNNER" \
   --role "$ROLE" \

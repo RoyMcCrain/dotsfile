@@ -89,7 +89,7 @@ apply_runner_env() {
 	export FAKE_PI_ARGS="$ARGS_LOG"
 	export FAKE_PI_ENV="$ENV_LOG"
 	export FAKE_PI_CHILD_PID="$CHILD_PID"
-	unset FAKE_PI_SLEEP FAKE_PI_EXIT FAKE_PI_SIGNAL_PARENT PI_CURSOR_EXTENSION MODEL_RESOLVER
+	unset FAKE_PI_SLEEP FAKE_PI_EXIT FAKE_PI_SIGNAL_PARENT MODEL_RESOLVER
 }
 
 run_runner() {
@@ -182,27 +182,6 @@ assert_runner_signal() {
 	jq -e --arg plan "@$PLAN" 'index($plan)' "$ARGS_LOG" >/dev/null
 }
 
-@test "cursor loads only explicit provider extension" {
-	EXTENSION="$TEST_ROOT/cursor-extension.js"
-	: >"$EXTENSION"
-	EXTENSION=$(resolve_test_path "$EXTENSION")
-
-	apply_runner_env
-	export PI_CURSOR_EXTENSION="$EXTENSION"
-
-	local -a cmd=()
-	while IFS= read -r -d '' token; do
-		cmd+=("$token")
-	done < <(runner_command 5 cursor/fake-model:high)
-
-	run "${cmd[@]}"
-	[ "$status" -eq 0 ]
-
-	jq -e 'index("--no-extensions")' "$ARGS_LOG" >/dev/null
-	extension=$(jq -r '.[index("--extension") + 1]' "$ARGS_LOG")
-	[ "$extension" = "$EXTENSION" ]
-}
-
 write_fake_catalog() {
 	RESOLVER_DIR="$TEST_ROOT/agent"
 	mkdir -p "$RESOLVER_DIR"
@@ -210,6 +189,22 @@ write_fake_catalog() {
 {
   "enabledModels": ["provider/from-role:high"],
   "roles": {
+    "review.test": { "pi": "provider/from-role:high", "label": "Test Model" }
+  }
+}
+EOF
+	cp "$BATS_TEST_DIRNAME/../../../../pi/agent/resolve-model.sh" "$RESOLVER_DIR/resolve-model.sh"
+	chmod +x "$RESOLVER_DIR/resolve-model.sh"
+}
+
+write_fake_catalog_with_impl_cursor() {
+	RESOLVER_DIR="$TEST_ROOT/agent"
+	mkdir -p "$RESOLVER_DIR"
+	cat >"$RESOLVER_DIR/model-roles.json" <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "impl.cursor": { "cursor": "composer-2.5-fast", "label": "Composer Fast" },
     "review.test": { "pi": "provider/from-role:high", "label": "Test Model" }
   }
 }
@@ -229,6 +224,18 @@ EOF
 
 	model=$(jq -r '.[index("--model") + 1]' "$ARGS_LOG")
 	[ "$model" = "provider/from-role:high" ]
+}
+
+@test "--role rejects cursor-only roles" {
+	write_fake_catalog_with_impl_cursor
+	apply_runner_env
+	export MODEL_RESOLVER="$RESOLVER_DIR/resolve-model.sh"
+
+	run "$RUNNER" --role impl.cursor --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *has\ no\ model\ id* ]]
+	[ ! -f "$ARGS_LOG" ]
 }
 
 @test "--role rejects an unknown role" {

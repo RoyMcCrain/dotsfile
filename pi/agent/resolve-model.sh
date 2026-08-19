@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Resolve / apply model roles from model-roles.json.
 # Usage:
-#   resolve-model.sh ROLE                 print Pi model id
+#   resolve-model.sh ROLE                 print Pi model id (default consumer)
+#   resolve-model.sh --field cursor ROLE  print Cursor Agent model id
 #   resolve-model.sh --label ROLE         print display label
 #   resolve-model.sh --json ROLE          print role object
 #   resolve-model.sh --field FIELD ROLE   print one role field
@@ -89,13 +90,13 @@ role_query() {
 	printf '%s\n' "$value"
 }
 
-# A role names one model per consumer: .pi for Pi models, .id for others.
+# A role names one model per consumer: .pi for Pi, .cursor for Cursor Agent, .id for others.
 print_pi() {
 	role_query "$1" "$2" '.roles[$role] | .pi // .id // empty' 'model id'
 }
 
 print_label() {
-	role_query "$1" "$2" '.roles[$role] | .label // .pi // .id // empty' 'label'
+	role_query "$1" "$2" '.roles[$role] | .label // .pi // .cursor // .id // empty' 'label'
 }
 
 print_json() {
@@ -132,7 +133,7 @@ list_roles() {
 		| .[]
 		| [
 			.key,
-			(.value.pi // .value.id // ""),
+			(.value.pi // .value.cursor // .value.id // ""),
 			(.value.label // "")
 		]
 		| @tsv

@@ -1,6 +1,6 @@
 ---
 name: cursor-impl
-description: Pi headless（Cursor Composer Fast）に実装まで委譲する
+description: cursor-agent（Composer 2.5 Fast）に実装まで委譲する
 ---
 
 # /cursor-impl
@@ -21,7 +21,7 @@ Composer 2.5 Fast に実装まで投げるスキル。呼び出し元エージ�
 ## 役割分担
 
 - **呼び出し元エージェント**: 要件整理・コードベース調査（触る箇所マップ）・実装プロンプト作成・実装後の検証
-- **Composer 2.5 Fast**: 実際のコード編集（write / shell 込み）
+- **Composer 2.5 Fast（cursor-agent）**: 実際のコード編集（write / shell 込み）
 
 Composer が一番こけるのは「どこを直すべきか自力で全部見つける」部分。呼び出し元エージェントが先に touchpoint を地図化して渡すと事故が激減する。
 
@@ -38,13 +38,16 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
    - プロンプトはファイル化して渡すと長文でも安全（例: `$TMPDIR/impl-prompt.md`）
 4. **実行**（write / shell 込み・バックグラウンド推奨）:
    ```bash
-   MODEL=$("$HOME/.pi/agent/resolve-model.sh" impl.cursor) || exit 1
-   PI_SKIP_VERSION_CHECK=1 pi -p --model "$MODEL" --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-prompt.md)" > "$TMPDIR/composer.log" 2>&1
+   MODEL=$("$HOME/.pi/agent/resolve-model.sh" --field cursor impl.cursor) || exit 1
+   cursor-agent -p --trust --force --model "$MODEL" --workspace "$PWD" "$(cat "$TMPDIR/impl-prompt.md")" > "$TMPDIR/composer.log" 2>&1
    ```
-   - `resolve-model.sh` は `~/.pi/agent/model-roles.json` の role を実モデル ID に解決する。モデルを変えるときはそのカタログだけを編集する
+   - `resolve-model.sh --field cursor` は `~/.pi/agent/model-roles.json` の Cursor 用 role を実モデル ID に解決する。モデルを変えるときはそのカタログの `roles["impl.cursor"].cursor` だけを編集する
    - `-p` は非対話（print）モード。完了時にまとめて出力するため途中ログは空。完了通知で再開する
-   - `--no-session` で実装用セッションを保存しない
-   - skill / context / prompt template を無効化し、子 Pi が `cursor-impl` を再帰起動するのを防ぐ
+   - `--trust` で workspace を信頼済みとして扱い、毎回の確認プロンプトを省略する
+   - `--force` でファイル変更を許可する（実装委譲では必須）
+   - 毎回 fresh な `cursor-agent` プロセスを起動する（`--resume` / `--continue` なし。前セッションに依存しない）
+   - fresh プロセスでも Cursor はローカルチャット状態を `~/.cursor/chats/` に永続化する。非永続（Pi 旧 `--no-session` 相当）が必要なプロンプト/コードは、CLI ヘルプに `--no-session` 相当が無い限り委譲しない
+   - Cursor Agent の認証は Pi とは独立。`cursor-agent status` / `cursor-agent login` で確認・ログインする
    - 必要なプロジェクト規約は実装プロンプトへ明記する
 5. **呼び出し元エージェントによる検証**（必須）:
    - `jj diff --summary` / `git diff --stat` で全変更ファイルを目視（意図しないファイル混入・一時ファイルの確認）
@@ -71,12 +74,12 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
 2. 各バッチを**それぞれ別の Bash 呼び出し（`run_in_background: true`）で起動**する。1 つの Bash に複数行で書くと順次実行になり並行にならないので注意。1 メッセージ内で複数の background Bash を同時に発行する:
    ```bash
    # 別々の background Bash として 1 つずつ起動（ログも分ける）
-   MODEL=$("$HOME/.pi/agent/resolve-model.sh" impl.cursor) || exit 1
-   PI_SKIP_VERSION_CHECK=1 pi -p --model "$MODEL" --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-1.md)" > "$TMPDIR/composer-1.log" 2>&1
+   MODEL=$("$HOME/.pi/agent/resolve-model.sh" --field cursor impl.cursor) || exit 1
+   cursor-agent -p --trust --force --model "$MODEL" --workspace "$PWD" "$(cat "$TMPDIR/impl-1.md")" > "$TMPDIR/composer-1.log" 2>&1
    ```
    ```bash
-   MODEL=$("$HOME/.pi/agent/resolve-model.sh" impl.cursor) || exit 1
-   PI_SKIP_VERSION_CHECK=1 pi -p --model "$MODEL" --no-session --no-skills --no-prompt-templates --no-context-files -na "$(cat $TMPDIR/impl-2.md)" > "$TMPDIR/composer-2.log" 2>&1
+   MODEL=$("$HOME/.pi/agent/resolve-model.sh" --field cursor impl.cursor) || exit 1
+   cursor-agent -p --trust --force --model "$MODEL" --workspace "$PWD" "$(cat "$TMPDIR/impl-2.md")" > "$TMPDIR/composer-2.log" 2>&1
    ```
 3. 各 background の完了通知を待って集約 → 呼び出し元エージェントが共有グルーコードを書く → 統合して lint/test
 
@@ -88,15 +91,15 @@ Composer が一番こけるのは「どこを直すべきか自力で全部見�
 
 ## 注意
 
-- `-p` は write / edit / bash を許可したまま非対話実行する（編集あり）。read-only ではない
+- `-p --trust --force` は write / edit / bash を許可したまま非対話実行する（編集あり）。read-only ではない
 - バックエンド変更・コード生成（proto等）が不要なら、その旨をプロンプトで明示して暴走を防ぐ
-- 変更範囲を限定したい場合はディレクトリを明示する
-- 呼び出し元が Pi のときも、子プロセスとして別の `pi -p` を起動する（ネスト可）
+- `--workspace` は作業ルート/コンテキストを設定するだけで、サンドボックスやセキュリティ境界ではない（特に `--force` あり）。変更意図を絞るならプロンプトで触るファイルを明示する。厳密なファイルシステム分離が必要なら別ワークスペースやコンテナを使う
+- 呼び出し元が Pi のときも、子 Pi ではなく直接 `cursor-agent` を起動する
 
 ## モデル
 
-role `impl.cursor`（Composer Fast）。高速・コーディング特化で横展開（パターン追従）作業に強い。
+role `impl.cursor`（Composer 2.5 Fast）。高速・コーディング特化で横展開（パターン追従）作業に強い。
 
-現在の実 ID は `~/.pi/agent/resolve-model.sh --list` で確認する。変更するときは
-`~/.pi/agent/model-roles.json` の `roles["impl.cursor"].pi` を編集する（候補は
-`pi --list-models cursor`）。
+現在の実 ID は `~/.pi/agent/resolve-model.sh --field cursor impl.cursor` で確認する。変更するときは
+`~/.pi/agent/model-roles.json` の `roles["impl.cursor"].cursor` を編集する（候補は
+`cursor-agent --list-models`）。

@@ -18,7 +18,7 @@ EOF
 }
 
 make_required_skills() {
-	for name in cmux cmux-task-name cheap-pr cursor-review fugu-review implementation-report review-report review-verify parallel-review jj-workspace; do
+	for name in cmux cmux-task-name cheap-pr fugu-review implementation-report review-report review-verify parallel-review jj-workspace; do
 		make_skill ".agents/skills/$name"
 	done
 	for name in claude-review cursor-impl firecrawl-cli firecrawl-agent cross-research antigravity-research; do
@@ -35,10 +35,11 @@ make_required_skills() {
 	run bash "$SCRIPT" "$ROOT"
 
 	[ "$status" -eq 0 ]
-	[ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" = "18" ]
+	[ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" = "17" ]
 	[[ "$output" == *"$ROOT/.agents/skills/cmux"* ]]
 	[[ "$output" == *"$ROOT/.agents/skills/review-verify"* ]]
 	[[ "$output" == *"$ROOT/claude/skills/firecrawl-cli"* ]]
+	[[ "$output" != *"cursor-review"* ]]
 	[[ "$output" != *"/"$'\n'* ]]
 }
 

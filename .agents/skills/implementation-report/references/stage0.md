@@ -30,7 +30,7 @@ cp "$INTENT_JSON" "$IMPL_DIR/intent.json"
 # 下記 prompt を $IMPL_DIR/prompt.txt へ書く
 ```
 
-既定 analyzer は role `review.cursor`、timeout 180秒。
+既定 analyzer は role `review.codex`、timeout 180秒。
 
 ## 出力（Stage 0 のみ）
 
@@ -167,7 +167,7 @@ group id は安定した kebab-case slug。
 
 ```bash
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
-ROLE=review.cursor
+ROLE=review.codex
 
 "$RUNNER" \
   --role "$ROLE" \
