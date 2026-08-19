@@ -1,18 +1,26 @@
 # Review report prompts
 
-Stage 0 (implementation-analysis)、Stage 1 (blind)、Stage 2 (plan-aware) で **別
+Stage 0 (acceptance-analysis)、Stage 1 (blind)、Stage 2 (plan-aware) で **別
 fresh subagent** を起動する。いずれも **read-only**、ソース編集禁止。resume /
-continue は使わない。
+continue は使わない。Stage 0 は intent-aware だが、Stage 1/2
+はその結果から独立する。
 
 ## Temp workspace セットアップ
 
 main agent が prompt template 本文を各 stage の temp dir 内 `prompt.txt`
-へ書き込む。**subagent 起動前の入力**は `sanitized.patch / prompt.txt`（Stage 2
-のみ `plan-body.md` も）だけにする。起動後に runner が同じ temp dir へ
-`result.json` / log を出力してよいが、repo source や他 stage
-の入出力は置かない。
+へ書き込む。Stage 0 の入力は implementation-report の手順に従う。
 
-### Stage 0（implementation-analysis）
+**時間的分離（subagent 起動前）**:
+
+- Stage 1 temp dir には **sanitized.patch と prompt.txt のみ** を置く
+- Stage 2 temp dir には **sanitized.patch、plan-body.md、prompt.txt のみ**
+  を置く
+- Stage 1/2 の temp dir に `intent.json`, `acceptance`, `evidence.md`,
+  `validation.json`, 既存 report、repo source、その他 stage の成果物を置かない
+
+**起動後**: `result.json` / reviewer log は各 stage の temp dir に書いてよい。
+
+### Stage 0（acceptance-analysis）
 
 所有は implementation-report。隔離・prompt・runner は
 [../../implementation-report/references/stage0.md](../../implementation-report/references/stage0.md)。
@@ -37,14 +45,15 @@ cp "$PLAN_BODY" "$PLAN_DIR/plan-body.md"
 # prompt template 本文を $PLAN_DIR/prompt.txt へ書く（下記 Stage 2 code block）
 ```
 
-## Stage 0 — implementation-analysis
+## Stage 0 — acceptance-analysis
 
 本文は
 [../../implementation-report/references/stage0.md](../../implementation-report/references/stage0.md)。
 
 ## Stage 1 — blind review
 
-入力は **sanitized diff のみ**。revision label、target、repo
+入力は **sanitized.patch
+のみ**（作業ディレクトリ内の唯一のコンテキスト）。revision label、target、repo
 source、instructions、commit message、**実装 summary / 既存 overview / 既存
 group prose** は見せない。
 
@@ -59,7 +68,7 @@ group prose** は見せない。
 - 生成物・バイナリ・lockfile の機械的変更も低優先度と決め打ちしない。unexpected dependency / source / integrity / generator drift は high になり得る
 - 秘密除外以外の各 changed hunk はちょうど1つの intent group に所属させる
 - diffs は論理/因果順で並べる
-- 既存の実装レポート summary / overview / group intent は参照しない（patch のみから独立判定）
+- sanitized.patch 以外の外部文脈は参照しない（patch のみから独立判定）
 
 ## 入力
 - 差分 patch: 作業ディレクトリの sanitized.patch を読む
@@ -89,7 +98,8 @@ patch 省略・truncate した場合は explanation に明示する（silent omi
 ## Stage 2 — plan-aware review
 
 同じ sanitized diff + plan 本文を渡す。**fresh subagent**（Stage 1
-の会話・findings なし）。**実装 summary / 既存 overview は渡さない**。
+の会話・findings なし）。`intent`, `acceptance`, `evidence.md`, validation
+結果、**実装 summary / 既存 overview は渡さない**。
 
 ```text
 あなたは plan 整合性レビュアーです。作業ディレクトリ内の sanitized.patch と plan-body.md を読み、照合してください。
@@ -101,7 +111,7 @@ patch 省略・truncate した場合は explanation に明示する（silent omi
 - 秘密ファイル（.env* / .envrc / credentials* / secrets* / *.pem / *.key / id_rsa / id_ed25519 等）は読まない・引用しない
 - 秘密除外以外の各 changed hunk はちょうど1つの intent group に所属させる
 - diffs は論理/因果順で並べる
-- 既存の実装レポート summary / overview / group intent は参照しない（patch + plan のみから独立判定）
+- intent / acceptance / evidence.md / validation 結果 / 既存の実装レポート summary / overview / group intent は参照しない（patch + plan のみから独立判定）
 
 ## 入力
 - plan 本文: 作業ディレクトリの plan-body.md を読む
@@ -140,8 +150,9 @@ patch 省略・truncate した場合は explanation に明示する（silent omi
 
 Stage 1/2 reviewer 出力を既存 `report.json` に merge するとき:
 
-1. **保持**: `reportId`, top-level `overview`（実装）, 各 group の `id`,
-   `title`, `intent`, `files`, `diffs`
+1. **保持**: `reportId`, `repository`, top-level `intent`, `acceptance`,
+   `diagrams`, `overview`（実装）, 各 group の `id`, `title`, `intent`, `files`,
+   `diffs`
 2. **reviewer → 既存 group id マップ**: file/hunk 所属で対応。reviewer の
    id/title/intent/files/diffs で実装 prose を上書きしない
 3. **追加**: `review.performed=true`, `review.overview`（review 全体要約）, 各
@@ -152,9 +163,10 @@ Stage 1/2 reviewer 出力を既存 `report.json` に merge するとき:
 ## Subagent 起動例（read-only、fresh、temp workspace 固定）
 
 共通 runner は一時設定で retry を止め、CLIで skill / context / extension / tools
-を無効化する。Stage 0/1/2 は patch-only（Stage 2 は +plan）。Cursor provider
-だけ明示ロードする。既定は role `review.cursor`。`review.codex` /
-`review.claude` は fallback。Fugu（`review.fugu`）は quota
+を無効化する。Stage 0 は implementation-report 規定の入力、Stage 1 は
+patch-only、Stage 2 は patch + plan。Cursor provider だけ明示ロードする。既定は
+role `review.cursor`。`review.codex` / `review.claude` は
+fallback。Fugu（`review.fugu`）は quota
 制限があるためユーザー明示時だけ使い、自動再試行しない。実モデル ID は
 `~/.pi/agent/model-roles.json` が単一の正。
 
@@ -196,8 +208,9 @@ if [ "$plan_status" -eq 0 ]; then
 fi
 ```
 
-Stage 0 のみ（implementation-report）の runner は
+Stage 0（implementation acceptance）の入力・prompt・runner は
 [../../implementation-report/references/stage0.md](../../implementation-report/references/stage0.md)。
+Stage 0 の intent/acceptance/evidence/validation を Stage 1/2 へ転送しない。
 
 plan がなければ plan-aware 起動を省略する。fallback は `ROLE` だけ変更する:
 

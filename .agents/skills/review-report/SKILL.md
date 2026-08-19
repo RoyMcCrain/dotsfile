@@ -44,9 +44,9 @@ secret-safe patch と repository metadata は implementation-report の script
    にマッピングする。Hunk は必須ではない。
 5. **ソース編集禁止**: この skill は review のみ。tracked ファイルを変更しない。
 6. **既存レポート**: ユーザー指定の `report.json` / レポート dir
-   が最優先。存在すれば `reportId`、`repository`、実装フィールド（`overview`,
-   group `id/title/intent/files/diffs` 等）を **保持** し、review フィールドだけ
-   merge する。
+   が最優先。存在すれば `reportId`, `repository`, `intent`, `acceptance`,
+   `diagrams`, `overview`, group `id/title/intent/files/diffs` 等を
+   **保持**し、review フィールドだけ merge する。
 7. **repository metadata**: 新規作成時は
    [../implementation-report/scripts/collect_repository_metadata.ts](../implementation-report/scripts/collect_repository_metadata.ts)
    を Stage 0 **後** に呼ぶ（Stage 1/2 subagent には渡さない）。詳細は
@@ -57,26 +57,29 @@ secret-safe patch と repository metadata は implementation-report の script
 ## ワークフロー
 
 ```text
-A. 既存 report.json / レポート dir がある（implementation-only または legacy reviewed）
-   1. preflight → collect_sanitized_patch.sh で sanitized patch を生成
-   2. 既存 report.json を読み、reportId・`repository`・実装 overview・group id/title/intent/files/diffs を保持
-   3. Stage 1 blind + Stage 2 plan-aware（plan あれば）— いずれも sanitized patch のみ（Stage 2 は +plan）。実装 summary / 既存 overview / 既存 group prose / repository metadata は reviewer に渡さない
-   4. main agent が reviewer 出力を **既存 implementation group id** にマップし、risk/riskReason/findings と review.overview のみ merge（実装 prose/diffs / `repository` は上書きしない）
-   5. review.performed=true、同一 report.json を上書き → render → 同一 report.html を open
+A. 承認済み acceptance report がある
+   1. 現在の会話で人間がこのレポートを明示承認済みか確認する。未承認なら open して停止
+   2. preflight → collect_sanitized_patch.sh で sanitized patch を生成
+   3. 既存 report.json の受け入れ・実装フィールドを保持
+   4. Stage 1 blind + Stage 2 plan-aware（plan あれば）を独立実行。Stage 1 は patch のみ、Stage 2 は patch + plan のみ
+   5. reviewer 出力を既存 implementation group id にマップし、risk/riskReason/findings と review.overview のみ merge
+   6. review.performed=true、同一 report.json を上書き → render → open
 
-B. 既存レポートがない
-   1. まず implementation stage（Stage 0 — [../implementation-report/SKILL.md](../implementation-report/SKILL.md) と同手順）で report.json を作成（review.performed=false、VCS 収集成功時は `repository` 必須）
-   2. 続けて A の Stage 1/2 + merge を同一 report.json / report.html ペアに対して実行
-   3. 1 回の skill 実行で実装 + レビューの両セクションが見える HTML を出す
+B. acceptance report がない（既存 legacy report のみを含む）
+   1. [../implementation-report/SKILL.md](../implementation-report/SKILL.md) の受け入れ workflow を先に実行
+   2. 元の依頼意図を回収できなければ停止してユーザーに確認する。diff から要件を捏造しない
+   3. acceptance report を生成・open したら停止し、人間に適合性確認を求める
+   4. 人間が明示承認した後のターンで A の Stage 1/2 + merge を実行する
 ```
 
 **禁止**:
 
 - main agent が plan を知った状態で事前グループ/summary を作り Stage 1
   に渡すこと。Stage 1 は raw sanitized diff から intent grouping する。
-- blind / plan-aware reviewer に **実装 summary・既存 overview・既存 group
-  intent/diffs・repository metadata** を見せること（anchoring 回避）。reviewer
-  入力は patch-only（Stage 2 は +plan 本文のみ）。
+- blind / plan-aware reviewer に `intent`, `acceptance`, `evidence.md`,
+  validation 結果、**実装 summary・既存 overview・既存 group
+  intent/diffs・repository metadata** を見せること（anchoring 回避）。Stage 1 は
+  patch-only、Stage 2 は patch + plan 本文のみ。
 
 裏取りの自動化手順は別 skill:
 [../review-verify/SKILL.md](../review-verify/SKILL.md)。
@@ -85,8 +88,9 @@ B. 既存レポートがない
 
 - **fresh subagent**。入力は **sanitized diff のみ**。revision
   label、target、commit message、plan（ファイル名・パス・本文）、repo
-  instructions、source tree、**repository metadata**、**実装 summary / 既存
-  report overview** を prompt に含めない。
+  instructions、source tree、**repository metadata**、`intent`, `acceptance`,
+  `evidence.md`, validation 結果、**実装 summary / 既存 report overview** を
+  prompt に含めない。
 - **必須**: repo 外の新規 temp directory（例:
   `$TMPDIR/review-report-blind-$$`）を使い、reviewer 起動前は `sanitized.patch`
   と `prompt.txt` だけ置く。起動後の `result.json` / log は同 dir
@@ -109,8 +113,8 @@ Prompt template: [references/prompts.md](references/prompts.md)
 - blind と **完全に別 temp dir** に
   `sanitized.patch`、`plan-body.md`、`prompt.txt` を置く。prompt は同 dir の
   patch / plan を読む形式。target は final report metadata として main agent
-  が後で付けるだけで Stage 2 prompt には含めない。**実装 summary / 既存 overview
-  も含めない**。
+  が後で付けるだけで Stage 2 prompt には含めない。`intent`, `acceptance`,
+  `evidence.md`, validation 結果、**実装 summary / 既存 overview も含めない**。
 - 同じ sanitized diff + plan 本文のみ。Stage 1 findings summary は渡さない。
 - plan を読まないと出せない指摘は `planOnly: true`（`source: plan-aware`
   のみ）。
@@ -146,9 +150,9 @@ Prompt 雛形: [references/prompts.md](references/prompts.md) の Stage 3。
 
 ### 既存実装レポートがある場合（merge）
 
-- **保持**: `reportId`, `repository`, top-level `overview`（実装）, 各 group の
-  `id`, `title`, `intent`, `files`, `diffs`, `initialComment`,
-  `needsImprovement` 等の実装フィールド
+- **保持**: `reportId`, `repository`, top-level `intent`, `acceptance`,
+  `diagrams`, `overview`（実装）, 各 group の `id`, `title`, `intent`, `files`,
+  `diffs`, `initialComment`, `needsImprovement` 等の実装フィールド
 - **merge のみ**: `review.performed=true`, `review.overview`, 各 group の
   `risk`, `riskScore`, `riskReason`, `findings`
 - reviewer が返した group id は **既存 implementation group id へのマップ**
@@ -157,7 +161,7 @@ Prompt 雛形: [references/prompts.md](references/prompts.md) の Stage 3。
   所属でマップし、対応不能な reviewer-only group は新規 id 追加ではなく findings
   を最も近い既存 group へ寄せる
 
-### 新規（legacy フルレビュー）または reviewer-only 統合
+### Reviewer 出力の共通統合規則
 
 - 両結果を main agent が統合。Stage 1 finding は「plan
   と整合する」という理由だけで削除しない。
@@ -202,8 +206,8 @@ report artifact（JSON/HTML）は tracked source を汚さない **`$TMPDIR` 配
 に置くことを推奨。`report.json` と `report.html` は **同じディレクトリ**
 に置く。
 
-Renderer レイアウト: **Summary → Repository Map → Implementation
-Flow（Mermaid）→ Change Groups → Review Results**。Repository Map は
+Renderer レイアウト: **Summary → 意図適合性（存在時）→ Repository Map → 期待 vs
+実装フロー（図あり時）→ Change Groups → Review Results**。Repository Map は
 `repository` の HTML ツリー（group 所属・change status）。`repository` 欠落は
 legacy / degraded fallback のみ（Map 非表示、他は通常 render）。Mermaid
 はプロセス/関係図（既存 CDN runtime / fallback 維持）。diff
@@ -211,11 +215,11 @@ legacy / degraded fallback のみ（Map 非表示、他は通常 render）。Mer
 
 その他: risk 安定ソート、findings severity ソート、`</script>` breakout
 防止、localStorage（`reportId`）で human decisions/comments
-を復元。Implementation Flow はレポート生成段階を、Review Results
-は変更グループ↔指摘の関係を Mermaid で描画し、任意の `diagrams[]`
-も追加表示。`verifications[]` があれば finding
-に事実バッジを表示し、フィードバック Markdown にも併記。`repository` は
-`reportId` 生成に含めない。ライトモード固定。
+を復元。意図適合性は凍結 intent と deterministic acceptance verdict を表示する。
+期待 vs 実装フローは根拠付き `diagrams[]` だけを表示し、空なら隠す。Review
+Results は変更グループ↔指摘の関係を Mermaid で描画する。`verifications[]`
+があれば finding に事実バッジを表示し、フィードバック Markdown
+にも併記。`repository` は `reportId` 生成に含めない。ライトモード固定。
 
 ## Open
 
@@ -244,17 +248,20 @@ cmux markdown ではなく **HTML ファイル** を直接開く。
 
 ## 完了条件
 
-- 既存レポートがなければ Stage 0（implementation）+ Stage 1/2 完了（plan
-  なしなら Stage 2 スキップ可）
-- 既存レポートがあれば Stage 1/2 完了 + merge 成功
+- acceptance report がなければ（legacy のみも含む）生成・open
+  して停止し、人間の承認を待つ
+- 承認済み acceptance report があれば Stage 1/2 完了（plan なしなら Stage 2
+  スキップ可）+ merge 成功
 - `report.json` が contract を満たす（reviewed なら
   `review.performed: true`、`--validate-only` 成功）
 - HTML 生成・open 済み
-- HTML レイアウト: Summary → Repository Map（`repository` あり時）→
-  Implementation Flow（Mermaid）→ Change Groups → Review Results
+- HTML レイアウト: Summary → 意図適合性（存在時）→ Repository Map → 期待 vs
+  実装フロー（`diagrams` がある時のみ）→ Change Groups → Review Results
 - **実装セクションとレビューセクションの両方** が HTML に表示される（reviewed
   レポート）
-- merge 後も `repository` が保持されている（付与済みの場合）
+- `needs-confirmation` / `fail` の acceptance report
+  は、ユーザーの明示承認なしにレビューへ進めない
+- merge 後も `intent`, `acceptance`, `diagrams`, `repository` が変更されていない
 - ユーザーが feedback を生成/コピーできる
 
 ## 関連
