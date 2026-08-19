@@ -48,6 +48,51 @@ interface ReportDiagram {
   id?: string;
   title?: string;
   mermaid: string;
+  summary?: string;
+  evidence?: string[];
+}
+
+interface IntentRequirement {
+  id: string;
+  title: string;
+  description: string;
+  kind: "must" | "constraint" | "non-goal";
+}
+
+interface IntentInfo {
+  summary: string;
+  source: string;
+  requirements: IntentRequirement[];
+}
+
+interface AcceptanceEvidence {
+  file: string;
+  location?: string;
+  explanation: string;
+}
+
+interface AcceptanceCheck {
+  requirementId: string;
+  status:
+    | "satisfied"
+    | "partial"
+    | "missing"
+    | "contradicted"
+    | "unverified";
+  explanation: string;
+  evidence: AcceptanceEvidence[];
+}
+
+interface AcceptanceInfo {
+  verdict: "pass" | "needs-confirmation" | "fail";
+  summary: string;
+  checks: AcceptanceCheck[];
+  extras: Array<{ title: string; explanation: string; files: string[] }>;
+  validations: Array<{
+    command: string;
+    status: "passed" | "failed" | "not-run";
+    summary: string;
+  }>;
 }
 
 type VerificationVerdict =
@@ -91,6 +136,8 @@ interface ReviewReport {
   title?: string;
   target?: string;
   overview?: string;
+  intent?: IntentInfo;
+  acceptance?: AcceptanceInfo;
   repository?: RepositoryInfo;
   review?: ReviewInfo;
   diagrams?: ReportDiagram[];
@@ -121,6 +168,33 @@ const VALID_CHANGE_STATUSES = new Set<string>([
   "modified",
   "deleted",
   "renamed",
+]);
+const VALID_REQUIREMENT_KINDS = new Set([
+  "must",
+  "constraint",
+  "non-goal",
+]);
+const VALID_CHECK_STATUSES = new Set([
+  "satisfied",
+  "partial",
+  "missing",
+  "contradicted",
+  "unverified",
+]);
+const VALID_ACCEPTANCE_VERDICTS = new Set([
+  "pass",
+  "needs-confirmation",
+  "fail",
+]);
+const VALID_VALIDATION_STATUSES = new Set([
+  "passed",
+  "failed",
+  "not-run",
+]);
+const EVIDENCE_REQUIRED_CHECK_STATUSES = new Set([
+  "satisfied",
+  "partial",
+  "contradicted",
 ]);
 
 const SECRET_COMPONENTS = new Set(["id_rsa", "id_ed25519", ".envrc"]);
@@ -464,11 +538,290 @@ const implementationReportIdentity = (report: Record<string, unknown>) => ({
   title: report.title,
   target: report.target,
   overview: report.overview,
+  intent: report.intent,
+  acceptance: report.acceptance,
   diagrams: report.diagrams,
   groups: Array.isArray(report.groups)
     ? report.groups.map(implementationGroupIdentity)
     : report.groups,
 });
+
+const isValidCheckRecord = (
+  check: unknown,
+): check is Record<string, unknown> => {
+  if (!isRecord(check)) return false;
+  const status = check.status;
+  return typeof status === "string" && VALID_CHECK_STATUSES.has(status);
+};
+
+const isValidValidationRecord = (
+  validation: unknown,
+): validation is Record<string, unknown> => {
+  if (!isRecord(validation)) return false;
+  const status = validation.status;
+  return typeof status === "string" && VALID_VALIDATION_STATUSES.has(status);
+};
+
+const evidenceReferencePath = (reference: string) => {
+  const trimmed = reference.trim();
+  const colon = trimmed.lastIndexOf(":");
+  if (colon <= 0) return trimmed;
+  return trimmed.slice(0, colon);
+};
+
+export const computeAcceptanceVerdict = (
+  checks: unknown[],
+  validations: unknown[],
+  extras: unknown[],
+): "pass" | "needs-confirmation" | "fail" => {
+  for (const check of checks) {
+    if (!isValidCheckRecord(check)) continue;
+    const status = check.status;
+    if (status === "missing" || status === "contradicted") {
+      return "fail";
+    }
+  }
+  for (const validation of validations) {
+    if (!isValidValidationRecord(validation)) continue;
+    if (validation.status === "failed") return "fail";
+  }
+  for (const check of checks) {
+    if (!isValidCheckRecord(check)) return "needs-confirmation";
+  }
+  for (const validation of validations) {
+    if (!isValidValidationRecord(validation)) return "needs-confirmation";
+  }
+  for (const check of checks) {
+    if (!isValidCheckRecord(check)) continue;
+    if (check.status === "partial" || check.status === "unverified") {
+      return "needs-confirmation";
+    }
+  }
+  if (extras.length > 0) return "needs-confirmation";
+  for (const validation of validations) {
+    if (!isValidValidationRecord(validation)) continue;
+    if (validation.status === "not-run") return "needs-confirmation";
+  }
+  if (validations.length === 0) return "needs-confirmation";
+  return "pass";
+};
+
+const validateAcceptanceEvidence = (
+  evidence: unknown,
+  fieldPath: string,
+  errors: string[],
+) => {
+  if (!Array.isArray(evidence)) {
+    errors.push(`${fieldPath} must be an array`);
+    return;
+  }
+  evidence.forEach((item, index) => {
+    const prefix = `${fieldPath}[${index}]`;
+    if (!isRecord(item)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+    if (!requireNonEmptyString(item.file, `${prefix}.file`, errors)) return;
+    const filePath = item.file as string;
+    if (isSecretPath(filePath)) {
+      errors.push(
+        `${prefix}.file references a secret path and must not be included`,
+      );
+    }
+    requireString(item.location, `${prefix}.location`, errors);
+    requireNonEmptyString(item.explanation, `${prefix}.explanation`, errors);
+  });
+};
+
+const validateIntent = (intent: unknown, errors: string[]) => {
+  if (!isRecord(intent)) {
+    errors.push("intent must be an object");
+    return null;
+  }
+  requireNonEmptyString(intent.summary, "intent.summary", errors);
+  requireNonEmptyString(intent.source, "intent.source", errors);
+  const requirements = intent.requirements;
+  if (!Array.isArray(requirements)) {
+    errors.push("intent.requirements must be an array");
+    return null;
+  }
+  if (requirements.length === 0) {
+    errors.push("intent.requirements must be a non-empty array");
+  }
+  const requirementIds = new Set<string>();
+  requirements.forEach((requirement, index) => {
+    const prefix = `intent.requirements[${index}]`;
+    if (!isRecord(requirement)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+    checkUniqueId(
+      requirement.id,
+      requirementIds,
+      "duplicate intent requirement id: {}",
+      `${prefix}.id`,
+      errors,
+    );
+    requireNonEmptyString(requirement.title, `${prefix}.title`, errors);
+    requireNonEmptyString(
+      requirement.description,
+      `${prefix}.description`,
+      errors,
+    );
+    const kind = requirement.kind;
+    if (typeof kind !== "string" || !VALID_REQUIREMENT_KINDS.has(kind)) {
+      errors.push(
+        `${prefix}.kind must be one of ${[...VALID_REQUIREMENT_KINDS].sort()}`,
+      );
+    }
+  });
+  return requirementIds;
+};
+
+const validateAcceptance = (
+  acceptance: unknown,
+  requirementIds: Set<string>,
+  errors: string[],
+) => {
+  if (!isRecord(acceptance)) {
+    errors.push("acceptance must be an object");
+    return;
+  }
+  const verdict = acceptance.verdict;
+  if (
+    typeof verdict !== "string" || !VALID_ACCEPTANCE_VERDICTS.has(verdict)
+  ) {
+    errors.push(
+      `acceptance.verdict must be one of ${
+        [...VALID_ACCEPTANCE_VERDICTS].sort()
+      }`,
+    );
+  }
+  requireNonEmptyString(acceptance.summary, "acceptance.summary", errors);
+
+  const checks = acceptance.checks;
+  if (!Array.isArray(checks)) {
+    errors.push("acceptance.checks must be an array");
+  } else {
+    const seenRequirementIds = new Set<string>();
+    checks.forEach((check, index) => {
+      const prefix = `acceptance.checks[${index}]`;
+      if (!isRecord(check)) {
+        errors.push(`${prefix} must be an object`);
+        return;
+      }
+      if (
+        !requireNonEmptyString(
+          check.requirementId,
+          `${prefix}.requirementId`,
+          errors,
+        )
+      ) {
+        return;
+      }
+      const requirementId = check.requirementId as string;
+      if (!requirementIds.has(requirementId)) {
+        errors.push(
+          `${prefix}.requirementId references unknown requirement: ${requirementId}`,
+        );
+      }
+      if (seenRequirementIds.has(requirementId)) {
+        errors.push(
+          `duplicate acceptance check for requirement id: ${requirementId}`,
+        );
+      } else {
+        seenRequirementIds.add(requirementId);
+      }
+      const status = check.status;
+      if (typeof status !== "string" || !VALID_CHECK_STATUSES.has(status)) {
+        errors.push(
+          `${prefix}.status must be one of ${[...VALID_CHECK_STATUSES].sort()}`,
+        );
+      }
+      requireNonEmptyString(check.explanation, `${prefix}.explanation`, errors);
+      const evidence = check.evidence;
+      if (!Array.isArray(evidence)) {
+        errors.push(`${prefix}.evidence must be an array`);
+      } else if (
+        EVIDENCE_REQUIRED_CHECK_STATUSES.has(status as string) &&
+        evidence.length === 0
+      ) {
+        errors.push(
+          `${prefix}.evidence must be a non-empty array when status=${status}`,
+        );
+      } else {
+        validateAcceptanceEvidence(evidence, `${prefix}.evidence`, errors);
+      }
+    });
+    requirementIds.forEach((id) => {
+      if (!seenRequirementIds.has(id)) {
+        errors.push(`missing acceptance check for requirement id: ${id}`);
+      }
+    });
+  }
+
+  const extras = acceptance.extras;
+  if (!Array.isArray(extras)) {
+    errors.push("acceptance.extras must be an array");
+  } else {
+    extras.forEach((extra, index) => {
+      const prefix = `acceptance.extras[${index}]`;
+      if (!isRecord(extra)) {
+        errors.push(`${prefix} must be an object`);
+        return;
+      }
+      requireNonEmptyString(extra.title, `${prefix}.title`, errors);
+      requireNonEmptyString(extra.explanation, `${prefix}.explanation`, errors);
+      validatePathList(extra.files, `${prefix}.files`, errors);
+    });
+  }
+
+  const validations = acceptance.validations;
+  if (!Array.isArray(validations)) {
+    errors.push("acceptance.validations must be an array");
+  } else {
+    validations.forEach((validation, index) => {
+      const prefix = `acceptance.validations[${index}]`;
+      if (!isRecord(validation)) {
+        errors.push(`${prefix} must be an object`);
+        return;
+      }
+      requireNonEmptyString(validation.command, `${prefix}.command`, errors);
+      const validationStatus = validation.status;
+      if (
+        typeof validationStatus !== "string" ||
+        !VALID_VALIDATION_STATUSES.has(validationStatus)
+      ) {
+        errors.push(
+          `${prefix}.status must be one of ${
+            [...VALID_VALIDATION_STATUSES].sort()
+          }`,
+        );
+      }
+      requireNonEmptyString(validation.summary, `${prefix}.summary`, errors);
+    });
+  }
+
+  const allChecksValid = Array.isArray(checks) &&
+    checks.every(isValidCheckRecord);
+  const allValidationsValid = Array.isArray(validations) &&
+    validations.every(isValidValidationRecord);
+  if (
+    allChecksValid && allValidationsValid &&
+    typeof verdict === "string" && VALID_ACCEPTANCE_VERDICTS.has(verdict)
+  ) {
+    const expected = computeAcceptanceVerdict(
+      checks,
+      validations,
+      Array.isArray(extras) ? extras : [],
+    );
+    if (verdict !== expected) {
+      errors.push(
+        `acceptance.verdict must be ${expected} based on checks/validations/extras (got ${verdict})`,
+      );
+    }
+  }
+};
 
 export const defaultReportId = (report: Record<string, unknown>) => {
   if (report.reportId) {
@@ -502,6 +855,14 @@ export const validateReport = (report: unknown): string[] => {
     if (!Array.isArray(diagrams)) {
       errors.push("diagrams must be an array");
     } else {
+      const hasIntent = report.intent !== undefined && report.intent !== null;
+      const hasAcceptance = report.acceptance !== undefined &&
+        report.acceptance !== null;
+      if (hasIntent && hasAcceptance && diagrams.length > 2) {
+        errors.push(
+          "diagrams must contain at most 2 items for acceptance reports",
+        );
+      }
       diagrams.forEach((diagram, index) => {
         const prefix = `diagrams[${index}]`;
         if (!isRecord(diagram)) {
@@ -515,8 +876,43 @@ export const validateReport = (report: unknown): string[] => {
         } else {
           requireNonEmptyString(diagram.mermaid, `${prefix}.mermaid`, errors);
         }
+        requireString(diagram.summary, `${prefix}.summary`, errors);
+        if (diagram.evidence !== undefined && diagram.evidence !== null) {
+          if (!Array.isArray(diagram.evidence)) {
+            errors.push(`${prefix}.evidence must be an array`);
+          } else {
+            diagram.evidence.forEach((item, evidenceIndex) => {
+              const evidencePath = `${prefix}.evidence[${evidenceIndex}]`;
+              if (typeof item !== "string" || !item.trim()) {
+                errors.push(`${evidencePath} must be a non-empty string`);
+                return;
+              }
+              const filePath = evidenceReferencePath(item);
+              if (isSecretPath(filePath)) {
+                errors.push(
+                  `${evidencePath} references a secret path and must not be included`,
+                );
+              }
+            });
+          }
+        }
       });
     }
+  }
+
+  const hasIntent = report.intent !== undefined && report.intent !== null;
+  const hasAcceptance = report.acceptance !== undefined &&
+    report.acceptance !== null;
+  if (hasIntent !== hasAcceptance) {
+    if (hasIntent) {
+      errors.push("acceptance is required when intent is present");
+    } else {
+      errors.push("intent is required when acceptance is present");
+    }
+  } else if (hasIntent && hasAcceptance) {
+    const requirementIds = validateIntent(report.intent, errors) ??
+      new Set<string>();
+    validateAcceptance(report.acceptance, requirementIds, errors);
   }
 
   const plan = report.plan;
@@ -1387,6 +1783,133 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       overflow-x: auto;
     }
     .diagram-card .mermaid svg { max-width: 100%; height: auto; }
+    .diagram-summary {
+      margin: 0 0 0.5rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .diagram-evidence {
+      margin: 0.5rem 0 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .acceptance-verdict {
+      display: inline-block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      margin-bottom: 0.75rem;
+    }
+    .acceptance-verdict-pass { color: var(--low); border-color: var(--low); background: #ecfdf5; }
+    .acceptance-verdict-needs { color: var(--medium); border-color: var(--medium); background: #fffbeb; }
+    .acceptance-verdict-fail { color: var(--critical); border-color: var(--critical); background: var(--needs-bg); }
+    .acceptance-block {
+      margin: 0 0 1rem;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      background: var(--badge-bg);
+    }
+    .acceptance-block h3 {
+      margin: 0 0 0.45rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .acceptance-block p {
+      margin: 0;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+    .acceptance-meta {
+      margin: 0 0 0.75rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .requirement-card {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin: 0.65rem 0;
+      background: var(--panel);
+    }
+    .requirement-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      margin-bottom: 0.35rem;
+    }
+    .requirement-title {
+      font-weight: 700;
+      flex: 1;
+      min-width: 0;
+    }
+    .kind-badge, .check-status-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--badge-bg);
+      line-height: 1.3;
+    }
+    .check-status-satisfied { color: var(--low); border-color: var(--low); }
+    .check-status-partial { color: var(--medium); border-color: var(--medium); }
+    .check-status-missing, .check-status-contradicted { color: var(--critical); border-color: var(--critical); }
+    .check-status-unverified { color: var(--muted); }
+    .requirement-desc {
+      margin: 0 0 0.45rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .requirement-explanation {
+      margin: 0 0 0.45rem;
+      line-height: 1.65;
+    }
+    .evidence-list {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.85rem;
+      line-height: 1.55;
+    }
+    .evidence-list li { margin: 0.2rem 0; }
+    .evidence-list code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.82rem;
+    }
+    .extra-card, .validation-card {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      margin: 0.5rem 0;
+      background: var(--panel);
+    }
+    .validation-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      margin-bottom: 0.25rem;
+    }
+    .validation-command {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .validation-status-passed { color: var(--low); border-color: var(--low); }
+    .validation-status-failed { color: var(--critical); border-color: var(--critical); }
+    .validation-status-not-run { color: var(--muted); }
     .diagram-fallback {
       margin: 0;
       white-space: pre-wrap;
@@ -1751,8 +2274,9 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       <nav class="report-nav" id="report-nav" aria-label="レポート内ナビゲーション">
         <ul class="report-nav-list">
           <li><a href="#summary-section">概要</a></li>
+          <li id="nav-acceptance-item" hidden><a href="#acceptance-section">意図適合性</a></li>
           <li id="nav-repository-map-item" hidden><a href="#repository-map-section">リポジトリマップ</a></li>
-          <li><a href="#implementation-flow-section">実装フロー</a></li>
+          <li id="nav-implementation-flow-item" hidden><a href="#implementation-flow-section">期待 vs 実装フロー</a></li>
           <li><a href="#implementation-section">変更グループ</a></li>
           <li id="nav-review-item" hidden><a href="#review-section">レビュー結果</a></li>
         </ul>
@@ -1762,12 +2286,16 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
           <h2 id="summary-heading">概要</h2>
           <div id="summary-content"></div>
         </section>
+        <section id="acceptance-section" class="report-panel" hidden aria-labelledby="acceptance-heading">
+          <h2 id="acceptance-heading">意図適合性</h2>
+          <div id="acceptance-content"></div>
+        </section>
         <section id="repository-map-section" class="report-panel" hidden aria-labelledby="repository-map-heading">
           <h2 id="repository-map-heading">リポジトリマップ</h2>
           <div id="repository-map-content"></div>
         </section>
-        <section id="implementation-flow-section" class="report-panel" aria-labelledby="implementation-flow-heading">
-          <h2 id="implementation-flow-heading">実装フロー</h2>
+        <section id="implementation-flow-section" class="report-panel" hidden aria-labelledby="implementation-flow-heading">
+          <h2 id="implementation-flow-heading">期待 vs 実装フロー</h2>
           <div id="implementation-flow-content"></div>
         </section>
         <section id="implementation-section" class="report-panel" aria-labelledby="implementation-heading">
@@ -1832,6 +2360,45 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       contradicted: '事実:誤り',
       partial: '事実:一部',
       inconclusive: '事実:不明',
+    };
+    const ACCEPTANCE_VERDICT_LABELS = {
+      pass: '適合',
+      'needs-confirmation': '要確認',
+      fail: '不適合',
+    };
+    const ACCEPTANCE_VERDICT_CLASS = {
+      pass: 'acceptance-verdict-pass',
+      'needs-confirmation': 'acceptance-verdict-needs',
+      fail: 'acceptance-verdict-fail',
+    };
+    const REQUIREMENT_KIND_LABELS = {
+      must: '必須',
+      constraint: '制約',
+      'non-goal': '非目標',
+    };
+    const CHECK_STATUS_LABELS = {
+      satisfied: '充足',
+      partial: '一部',
+      missing: '欠落',
+      contradicted: '矛盾',
+      unverified: '未検証',
+    };
+    const CHECK_STATUS_CLASS = {
+      satisfied: 'check-status-satisfied',
+      partial: 'check-status-partial',
+      missing: 'check-status-missing',
+      contradicted: 'check-status-contradicted',
+      unverified: 'check-status-unverified',
+    };
+    const VALIDATION_STATUS_LABELS = {
+      passed: '成功',
+      failed: '失敗',
+      'not-run': '未実行',
+    };
+    const VALIDATION_STATUS_CLASS = {
+      passed: 'validation-status-passed',
+      failed: 'validation-status-failed',
+      'not-run': 'validation-status-not-run',
     };
     const findingCards = new Map();
     const verificationByFindingId = (function() {
@@ -2242,12 +2809,25 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       return lines.join(String.fromCharCode(10));
     }
 
-    function appendDiagramCard(container, title, mermaidSource) {
+    function appendDiagramCard(container, title, mermaidSource, options) {
+      options = options || {};
       var card = el('div', 'diagram-card');
       if (title) card.appendChild(el('h3', null, title));
+      if (options.summary) {
+        card.appendChild(el('p', 'diagram-summary', options.summary));
+      }
       var pre = el('pre', 'mermaid');
       pre.textContent = mermaidSource;
       card.appendChild(pre);
+      if (Array.isArray(options.evidence) && options.evidence.length) {
+        var evidenceList = el('ul', 'diagram-evidence');
+        options.evidence.forEach(function(item) {
+          if (typeof item === 'string' && item.trim()) {
+            evidenceList.appendChild(el('li', null, item.trim()));
+          }
+        });
+        if (evidenceList.childNodes.length) card.appendChild(evidenceList);
+      }
       container.appendChild(card);
       return card;
     }
@@ -2256,10 +2836,19 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       var diagrams = [];
       (REPORT.diagrams || []).forEach(function(diagram, index) {
         if (!diagram || typeof diagram.mermaid !== 'string' || !diagram.mermaid.trim()) return;
-        diagrams.push({
+        var item = {
           title: diagram.title || ('図 ' + (index + 1)),
           mermaid: diagram.mermaid.trim(),
-        });
+        };
+        if (typeof diagram.summary === 'string' && diagram.summary.trim()) {
+          item.summary = diagram.summary.trim();
+        }
+        if (Array.isArray(diagram.evidence)) {
+          item.evidence = diagram.evidence.filter(function(entry) {
+            return typeof entry === 'string' && entry.trim();
+          });
+        }
+        diagrams.push(item);
       });
       return diagrams;
     }
@@ -2610,30 +3199,149 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       renderTree();
     }
 
-    function buildImplementationFlowMermaid() {
-      var lines = ['flowchart TB'];
-      lines.push('  patch["sanitized patch"] --> stage0["Stage 0: 実装分析"]');
-      lines.push('  stage0 --> json["report.json"]');
-      lines.push('  json --> html["report.html"]');
-      if (REVIEW_PERFORMED) {
-        lines.push('  patch --> stage12["Stage 1/2: レビュー enrich"]');
-        lines.push('  stage12 --> json');
-        lines.push('  json --> stage3["Stage 3: 裏取り検証（任意）"]');
-        lines.push('  stage3 --> verified["同じ report.json + verifications"]');
-        lines.push('  verified --> html');
+    function formatEvidenceLocation(item) {
+      if (!item || typeof item.file !== 'string') return '';
+      var location = item.location ? ':' + item.location : '';
+      return item.file + location;
+    }
+
+    function renderAcceptance() {
+      var root = document.getElementById('acceptance-content');
+      var acceptanceSection = document.getElementById('acceptance-section');
+      var navAcceptanceItem = document.getElementById('nav-acceptance-item');
+      root.replaceChildren();
+      acceptanceSection.hidden = true;
+      navAcceptanceItem.hidden = true;
+      if (!REPORT.intent || !REPORT.acceptance) return;
+
+      var intent = REPORT.intent;
+      var acceptance = REPORT.acceptance;
+      var verdict = acceptance.verdict || 'needs-confirmation';
+      var verdictLabel = ACCEPTANCE_VERDICT_LABELS[verdict] || verdict;
+      var verdictClass = ACCEPTANCE_VERDICT_CLASS[verdict] || '';
+      root.appendChild(el('span', 'acceptance-verdict ' + verdictClass, verdictLabel));
+      if (!REVIEW_PERFORMED) {
+        root.appendChild(el('p', 'acceptance-meta', 'この自動判定を確認し、コードレビュー開始前に明示承認してください。'));
       }
-      return lines.join(String.fromCharCode(10));
+
+      var intentBlock = el('div', 'acceptance-block');
+      intentBlock.appendChild(el('h3', null, '依頼意図'));
+      intentBlock.appendChild(el('p', null, intent.summary || ''));
+      if (intent.source) {
+        intentBlock.appendChild(el('p', 'acceptance-meta', '出典: ' + intent.source));
+      }
+      root.appendChild(intentBlock);
+
+      var acceptanceBlock = el('div', 'acceptance-block');
+      acceptanceBlock.appendChild(el('h3', null, '適合性サマリ'));
+      acceptanceBlock.appendChild(el('p', null, acceptance.summary || ''));
+      root.appendChild(acceptanceBlock);
+
+      var requirements = Array.isArray(intent.requirements) ? intent.requirements : [];
+      var checksById = Object.create(null);
+      (acceptance.checks || []).forEach(function(check) {
+        if (check && typeof check.requirementId === 'string') {
+          checksById[check.requirementId] = check;
+        }
+      });
+
+      var traceability = el('div', null);
+      traceability.appendChild(el('h3', null, '要件トレーサビリティ'));
+      requirements.forEach(function(requirement) {
+        var card = el('div', 'requirement-card');
+        var head = el('div', 'requirement-head');
+        head.appendChild(el('span', 'requirement-title', requirement.title || requirement.id || ''));
+        var kind = requirement.kind || 'must';
+        head.appendChild(el('span', 'kind-badge', REQUIREMENT_KIND_LABELS[kind] || kind));
+        var check = checksById[requirement.id];
+        var status = check && check.status ? check.status : 'unverified';
+        head.appendChild(el('span', 'check-status-badge ' + (CHECK_STATUS_CLASS[status] || ''), CHECK_STATUS_LABELS[status] || status));
+        card.appendChild(head);
+        if (requirement.description) {
+          card.appendChild(el('p', 'requirement-desc', requirement.description));
+        }
+        if (check && check.explanation) {
+          card.appendChild(el('p', 'requirement-explanation', check.explanation));
+        }
+        if (check && Array.isArray(check.evidence) && check.evidence.length) {
+          var evidenceList = el('ul', 'evidence-list');
+          check.evidence.forEach(function(item) {
+            var li = el('li', null);
+            var cite = el('code', null, formatEvidenceLocation(item));
+            li.appendChild(cite);
+            if (item && item.explanation) {
+              li.appendChild(document.createTextNode(' — ' + item.explanation));
+            }
+            evidenceList.appendChild(li);
+          });
+          card.appendChild(evidenceList);
+        }
+        traceability.appendChild(card);
+      });
+      root.appendChild(traceability);
+
+      var extras = acceptance.extras || [];
+      if (extras.length) {
+        var extrasRoot = el('div', null);
+        extrasRoot.appendChild(el('h3', null, '依頼外変更'));
+        extras.forEach(function(extra) {
+          var card = el('div', 'extra-card');
+          card.appendChild(el('strong', null, extra.title || ''));
+          if (extra.explanation) {
+            card.appendChild(el('p', null, extra.explanation));
+          }
+          if (Array.isArray(extra.files) && extra.files.length) {
+            var files = el('p', 'acceptance-meta', extra.files.join(', '));
+            card.appendChild(files);
+          }
+          extrasRoot.appendChild(card);
+        });
+        root.appendChild(extrasRoot);
+      }
+
+      var validations = acceptance.validations || [];
+      if (validations.length) {
+        var validationsRoot = el('div', null);
+        validationsRoot.appendChild(el('h3', null, '検証結果'));
+        validations.forEach(function(validation) {
+          var card = el('div', 'validation-card');
+          var head = el('div', 'validation-head');
+          head.appendChild(el('span', 'validation-command', validation.command || ''));
+          var validationStatus = validation.status || 'not-run';
+          head.appendChild(el('span', 'check-status-badge ' + (VALIDATION_STATUS_CLASS[validationStatus] || ''), VALIDATION_STATUS_LABELS[validationStatus] || validationStatus));
+          card.appendChild(head);
+          if (validation.summary) {
+            card.appendChild(el('p', null, validation.summary));
+          }
+          validationsRoot.appendChild(card);
+        });
+        root.appendChild(validationsRoot);
+      }
+
+      acceptanceSection.hidden = false;
+      navAcceptanceItem.hidden = false;
     }
 
     function renderImplementationFlow() {
       var root = document.getElementById('implementation-flow-content');
+      var flowSection = document.getElementById('implementation-flow-section');
+      var navFlowItem = document.getElementById('nav-implementation-flow-item');
+      var diagrams = collectCustomDiagrams();
       root.replaceChildren();
+      flowSection.hidden = true;
+      navFlowItem.hidden = true;
+      if (!diagrams.length) return;
+
       var diagramsRoot = el('div', 'diagrams');
-      appendDiagramCard(diagramsRoot, 'レポート生成フロー', buildImplementationFlowMermaid());
-      collectCustomDiagrams().forEach(function(diagram) {
-        appendDiagramCard(diagramsRoot, diagram.title, diagram.mermaid);
+      diagrams.forEach(function(diagram) {
+        appendDiagramCard(diagramsRoot, diagram.title, diagram.mermaid, {
+          summary: diagram.summary,
+          evidence: diagram.evidence,
+        });
       });
       root.appendChild(diagramsRoot);
+      flowSection.hidden = false;
+      navFlowItem.hidden = false;
     }
 
     function renderSummary() {
@@ -2673,6 +3381,10 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
       stats.appendChild(
         el('span', 'overview-stat', REVIEW_PERFORMED ? 'レビュー済み' : '実装のみ'),
       );
+      if (REPORT.acceptance && REPORT.acceptance.verdict) {
+        var acceptanceLabel = ACCEPTANCE_VERDICT_LABELS[REPORT.acceptance.verdict] || REPORT.acceptance.verdict;
+        stats.appendChild(el('span', 'overview-stat', '意図適合: ' + acceptanceLabel));
+      }
       root.appendChild(stats);
 
       if (!groups.length) {
@@ -3243,6 +3955,7 @@ const HTML_TEMPLATE = String.raw`<!DOCTYPE html>
     }
 
     renderSummary();
+    renderAcceptance();
     renderRepositoryMap();
     renderImplementationFlow();
     renderImplementationGroups();

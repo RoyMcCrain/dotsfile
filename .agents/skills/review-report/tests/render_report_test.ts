@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import {
+  computeAcceptanceVerdict,
   countPatchStats,
   defaultReportId,
   escapeJsonForScript,
@@ -133,6 +134,61 @@ const implementationOnlyReport = (
 ) => ({
   review: { performed: false },
   groups: [implementationGroup()],
+  ...overrides,
+});
+
+const minimalIntent = (overrides: Record<string, unknown> = {}) => ({
+  summary: "Rename auth client and migrate call sites.",
+  source: "current user request + plans/001.md",
+  requirements: [
+    {
+      id: "rename-client",
+      title: "Rename public auth client",
+      description: "Rename export and update callers.",
+      kind: "must",
+    },
+  ],
+  ...overrides,
+});
+
+const minimalAcceptance = (overrides: Record<string, unknown> = {}) => {
+  const checks = overrides.checks ?? [
+    {
+      requirementId: "rename-client",
+      status: "satisfied",
+      explanation: "Export and imports renamed.",
+      evidence: [
+        {
+          file: "src/auth.ts",
+          location: "L1",
+          explanation: "Renamed export.",
+        },
+      ],
+    },
+  ];
+  const extras = overrides.extras ?? [];
+  const validations = overrides.validations ?? [
+    { command: "deno test -A", status: "passed", summary: "ok" },
+  ];
+  const verdict = computeAcceptanceVerdict(
+    checks as unknown[],
+    validations as unknown[],
+    extras as unknown[],
+  );
+  return {
+    verdict,
+    summary: "Implementation satisfies the rename requirement.",
+    checks,
+    extras,
+    validations,
+    ...overrides,
+  };
+};
+
+const acceptanceReport = (overrides: Record<string, unknown> = {}) => ({
+  ...implementationOnlyReport(),
+  intent: minimalIntent(),
+  acceptance: minimalAcceptance(),
   ...overrides,
 });
 
@@ -831,6 +887,34 @@ Deno.test("test_diagrams_require_mermaid", () => {
   assert.ok(errors.some((e) => e.includes("mermaid")));
 });
 
+Deno.test("test_diagrams_are_limited_to_two_for_acceptance_reports", () => {
+  const errors = validateReport({
+    ...acceptanceReport(),
+    diagrams: ["one", "two", "three"].map((id) => ({
+      id,
+      title: id,
+      mermaid: "flowchart LR\n  A --> B",
+    })),
+  });
+  assert.ok(
+    errors.some((e) =>
+      e.includes("diagrams must contain at most 2 items for acceptance reports")
+    ),
+  );
+});
+
+Deno.test("test_legacy_report_allows_three_diagrams", () => {
+  const errors = validateReport({
+    ...structuredClone(SAMPLE_REPORT),
+    diagrams: ["one", "two", "three"].map((id) => ({
+      id,
+      title: id,
+      mermaid: "flowchart LR\n  A --> B",
+    })),
+  });
+  assert.deepEqual(errors, []);
+});
+
 Deno.test("test_verifications_validated_and_rendered", () => {
   const report = {
     ...structuredClone(SAMPLE_REPORT),
@@ -1351,21 +1435,22 @@ Deno.test("test_explicit_report_id_unchanged_after_adding_review", () => {
   assert.equal(defaultReportId(enriched), "custom-id");
 });
 
-Deno.test("test_implementation_only_keeps_custom_diagrams_without_relationship_diagram", () => {
+Deno.test("test_implementation_only_renders_patch_grounded_diagrams", () => {
   const report = {
     ...implementationOnlyReport(),
     diagrams: [
       {
         id: "flow",
-        title: "想定フロー",
-        mermaid: "flowchart LR\n  A --> B",
+        title: "認証リクエストフロー",
+        mermaid: "flowchart LR\n  Client --> Auth",
       },
     ],
   };
   assert.deepEqual(validateReport(report), []);
   const html = renderHtml(report);
-  assert.ok(html.includes("想定フロー"));
+  assert.ok(html.includes("認証リクエストフロー"));
   assert.ok(html.includes("flowchart LR"));
+  assert.ok(!html.includes("レポート生成フロー"));
   const flowBlock = html.match(
     /function renderImplementationFlow\(\)[\s\S]*?function renderSummary\(\)/,
   )?.[0] ?? "";
@@ -1373,6 +1458,8 @@ Deno.test("test_implementation_only_keeps_custom_diagrams_without_relationship_d
     /function renderSummary\(\)[\s\S]*?function renderReviewOverview\(\)/,
   )?.[0] ?? "";
   assert.ok(flowBlock.includes("collectCustomDiagrams"));
+  assert.ok(flowBlock.includes("flowSection.hidden = false"));
+  assert.ok(flowBlock.includes("navFlowItem.hidden = false"));
   assert.ok(!summaryBlock.includes("collectCustomDiagrams"));
   assert.ok(!summaryBlock.includes("collectReviewDiagrams"));
   assert.ok(!summaryBlock.includes("buildOverviewMermaid"));
@@ -1573,28 +1660,25 @@ Deno.test("test_html_repository_map_when_present", () => {
   assert.ok(!mapBlock.includes("paths[change.previousPath]"));
 });
 
-Deno.test("test_html_implementation_flow_diagram", () => {
-  const implHtml = renderHtml(implementationOnlyReport());
-  assert.ok(implHtml.includes("function buildImplementationFlowMermaid()"));
-  assert.ok(implHtml.includes("function renderImplementationFlow()"));
-  const implFlowBlock = implHtml.match(
-    /function buildImplementationFlowMermaid\(\)[\s\S]*?function renderImplementationFlow\(\)/,
+Deno.test("test_implementation_flow_is_hidden_without_diagrams", () => {
+  const html = renderHtml(implementationOnlyReport());
+  assert.ok(!html.includes("function buildImplementationFlowMermaid()"));
+  assert.ok(!html.includes("レポート生成フロー"));
+  assert.ok(!html.includes("Stage 0: 実装分析"));
+  assert.ok(
+    html.includes(
+      '<li id="nav-implementation-flow-item" hidden><a href="#implementation-flow-section">期待 vs 実装フロー</a></li>',
+    ),
+  );
+  assert.ok(
+    html.includes(
+      '<section id="implementation-flow-section" class="report-panel" hidden aria-labelledby="implementation-flow-heading">',
+    ),
+  );
+  const flowBlock = html.match(
+    /function renderImplementationFlow\(\)[\s\S]*?function renderSummary\(\)/,
   )?.[0] ?? "";
-  assert.ok(implFlowBlock.includes("Stage 0"));
-  assert.ok(implFlowBlock.includes("report.json"));
-  assert.ok(implFlowBlock.includes("report.html"));
-  assert.ok(implFlowBlock.includes("if (REVIEW_PERFORMED)"));
-  assert.ok(implFlowBlock.includes("patch --> stage12"));
-  assert.ok(!implFlowBlock.includes("stage0 --> stage12"));
-  assert.ok(implFlowBlock.includes("同じ report.json + verifications"));
-  const stage3Index = implFlowBlock.indexOf("Stage 3");
-  const ifIndex = implFlowBlock.indexOf("if (REVIEW_PERFORMED)");
-  assert.ok(ifIndex !== -1);
-  assert.ok(stage3Index === -1 || stage3Index > ifIndex);
-
-  const reviewedHtml = renderHtml(structuredClone(SAMPLE_REPORT));
-  assert.ok(reviewedHtml.includes("Stage 1/2"));
-  assert.ok(reviewedHtml.includes("Stage 3"));
+  assert.ok(flowBlock.includes("if (!diagrams.length) return"));
 });
 
 Deno.test("test_client_script_source_compiles", () => {
@@ -1793,4 +1877,452 @@ Deno.test("test_html_group_cards_collapsed_with_stable_ids", () => {
     /function renderDiffCard\([\s\S]*?details\.open = false/,
   );
   assert.ok(!implBlock.includes("section.classList.add('expanded')"));
+});
+
+Deno.test("test_valid_acceptance_report_passes", () => {
+  assert.deepEqual(validateReport(acceptanceReport()), []);
+});
+
+Deno.test("test_legacy_report_hides_acceptance_section", () => {
+  const errors = validateReport(implementationOnlyReport());
+  assert.deepEqual(errors, []);
+  const html = renderHtml(implementationOnlyReport());
+  assert.ok(html.includes('id="acceptance-section"'));
+  assert.ok(html.includes("acceptanceSection.hidden = true"));
+  assert.ok(html.includes("navAcceptanceItem.hidden = true"));
+});
+
+Deno.test("test_only_intent_or_acceptance_rejected", () => {
+  const intentOnly = {
+    ...implementationOnlyReport(),
+    intent: minimalIntent(),
+  };
+  const acceptanceOnly = {
+    ...implementationOnlyReport(),
+    acceptance: minimalAcceptance(),
+  };
+  assert.ok(
+    validateReport(intentOnly).some((e) =>
+      e.includes("acceptance is required when intent is present")
+    ),
+  );
+  assert.ok(
+    validateReport(acceptanceOnly).some((e) =>
+      e.includes("intent is required when acceptance is present")
+    ),
+  );
+});
+
+Deno.test("test_intent_empty_or_duplicate_requirements_rejected", () => {
+  const emptyReqs = validateReport(acceptanceReport({
+    intent: minimalIntent({ requirements: [] }),
+  }));
+  assert.ok(
+    emptyReqs.some((e) =>
+      e.includes("intent.requirements must be a non-empty array")
+    ),
+  );
+
+  const duplicateReqs = validateReport(acceptanceReport({
+    intent: minimalIntent({
+      requirements: [
+        {
+          id: "dup",
+          title: "A",
+          description: "A",
+          kind: "must",
+        },
+        {
+          id: "dup",
+          title: "B",
+          description: "B",
+          kind: "must",
+        },
+      ],
+    }),
+  }));
+  assert.ok(
+    duplicateReqs.some((e) => e.includes("duplicate intent requirement id")),
+  );
+});
+
+Deno.test("test_acceptance_check_coverage_rejected", () => {
+  const missingCheck = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({ checks: [] }),
+  }));
+  assert.ok(
+    missingCheck.some((e) =>
+      e.includes("missing acceptance check for requirement id: rename-client")
+    ),
+  );
+
+  const duplicateCheck = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({
+      checks: [
+        {
+          requirementId: "rename-client",
+          status: "satisfied",
+          explanation: "A",
+          evidence: [{ file: "src/a.ts", explanation: "A" }],
+        },
+        {
+          requirementId: "rename-client",
+          status: "partial",
+          explanation: "B",
+          evidence: [{ file: "src/b.ts", explanation: "B" }],
+        },
+      ],
+    }),
+  }));
+  assert.ok(
+    duplicateCheck.some((e) =>
+      e.includes("duplicate acceptance check for requirement id")
+    ),
+  );
+
+  const unknownCheck = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({
+      checks: [
+        {
+          requirementId: "unknown",
+          status: "missing",
+          explanation: "Unknown requirement.",
+          evidence: [],
+        },
+      ],
+    }),
+  }));
+  assert.ok(
+    unknownCheck.some((e) =>
+      e.includes("references unknown requirement: unknown")
+    ),
+  );
+});
+
+Deno.test("test_acceptance_invalid_status_kind_verdict_validation_rejected", () => {
+  assert.ok(
+    validateReport(acceptanceReport({
+      intent: minimalIntent({
+        requirements: [{
+          id: "r1",
+          title: "t",
+          description: "d",
+          kind: "maybe",
+        }],
+      }),
+      acceptance: minimalAcceptance({
+        checks: [{
+          requirementId: "r1",
+          status: "done",
+          explanation: "x",
+          evidence: [{ file: "a.ts", explanation: "x" }],
+        }],
+      }),
+    })).some((e) => e.includes("kind must be one of")),
+  );
+  assert.ok(
+    validateReport(acceptanceReport({
+      acceptance: minimalAcceptance({
+        checks: [{
+          requirementId: "rename-client",
+          status: "done",
+          explanation: "x",
+          evidence: [{ file: "a.ts", explanation: "x" }],
+        }],
+      }),
+    })).some((e) => e.includes("status must be one of")),
+  );
+  assert.ok(
+    validateReport(acceptanceReport({
+      acceptance: minimalAcceptance({ verdict: "maybe" }),
+    })).some((e) => e.includes("acceptance.verdict must be one of")),
+  );
+  assert.ok(
+    validateReport(acceptanceReport({
+      acceptance: minimalAcceptance({
+        validations: [{ command: "x", status: "broken", summary: "y" }],
+      }),
+    })).some((e) =>
+      e.includes("acceptance.validations[0].status must be one of")
+    ),
+  );
+});
+
+Deno.test("test_inconsistent_acceptance_verdict_rejected", () => {
+  const errors = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({ verdict: "fail" }),
+  }));
+  assert.ok(
+    errors.some((e) => e.includes("acceptance.verdict must be pass based on")),
+  );
+});
+
+Deno.test("test_acceptance_missing_or_unverified_requires_evidence_array", () => {
+  for (const status of ["missing", "unverified"] as const) {
+    const omitted = validateReport(acceptanceReport({
+      acceptance: minimalAcceptance({
+        checks: [{
+          requirementId: "rename-client",
+          status,
+          explanation: "Cannot confirm.",
+        }],
+      }),
+    }));
+    assert.ok(
+      omitted.some((e) =>
+        e.includes("missing required field: evidence") ||
+        e.includes(".evidence must be an array")
+      ),
+      `expected evidence field error for omitted evidence on status=${status}`,
+    );
+
+    const emptyOk = validateReport(acceptanceReport({
+      acceptance: minimalAcceptance({
+        checks: [{
+          requirementId: "rename-client",
+          status,
+          explanation: "Cannot confirm.",
+          evidence: [],
+        }],
+      }),
+    }));
+    assert.deepEqual(emptyOk, []);
+  }
+});
+
+Deno.test("test_acceptance_evidence_requirement_and_secret_path_rejected", () => {
+  const missingEvidence = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({
+      checks: [{
+        requirementId: "rename-client",
+        status: "satisfied",
+        explanation: "Needs evidence.",
+        evidence: [],
+      }],
+    }),
+  }));
+  assert.ok(
+    missingEvidence.some((e) =>
+      e.includes("evidence must be a non-empty array when status=satisfied")
+    ),
+  );
+
+  const secretEvidence = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({
+      checks: [{
+        requirementId: "rename-client",
+        status: "satisfied",
+        explanation: "Secret path cited.",
+        evidence: [{ file: "config/.env.local", explanation: "bad" }],
+      }],
+    }),
+  }));
+  assert.ok(secretEvidence.some((e) => e.includes("secret path")));
+
+  const secretExtra = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({
+      extras: [{
+        title: "Extra",
+        explanation: "Extra change.",
+        files: ["secrets/token.key"],
+      }],
+    }),
+  }));
+  assert.ok(secretExtra.some((e) => e.includes("secret path")));
+});
+
+Deno.test("test_acceptance_section_renders_verdict_requirements_extras_validations", () => {
+  const report = acceptanceReport({
+    acceptance: minimalAcceptance({
+      verdict: "needs-confirmation",
+      extras: [{
+        title: "Docs tweak",
+        explanation: "README updated outside scope.",
+        files: ["README.md"],
+      }],
+      validations: [{
+        command: "deno test -A tests",
+        status: "not-run",
+        summary: "Not executed in sandbox.",
+      }],
+      checks: [{
+        requirementId: "rename-client",
+        status: "partial",
+        explanation: "Some callers remain.",
+        evidence: [{ file: "src/auth.ts:1", explanation: "Export renamed." }],
+      }],
+    }),
+  });
+  const html = renderHtml(report);
+  for (
+    const label of [
+      "意図適合性",
+      "nav-acceptance-item",
+      "acceptance-section",
+      "function renderAcceptance()",
+      "要確認",
+      "依頼意図",
+      "適合性サマリ",
+      "要件トレーサビリティ",
+      "依頼外変更",
+      "検証結果",
+      "Rename auth client and migrate call sites.",
+      "current user request + plans/001.md",
+      "この自動判定を確認し、コードレビュー開始前に明示承認してください。",
+      "Docs tweak",
+      "deno test -A tests",
+      "'意図適合: ' + acceptanceLabel",
+    ]
+  ) {
+    assert.ok(html.includes(label), `missing label: ${label}`);
+  }
+  assert.ok(html.includes("acceptanceSection.hidden = false"));
+});
+
+Deno.test("test_intent_acceptance_change_report_id_review_enrichment_does_not", () => {
+  const base = acceptanceReport();
+  const changedIntent = acceptanceReport({
+    intent: minimalIntent({ summary: "Changed intent summary." }),
+  });
+  const reviewed = {
+    ...structuredClone(base),
+    review: { performed: true, overview: "Review complete." },
+    groups: [
+      {
+        ...base.groups[0],
+        risk: "high",
+        riskScore: 80,
+        riskReason: "Review risk.",
+        findings: [minimalFinding()],
+      },
+    ],
+  };
+  assert.notEqual(defaultReportId(base), defaultReportId(changedIntent));
+  assert.equal(defaultReportId(base), defaultReportId(reviewed));
+});
+
+Deno.test("test_diagram_evidence_secret_paths_rejected", () => {
+  for (
+    const evidence of [
+      ".env:1",
+      "secrets/token.txt:20",
+      "key.pem:L3",
+    ]
+  ) {
+    const errors = validateReport(acceptanceReport({
+      diagrams: [{
+        id: "flow",
+        title: "Flow",
+        mermaid: "flowchart LR\n  A --> B",
+        evidence: [evidence],
+      }],
+    }));
+    assert.ok(
+      errors.some((e) => e.includes("secret path")),
+      `expected secret path error for ${evidence}`,
+    );
+  }
+
+  const ok = validateReport(acceptanceReport({
+    diagrams: [{
+      id: "flow",
+      title: "Flow",
+      mermaid: "flowchart LR\n  A --> B",
+      evidence: ["src/app.ts:10"],
+    }],
+  }));
+  assert.deepEqual(ok, []);
+});
+
+Deno.test("test_compute_acceptance_verdict_malformed_elements", () => {
+  assert.equal(
+    computeAcceptanceVerdict([null], [], []),
+    "needs-confirmation",
+  );
+  assert.equal(
+    computeAcceptanceVerdict([], [null], []),
+    "needs-confirmation",
+  );
+  assert.equal(
+    computeAcceptanceVerdict(
+      [{ status: "satisfied" }],
+      [{ status: "broken" }],
+      [],
+    ),
+    "needs-confirmation",
+  );
+});
+
+Deno.test("test_compute_acceptance_verdict_empty_validations", () => {
+  assert.equal(
+    computeAcceptanceVerdict(
+      [{ status: "satisfied" }],
+      [],
+      [],
+    ),
+    "needs-confirmation",
+  );
+  assert.equal(
+    computeAcceptanceVerdict(
+      [{ status: "satisfied" }],
+      [{ status: "failed" }],
+      [],
+    ),
+    "fail",
+  );
+  assert.equal(
+    computeAcceptanceVerdict(
+      [{ status: "satisfied" }],
+      [{ status: "passed" }],
+      [],
+    ),
+    "pass",
+  );
+});
+
+Deno.test("test_malformed_acceptance_arrays_return_errors_not_throw", () => {
+  const malformedChecks = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({ checks: [null] }),
+  }));
+  assert.ok(
+    malformedChecks.some((e) =>
+      e.includes("acceptance.checks[0] must be an object")
+    ),
+  );
+  assert.ok(
+    !malformedChecks.some((e) => e.includes("acceptance.verdict must be")),
+  );
+
+  const malformedValidations = validateReport(acceptanceReport({
+    acceptance: minimalAcceptance({ validations: [null] }),
+  }));
+  assert.ok(
+    malformedValidations.some((e) =>
+      e.includes("acceptance.validations[0] must be an object")
+    ),
+  );
+  assert.ok(
+    !malformedValidations.some((e) => e.includes("acceptance.verdict must be")),
+  );
+});
+
+Deno.test("test_diagram_summary_and_evidence_render", () => {
+  const report = acceptanceReport({
+    diagrams: [{
+      id: "flow",
+      title: "Rename flow",
+      summary: "Expected rename path vs actual implementation path.",
+      evidence: ["src/auth.ts:1", "src/app.ts:10"],
+      mermaid: "flowchart LR\n  subgraph 期待\n    A --> B\n  end",
+    }],
+  });
+  assert.deepEqual(validateReport(report), []);
+  const html = renderHtml(report);
+  assert.ok(
+    html.includes("Expected rename path vs actual implementation path."),
+  );
+  assert.ok(html.includes("diagram-summary"));
+  assert.ok(html.includes("diagram-evidence"));
+  assert.ok(html.includes("src/auth.ts:1"));
+  assert.ok(html.includes(">期待 vs 実装フロー<"));
 });
