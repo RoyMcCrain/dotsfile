@@ -65,10 +65,12 @@ rm -fr ~/.cache/deno ~/.cache/dpp  # Clear cache on plugin errors
 - `/scripts/wsl/` - WSL2専用の個人PC設定(systemdユニット、NAS認証情報同期等)
 - `/claude/` - Claude Code config (symlinked to ~/.claude/)
   - `/rules/` - Coding rules (KISS, TypeScript, React, etc.)
-  - `/skills/` - Custom skills (jj, line, cursor-*, antigravity-*, firecrawl-*)
+  - `/skills/` - Claude-only real skills (e.g. `crm-postmortem`) plus symlinks to shared skills in `.agents/skills/`
   - `/hooks/` - Automation hooks
   - `settings.json` - Claude Code settings
+- `/.agents/skills/` - **Canonical shared skills** for Pi, Codex, Claude (via symlinks), and other agents
 - `/codex/` - OpenAI Codex CLI config (symlinked to ~/.codex/)
+  - `/skills/` - Codex-native skill overrides (`codex-review`, `mcp-delegate`)
 - `/antigravity/` - Antigravity CLI (agy) config (symlinked to ~/.gemini/antigravity-cli/, 旧 Gemini CLI)
 - `gitconfig`, `jjconfig.toml` - VCS configs
 

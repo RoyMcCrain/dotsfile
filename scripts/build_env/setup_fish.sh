@@ -214,14 +214,14 @@ end
 if not test -d $AGENTS_SKILL_BACKUP_DIR
     mkdir -p $AGENTS_SKILL_BACKUP_DIR
 end
-for OLD_NAME in cursor fugu large-diff-review cursor-review
+for OLD_NAME in cursor fugu large-diff-review cursor-review crm-postmortem
     set OLD_DEST $AGENTS_SKILL_DIR/$OLD_NAME
     if test -L $OLD_DEST
         rm $OLD_DEST
         print_success "Removed stale agent skill link: $OLD_NAME"
     else if test -e $OLD_DEST
         set BACKUP "$AGENTS_SKILL_BACKUP_DIR/$OLD_NAME.backup-"(date +%Y%m%d%H%M%S)
-        print_warning "Backing up renamed agent skill: $OLD_DEST -> $BACKUP"
+        print_warning "Backing up stale agent skill: $OLD_DEST -> $BACKUP"
         mv $OLD_DEST $BACKUP
     end
 end

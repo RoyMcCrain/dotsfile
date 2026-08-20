@@ -44,7 +44,7 @@ ln -sf ${BASE_DIR}/claude/settings.json ~/.claude/settings.json
 
 # Codex
 mkdir -p ~/.codex/skills
-for OLD_SKILL in cursor fugu; do
+for OLD_SKILL in cursor fugu crm-postmortem; do
   OLD_DEST="$HOME/.codex/skills/${OLD_SKILL}"
   if [ -L "${OLD_DEST}" ]; then
     rm "${OLD_DEST}"
@@ -74,39 +74,20 @@ for CODEX_SKILL in ${BASE_DIR}/codex/skills/*; do
   ln -sfn "${CODEX_SKILL}" ~/.codex/skills/$(basename "${CODEX_SKILL}")
 done
 
-# Codex skills: Claude 向け skill を Codex でも使えるよう symlink する。
-# Codex も Claude も同じ SKILL.md 形式なので、claude/skills/* をそのまま共有できる。
-# 既存の Codex 独自 skill（実ディレクトリ）は上書きしない。
-for SKILL in ${BASE_DIR}/claude/skills/*; do
+# Codex skills: shared skills from .agents/skills plus Codex-native overrides.
+# Codex and other hosts use the same SKILL.md format; canonical shared skills live under .agents/skills/.
+# Existing Codex-owned real directories are not overwritten.
+for SKILL in ${BASE_DIR}/.agents/skills/*; do
+  [ -d "${SKILL}" ] || continue
   NAME=$(basename "${SKILL}")
-  # Claude の単体 .md skill は Codex の skill ディレクトリ形式に変換する
-  if [ -f "${SKILL}" ] && [[ "${NAME}" == *.md ]]; then
-    STEM=${NAME%.md}
-    DEST=~/.codex/skills/${STEM}
-    # Codex は SKILL.md 自体が symlink だと列挙しないため、Codex 側 adapter があれば
-    # ディレクトリごと symlink し、なければ実ファイルとしてコピーする。
-    if [ -f "${BASE_DIR}/codex/skills/${STEM}/SKILL.md" ]; then
-      ln -sfn "${BASE_DIR}/codex/skills/${STEM}" "${DEST}"
-    else
-      mkdir -p "${DEST}"
-      cp "${SKILL}" "${DEST}/SKILL.md"
-    fi
-    continue
-  fi
-
-  # 壊れた symlink は同名の ~/.agents/skills を fallback として探す
-  SOURCE="${SKILL}"
-  if [ ! -f "${SOURCE}/SKILL.md" ] && [ -f "$HOME/.agents/skills/${NAME}/SKILL.md" ]; then
-    SOURCE="$HOME/.agents/skills/${NAME}"
-  fi
 
   # SKILL.md を持つ skill だけ対象にする
-  if [ ! -f "${SOURCE}/SKILL.md" ]; then
+  if [ ! -f "${SKILL}/SKILL.md" ]; then
     continue
   fi
 
   # Codex 独自 skill（codex/skills/* 実体）が同名で存在する場合は
-  # Codex 向けに調整済みなので claude 版で上書きしない。
+  # Codex 向けに調整済みなので shared 版で上書きしない。
   if [ -f "${BASE_DIR}/codex/skills/${NAME}/SKILL.md" ]; then
     echo "skip (codex-native skill): ${NAME}"
     continue
@@ -118,7 +99,7 @@ for SKILL in ${BASE_DIR}/claude/skills/*; do
     echo "skip (codex-owned dir): ${NAME}"
     continue
   fi
-  ln -sfn "${SOURCE}" "${DEST}"
+  ln -sfn "${SKILL}" "${DEST}"
 done
 
 # Antigravity CLI (agy) — customization root: ~/.gemini/antigravity-cli
@@ -145,9 +126,9 @@ else
 fi
 
 # Shared agent skills
-# Keep selected skill sources tracked in this repository and expose them globally.
+# Keep shared skill sources tracked in this repository and expose them globally.
 mkdir -p ~/.agents/skills ~/.agents/skill-backups
-for OLD_SKILL in cursor fugu large-diff-review cursor-review; do
+for OLD_SKILL in cursor fugu large-diff-review cursor-review crm-postmortem; do
   OLD_DEST="$HOME/.agents/skills/${OLD_SKILL}"
   if [ -L "${OLD_DEST}" ]; then
     rm "${OLD_DEST}"
