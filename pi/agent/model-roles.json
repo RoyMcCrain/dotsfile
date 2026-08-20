@@ -27,6 +27,11 @@
       "label": "Sakana Fugu Ultra High",
       "timeout": 240
     },
+    "review.grok": {
+      "pi": "xai/grok-4.6",
+      "label": "Grok 4.6 (xAI review)",
+      "timeout": 120
+    },
     "impl.cursor": {
       "cursor": "composer-2.5-fast",
       "label": "Composer 2.5 Fast"
