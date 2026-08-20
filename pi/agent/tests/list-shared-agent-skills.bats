@@ -17,49 +17,76 @@ description: Test skill.
 EOF
 }
 
-make_required_skills() {
-	for name in cmux cmux-task-name cheap-pr fugu-review grok-review implementation-report review-report review-verify parallel-review jj-workspace; do
+make_shared_skills() {
+	for name in alpha beta gamma; do
 		make_skill ".agents/skills/$name"
-	done
-	for name in claude-review cursor-impl firecrawl-cli firecrawl-agent cross-research antigravity-research; do
-		make_skill "claude/skills/$name"
 	done
 	for name in codex-review mcp-delegate; do
 		make_skill "codex/skills/$name"
 	done
 }
 
-@test "prints required shared agent skills without trailing slashes" {
-	make_required_skills
+@test "emits every immediate .agents/skills directory deterministically" {
+	make_shared_skills
+	make_skill "claude/skills/crm-postmortem"
 
 	run bash "$SCRIPT" "$ROOT"
 
 	[ "$status" -eq 0 ]
-	[ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" = "18" ]
-	[[ "$output" == *"$ROOT/.agents/skills/cmux"* ]]
-	[[ "$output" == *"$ROOT/.agents/skills/review-verify"* ]]
-	[[ "$output" == *"$ROOT/.agents/skills/grok-review"* ]]
-	[[ "$output" == *"$ROOT/claude/skills/firecrawl-cli"* ]]
-	[[ "$output" != *"cursor-review"* ]]
-	[[ "$output" != *"/"$'\n'* ]]
+	[ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" = "5" ]
+	[[ "$output" == "$ROOT/.agents/skills/alpha"$'\n'"$ROOT/.agents/skills/beta"$'\n'"$ROOT/.agents/skills/gamma"$'\n'"$ROOT/codex/skills/codex-review"$'\n'"$ROOT/codex/skills/mcp-delegate" ]]
+	[[ "$output" != *"crm-postmortem"* ]]
+	[[ "$output" != *"claude/skills"* ]]
 }
 
-@test "fails when a named required skill is missing" {
-	make_required_skills
-	rm -rf "$ROOT/.agents/skills/review-verify"
+@test "emits codex-native overrides from codex/skills" {
+	make_shared_skills
+
+	run bash "$SCRIPT" "$ROOT"
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"$ROOT/codex/skills/codex-review"* ]]
+	[[ "$output" == *"$ROOT/codex/skills/mcp-delegate"* ]]
+}
+
+@test "output paths have no trailing slashes" {
+	make_shared_skills
+
+	run bash "$SCRIPT" "$ROOT"
+
+	[ "$status" -eq 0 ]
+	while IFS= read -r line; do
+		[[ "$line" != */ ]]
+	done <<<"$output"
+}
+
+@test "does not emit claude-only crm-postmortem" {
+	make_shared_skills
+	make_skill "claude/skills/crm-postmortem"
+
+	run bash "$SCRIPT" "$ROOT"
+
+	[ "$status" -eq 0 ]
+	[[ "$output" != *"crm-postmortem"* ]]
+}
+
+@test "fails when .agents/skills has no skill directories" {
+	mkdir -p "$ROOT/.agents/skills"
+	make_skill "codex/skills/codex-review"
+	make_skill "codex/skills/mcp-delegate"
 
 	run bash "$SCRIPT" "$ROOT"
 
 	[ "$status" -ne 0 ]
-	[[ "$output" == *"missing skill dir: $ROOT/.agents/skills/review-verify"* ]]
+	[[ "$output" == *"missing shared skills under $ROOT/.agents/skills"* ]]
 }
 
-@test "fails when no cmux skills are present" {
-	make_required_skills
-	rm -rf "$ROOT/.agents/skills/cmux" "$ROOT/.agents/skills/cmux-task-name"
+@test "fails when an immediate .agents/skills directory lacks SKILL.md" {
+	make_shared_skills
+	mkdir -p "$ROOT/.agents/skills/incomplete"
 
 	run bash "$SCRIPT" "$ROOT"
 
 	[ "$status" -ne 0 ]
-	[[ "$output" == *"missing cmux skills under $ROOT/.agents/skills"* ]]
+	[[ "$output" == *"missing SKILL.md: $ROOT/.agents/skills/incomplete"* ]]
 }
