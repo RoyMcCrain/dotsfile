@@ -5,7 +5,7 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 
 # /parallel-review
 
-同じ patch を複数の Pi reviewer（xAI Grok 4.6・Codex・Claude・Fugu Ultra）に同時に渡し、結果を統合する。子 Pi の skill 再読込による再帰起動を禁止する。
+同じ patch を複数の Pi reviewer（xAI Grok 4.6・Codex・Claude・Fugu Ultra）に同時に渡し、結果を統合する。子 Pi の skill 再読込による再帰起動を禁止する。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## レベル（1/2/3）
 

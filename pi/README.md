@@ -84,11 +84,12 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
 ~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
 ~/.pi/agent/resolve-model.sh --label review.fugu
+~/.pi/agent/resolve-model.sh --label review.grok
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Current roles: `review.codex`, `review.claude`, `review.fugu`,
+Current roles: `review.codex`, `review.claude`, `review.fugu`, `review.grok`,
 `impl.cursor`, `research.xai`, `codex.default`.
 
 To move to a new model version, edit `model-roles.json` only (the role's model ID
@@ -304,7 +305,7 @@ the skill.
 | `review-report` | 「レビューレポート作って」 |
 | `implementation-report` | 「実装レポート作って」 |
 | `review-verify` | 「裏取りして」 / verification パケット |
-| `codex-review` / `claude-review` / `fugu-review` | 単体 reviewer を明示指定時 |
+| `codex-review` / `claude-review` / `fugu-review` / `grok-review` | 単体 reviewer を明示指定時 |
 | `hunk-review` | Hunk バンドル（devbox 同梱） |
 
 **Implementation & PR**:

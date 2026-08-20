@@ -197,3 +197,27 @@ EOF
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"unknown review level"* ]]
 }
+
+@test "review.grok resolves and appears exactly once in every parallel-review level" {
+	# Arrange — integration against the tracked repo catalog
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local grok_model
+
+	# Act
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.grok
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[ "$output" = "xai/grok-4.6" ]
+	grok_model="$output"
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.grok
+	[ "$status" -eq 0 ]
+	[ "$output" = "120" ]
+
+	for level in 1 2 3; do
+		jq -e --arg model "$grok_model" --arg lvl "$level" \
+			'(.reviewLevels[$lvl] | map(.pi) | map(select(. == $model)) | length) == 1' \
+			"$real_catalog" >/dev/null
+	done
+}
