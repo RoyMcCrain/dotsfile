@@ -275,9 +275,9 @@ Do not duplicate shared skills under `pi/agent/skills/`. Pi discovers
 
 Which skill directories are linked into `~/.agents/skills/` is defined by
 `scripts/build_env/list_shared_agent_skills.sh`. It enumerates every immediate
-directory under `.agents/skills/` (each must contain `SKILL.md`) plus Codex-native
+directory under `skills/` (each must contain `SKILL.md`) plus Codex-native
 overrides from `codex/skills/`. Both `create_symlink.sh` and `setup_fish.sh` call
-it — adding a shared skill under `.agents/skills/` requires no inventory edit.
+it — adding a shared skill under `skills/` requires no inventory edit.
 
 After changing skills, re-run your dotfiles setup (or link manually) so
 `~/.agents/skills/` picks up the new symlinks.
@@ -286,11 +286,11 @@ After changing skills, re-run your dotfiles setup (or link manually) so
 
 | Location | Role |
 | -------- | ---- |
-| `.agents/skills/` | **Canonical shared skills** for Pi, Codex, Claude (via symlinks), and other agents |
-| `claude/skills/` | Claude-only real skills (e.g. `crm-postmortem`) plus relative symlinks to `.agents/skills/` |
+| `skills/` | **Canonical shared skills** for Pi, Codex, Claude (via symlinks), and other agents |
+| `claude/skills/` | Claude-only real skills (e.g. `crm-postmortem`) plus relative symlinks to `skills/` |
 | `codex/skills/` | Codex-native overrides (`codex-review`, `mcp-delegate`) |
 
-Shared skills must exist once under `.agents/skills/`. `claude/skills/` exposes
+Shared skills must exist once under `skills/`. Root `skills/` is the canonical source and is intentionally not Pi's project-local `.agents/skills` discovery directory; setup exposes it globally under `~/.agents/skills/`. `claude/skills/` exposes
 them to Claude Code via relative symlinks (never duplicate `SKILL.md` content).
 Pi skill-collision warnings appear if both places hold real directories with the
 same name. Shared `SKILL.md` files do not use host-specific `metadata.target_agent`;
@@ -323,16 +323,16 @@ exposure is controlled by which runtime directory links the skill.
 | `jj-workspace` | workspace 切り、Sentry 調査 |
 | `mcp-delegate` | Slack/Sentry URL、OAuth MCP |
 
-**Web research** (canonical under `.agents/skills/`):
+**Web research** (canonical under `skills/`):
 
 | Skill | Invoke | Notes |
 | ----- | ------ | ----- |
-| `firecrawl` | `/skill:firecrawl` | source dir: `.agents/skills/firecrawl-cli` |
+| `firecrawl` | `/skill:firecrawl` | source dir: `skills/firecrawl-cli` |
 | `firecrawl-agent` | `/skill:firecrawl-agent` | structured extraction |
 | `cross-research` | `/skill:cross-research` | Firecrawl + agy + Grok X Search 並列検証 |
 | `antigravity-research` | `/skill:antigravity-research` | agy のみ（未検証サマリ） |
 
-**cmux** (20 skills): `cmux`, `cmux-architecture`, … — all under `.agents/skills/`
+**cmux** (20 skills): `cmux`, `cmux-architecture`, … — all under `skills/`
 and auto-discovered by `list_shared_agent_skills.sh`.
 
 Model IDs for review/impl roles: `pi/agent/model-roles.json` →

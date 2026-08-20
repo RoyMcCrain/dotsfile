@@ -13,7 +13,7 @@ Stage 0 の隔離出力 **後**（または入力から完全に切り離す）�
 
 ```bash
 deno run --allow-read --allow-write --allow-run \
-  .agents/skills/implementation-report/scripts/collect_repository_metadata.ts \
+  skills/implementation-report/scripts/collect_repository_metadata.ts \
   --repo ROOT -o repository.json
 ```
 
@@ -31,7 +31,7 @@ VCS metadata 収集が成功したら `repository` を **必ず** report.json �
 
 ```bash
 deno run --allow-read --allow-write \
-  .agents/skills/implementation-report/scripts/assemble_report.ts \
+  skills/implementation-report/scripts/assemble_report.ts \
   --stage0 result.json \
   --repository repository.json \
   -o report.json
@@ -45,7 +45,7 @@ deno run --allow-read --allow-write \
 
 ```bash
 deno run --allow-read --allow-write \
-  .agents/skills/implementation-report/scripts/assemble_report.ts \
+  skills/implementation-report/scripts/assemble_report.ts \
   --stage0 result.json \
   --omit-repository \
   -o report.json

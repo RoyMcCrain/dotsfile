@@ -23,7 +23,7 @@ setup() {
   }
 }
 EOF
-	cp "$BATS_TEST_DIRNAME/../../../../pi/agent/resolve-model.sh" "$FAKE_RESOLVER_DIR/resolve-model.sh"
+	cp "$BATS_TEST_DIRNAME/../../../pi/agent/resolve-model.sh" "$FAKE_RESOLVER_DIR/resolve-model.sh"
 	chmod +x "$FAKE_RESOLVER_DIR/resolve-model.sh"
 
 	FAKE_PI="$TEST_ROOT/fake_pi.sh"

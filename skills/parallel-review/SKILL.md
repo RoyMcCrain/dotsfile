@@ -9,15 +9,21 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 
 ## レベル（1/2/3）
 
-レビューは3段階から選ぶ。指定なしは **2**。レベルは **精度（モデル/thinking）を変える**。timeout は常に各モデルの完走時間（`base + perKb × KB`）なので、高精度（より遅い）モデルを使う上位レベルほど自然に長くなる。レベルを速く見せるために timeout を人為的に短縮はしない。モデルと timeout パラメータは catalog の `reviewLevels` が単一の正（`resolve-model.sh --review-level N` で引く）。
+レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `pi<TAB>initial<TAB>retry` を引く）。
 
 - **1（簡単/速い）**: xai/grok-4.6 / gpt-5.6-terra / claude-sonnet-5:high。fugu なし。小さな変更の素早い確認向け。
 - **2（標準・既定）**: xai/grok-4.6 / gpt-5.6-sol:xhigh / claude-opus-5:high / fugu-ultra:high。
 - **3（deep/高精度）**: xai/grok-4.6 / gpt-5.6-sol:max / opus:max / fugu-ultra:high。重要変更・精査向け。xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じモデル ID を使う。
 
-**timeout は変更量で可変**。各 reviewer は `timeout = base + perKb × patch_KB`（上限 900s）で算出する。`base`/`perKb` はモデルの実測速度（fugu は遅いので base 180 / perKb 8 など）。レベルで timeout を短くしない（完走させるのが目的）。
+**timeout 予算（固定）**:
 
-**失敗時は1回だけリトライ**するが、対象は**一過性失敗（provider error / rate limit 等）のみ**。**timeout（exit 124）はリトライしない**（timeout はモデルの完走時間に合わせているので、同じ時間での再実行は待ち時間を倍にするだけ）。2回目も失敗ならその reviewer は失敗扱い。**fugu（sakana-ai-console）は quota 方針でリトライしない**（AGENTS.md の quota/rate-limit 方針に合わせる）。
+| Level | 初回 (s) | リトライ (s) |
+|-------|---------|-------------|
+| 1     | 300 (5分) | 300 (5分) |
+| 2     | 600 (10分) | 600 (10分) |
+| 3     | 600 (10分) | 900 (15分) |
+
+**失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。**fugu（sakana-ai-console）は quota 方針でリトライしない**（`attempts=1`、AGENTS.md の quota/rate-limit 方針に合わせる）。他 reviewer は `attempts=2`。
 
 どのレベルでも **現在セッションで使用中のモデル（`PI_PROVIDER`）と同じ provider の reviewer は除外**する（自分自身にレビューさせない）。各 provider は1対1（xai / openai-codex / anthropic / sakana-ai-console）。Fugu は週次 quota が厳しく遅いので大量に回さない。
 
@@ -40,14 +46,10 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 ```bash
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
 RESOLVER="$HOME/.pi/agent/resolve-model.sh"
-LEVEL="${LEVEL:-2}" # 1=簡単 / 2=標準(既定) / 3=deep（精度のみ。時間はサイズ依存）
-MAX_TIMEOUT=900  # 上限（暴走防止）
+LEVEL="${LEVEL:-2}" # 1=簡単 / 2=標準(既定) / 3=deep（精度と timeout 予算を選ぶ）
 current_provider="${PI_PROVIDER:-}"
 # PI_PROVIDER 未設定なら自己レビュー除外が無効化するので警告を出す
 [[ -n "$current_provider" ]] || echo "warn: PI_PROVIDER unset; self-review exclusion disabled" >&2
-
-# 変更量（KB）を先に求める。timeout = base + perKb × KB
-patch_kb=$((($(wc -c <"$REVIEW_DIR/changes.patch") + 1023) / 1024))
 
 # level 定義を先に解決し、失敗（不明な level 等）はここで止める
 levels_out=$("$RESOLVER" --review-level "$LEVEL") || exit 1
@@ -57,33 +59,25 @@ levels_out=$("$RESOLVER" --review-level "$LEVEL") || exit 1
 }
 mapfile -t reviewers <<<"$levels_out"
 
-# runner を呼ぶ。attempts=2 で 1 回リトライするが、リトライは
-# 一過性失敗（provider error / rate limit 等）のみ。timeout（exit 124）は
-# 同じ時間で再実行してもまた失敗するだけなのでリトライしない（待ち時間の倍化防止）。
+# runner を呼ぶ。attempts=2 で 1 回リトライ（timeout 含むあらゆる失敗）。
 # fugu(sakana-ai-console) は quota 方針で attempts=1。
 run_reviewer() {
-	local model=$1 timeout=$2 log=$3 attempts=$4 status=0 i
-	for ((i = 0; i < attempts; i++)); do
-		"$RUNNER" --model "$model" \
-			--prompt "$REVIEW_DIR/prompt.md" --input "$REVIEW_DIR/changes.patch" \
-			--cwd "$REVIEW_DIR" --timeout "$timeout" >"$log" 2>&1 && return 0
-		status=$?
-		((status == 124)) && break # timeout はリトライしない
-	done
-	return "$status"
+	local model=$1 timeout=$2 retry_timeout=$3 log=$4 attempts=$5
+	"$RUNNER" --model "$model" \
+		--prompt "$REVIEW_DIR/prompt.md" --input "$REVIEW_DIR/changes.patch" \
+		--cwd "$REVIEW_DIR" --timeout "$timeout" --retry-timeout "$retry_timeout" \
+		--attempts "$attempts" >"$log" 2>&1
 }
 
 declare -A pids statuses
 for entry in "${reviewers[@]}"; do
-	IFS=$'\t' read -r model base perkb <<<"$entry"
+	IFS=$'\t' read -r model timeout retry_timeout <<<"$entry"
 	provider="${model%%/*}"
 	# 現在使用中の provider と一致する reviewer は除外する
 	[[ "$provider" == "$current_provider" ]] && continue
-	timeout=$((base + perkb * patch_kb))
-	((timeout > MAX_TIMEOUT)) && timeout=$MAX_TIMEOUT
 	attempts=2
 	[[ "$provider" == "sakana-ai-console" ]] && attempts=1 # fugu は quota 方針でリトライしない
-	run_reviewer "$model" "$timeout" "$REVIEW_DIR/${provider}.log" "$attempts" &
+	run_reviewer "$model" "$timeout" "$retry_timeout" "$REVIEW_DIR/${provider}.log" "$attempts" &
 	pids[$provider]=$!
 done
 
@@ -113,7 +107,7 @@ mapfile -t CHUNKS < <("$SPLITTER" --input "$REVIEW_DIR/changes.patch" --out "$CH
 ```
 
 - 各 chunk を選ばれた reviewer（現在 provider を除いたレベル N の reviewer）に渡す（chunk ごとに `--input "$chunk"`）。prompt は共通の `prompt.md` を使う。
-- モデルと timeout パラメータはレベル定義（`--review-level N`）を使う。timeout は **chunk ごとのサイズ**で `base + perKb × chunk_KB` として算出し、1回リトライする（上の `run_reviewer` と同じ）。
+- モデルと timeout パラメータはレベル定義（`--review-level N`）を使う。timeout は **chunk サイズではなく level 固定**（上の `run_reviewer` と同じ initial/retry 予算）。
 - 同時実行数は抱えすぎない（chunk × reviewer 数）。目安 3、6 並行で順に回す。
 - 各 chunk の結果を集約し、file:line で重複を排除して下の「統合」手順へ。ある chunk が timeout/失敗しても他 chunk の結果は採用し、欠けた範囲を明記する。
 

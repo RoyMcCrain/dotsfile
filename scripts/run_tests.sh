@@ -33,11 +33,11 @@ run "deno test (pi/agent)" deno test --allow-read --quiet pi/agent/tests/
 # These are integration tests that spawn git/jj and re-exec deno (via the full
 # Deno.execPath()) and write to temp dirs, so they need broad run/write access.
 run "deno test (report skills)" deno test --allow-read --allow-write --allow-run --quiet \
-	.agents/skills/review-report/tests/ \
-	.agents/skills/implementation-report/tests/
+	skills/review-report/tests/ \
+	skills/implementation-report/tests/
 
 # bats tests
-mapfile -d '' -t bats_files < <(fd -H -e bats -0 . pi/agent/tests .agents/skills)
+mapfile -d '' -t bats_files < <(fd -H -e bats -0 . pi/agent/tests skills)
 if [[ ${#bats_files[@]} -eq 0 ]]; then
 	echo "no bats tests found" >&2
 	exit 1

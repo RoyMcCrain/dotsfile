@@ -18,6 +18,7 @@ setup() {
 	ARGS_LOG="$TEST_ROOT/args.json"
 	ENV_LOG="$TEST_ROOT/env.json"
 	CHILD_PID="$TEST_ROOT/child.pid"
+	ATTEMPT_LOG="$TEST_ROOT/attempts.log"
 
 	printf '%s\n' 'Review this patch' >"$PROMPT"
 	printf '%s\n' 'diff --git a/a b/a' >"$PATCH"
@@ -33,6 +34,14 @@ setup() {
 #!/usr/bin/env bash
 set -uo pipefail
 
+attempt=1
+if [[ -n "${FAKE_PI_ATTEMPT_LOG:-}" ]]; then
+	if [[ -f "$FAKE_PI_ATTEMPT_LOG" ]]; then
+		attempt=$(($(wc -l <"$FAKE_PI_ATTEMPT_LOG") + 1))
+	fi
+	printf '%s\n' "$attempt" >>"$FAKE_PI_ATTEMPT_LOG"
+fi
+
 printf '%s\n' "$@" | jq -R . | jq -s . >"$FAKE_PI_ARGS"
 
 config="$PI_CODING_AGENT_DIR"
@@ -41,10 +50,19 @@ jq -n \
 	--arg config "$config" \
 	--arg skip_update "${PI_SKIP_VERSION_CHECK:-}" \
 	--argjson retry_enabled "$retry_enabled" \
-	'{config:$config, skip_update:$skip_update, retry_enabled:$retry_enabled}' \
+	--argjson attempt "$attempt" \
+	'{config:$config, skip_update:$skip_update, retry_enabled:$retry_enabled, attempt:$attempt}' \
 	>"$FAKE_PI_ENV"
 
+should_sleep=0
 if [[ -n "${FAKE_PI_SLEEP:-}" ]]; then
+	if [[ -z "${FAKE_PI_SLEEP_ATTEMPTS:-}" ]]; then
+		should_sleep=1
+	elif [[ ",${FAKE_PI_SLEEP_ATTEMPTS}," == *",${attempt},"* ]]; then
+		should_sleep=1
+	fi
+fi
+if ((should_sleep)); then
 	sleep 60 &
 	child=$!
 	printf '%s\n' "$child" >"$FAKE_PI_CHILD_PID"
@@ -54,15 +72,26 @@ if [[ -n "${FAKE_PI_SLEEP:-}" ]]; then
 	sleep 60
 fi
 
+exit_code="${FAKE_PI_EXIT:-0}"
+if [[ -n "${FAKE_PI_EXIT_SEQUENCE:-}" ]]; then
+	IFS=',' read -ra exits <<<"$FAKE_PI_EXIT_SEQUENCE"
+	idx=$((attempt - 1))
+	if ((idx < ${#exits[@]})); then
+		exit_code="${exits[$idx]}"
+	fi
+fi
+
 printf '%s\n' 'review complete'
-exit "${FAKE_PI_EXIT:-0}"
+exit "$exit_code"
 EOF
 	chmod +x "$FAKE_PI" "$RUNNER"
 }
 
 runner_command() {
 	local timeout=5
+	local retry_timeout=''
 	local model="provider/model:medium"
+	local attempts=1
 	local -a inputs=()
 
 	if (($# >= 2)); then
@@ -70,7 +99,22 @@ runner_command() {
 		model=$2
 		shift 2
 	fi
-	inputs=("$@")
+	while (($# > 0)); do
+		case "$1" in
+		--attempts)
+			shift
+			attempts=$1
+			;;
+		--retry-timeout)
+			shift
+			retry_timeout=$1
+			;;
+		*)
+			inputs+=("$1")
+			;;
+		esac
+		shift
+	done
 	if ((${#inputs[@]} == 0)); then
 		inputs=("$PATCH")
 	fi
@@ -80,7 +124,10 @@ runner_command() {
 	for input in "${inputs[@]}"; do
 		cmd+=(--input "$input")
 	done
-	cmd+=(--timeout "$timeout" --cwd "$TEST_ROOT")
+	cmd+=(--timeout "$timeout" --attempts "$attempts" --cwd "$TEST_ROOT")
+	if [[ -n "$retry_timeout" ]]; then
+		cmd+=(--retry-timeout "$retry_timeout")
+	fi
 	printf '%s\0' "${cmd[@]}"
 }
 
@@ -89,7 +136,9 @@ apply_runner_env() {
 	export FAKE_PI_ARGS="$ARGS_LOG"
 	export FAKE_PI_ENV="$ENV_LOG"
 	export FAKE_PI_CHILD_PID="$CHILD_PID"
-	unset FAKE_PI_SLEEP FAKE_PI_EXIT FAKE_PI_SIGNAL_PARENT MODEL_RESOLVER
+	export FAKE_PI_ATTEMPT_LOG="$ATTEMPT_LOG"
+	unset FAKE_PI_SLEEP FAKE_PI_SLEEP_ATTEMPTS FAKE_PI_EXIT FAKE_PI_EXIT_SEQUENCE FAKE_PI_SIGNAL_PARENT MODEL_RESOLVER
+	rm -f "$ATTEMPT_LOG"
 }
 
 run_runner() {
@@ -193,7 +242,7 @@ write_fake_catalog() {
   }
 }
 EOF
-	cp "$BATS_TEST_DIRNAME/../../../../pi/agent/resolve-model.sh" "$RESOLVER_DIR/resolve-model.sh"
+	cp "$BATS_TEST_DIRNAME/../../../pi/agent/resolve-model.sh" "$RESOLVER_DIR/resolve-model.sh"
 	chmod +x "$RESOLVER_DIR/resolve-model.sh"
 }
 
@@ -209,7 +258,7 @@ write_fake_catalog_with_impl_cursor() {
   }
 }
 EOF
-	cp "$BATS_TEST_DIRNAME/../../../../pi/agent/resolve-model.sh" "$RESOLVER_DIR/resolve-model.sh"
+	cp "$BATS_TEST_DIRNAME/../../../pi/agent/resolve-model.sh" "$RESOLVER_DIR/resolve-model.sh"
 	chmod +x "$RESOLVER_DIR/resolve-model.sh"
 }
 
@@ -404,4 +453,105 @@ EOF
 
 	run_runner 5 provider/model:medium "$PATCH" "$PLAN"
 	[ "$status" -eq 0 ]
+}
+
+@test "--attempts 2 retries a normal nonzero exit and succeeds if the second attempt succeeds" {
+	apply_runner_env
+	export FAKE_PI_EXIT_SEQUENCE="7,0"
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --attempts 2)
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 2 ]
+}
+
+@test "--attempts 2 retries a timeout (124) exactly once" {
+	apply_runner_env
+	export FAKE_PI_SLEEP=1
+	export FAKE_PI_SLEEP_ATTEMPTS=1
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 1 provider/model:medium --attempts 2)
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 2 ]
+}
+
+@test "success on first attempt runs only once even with --attempts 2" {
+	apply_runner_env
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --attempts 2)
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 1 ]
+}
+
+@test "invalid attempts are rejected cleanly" {
+	apply_runner_env
+	local -a bad_values=(0 -1 abc "")
+	local value
+	for value in "${bad_values[@]}"; do
+		run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+			--timeout 5 --attempts "$value" --cwd "$TEST_ROOT"
+		[ "$status" -ne 0 ]
+		[[ "$output" == *attempts\ must\ be\ a\ positive\ integer* ]]
+	done
+}
+
+@test "--retry-timeout uses distinct budget on attempt 2" {
+	apply_runner_env
+	export FAKE_PI_EXIT_SEQUENCE="7,0"
+	export FAKE_PI_SLEEP=1
+	export FAKE_PI_SLEEP_ATTEMPTS=2
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 1 provider/model:medium --attempts 2 --retry-timeout 3)
+
+	run "${cmd[@]}"
+	[ "$status" -eq 124 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 2 ]
+	[[ "$output" == *timed\ out\ after\ 3s* ]]
+}
+
+@test "omitting --retry-timeout keeps initial timeout on retries" {
+	apply_runner_env
+	export FAKE_PI_SLEEP=1
+	export FAKE_PI_SLEEP_ATTEMPTS=1,2
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 1 provider/model:medium --attempts 2)
+
+	run "${cmd[@]}"
+	[ "$status" -eq 124 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 2 ]
+	[[ "$output" == *timed\ out\ after\ 1s* ]]
+	[[ "$output" != *timed\ out\ after\ 3s* ]]
+}
+
+@test "invalid retry-timeout is cleanly rejected" {
+	apply_runner_env
+	local -a bad_values=(0 -1 abc "")
+	local value
+	for value in "${bad_values[@]}"; do
+		run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+			--timeout 5 --retry-timeout "$value" --cwd "$TEST_ROOT"
+		[ "$status" -ne 0 ]
+		[[ "$output" == *retry\ timeout\ must\ be\ greater\ than\ zero* ]]
+		[ ! -f "$ARGS_LOG" ]
+	done
 }

@@ -280,10 +280,10 @@ cp "$PACKET" "$VERIFY_DIR/verification-packet.json"
 
 ```bash
 deno run --allow-read --allow-write \
-  .agents/skills/review-report/scripts/merge_verifications.ts \
+  skills/review-report/scripts/merge_verifications.ts \
   report.json verification.json -o report.json
 
 deno run --allow-read --allow-write \
-  .agents/skills/review-report/scripts/render_report.ts \
+  skills/review-report/scripts/render_report.ts \
   report.json -o report.html
 ```

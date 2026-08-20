@@ -26,7 +26,7 @@
 ## スクリプト
 
 ```bash
-.agents/skills/implementation-report/scripts/collect_sanitized_patch.sh \
+skills/implementation-report/scripts/collect_sanitized_patch.sh \
   --repo ROOT --out DIR
 ```
 

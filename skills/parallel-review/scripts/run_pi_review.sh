@@ -215,12 +215,24 @@ EOF
 
 validate_timeout() {
 	local value="$1"
+	local message="${2:-timeout must be greater than zero}"
 	if ! awk -v t="$value" 'BEGIN {
 		if (t == "" || t !~ /^[0-9]+(\.[0-9]+)?$/) { exit 1 }
 		if (t + 0 <= 0) { exit 1 }
 		exit 0
 	}'; then
-		die "timeout must be greater than zero"
+		die "$message"
+	fi
+}
+
+validate_attempts() {
+	local value="$1"
+	if ! awk -v t="$value" 'BEGIN {
+		if (t == "" || t !~ /^[0-9]+$/) { exit 1 }
+		if (t + 0 <= 0) { exit 1 }
+		exit 0
+	}'; then
+		die "attempts must be a positive integer"
 	fi
 }
 
@@ -287,9 +299,9 @@ cleanup_all() {
 
 usage() {
 	cat >&2 <<'EOF'
-Usage: run_pi_review.sh (--role ROLE | --model MODEL) --prompt PATH --input PATH [--input PATH ...] [--timeout SECONDS] [--cwd PATH]
+Usage: run_pi_review.sh (--role ROLE | --model MODEL) --prompt PATH --input PATH [--input PATH ...] [--timeout SECONDS] [--retry-timeout SECONDS] [--attempts N] [--cwd PATH]
 
-Runs an isolated Pi headless review.
+Runs an isolated Pi headless review. Attempt 1 uses --timeout; attempt >=2 uses --retry-timeout (defaults to --timeout when omitted).
 EOF
 	exit 1
 }
@@ -314,6 +326,9 @@ parse_args() {
 	role=''
 	prompt=''
 	timeout=120
+	retry_timeout=''
+	retry_timeout_set=0
+	attempts=1
 	cwd=''
 	inputs=()
 
@@ -344,6 +359,17 @@ parse_args() {
 			[[ $# -gt 0 ]] || usage
 			timeout=$1
 			;;
+		--retry-timeout)
+			shift
+			[[ $# -gt 0 ]] || usage
+			retry_timeout=$1
+			retry_timeout_set=1
+			;;
+		--attempts)
+			shift
+			[[ $# -gt 0 ]] || usage
+			attempts=$1
+			;;
 		--cwd)
 			shift
 			[[ $# -gt 0 ]] || usage
@@ -358,6 +384,10 @@ parse_args() {
 		esac
 		shift
 	done
+
+	if ((retry_timeout_set == 0)); then
+		retry_timeout=$timeout
+	fi
 
 	if [[ -n "$role" ]]; then
 		[[ -z "$model" ]] || die "--role and --model are mutually exclusive"
@@ -387,9 +417,57 @@ build_pi_command() {
 	review_cmd+=("@$prompt_path" 'Follow the supplied prompt and review inputs.')
 }
 
+run_one_attempt() {
+	local attempt_timeout="$1"
+	local status
+
+	child_pid=''
+	watchdog_pid=''
+	timeout_marker="$temp_config_dir/timed-out"
+	watchdog_timer_file="$temp_config_dir/watchdog-timer.pid"
+	rm -f "$timeout_marker" "$watchdog_timer_file"
+
+	set -m
+	"${review_cmd[@]}" &
+	child_pid=$!
+	set +m
+
+	(
+		sleep "$attempt_timeout" &
+		timer_pid=$!
+		printf '%s\n' "$timer_pid" >"$watchdog_timer_file"
+		if wait "$timer_pid" && process_group_exists "$child_pid"; then
+			: >"$timeout_marker"
+			stop_process_group "$child_pid"
+		fi
+	) 2>/dev/null &
+	watchdog_pid=$!
+
+	if wait "$child_pid"; then
+		status=0
+	else
+		status=$?
+	fi
+
+	if [[ -f "$timeout_marker" ]]; then
+		wait "$watchdog_pid" 2>/dev/null || true
+		watchdog_pid=''
+		child_pid=''
+		rm -f "$timeout_marker"
+		printf 'review timed out after %ss: %s\n' "$attempt_timeout" "$model" >&2
+		return 124
+	fi
+
+	cancel_watchdog
+	child_pid=''
+	return "$status"
+}
+
 main() {
 	parse_args "$@"
 	validate_timeout "$timeout"
+	validate_timeout "$retry_timeout" "retry timeout must be greater than zero"
+	validate_attempts "$attempts"
 
 	local prompt_path input_path path resolved_inputs=()
 	prompt_path=$(require_file "$prompt")
@@ -424,46 +502,23 @@ main() {
 	trap 'on_signal 129' HUP
 	trap 'on_signal 130' INT
 
-	local status
 	cd "$cwd" || die "working directory not found: $cwd"
 	export PI_CODING_AGENT_DIR="$temp_config_dir"
 	export PI_SKIP_VERSION_CHECK=1
-	timeout_marker="$temp_config_dir/timed-out"
-	watchdog_timer_file="$temp_config_dir/watchdog-timer.pid"
 
-	set -m
-	"${review_cmd[@]}" &
-	child_pid=$!
-	set +m
-
-	(
-		sleep "$timeout" &
-		timer_pid=$!
-		printf '%s\n' "$timer_pid" >"$watchdog_timer_file"
-		if wait "$timer_pid" && process_group_exists "$child_pid"; then
-			: >"$timeout_marker"
-			stop_process_group "$child_pid"
+	local attempt status=0 attempt_timeout
+	for ((attempt = 1; attempt <= attempts; attempt++)); do
+		if ((attempt == 1)); then
+			attempt_timeout=$timeout
+		else
+			attempt_timeout=$retry_timeout
 		fi
-	) 2>/dev/null &
-	watchdog_pid=$!
-
-	if wait "$child_pid"; then
-		status=0
-	else
+		run_one_attempt "$attempt_timeout"
 		status=$?
-	fi
-
-	if [[ -f "$timeout_marker" ]]; then
-		wait "$watchdog_pid" 2>/dev/null || true
-		watchdog_pid=''
-		child_pid=''
-		rm -f "$timeout_marker"
-		printf 'review timed out after %ss: %s\n' "$timeout" "$model" >&2
-		exit 124
-	fi
-
-	cancel_watchdog
-	child_pid=''
+		if ((status == 0)); then
+			exit 0
+		fi
+	done
 	exit "$status"
 }
 
