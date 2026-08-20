@@ -19,14 +19,14 @@ EOF
 
 make_shared_skills() {
 	for name in alpha beta gamma; do
-		make_skill ".agents/skills/$name"
+		make_skill "skills/$name"
 	done
 	for name in codex-review mcp-delegate; do
 		make_skill "codex/skills/$name"
 	done
 }
 
-@test "emits every immediate .agents/skills directory deterministically" {
+@test "emits every immediate skills directory deterministically" {
 	make_shared_skills
 	make_skill "claude/skills/crm-postmortem"
 
@@ -34,7 +34,7 @@ make_shared_skills() {
 
 	[ "$status" -eq 0 ]
 	[ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" = "5" ]
-	[[ "$output" == "$ROOT/.agents/skills/alpha"$'\n'"$ROOT/.agents/skills/beta"$'\n'"$ROOT/.agents/skills/gamma"$'\n'"$ROOT/codex/skills/codex-review"$'\n'"$ROOT/codex/skills/mcp-delegate" ]]
+	[[ "$output" == "$ROOT/skills/alpha"$'\n'"$ROOT/skills/beta"$'\n'"$ROOT/skills/gamma"$'\n'"$ROOT/codex/skills/codex-review"$'\n'"$ROOT/codex/skills/mcp-delegate" ]]
 	[[ "$output" != *"crm-postmortem"* ]]
 	[[ "$output" != *"claude/skills"* ]]
 }
@@ -70,23 +70,23 @@ make_shared_skills() {
 	[[ "$output" != *"crm-postmortem"* ]]
 }
 
-@test "fails when .agents/skills has no skill directories" {
-	mkdir -p "$ROOT/.agents/skills"
+@test "fails when skills has no skill directories" {
+	mkdir -p "$ROOT/skills"
 	make_skill "codex/skills/codex-review"
 	make_skill "codex/skills/mcp-delegate"
 
 	run bash "$SCRIPT" "$ROOT"
 
 	[ "$status" -ne 0 ]
-	[[ "$output" == *"missing shared skills under $ROOT/.agents/skills"* ]]
+	[[ "$output" == *"missing shared skills under $ROOT/skills"* ]]
 }
 
-@test "fails when an immediate .agents/skills directory lacks SKILL.md" {
+@test "fails when an immediate skills directory lacks SKILL.md" {
 	make_shared_skills
-	mkdir -p "$ROOT/.agents/skills/incomplete"
+	mkdir -p "$ROOT/skills/incomplete"
 
 	run bash "$SCRIPT" "$ROOT"
 
 	[ "$status" -ne 0 ]
-	[[ "$output" == *"missing SKILL.md: $ROOT/.agents/skills/incomplete"* ]]
+	[[ "$output" == *"missing SKILL.md: $ROOT/skills/incomplete"* ]]
 }

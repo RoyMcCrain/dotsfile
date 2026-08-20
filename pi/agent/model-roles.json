@@ -1,5 +1,5 @@
 {
-  "description": "Single source of truth for model IDs. Skills resolve roles via resolve-model.sh; run --apply to sync enabledModels into settings.json. defaultModel is runtime state owned by Pi and is intentionally not managed here. parallel-review picks a tier from reviewLevels (1=light, 2=standard, 3=deep); tiers change precision (model/thinking) only. Each reviewer's timeout is computed from patch size as base + perKb*KB (capped by the skill), so time scales with the change, not the tier. single-reviewer skills use the review.* roles, which are defined separately and may differ from a tier's models. Roles name one model per consumer: .pi for Pi headless, .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
+  "description": "Single source of truth for model IDs. Skills resolve roles via resolve-model.sh; run --apply to sync enabledModels into settings.json. defaultModel is runtime state owned by Pi and is intentionally not managed here. parallel-review picks a tier from reviewLevels (1=light, 2=standard, 3=deep); tiers select model precision and fixed attempt budgets. Per-tier attempt budgets live in reviewTimeouts (initial/retry seconds); resolve with --review-level N. single-reviewer skills use the review.* roles, which are defined separately and may differ from a tier's models. Roles name one model per consumer: .pi for Pi headless, .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
   "enabledModels": [
     "xai/grok-4.6",
     "anthropic/claude-sonnet-5:high",
@@ -45,23 +45,28 @@
       "label": "Codex GPT-5.6 Sol"
     }
   },
+  "reviewTimeouts": {
+    "1": { "initial": 300, "retry": 300 },
+    "2": { "initial": 600, "retry": 600 },
+    "3": { "initial": 600, "retry": 900 }
+  },
   "reviewLevels": {
     "1": [
-      { "pi": "xai/grok-4.6", "base": 45, "perKb": 1 },
-      { "pi": "openai-codex/gpt-5.6-terra", "base": 45, "perKb": 1 },
-      { "pi": "anthropic/claude-sonnet-5:high", "base": 60, "perKb": 2 }
+      { "pi": "xai/grok-4.6" },
+      { "pi": "openai-codex/gpt-5.6-terra" },
+      { "pi": "anthropic/claude-sonnet-5:high" }
     ],
     "2": [
-      { "pi": "xai/grok-4.6", "base": 60, "perKb": 3 },
-      { "pi": "openai-codex/gpt-5.6-sol:xhigh", "base": 90, "perKb": 3 },
-      { "pi": "anthropic/claude-opus-5:high", "base": 60, "perKb": 3 },
-      { "pi": "sakana-ai-console/fugu-ultra:high", "base": 180, "perKb": 8 }
+      { "pi": "xai/grok-4.6" },
+      { "pi": "openai-codex/gpt-5.6-sol:xhigh" },
+      { "pi": "anthropic/claude-opus-5:high" },
+      { "pi": "sakana-ai-console/fugu-ultra:high" }
     ],
     "3": [
-      { "pi": "xai/grok-4.6", "base": 120, "perKb": 5 },
-      { "pi": "openai-codex/gpt-5.6-sol:max", "base": 90, "perKb": 3 },
-      { "pi": "anthropic/claude-opus-5:max", "base": 90, "perKb": 4 },
-      { "pi": "sakana-ai-console/fugu-ultra:high", "base": 180, "perKb": 8 }
+      { "pi": "xai/grok-4.6" },
+      { "pi": "openai-codex/gpt-5.6-sol:max" },
+      { "pi": "anthropic/claude-opus-5:max" },
+      { "pi": "sakana-ai-console/fugu-ultra:high" }
     ]
   }
 }

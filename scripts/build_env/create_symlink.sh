@@ -74,10 +74,10 @@ for CODEX_SKILL in ${BASE_DIR}/codex/skills/*; do
   ln -sfn "${CODEX_SKILL}" ~/.codex/skills/$(basename "${CODEX_SKILL}")
 done
 
-# Codex skills: shared skills from .agents/skills plus Codex-native overrides.
-# Codex and other hosts use the same SKILL.md format; canonical shared skills live under .agents/skills/.
+# Codex skills: shared skills from skills/ plus Codex-native overrides.
+# Codex and other hosts use the same SKILL.md format; canonical shared skills live under skills/.
 # Existing Codex-owned real directories are not overwritten.
-for SKILL in ${BASE_DIR}/.agents/skills/*; do
+for SKILL in ${BASE_DIR}/skills/*; do
   [ -d "${SKILL}" ] || continue
   NAME=$(basename "${SKILL}")
 

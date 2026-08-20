@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Print absolute paths to skill directories linked into ~/.agents/skills for Pi.
-# Canonical shared skills live under .agents/skills/; Codex-native overrides under codex/skills/.
+# Canonical shared skills live under skills/; Codex-native overrides under codex/skills/.
 # Single source of truth — also referenced from pi/README.md.
 set -euo pipefail
 
@@ -10,7 +10,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 BASE_DIR=$1
-AGENTS_SKILLS_DIR="${BASE_DIR}/.agents/skills"
+SHARED_SKILLS_DIR="${BASE_DIR}/skills"
 
 emit_required() {
 	local path=${1%/}
@@ -23,14 +23,14 @@ emit_required() {
 
 skill_count=0
 shopt -s nullglob
-for skill in "${AGENTS_SKILLS_DIR}"/*/; do
+for skill in "${SHARED_SKILLS_DIR}"/*/; do
 	emit_required "${skill}"
 	skill_count=$((skill_count + 1))
 done
 shopt -u nullglob
 
 if ((skill_count == 0)); then
-	echo "missing shared skills under ${AGENTS_SKILLS_DIR}" >&2
+	echo "missing shared skills under ${SHARED_SKILLS_DIR}" >&2
 	exit 1
 fi
 

@@ -59,7 +59,7 @@ Contract:
 ROOT="$(pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/implementation-report-XXXXXX")"
 
-.agents/skills/implementation-report/scripts/collect_sanitized_patch.sh \
+skills/implementation-report/scripts/collect_sanitized_patch.sh \
   --repo "$ROOT" --out "$WORK"
 
 # 1. intent.json を依頼文 + 承認 plan から凍結（diff から推測禁止）
@@ -69,7 +69,7 @@ WORK="$(mktemp -d "${TMPDIR:-/tmp}/implementation-report-XXXXXX")"
 #    詳細: references/stage0.md
 
 if deno run --allow-read --allow-write --allow-run \
-  .agents/skills/implementation-report/scripts/collect_repository_metadata.ts \
+  skills/implementation-report/scripts/collect_repository_metadata.ts \
   --repo "$ROOT" -o "$WORK/repository.json"; then
   repo_args=(--repository "$WORK/repository.json")
 else
@@ -78,7 +78,7 @@ else
 fi
 
 deno run --allow-read --allow-write \
-  .agents/skills/implementation-report/scripts/assemble_report.ts \
+  skills/implementation-report/scripts/assemble_report.ts \
   --stage0 "$WORK/stage0.json" \
   --intent "$WORK/intent.json" \
   --validation "$WORK/validation.json" \
@@ -86,11 +86,11 @@ deno run --allow-read --allow-write \
   -o "$WORK/report.json"
 
 deno run --allow-read \
-  .agents/skills/review-report/scripts/render_report.ts \
+  skills/review-report/scripts/render_report.ts \
   "$WORK/report.json" --validate-only
 
 deno run --allow-read --allow-write \
-  .agents/skills/review-report/scripts/render_report.ts \
+  skills/review-report/scripts/render_report.ts \
   "$WORK/report.json" -o "$WORK/report.html"
 
 if command -v open >/dev/null 2>&1; then

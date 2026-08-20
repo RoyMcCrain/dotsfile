@@ -72,12 +72,12 @@ DOTSFILE="${DOTSFILE:-$HOME/ghq/github.com/RoyMcCrain/dotsfile}"
 REPORT_DIR=/path/to/report-dir
 
 deno run --allow-read --allow-write \
-  "$DOTSFILE/.agents/skills/review-report/scripts/merge_verifications.ts" \
+  "$DOTSFILE/skills/review-report/scripts/merge_verifications.ts" \
   "$REPORT_DIR/report.json" "$REPORT_DIR/verification.json" \
   -o "$REPORT_DIR/report.json"
 
 deno run --allow-read --allow-write \
-  "$DOTSFILE/.agents/skills/review-report/scripts/render_report.ts" \
+  "$DOTSFILE/skills/review-report/scripts/render_report.ts" \
   "$REPORT_DIR/report.json" -o "$REPORT_DIR/report.html"
 
 open "$REPORT_DIR/report.html"   # macOS

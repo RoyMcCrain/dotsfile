@@ -7,7 +7,7 @@
 #   resolve-model.sh --json ROLE          print role object
 #   resolve-model.sh --field FIELD ROLE   print one role field
 #   resolve-model.sh --list               list roles
-#   resolve-model.sh --review-level N      print "pi<TAB>base<TAB>perKb" per reviewer for a tier
+#   resolve-model.sh --review-level N      print "pi<TAB>initial<TAB>retry" per reviewer for a tier
 #   resolve-model.sh --apply              sync enabledModels into settings.json
 #   resolve-model.sh --check              verify enabledModels matches catalog
 #
@@ -116,14 +116,17 @@ print_field() {
 }
 
 # reviewLevels drive parallel-review tiers (1=light, 2=standard, 3=deep).
-# Emit per reviewer: pi id, base seconds, and per-KB seconds; the caller sizes
-# the timeout from the patch (base + perKb*KB), so tiers set precision not time.
+# Emit per reviewer: pi id, initial timeout seconds, and retry timeout seconds.
 print_review_level() {
 	local catalog="$1"
 	local level="$2"
 	jq -e --arg lvl "$level" '.reviewLevels | has($lvl)' "$catalog" >/dev/null 2>&1 ||
 		die "unknown review level: $level"
-	jq -r --arg lvl "$level" '.reviewLevels[$lvl][] | "\(.pi)\t\(.base)\t\(.perKb)"' "$catalog"
+	jq -r --arg lvl "$level" '
+		.reviewTimeouts[$lvl] as $t |
+		.reviewLevels[$lvl][] |
+		"\(.pi)\t\($t.initial)\t\($t.retry)"
+	' "$catalog"
 }
 
 list_roles() {

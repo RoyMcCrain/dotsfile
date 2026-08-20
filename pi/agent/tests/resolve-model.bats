@@ -135,20 +135,24 @@ write_catalog_with_levels() {
     "review.test": { "pi": "provider/pi-model:high", "label": "Pi Model" },
     "codex.default": { "id": "gpt-test-model", "label": "Codex Test" }
   },
+  "reviewTimeouts": {
+    "1": { "initial": 45, "retry": 90 },
+    "2": { "initial": 180, "retry": 240 }
+  },
   "reviewLevels": {
     "1": [
-      { "pi": "cursor/fast", "base": 45, "perKb": 1 },
-      { "pi": "anthropic/sonnet:high", "base": 60, "perKb": 2 }
+      { "pi": "cursor/fast" },
+      { "pi": "anthropic/sonnet:high" }
     ],
     "2": [
-      { "pi": "sakana-ai-console/fugu-ultra:high", "base": 180, "perKb": 8 }
+      { "pi": "sakana-ai-console/fugu-ultra:high" }
     ]
   }
 }
 EOF
 }
 
-@test "--review-level prints pi, base and perKb per reviewer" {
+@test "--review-level prints pi, initial and retry seconds per reviewer" {
 	# Arrange
 	write_catalog_with_levels
 
@@ -157,8 +161,8 @@ EOF
 
 	# Assert
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "$(printf 'cursor/fast\t45\t1')" ]
-	[ "${lines[1]}" = "$(printf 'anthropic/sonnet:high\t60\t2')" ]
+	[ "${lines[0]}" = "$(printf 'cursor/fast\t45\t90')" ]
+	[ "${lines[1]}" = "$(printf 'anthropic/sonnet:high\t45\t90')" ]
 	[ "${#lines[@]}" -eq 2 ]
 }
 
@@ -220,4 +224,28 @@ EOF
 			'(.reviewLevels[$lvl] | map(.pi) | map(select(. == $model)) | length) == 1' \
 			"$real_catalog" >/dev/null
 	done
+}
+
+@test "reviewTimeouts and reviewLevels match parallel-review catalog" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local -a expected_timeouts=(
+		$'1\t300\t300'
+		$'2\t600\t600'
+		$'3\t600\t900'
+	)
+	local line level initial retry
+
+	for line in "${expected_timeouts[@]}"; do
+		IFS=$'\t' read -r level initial retry <<<"$line"
+		jq -e --arg lvl "$level" --argjson initial "$initial" --argjson retry "$retry" \
+			'.reviewTimeouts[$lvl].initial == $initial and .reviewTimeouts[$lvl].retry == $retry' \
+			"$real_catalog" >/dev/null
+	done
+
+	jq -e '.reviewLevels | to_entries[] | .value[] | has("pi") and (. | keys | length == 1)' \
+		"$real_catalog" >/dev/null
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "$(printf 'xai/grok-4.6\t600\t900')" ]
 }

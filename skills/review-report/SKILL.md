@@ -136,11 +136,11 @@ Prompt template: [references/prompts.md](references/prompts.md)
 
 ```bash
 deno run --allow-read --allow-write \
-  .agents/skills/review-report/scripts/merge_verifications.ts \
+  skills/review-report/scripts/merge_verifications.ts \
   report.json verification.json -o report.json
 
 deno run --allow-read --allow-write \
-  .agents/skills/review-report/scripts/render_report.ts \
+  skills/review-report/scripts/render_report.ts \
   report.json -o report.html
 ```
 
@@ -194,11 +194,11 @@ Contract: [references/report-format.md](references/report-format.md)
 
 ```bash
 deno run --allow-read --allow-write \
-  .agents/skills/review-report/scripts/render_report.ts \
+  skills/review-report/scripts/render_report.ts \
   report.json -o report.html
 
 deno run --allow-read \
-  .agents/skills/review-report/scripts/render_report.ts \
+  skills/review-report/scripts/render_report.ts \
   report.json --validate-only
 ```
 

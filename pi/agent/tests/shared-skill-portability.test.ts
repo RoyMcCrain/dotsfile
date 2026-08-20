@@ -1,6 +1,6 @@
 import { assertMatch, assertStringIncludes } from "jsr:@std/assert@1.0";
 
-const SKILLS_ROOT = new URL("../../../.agents/skills/", import.meta.url);
+const SKILLS_ROOT = new URL("../../../skills/", import.meta.url);
 const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const FIRECRAWL_ALLOWED_TOOLS = `allowed-tools:

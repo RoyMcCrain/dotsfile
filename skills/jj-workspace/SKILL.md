@@ -177,4 +177,4 @@ cd typescript && pnpm --filter @crm/connect build && cd ..
 ## 注意
 
 - workspace 内での bookmark / push 運用は通常の jj ワークフローと同じ（`jj` skill 参照）。
-- `.claude/skills/`、`.agents/skills/`、`.codex/skills/` を含むパスへの jj 操作はサンドボックスでブロックされることがある。その場合はユーザーに別ターミナルでの実行を依頼する。
+- `.claude/skills/`、`skills/`、`.codex/skills/` を含むパスへの jj 操作はサンドボックスでブロックされることがある。その場合はユーザーに別ターミナルでの実行を依頼する。
