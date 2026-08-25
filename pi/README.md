@@ -209,6 +209,7 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
 | `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
+| `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
 | `repo-memory-local.ts`          | Local-only repo memory: `recall_memory` / `remember` / `review_memory` tools + `/repo-memory-review` command. |
 
@@ -239,6 +240,33 @@ model at turn settlement; manual `/model` selection cancels auto-restore. Use
 `/auto-fugu on|off|status` to toggle automatic routing; an
 empty `/auto-fugu` toggles ON/OFF. After editing extensions or routing logic,
 run `/reload` (core `node_modules` changes still require a Pi restart).
+
+### cmux session names
+
+`cmux-session-name.ts` gives unnamed Pi sessions a display name from the caller
+cmux workspace's **custom title** (`custom_title` only — not the generated
+`title` such as `π - dotsfile`). This makes `/resume` searchable for sessions
+started via `/skill:jj-workspace` or other cmux task workflows.
+
+The sync runs on `session_start` (workspace already renamed before Pi starts)
+and once on the first `agent_settled` (common case where the agent renames the
+workspace during the first task). Each extension instance performs at most two
+cmux lookups total (startup plus first settled). Later `agent_settled` events do
+not query cmux again. Lookups are serialized so subprocesses never overlap.
+
+It scopes to `CMUX_WORKSPACE_ID`, queries `cmux workspace list --json`
+non-interactively via `pi.exec` (preferring `CMUX_BUNDLED_CLI_PATH`), and calls
+`pi.setSessionName()` with the normalized custom title.
+
+An automatic name assigned at startup can update once after the first task when
+the workspace `custom_title` changes. Existing manual Pi session names are
+preserved: a non-empty name that differs from the extension's last auto-assigned
+name is treated as manual (including resumed/stored session names). The
+extension re-checks after the async cmux lookup so a concurrent manual name is
+never overwritten. Custom titles are normalized before use: C0/C1 control
+characters are replaced with spaces, whitespace runs collapse to a single space,
+and the result is capped at 120 Unicode code points. Failures (missing cmux,
+timeout, malformed JSON, missing workspace/custom title) fail silently.
 
 ### Repo memory
 
