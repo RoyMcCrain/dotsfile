@@ -25,7 +25,6 @@
     "bun@latest",
     "temurin-bin-21@latest",
     "terraform@latest",
-    "difftastic@latest",
     "vscode-langservers-extracted@latest",
     "yaml-language-server@latest",
     "tailwindcss-language-server@latest",
@@ -53,7 +52,8 @@
     "taplo@latest",
     "github:yusukebe/ax",
     "hunk@latest",
-    "rsgain@latest"
+    "rsgain@latest",
+    "cloudflared@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",

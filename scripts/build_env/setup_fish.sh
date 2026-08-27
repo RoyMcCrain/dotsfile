@@ -129,6 +129,12 @@ create_symlink $BASE_DIR/jjconfig.toml ~/.config/jj/config.toml "jujutsu config"
 
 echo ""
 
+# Hunk設定ファイル
+echo "Setting up Hunk configuration..."
+create_symlink $BASE_DIR/hunk/config.toml ~/.config/hunk/config.toml "Hunk config"
+
+echo ""
+
 # cmux設定ファイル
 echo "Setting up cmux configuration..."
 create_symlink $BASE_DIR/cmux ~/.config/cmux "cmux configuration"
