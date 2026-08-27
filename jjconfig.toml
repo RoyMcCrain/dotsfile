@@ -7,14 +7,12 @@ email = "me@rrrr.dev"
 [ui]
 editor = "nvim"
 default-command = "log"
-pager = "less -FRX"
+pager = ["hunk", "pager"]
 diff-editor = ["nvim", "-d", "$left", "$right"]
-diff-formatter = ["difft", "--color=always", "$left", "$right"]
+diff-formatter = ":git"
 
 [aliases]
 current = ["log", "-r", "@ | @-"]
-diffn = ["diff", "--git", "--config=ui.pager=hunk pager --line-numbers"]
-diffs = ["diff", "--git", "--config=ui.pager=hunk pager --mode split"]
 
 [remotes.origin]
 auto-track-bookmarks = "glob:*"

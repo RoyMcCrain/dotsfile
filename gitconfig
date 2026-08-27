@@ -7,8 +7,6 @@
 	ui = true
 [ghq]
 	root = ~/ghq
-[diff]
-	external = difft
 [merge]
 	tool = nvimdiff
 [difftool "nvimdiff"]
@@ -21,6 +19,7 @@
 	rebase = false
 [core]
 	autocrlf = input
+	pager = hunk pager
 [alias]
 	log = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
 	lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
