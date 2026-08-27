@@ -210,6 +210,7 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
 | `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
 | `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
+| `workspace-cd.ts`               | Fork/switch Pi session cwd after jj workspace setup (`switch_workspace_cwd` tool, `/workspace-cd`). |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
 | `repo-memory-local.ts`          | Local-only repo memory: `recall_memory` / `remember` / `review_memory` tools + `/repo-memory-review` command. |
 
@@ -267,6 +268,33 @@ never overwritten. Custom titles are normalized before use: C0/C1 control
 characters are replaced with spaces, whitespace runs collapse to a single space,
 and the result is capped at 120 Unicode code points. Failures (missing cmux,
 timeout, malformed JSON, missing workspace/custom title) fail silently.
+
+### workspace cwd switch
+
+`workspace-cd.ts` moves a **persisted** Pi session into another directory without
+losing conversation history. A child shell cannot change Pi's cwd, so the
+extension forks the current session with `SessionManager.forkFrom()` and switches
+to the fork via `ctx.switchSession()`.
+
+- **`switch_workspace_cwd` tool** — LLM-callable; used by `jj-workspace` as the
+  **final tool** after workspace creation, setup, and cmux `custom_title`/description
+  sync. Validates the destination path (`realpath`, must exist and be a directory),
+  requires a persisted source session (`getSessionFile()`), stores the canonical target
+  in extension-local state, returns `terminate: true`, and does **not** queue a follow-up
+  message. After the current run `agent_settled` and Pi is idle, dispatches internal
+  `/workspace-cd-continue <encoded-path>` with `expandPromptTemplates: true`. That
+  command switches sessions in a fresh context and sends one short continuation message
+  so the original task resumes in the new cwd automatically. Do not call any tools after
+  it in the old session.
+- **`/workspace-cd <path>`** — manual fork/switch without auto-continuation.
+  Relative paths resolve from the current Pi cwd. Same cwd is a no-op.
+- **`/workspace-cd-continue <encoded-path>`** — internal entrypoint dispatched after
+  settlement by the tool; not for manual use. If `switchSession` is cancelled, the
+  just-created fork session file is removed best-effort before surfacing the error.
+
+Requires a persisted source session (`getSessionFile()`). In-memory sessions
+cannot cross cwd; the tool throws `WorkspacePathError` before scheduling termination.
+Command errors surface via Pi's extension error UI.
 
 ### Repo memory
 

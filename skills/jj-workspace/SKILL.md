@@ -20,7 +20,11 @@ jj コマンドは必ず `JJ_EDITOR=true` を付けて実行する（エディ�
 2. **workspace 名とパスを決める**: 依頼内容から短い名前を自動生成する（ユーザー指定があればそれを使う）。パスはリポジトリの隣に `<repo>-<用途>` で作る。CRM / Sentry は「6. CRM 固有」の命名に従う。
 3. **workspace を切る**: 特別な指定が無ければそのリポの trunk（多くの場合 `-r main@origin`。CRM は必須）から切る。現在の作業の続きなら `-r` 省略（=`@`、`jjw` デフォルトと同じ）。
 4. **セットアップを実行**: 「2. 作成直後のセットアップ」を必ず行う。リポ固有の追加手順があれば続けて実行する。
-5. **その workspace ディレクトリで作業する**。
+5. **cmux タスク名を同期**（Pi / cmux 経由のセッションのみ）: workspace 名やタスク内容が確定したら、**最終 tool の前に** cmux の `custom_title` / description を同期する。Pi セッション名のライフサイクル同期（旧 run の settle 後）は agent が待たない。
+6. **Pi agent: 新 cwd へセッション切替**（下記「Pi agent: セッション cwd の切り替え」）。**`switch_workspace_cwd` はこのセッションで最後に呼ぶ tool**。旧セッションではそれ以降 tool を呼ばない。
+7. **その workspace ディレクトリで作業する**（Pi では切替先セッションが自動継続する）。
+
+人間が `jjw` で切った場合は 5–6 を省略し、作成後に `cd` して作業する（従来どおり）。**Pi agent は shell の `cd` では cwd を変えられない** — 必ず下記「Pi agent: セッション cwd の切り替え」の `switch_workspace_cwd` を使う。
 
 迷ったら「まず workspace を切る」。default で直接編集を進めるのは、ユーザーが明示的にそれを求めた場合だけにする。
 
@@ -55,7 +59,16 @@ jjw
 - `-r <rev>`: どのリビジョンの上に空コミットを作るか。省略時は `@`（`jjw` と同じ）。trunk から切るならそのリポの trunk。
 - `<path>`: 作業ディレクトリ。**リポジトリの隣に `<repo>-<用途>`**（CRM は `crm-<用途>`）。
 
-作成後、その新しいディレクトリに `cd` して作業する。各 workspace は独立した working-copy commit (`@`) を持つので、ビルド成果物や作業中の変更は混ざらない。
+作成後、人間はその新しいディレクトリに `cd` して作業する。Pi agent は shell の `cd` ではなく、次節のセッション切り替えを使う。各 workspace は独立した working-copy commit (`@`) を持つので、ビルド成果物や作業中の変更は混ざらない。
+
+## Pi agent: セッション cwd の切り替え
+
+Pi 上で workspace を切った agent は、shell の `cd` では Pi の cwd を変えられない。**セットアップと cmux `custom_title`/description 同期がすべて終わったら、最後の tool として 1 回だけ `switch_workspace_cwd` を destination パスで呼ぶ。**
+
+- **順序**: `jj workspace add` → セットアップ（`.env*` symlink / direnv / リポ固有）→ cmux `custom_title`/description 同期 → **`switch_workspace_cwd(path)`**（最終 tool）
+- **この tool の後に旧セッションで他の tool を呼ばない。** 拡張は persisted session であることを確認したうえで destination を extension-local に保持し、`terminate: true` で現在の agent run を止める。旧 run が `agent_settled` したあと idle になった時点で、内部コマンド `/workspace-cd-continue <encoded-path>` を `expandPromptTemplates: true` で dispatch する（follow-up キューではない）。そのコマンドがセッションを fork/switch し、切替先セッションで短い継続メッセージにより元タスクを自動再開する。Pi セッション名の同期は旧 run settle 後に起きるため、最終 tool 前に待たない。
+- **手動切替**（ユーザー向け）: `/workspace-cd <path>` — 同じ fork/switch だが自動継続はしない。
+- **人間の `jjw` フローは変更なし**（fish で切って `cd` するだけ）。
 
 ## 2. 作成直後のセットアップ（必須・汎用）
 
