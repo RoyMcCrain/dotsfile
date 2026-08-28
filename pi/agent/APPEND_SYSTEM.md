@@ -104,6 +104,13 @@
 - bookmark 新規作成時、ユーザーが名前を指定したらその名前を使い、指定がなければ変更内容から適切な名前を自動生成する。
 - 複数 bookmark にまたがる作業では、どの変更がどの bookmark に属するか確認してから操作する。
 
+## Browser Automation Rules
+
+- cmux 内での日常的な UI 確認、スクリーンショット、画面操作には、WKWebView の機能で足りる限り `cmux-browser` skill を優先する。
+- Playwright は、Playwright E2E テスト、Chromium 固有・クロスブラウザ確認、viewport/device emulation、network mocking、trace/video、CDP 専用機能が必要な場合だけ使う。cmux が使えない場合は Playwright をフォールバックとしてよい。
+- すべての Playwright 利用（API・wrapper・CLI）は isolated session/profile を使う。ユーザーが明示しない限り、通常利用中の Chrome へ CDP/extension で attach したり、その profile を再利用したりしない。`playwright-cli` を使う場合は named isolated session を作り、同じタスク内で必ず `close` する。
+- 外部 Web コンテンツの検索・調査はこの規則の対象外で、引き続き Web Research Rules に従う。
+
 ## Web Research Rules
 
 - Web検索、URL本文取得、scrape、crawl、構造化抽出は firecrawl 系 skill を基本にする。
