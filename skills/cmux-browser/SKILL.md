@@ -1,11 +1,13 @@
 ---
 name: cmux-browser
-description: End-user browser automation with cmux. Use when you need to open sites, interact with pages, wait for state changes, and extract data from cmux browser surfaces.
+description: End-user browser automation with cmux. Prefer this over playwright-cli for routine UI inspection, screenshots, navigation, form interaction, and data extraction inside cmux when WKWebView capabilities are sufficient.
 ---
 
 # Browser Automation with cmux
 
 Use this skill for browser tasks inside cmux webviews.
+
+Prefer this skill over `playwright-cli` for routine visual verification and screenshots. Use Playwright only when the task requires Playwright E2E tests, Chromium-specific or cross-browser behavior, viewport/device emulation, network mocking, tracing/video, or other CDP-only features; if cmux is unavailable, Playwright may be used as the fallback. Every Playwright invocation must use an isolated session/profile and must not attach to the user's normal Chrome or reuse its profile unless explicitly requested; when using `playwright-cli`, use a named isolated session and close it in the same task. External web research still follows the host's web-research policy.
 
 ## Core Workflow
 

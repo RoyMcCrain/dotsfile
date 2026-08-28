@@ -57,7 +57,8 @@ NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunc
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
 NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE = "Control desktop apps on macOS through Computer Use."
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.727.40816"
+BROWSER_USE_CODEX_APP_VERSION = "26.814.41407"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/Users/roy/.codex/plugins/cache/openai-bundled/browser/26.814.41407/scripts/browser-service.mjs","sky":"@oai/sky/service"}'
 SKY_CUA_SERVICE_PATH = "/Users/roy/.codex/computer-use/Codex Computer Use.app"
 CODEX_CLI_PATH = "/Applications/ChatGPT.app/Contents/Resources/codex"
 
@@ -76,9 +77,7 @@ ENABLE_LSP_TOOL = "true"
 CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR = "1"
 CLAUDE_CODE_NO_FLICKER = "1"
 USE_BUILTIN_RIPGREP = "0"
-BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
 NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "028a14b6eaa6d98dac2aae00764345ab9f244801ed8493d42b9af3be5575006e,8785b5437d98636c3002d3d7e64b98db79c3b66870b1bd3d18dea953a99b1562"
-NODE_REPL_TRUSTED_CODE_PATHS = "/Users/roy/.codex"
 
 [hooks.state]
 
@@ -92,12 +91,12 @@ trusted_hash = "sha256:24040b144c1aa832f157332887d96e444f92ac77deec3fa9667c38e8d
 followUpQueueMode = "queue"
 
 [marketplaces.openai-bundled]
-last_updated = "2026-08-04T01:20:06Z"
+last_updated = "2026-08-28T06:08:55Z"
 source_type = "local"
 source = "/Users/roy/.codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-08-03T02:35:10Z"
+last_updated = "2026-08-28T06:09:31Z"
 source_type = "local"
 source = "/Users/roy/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
@@ -129,4 +128,7 @@ enabled = true
 enabled = true
 
 [plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."codex-app-tools@openai-bundled"]
 enabled = true
