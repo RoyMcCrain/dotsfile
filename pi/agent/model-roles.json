@@ -59,8 +59,7 @@
     "2": [
       { "pi": "xai/grok-4.6" },
       { "pi": "openai-codex/gpt-5.6-sol:xhigh" },
-      { "pi": "anthropic/claude-opus-5:high" },
-      { "pi": "sakana-ai-console/fugu-ultra:high" }
+      { "pi": "anthropic/claude-opus-5:high" }
     ],
     "3": [
       { "pi": "xai/grok-4.6" },

@@ -202,6 +202,35 @@ EOF
 	[[ "$output" == *"unknown review level"* ]]
 }
 
+@test "Fugu reviewer appears only in parallel-review level 3" {
+	# Arrange — integration against the tracked repo catalog
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	# Act / Assert
+	for level in 1 2; do
+		run jq -e --arg lvl "$level" \
+			'[.reviewLevels[$lvl][] | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
+			"$real_catalog"
+		[ "$status" -eq 0 ]
+	done
+
+	run jq -e \
+		'[.reviewLevels["3"][] | select(.pi | startswith("sakana-ai-console/"))] | length == 1' \
+		"$real_catalog"
+	[ "$status" -eq 0 ]
+
+	run jq -e '.reviewLevels["2"] | length == 3' "$real_catalog"
+	[ "$status" -eq 0 ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
+	[ "$status" -eq 0 ]
+	[[ "$output" != *sakana-ai-console/* ]]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	[ "$status" -eq 0 ]
+	[[ "$output" == *sakana-ai-console/* ]]
+}
+
 @test "review.grok resolves and appears exactly once in every parallel-review level" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
