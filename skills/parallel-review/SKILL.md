@@ -5,15 +5,15 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 
 # /parallel-review
 
-同じ patch を複数の Pi reviewer（xAI Grok 4.6・Codex・Claude・Fugu Ultra）に同時に渡し、結果を統合する。子 Pi の skill 再読込による再帰起動を禁止する。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
+同じ patch を複数の Pi reviewer（xAI Grok 4.6・Codex・Claude；level 3 では Fugu Ultra も）に同時に渡し、結果を統合する。子 Pi の skill 再読込による再帰起動を禁止する。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## レベル（1/2/3）
 
 レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `pi<TAB>initial<TAB>retry` を引く）。
 
 - **1（簡単/速い）**: xai/grok-4.6 / gpt-5.6-terra / claude-sonnet-5:high。fugu なし。小さな変更の素早い確認向け。
-- **2（標準・既定）**: xai/grok-4.6 / gpt-5.6-sol:xhigh / claude-opus-5:high / fugu-ultra:high。
-- **3（deep/高精度）**: xai/grok-4.6 / gpt-5.6-sol:max / opus:max / fugu-ultra:high。重要変更・精査向け。xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じモデル ID を使う。
+- **2（標準・既定）**: xai/grok-4.6 / gpt-5.6-sol:xhigh / claude-opus-5:high。fugu なし。
+- **3（deep/高精度）**: xai/grok-4.6 / gpt-5.6-sol:max / opus:max / fugu-ultra:high。重要変更・精査向け。Fugu は level 3 のみ。xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じモデル ID を使う。
 
 **timeout 予算（固定）**:
 
@@ -23,9 +23,9 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 | 2     | 600 (10分) | 600 (10分) |
 | 3     | 600 (10分) | 900 (15分) |
 
-**失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。**fugu（sakana-ai-console）は quota 方針でリトライしない**（`attempts=1`、AGENTS.md の quota/rate-limit 方針に合わせる）。他 reviewer は `attempts=2`。
+**失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。**level 3 の fugu（sakana-ai-console）は quota 方針でリトライしない**（`attempts=1`、AGENTS.md の quota/rate-limit 方針に合わせる）。他 reviewer は `attempts=2`。
 
-どのレベルでも **現在セッションで使用中のモデル（`PI_PROVIDER`）と同じ provider の reviewer は除外**する（自分自身にレビューさせない）。各 provider は1対1（xai / openai-codex / anthropic / sakana-ai-console）。Fugu は週次 quota が厳しく遅いので大量に回さない。
+どのレベルでも **現在セッションで使用中のモデル（`PI_PROVIDER`）と同じ provider の reviewer は除外**する（自分自身にレビューさせない）。reviewer は provider ごとに最大1つ（xai / openai-codex / anthropic、level 3 のみ sakana-ai-console）。Fugu は週次 quota が厳しいため標準 review（level 2）では省略する。
 
 ## Preflight（1回だけ）
 
