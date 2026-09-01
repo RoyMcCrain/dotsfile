@@ -1,6 +1,6 @@
 ---
 name: parallel-review
-description: 使用中の provider を除いた隔離済み Pi reviewer を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
+description: 隔離済み Pi reviewer を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
 ---
 
 # /parallel-review
@@ -25,7 +25,7 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 
 **失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。**level 3 の fugu（sakana-ai-console）は quota 方針でリトライしない**（`attempts=1`、AGENTS.md の quota/rate-limit 方針に合わせる）。他 reviewer は `attempts=2`。
 
-どのレベルでも **現在セッションで使用中のモデル（`PI_PROVIDER`）と同じ provider の reviewer は除外**する（自分自身にレビューさせない）。reviewer は provider ごとに最大1つ（xai / openai-codex / anthropic、level 3 のみ sakana-ai-console）。Fugu は週次 quota が厳しいため標準 review（level 2）では省略する。
+どのレベルでも `reviewLevels` に定義された reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**。reviewer は provider ごとに最大1つ（xai / openai-codex / anthropic、level 3 のみ sakana-ai-console）。Fugu は週次 quota が厳しいため標準 review（level 2）では省略する。
 
 ## Preflight（1回だけ）
 
@@ -47,9 +47,6 @@ description: 使用中の provider を除いた隔離済み Pi reviewer を3段�
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
 RESOLVER="$HOME/.pi/agent/resolve-model.sh"
 LEVEL="${LEVEL:-2}" # 1=簡単 / 2=標準(既定) / 3=deep（精度と timeout 予算を選ぶ）
-current_provider="${PI_PROVIDER:-}"
-# PI_PROVIDER 未設定なら自己レビュー除外が無効化するので警告を出す
-[[ -n "$current_provider" ]] || echo "warn: PI_PROVIDER unset; self-review exclusion disabled" >&2
 
 # level 定義を先に解決し、失敗（不明な level 等）はここで止める
 levels_out=$("$RESOLVER" --review-level "$LEVEL") || exit 1
@@ -73,19 +70,11 @@ declare -A pids statuses
 for entry in "${reviewers[@]}"; do
 	IFS=$'\t' read -r model timeout retry_timeout <<<"$entry"
 	provider="${model%%/*}"
-	# 現在使用中の provider と一致する reviewer は除外する
-	[[ "$provider" == "$current_provider" ]] && continue
 	attempts=2
 	[[ "$provider" == "sakana-ai-console" ]] && attempts=1 # fugu は quota 方針でリトライしない
 	run_reviewer "$model" "$timeout" "$retry_timeout" "$REVIEW_DIR/${provider}.log" "$attempts" &
 	pids[$provider]=$!
 done
-
-# 全 reviewer が除外された場合はサイレント成功にせず失敗させる
-((${#pids[@]} > 0)) || {
-	echo "all reviewers excluded (current provider=$current_provider, level=$LEVEL)" >&2
-	exit 1
-}
 
 for provider in "${!pids[@]}"; do
 	statuses[$provider]=0
@@ -106,7 +95,7 @@ CHUNK_DIR="$REVIEW_DIR/chunks"
 mapfile -t CHUNKS < <("$SPLITTER" --input "$REVIEW_DIR/changes.patch" --out "$CHUNK_DIR" --max-bytes 12000)
 ```
 
-- 各 chunk を選ばれた reviewer（現在 provider を除いたレベル N の reviewer）に渡す（chunk ごとに `--input "$chunk"`）。prompt は共通の `prompt.md` を使う。
+- 各 chunk をレベル N に定義された全 reviewer に渡す（chunk ごとに `--input "$chunk"`）。prompt は共通の `prompt.md` を使う。
 - モデルと timeout パラメータはレベル定義（`--review-level N`）を使う。timeout は **chunk サイズではなく level 固定**（上の `run_reviewer` と同じ initial/retry 予算）。
 - 同時実行数は抱えすぎない（chunk × reviewer 数）。目安 3、6 並行で順に回す。
 - 各 chunk の結果を集約し、file:line で重複を排除して下の「統合」手順へ。ある chunk が timeout/失敗しても他 chunk の結果は採用し、欠けた範囲を明記する。
