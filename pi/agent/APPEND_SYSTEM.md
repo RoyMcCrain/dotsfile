@@ -49,7 +49,7 @@
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
 - 委譲後は必ず diff 目視、lint、test、仕様充足チェックで検証し、投げっぱなしにしない。
-- 「レビューして」と言われたら、単体レビュアーを明示されない限り `parallel-review` skill を優先して使う（reviewLevels の3段階：1=簡単 / 2=標準・既定 / 3=deep。現在使用中の provider と同じ reviewer は除外する）。
+- 「レビューして」と言われたら、単体レビュアーを明示されない限り `parallel-review` skill を優先して使う（reviewLevels の3段階：1=簡単 / 2=標準・既定 / 3=deep。現在使用中の provider と同じ reviewer も含める）。
 - ユーザーがレビュアーを明示した場合のみ `fugu-review` / `grok-review` / `codex-review` / `claude-review` skill を使う。
 
 ## Simplicity Principles
