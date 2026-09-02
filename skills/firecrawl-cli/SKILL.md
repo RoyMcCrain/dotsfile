@@ -68,7 +68,8 @@ Follow this escalation pattern:
 | AI-powered data extraction  | `agent`               | Need structured data from complex sites                   |
 | Interact with a page        | `scrape` + `interact` | Content requires clicks, form fills, pagination, or login |
 | Download a site to files    | `x download`          | Save an entire site as local files (experimental)         |
-| Parse a local file          | `parse`               | File on disk (PDF, DOCX, XLSX, etc.) — not a URL          |
+| Parse a local file          | `parse`               | PDF, DOC, ODT, RTF, XLS, HTML on disk — not a URL; DOCX/XLSX via Firecrawl only when explicitly requested |
+| Read local DOCX/PPTX/XLSX   | — (use skill)          | Local OOXML files — use [office-document-reader](../office-document-reader/SKILL.md) (local MarkItDown); prefer over Firecrawl parse |
 | Watch pages for changes     | `monitor`             | Schedule recurring scrapes/crawls, diff against snapshots |
 
 For detailed command reference, run `firecrawl <command> --help`.
@@ -220,7 +221,8 @@ Use `modes: ["json", "git-diff"]` for **mixed mode**: you get both `diff.json` (
 - **AI-powered structured extraction from complex sites** -> [firecrawl-agent](../firecrawl-agent/SKILL.md)
 - **Clicks, forms, login, pagination, or post-scrape browser actions** -> [firecrawl-interact](../firecrawl-interact/SKILL.md)
 - **Downloading a site to local files** -> [firecrawl-download](../firecrawl-download/SKILL.md)
-- **Parsing a local file (PDF, DOCX, XLSX, HTML, etc.)** -> [firecrawl-parse](../firecrawl-parse/SKILL.md)
+- **Reading local DOCX, PPTX, or XLSX** -> [office-document-reader](../office-document-reader/SKILL.md)
+- **Parsing other local files (PDF, DOC, ODT, RTF, XLS, HTML, etc.)** -> [firecrawl-parse](../firecrawl-parse/SKILL.md)
 - **Detecting content changes on a website and getting notified by webhook or email (pricing, jobs, posts, docs, status pages, anything ongoing)** -> [firecrawl-monitor](../firecrawl-monitor/SKILL.md)
 - **Install, auth, or setup problems** -> [rules/install.md](rules/install.md)
 - **Output handling and safe file-reading patterns** -> [rules/security.md](rules/security.md)
