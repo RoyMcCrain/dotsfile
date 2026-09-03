@@ -54,7 +54,8 @@
     "github:yusukebe/ax",
     "hunk@latest",
     "rsgain@latest",
-    "cloudflared@latest"
+    "cloudflared@latest",
+    "obsidian-headless@0.0.14"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
