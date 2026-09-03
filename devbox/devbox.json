@@ -4,6 +4,7 @@
     "uv@latest",
     "rustup@latest",
     "bat@latest",
+    "bash@latest",
     "direnv@latest",
     "eza@latest",
     "fd@latest",

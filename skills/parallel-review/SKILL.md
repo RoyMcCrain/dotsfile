@@ -7,6 +7,10 @@ description: 隔離済み Pi reviewer を3段階レベル（1=簡単/2=標準/3=
 
 同じ patch を複数の Pi reviewer（xAI Grok 4.6・Codex・Claude；level 3 では Fugu Ultra も）に同時に渡し、結果を統合する。子 Pi の skill 再読込による再帰起動を禁止する。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
+## 実行要件
+
+`run_pi_review.sh` は **Bash 5 以上**が必要。devbox の `bash@latest` がそれを供給する。`devbox global install` でインストールされ、PATH 上で Bash 5+ が先に解決される。macOS 付属の Bash 3.2 など古い Bash では、runner は `run_pi_review.sh requires Bash 5 or newer` と明示して nonzero で停止する。
+
 ## レベル（1/2/3）
 
 レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `pi<TAB>initial<TAB>retry` を引く）。
