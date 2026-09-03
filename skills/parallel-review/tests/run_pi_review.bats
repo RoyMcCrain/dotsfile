@@ -180,6 +180,36 @@ assert_tools_absent() {
 	fi
 }
 
+assert_bash_major_at_least() {
+	local label="$1"
+	local major="$2"
+	[[ "$major" =~ ^[0-9]+$ ]] || fail "$label returned an invalid Bash major version: $major"
+	((major >= 5)) || fail "$label requires Bash 5 or newer, got major version: $major"
+}
+
+assert_runner_bash_runtime() {
+	assert_bash_major_at_least "bats shell" "${BASH_VERSINFO[0]}"
+
+	local env_bash_major
+	# shellcheck disable=SC2016 # Expanded by the child Bash.
+	env_bash_major=$(env bash -c 'printf "%s" "${BASH_VERSINFO[0]}"')
+	assert_bash_major_at_least "env bash" "$env_bash_major"
+}
+
+write_large_safe_utf8_patch() {
+	local path="$1"
+	local i
+
+	{
+		printf '%s\n' 'diff --git a/src/components/Form.tsx b/src/components/Form.tsx'
+		printf '%s\n' '--- a/src/components/Form.tsx'
+		printf '%s\n' '+++ b/src/components/Form.tsx'
+		for ((i = 1; i <= 500; i++)); do
+			printf '%s\n' "+// 行${i}: Textarea — locationId=\$locationId /* 日本語コメント */"
+		done
+	} >"$path"
+}
+
 assert_runner_signal() {
 	local signal=$1
 	local expected_status=$2
@@ -423,6 +453,30 @@ EOF
 	run_runner
 	[ "$status" -ne 0 ]
 	[[ "$output" == *secret\ path\ in\ patch* ]]
+	[ ! -f "$ATTEMPT_LOG" ]
+}
+
+@test "accepts large safe utf-8 patch without per-line process substitution" {
+	LARGE_PATCH="$TEST_ROOT/large-safe.patch"
+	write_large_safe_utf8_patch "$LARGE_PATCH"
+	LARGE_PATCH=$(resolve_test_path "$LARGE_PATCH")
+
+	run_runner 5 provider/model:medium "$LARGE_PATCH"
+	[ "$status" -eq 0 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 1 ]
+}
+
+@test "rejects invalid diff --git header with too few tokens" {
+	printf '%s\n' 'diff --git a/only' >"$PATCH"
+
+	run_runner
+	[ "$status" -ne 0 ]
+	[[ "$output" == *invalid\ diff\ header* ]]
+	[ ! -f "$ATTEMPT_LOG" ]
+}
+
+@test "runner resolves bash 5 or newer" {
+	assert_runner_bash_runtime
 }
 
 @test "rejects actual private key header" {
@@ -541,6 +595,48 @@ EOF
 	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 2 ]
 	[[ "$output" == *timed\ out\ after\ 1s* ]]
 	[[ "$output" != *timed\ out\ after\ 3s* ]]
+}
+
+@test "rejects unquoted spaced binary diff --git path ending in secret .env" {
+	{
+		printf '%s\n' 'diff --git a/safe one two/.env b/safe one two/.env'
+		printf '%s\n' 'new file mode 100644'
+		printf '%s\n' 'index 0000000000..f00f0a13c2'
+		printf '%s\n' 'Binary files /dev/null and b/safe one two/.env differ'
+	} >"$PATCH"
+
+	run_runner
+	[ "$status" -ne 0 ]
+	[[ "$output" == *secret\ path\ in\ patch* ]]
+	[ ! -f "$ATTEMPT_LOG" ]
+}
+
+@test "accepts unquoted spaced binary diff --git path without secret component" {
+	{
+		printf '%s\n' 'diff --git a/safe one two/readme.txt b/safe one two/readme.txt'
+		printf '%s\n' 'new file mode 100644'
+		printf '%s\n' 'index 0000000000..f00f0a13c2'
+		printf '%s\n' 'Binary files /dev/null and b/safe one two/readme.txt differ'
+	} >"$PATCH"
+
+	run_runner
+	[ "$status" -eq 0 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 1 ]
+}
+
+@test "accepts hunk body line that looks like --- metadata" {
+	{
+		printf '%s\n' 'diff --git a/query.sql b/query.sql'
+		printf '%s\n' '--- a/query.sql'
+		printf '%s\n' '+++ b/query.sql'
+		printf '%s\n' '@@ -1 +1 @@'
+		printf '%s\n' '--- .env is documented here'
+		printf '%s\n' '+SELECT 1;'
+	} >"$PATCH"
+
+	run_runner
+	[ "$status" -eq 0 ]
+	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 1 ]
 }
 
 @test "invalid retry-timeout is cleanly rejected" {
