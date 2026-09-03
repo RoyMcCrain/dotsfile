@@ -1,7 +1,7 @@
 ---
 name: firecrawl-parse
 description: |
-  Efficiently extract and convert the contents of any local file—such as PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, or HTML—into clean, well-formatted markdown saved to disk. Use this skill whenever the user requests to parse, read, or extract information from a file on their computer, including phrases like “parse this PDF”, “convert this document”, “read this file”, “extract text from”, or when a local file path (not a URL) is provided. This skill offers advanced options like generating AI-powered summaries and answering questions based on the file's content. Prefer this tool over `scrape` when handling local files to deliver precise, structured outputs for downstream tasks.
+  Efficiently extract and convert local files—such as PDF, DOC, ODT, RTF, XLS, or HTML—into clean, well-formatted markdown saved to disk. Use when the user requests to parse, read, or extract information from a supported local file (not a URL), including phrases like “parse this PDF”, “convert this document”, “read this file”, or “extract text from”. Offers AI-powered summaries and query options. For local DOCX, PPTX, or XLSX, prefer office-document-reader (local MarkItDown). Firecrawl parse remains available for DOCX/XLSX only when the user explicitly requests Firecrawl or needs its AI summary/query options. Does not support PPTX.
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
@@ -9,13 +9,16 @@ allowed-tools:
 
 # firecrawl parse
 
-Turn a local document into clean markdown on disk. Supports **PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML/HTM/XHTML**.
+Turn a local document into clean markdown on disk.
+
+**Routing:** Use Firecrawl parse normally for **PDF, DOC, ODT, RTF, XLS, HTML/HTM/XHTML**. For local **DOCX** or **XLSX**, prefer [office-document-reader](../office-document-reader/SKILL.md) (local MarkItDown) unless the user explicitly requests Firecrawl or needs Firecrawl AI summary/query (`-S`, `-Q`). **PPTX is not supported** by Firecrawl — use office-document-reader for local PowerPoint files.
 
 ## When to use
 
-- You have a file on disk (not a URL) and want its text as markdown
-- User drops a PDF/DOCX and asks what it says, or to summarize it
+- You have a supported file on disk (not a URL) and want its text as markdown
+- User drops a PDF/DOC and asks what it says, or to summarize it with Firecrawl AI options
 - Use `scrape` instead when the source is a URL
+- **Not for PPTX** — use office-document-reader for local PowerPoint files
 
 ## Quick start
 
@@ -58,4 +61,5 @@ Then `head`, `grep`, `rg` etc., or incrementally read the file - don't load the 
 
 ## See also
 
+- [office-document-reader](../office-document-reader/SKILL.md) — preferred for local DOCX, PPTX, XLSX conversion
 - [firecrawl-scrape](../firecrawl-scrape/SKILL.md) — same idea for URLs
