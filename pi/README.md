@@ -378,6 +378,7 @@ exposure is controlled by which runtime directory links the skill.
 | ----- | ------- |
 | `jj-workspace` | workspace 切り、Sentry 調査 |
 | `mcp-delegate` | Slack/Sentry URL、OAuth MCP |
+| `devin-wiki` | Devin Wiki 参照・`ask_question`（Claude 経由・読取専用） |
 
 **Web research** (canonical under `skills/`):
 
