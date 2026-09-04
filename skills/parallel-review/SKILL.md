@@ -9,7 +9,7 @@ description: 隔離済み Pi reviewer を3段階レベル（1=簡単/2=標準/3=
 
 ## 実行要件
 
-`run_pi_review.sh` は **Bash 5 以上**が必要。devbox の `bash@latest` がそれを供給する。`devbox global install` でインストールされ、PATH 上で Bash 5+ が先に解決される。macOS 付属の Bash 3.2 など古い Bash では、runner は `run_pi_review.sh requires Bash 5 or newer` と明示して nonzero で停止する。
+`run_pi_review.sh` は **Bash 5 以上**が必要。供給源は devbox の `bash@latest`（`devbox global install`）。Pi の bash ツールは未設定だと macOS の `/bin/bash`（3.2）を直呼びするので、`~/.pi/agent/settings.json` の `shellPath` を devbox profile の bash に固定する。Homebrew の bash は使わない。`#!/usr/bin/env bash` は PATH 上で Homebrew より devbox を先に解決する。古い Bash では runner が `run_pi_review.sh requires Bash 5 or newer` と明示して nonzero で停止する。
 
 ## レベル（1/2/3）
 
