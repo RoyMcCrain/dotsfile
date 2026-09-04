@@ -14,6 +14,9 @@ const CROSS_RESEARCH_ALLOWED_TOOLS = `allowed-tools:
   - Bash(~/.agents/skills/cross-research/scripts/grok-x-search.sh *)
   - Bash(jq *)`;
 
+const DEVIN_WIKI_ALLOWED_TOOLS = `allowed-tools:
+  - Bash(~/.agents/skills/devin-wiki/scripts/run.sh *)`;
+
 const EXPECTED_ALLOWED_TOOLS: Record<string, string> = {
   "clerk-backend-api/SKILL.md":
     "allowed-tools: Bash, Read, Grep, Skill, WebFetch",
@@ -26,6 +29,7 @@ const EXPECTED_ALLOWED_TOOLS: Record<string, string> = {
   "clerk-testing/SKILL.md": "allowed-tools: WebFetch",
   "clerk-webhooks/SKILL.md": "allowed-tools: WebFetch",
   "cross-research/SKILL.md": CROSS_RESEARCH_ALLOWED_TOOLS,
+  "devin-wiki/SKILL.md": DEVIN_WIKI_ALLOWED_TOOLS,
   "firecrawl-agent/SKILL.md": FIRECRAWL_ALLOWED_TOOLS,
   "firecrawl-cli/SKILL.md": FIRECRAWL_ALLOWED_TOOLS,
   "firecrawl-crawl/SKILL.md": FIRECRAWL_ALLOWED_TOOLS,
