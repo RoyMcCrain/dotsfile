@@ -21,6 +21,10 @@ __pycache__/
 # Codex local profile state (hook trust etc.)
 codex/fugu.config.toml
 
+# cmux local backups / generated lock files
+cmux/*.bak
+pi/agent/extensions/.cmux-session.lock
+
 # Pi local secrets / generated state
 pi/agent/auth.json
 pi/agent/trust.json
