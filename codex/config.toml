@@ -31,6 +31,9 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [features]
+# cmux-codex-hooks-feature-78f1e4ba-66df-4d35-93c1-67fdf1cbb7df begin
+hooks = true
+# cmux-codex-hooks-feature-78f1e4ba-66df-4d35-93c1-67fdf1cbb7df end
 rmcp_client = true
 image_generation = false
 apps = false
