@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: Pi headless（OpenAI Codex Terra）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
+description: Pi headless（OpenAI Codex）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
 metadata:
   target_agent: Codex
 ---

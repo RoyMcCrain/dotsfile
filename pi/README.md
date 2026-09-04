@@ -92,9 +92,18 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 Current roles: `review.codex`, `review.claude`, `review.fugu`, `review.grok`,
 `impl.cursor`, `research.xai`, `codex.default`.
 
-To move to a new model version, edit `model-roles.json` only (the role's model ID
-and the `enabledModels` list), then run `--apply`. Skills pick it up immediately
-because `run_pi_review.sh --role ROLE` resolves through the same catalog.
+To move to a new model version, update `model-roles.json` (role model IDs,
+`reviewLevels` tier models, role labels, and the `enabledModels` cycling list),
+then run `--apply` and `--check`. Skills pick it up immediately because
+`run_pi_review.sh --role ROLE` resolves through the same catalog.
+
+`enabledModels` controls Pi's Ctrl+P cycling choices (configured with
+`/scoped-models`); it is not an allowlist for `--model` or skill role resolution. Role and tier
+models live in `roles` and `reviewLevels`.
+
+If you previously added custom `modelOverrides` in `models.json` for an old GPT
+version, remove them when migrating; Pi's built-in catalog context window is
+authoritative and stale overrides are not synced by `--apply`.
 
 `--apply` / `--check` cover the config files that cannot expand variables:
 

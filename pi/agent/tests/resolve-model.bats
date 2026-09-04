@@ -278,3 +278,56 @@ EOF
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "$(printf 'xai/grok-4.6\t600\t900')" ]
 }
+
+@test "GPT roles, review tiers, and modelOverrides align with codex.default catalog model" {
+	# Arrange — integration against the tracked repo catalog
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_models="$BATS_TEST_DIRNAME/../models.json"
+	local codex_id codex_pi_base codex_entry
+
+	codex_id=$(jq -r '.roles["codex.default"].id' "$real_catalog")
+	codex_pi_base="openai-codex/$codex_id"
+
+	# Assert — enabledModels cycling GPT entries share the codex.default base model
+	jq -e --arg base "$codex_pi_base" \
+		'[.enabledModels[] | select(startswith("openai-codex/"))] | length > 0 and all(startswith($base + ":"))' \
+		"$real_catalog" >/dev/null
+
+	# Assert — single reviewer review.codex uses high effort on the same base model
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.codex
+	[ "$status" -eq 0 ]
+	[ "$output" = "${codex_pi_base}:high" ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.codex
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"High"* ]]
+
+	# Assert — parallel-review GPT tiers use high / xhigh / max efforts
+	local level effort
+	for level in 1 2 3; do
+		case "$level" in
+		1) effort=high ;;
+		2) effort=xhigh ;;
+		3) effort=max ;;
+		esac
+		codex_entry=$(jq -r --arg lvl "$level" \
+			'[.reviewLevels[$lvl][] | select(.pi | startswith("openai-codex/")) | .pi][0]' \
+			"$real_catalog")
+		[ "$codex_entry" = "${codex_pi_base}:${effort}" ]
+	done
+
+	# Assert — codex.default resolves to the catalog id (no provider/thinking suffix)
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" codex.default
+	[ "$status" -eq 0 ]
+	[ "$output" = "$codex_id" ]
+
+	# Assert — stale custom OpenAI Codex overrides must not reference other GPT models
+	jq -e --arg model "$codex_id" \
+		'(.providers["openai-codex"].modelOverrides // {} | keys) |
+		 if length == 0 then true else all(. == $model) end' \
+		"$real_models" >/dev/null
+
+	# Assert — no legacy GPT-5 model ids remain in the role catalog
+	run jq -e '[.. | strings | select(test("gpt-5"))] | length == 0' "$real_catalog"
+	[ "$status" -eq 0 ]
+}
