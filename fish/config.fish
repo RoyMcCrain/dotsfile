@@ -107,6 +107,11 @@ switch (uname)
         if test -f /opt/homebrew/bin/brew
             eval (/opt/homebrew/bin/brew shellenv)
         end
+        # brew が PATH 先頭になるので、devbox 管理の bash 等を優先し直す
+        set -l devbox_bin "$HOME/.local/share/devbox/global/default/.devbox/nix/profile/default/bin"
+        if test -d $devbox_bin
+            fish_add_path --move --path $devbox_bin
+        end
     case Linux
         # Linux用の設定
         set -gx RUBY_CONFIGURE_OPTS "--with-openssl-dir=/usr"

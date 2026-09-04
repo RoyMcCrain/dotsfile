@@ -16,6 +16,7 @@
     "sakana-ai-console/fugu-ultra:high"
   ],
   "theme": "dark",
+  "shellPath": "~/.local/share/devbox/global/default/.devbox/nix/profile/default/bin/bash",
   "defaultProjectTrust": "ask",
   "enableInstallTelemetry": false,
   "compaction": {
