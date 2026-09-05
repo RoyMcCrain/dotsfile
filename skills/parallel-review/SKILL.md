@@ -15,9 +15,9 @@ description: 隔離済み Pi reviewer を3段階レベル（1=簡単/2=標準/3=
 
 レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `pi<TAB>initial<TAB>retry` を引く）。
 
-- **1（簡単/速い）**: xai/grok-4.6 / gpt-5.6-terra / claude-sonnet-5:high。fugu なし。小さな変更の素早い確認向け。
-- **2（標準・既定）**: xai/grok-4.6 / gpt-5.6-sol:xhigh / claude-opus-5:high。fugu なし。
-- **3（deep/高精度）**: xai/grok-4.6 / gpt-5.6-sol:max / opus:max / fugu-ultra:high。重要変更・精査向け。Fugu は level 3 のみ。xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じモデル ID を使う。
+- **1（簡単/速い）**: xai/grok-4.6 / Codex high / claude-sonnet-5:high。fugu なし。小さな変更の素早い確認向け。
+- **2（標準・既定）**: xai/grok-4.6 / Codex xhigh / claude-opus-5:high。fugu なし。
+- **3（deep/高精度）**: xai/grok-4.6 / Codex max / opus:max / fugu-ultra:high。重要変更・精査向け。Fugu は level 3 のみ。xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じモデル ID を使う。Codex の tier 別 effort（high / xhigh / max）は `model-roles.json` の `reviewLevels` が正本。`resolve-model.sh --review-level N` で実際の Pi model id を確認する。
 
 **timeout 予算（固定）**:
 

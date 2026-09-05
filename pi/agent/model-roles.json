@@ -6,17 +6,15 @@
     "anthropic/claude-sonnet-5:max",
     "anthropic/claude-opus-5:high",
     "anthropic/claude-opus-5:max",
-    "openai-codex/gpt-5.6-sol:xhigh",
-    "openai-codex/gpt-5.6-sol:max",
-    "openai-codex/gpt-5.6-terra:high",
-    "openai-codex/gpt-5.6-terra:max",
+    "openai-codex/gpt-6-astra:xhigh",
+    "openai-codex/gpt-6-astra:max",
     "sakana-ai-console/fugu:high",
     "sakana-ai-console/fugu-ultra:high"
   ],
   "roles": {
     "review.codex": {
-      "pi": "openai-codex/gpt-5.6-terra:high",
-      "label": "Codex GPT-5.6 Terra High"
+      "pi": "openai-codex/gpt-6-astra:high",
+      "label": "Codex GPT-6 Astra High"
     },
     "review.claude": {
       "pi": "anthropic/claude-opus-5:high",
@@ -41,8 +39,8 @@
       "label": "Grok 4.6 (X Search research)"
     },
     "codex.default": {
-      "id": "gpt-5.6-sol",
-      "label": "Codex GPT-5.6 Sol"
+      "id": "gpt-6-astra",
+      "label": "Codex GPT-6 Astra"
     }
   },
   "reviewTimeouts": {
@@ -53,17 +51,17 @@
   "reviewLevels": {
     "1": [
       { "pi": "xai/grok-4.6" },
-      { "pi": "openai-codex/gpt-5.6-terra" },
+      { "pi": "openai-codex/gpt-6-astra:high" },
       { "pi": "anthropic/claude-sonnet-5:high" }
     ],
     "2": [
       { "pi": "xai/grok-4.6" },
-      { "pi": "openai-codex/gpt-5.6-sol:xhigh" },
+      { "pi": "openai-codex/gpt-6-astra:xhigh" },
       { "pi": "anthropic/claude-opus-5:high" }
     ],
     "3": [
       { "pi": "xai/grok-4.6" },
-      { "pi": "openai-codex/gpt-5.6-sol:max" },
+      { "pi": "openai-codex/gpt-6-astra:max" },
       { "pi": "anthropic/claude-opus-5:max" },
       { "pi": "sakana-ai-console/fugu-ultra:high" }
     ]
