@@ -101,9 +101,14 @@ then run `--apply` and `--check`. Skills pick it up immediately because
 `/scoped-models`); it is not an allowlist for `--model` or skill role resolution. Role and tier
 models live in `roles` and `reviewLevels`.
 
-If you previously added custom `modelOverrides` in `models.json` for an old GPT
-version, remove them when migrating; Pi's built-in catalog context window is
-authoritative and stale overrides are not synced by `--apply`.
+`modelOverrides` in `models.json` are keyed by the exact model ID from
+`codex.default`. When migrating, update the override key to match the new
+catalog model and keep an intentional 372K context preference only after
+confirming the target supports it; `--apply` does not sync `modelOverrides`.
+Regression tests in `resolve-model.bats` guard against losing the override.
+Pi auto-compacts when `contextTokens > contextWindow - reserveTokens`; with
+372K and the current 50K reserve that threshold is above 322K (1M would be
+above 950K, not a fixed 200K).
 
 `--apply` / `--check` cover the config files that cannot expand variables:
 
