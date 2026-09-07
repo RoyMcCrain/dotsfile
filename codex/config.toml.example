@@ -1,0 +1,31 @@
+# model is prepended by scripts/build_env/setup_codex_config.sh from
+# model-roles.json roles["codex.default"].id — do not add model here.
+
+model_reasoning_effort = "medium"
+model_provider = "openai"
+personality = "pragmatic"
+project_doc_fallback_filenames = ["CLAUDE.md"]
+developer_instructions = "## Per-directory instructions\n作業対象のファイルがあるディレクトリに CLAUDE.md がある場合は、\n編集の前にその CLAUDE.md を読んで従うこと。\n"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[features]
+hooks = true
+rmcp_client = true
+image_generation = false
+apps = false
+js_repl = false
+
+[mcp_servers.devin]
+url = "https://mcp.devin.ai/mcp"
+bearer_token_env_var = "DEVIN_API_KEY"
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+ENABLE_TOOL_SEARCH = "true"
+ENABLE_LSP_TOOL = "true"
+CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR = "1"
+CLAUDE_CODE_NO_FLICKER = "1"
+USE_BUILTIN_RIPGREP = "0"

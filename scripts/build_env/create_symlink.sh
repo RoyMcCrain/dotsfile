@@ -52,7 +52,7 @@ for OLD_SKILL in cursor fugu crm-postmortem; do
 done
 ln -sf ${BASE_DIR}/codex/AGENTS.md ~/.codex/AGENTS.md
 ln -sf ${BASE_DIR}/codex/instructions.md ~/.codex/instructions.md
-ln -sf ${BASE_DIR}/codex/config.toml ~/.codex/config.toml
+bash "${BASE_DIR}/scripts/build_env/setup_codex_config.sh" "${BASE_DIR}" || exit 1
 # 解約につき無効 — fugu profile symlink/copy/hooks 引き継ぎ（再有効化時にコメント解除）
 # ln -sf ${BASE_DIR}/codex/fugu.json ~/.codex/fugu.json
 # fugu profile は hook trust state などが追記されるためローカル実体で管理する。

@@ -3,6 +3,7 @@
 
 setup() {
 	TEST_ROOT="$BATS_TEST_TMPDIR/resolve-model"
+	FIXTURES="$BATS_TEST_DIRNAME/fixtures"
 	mkdir -p "$TEST_ROOT"
 
 	RESOLVER="$BATS_TEST_DIRNAME/../resolve-model.sh"
@@ -427,6 +428,99 @@ EOF
 			] | unique | length == 4)
 		' "$real_catalog" >/dev/null
 	done
+}
+
+@test "codex apply uses default live path under HOME when CODEX_CONFIG_FILE unset" {
+	write_catalog
+	write_settings_drifted
+	local fake_home="$TEST_ROOT/fake-home"
+	local config="$fake_home/.codex/config.toml"
+	mkdir -p "$(dirname "$config")"
+	cat >"$config" <<'EOF'
+model = "stale-model-id"
+app_owned = "preserve-me"
+EOF
+
+	run env HOME="$fake_home" CODEX_CONFIG_FILE= CODEX_HOME= "$RESOLVER" --apply
+	[ "$status" -eq 0 ]
+	rg -Fq 'model = "gpt-test-model"' "$config"
+	rg -Fq 'app_owned = "preserve-me"' "$config"
+}
+
+@test "codex apply respects CODEX_HOME over HOME default" {
+	write_catalog
+	write_settings_drifted
+	local codex_home="$TEST_ROOT/custom-codex"
+	local config="$codex_home/config.toml"
+	mkdir -p "$codex_home"
+	cat >"$config" <<'EOF'
+model = "stale-model-id"
+EOF
+
+	run env HOME="$TEST_ROOT/unused-home" CODEX_HOME="$codex_home" CODEX_CONFIG_FILE= "$RESOLVER" --apply
+	[ "$status" -eq 0 ]
+	rg -Fq 'model = "gpt-test-model"' "$config"
+	[ ! -f "$TEST_ROOT/unused-home/.codex/config.toml" ]
+}
+
+@test "CODEX_CONFIG_FILE overrides CODEX_HOME for codex apply" {
+	write_catalog
+	write_settings_drifted
+	local override="$TEST_ROOT/override/config.toml"
+	local codex_home="$TEST_ROOT/custom-codex"
+	mkdir -p "$(dirname "$override")" "$codex_home"
+	cat >"$override" <<'EOF'
+model = "stale-model-id"
+EOF
+	cat >"$codex_home/config.toml" <<'EOF'
+model = "other-stale"
+EOF
+
+	run env CODEX_CONFIG_FILE="$override" CODEX_HOME="$codex_home" "$RESOLVER" --apply
+	[ "$status" -eq 0 ]
+	rg -Fq 'model = "gpt-test-model"' "$override"
+	rg -Fq 'model = "other-stale"' "$codex_home/config.toml"
+}
+
+@test "codex apply and check do not touch legacy repo codex/config.toml" {
+	write_catalog
+	write_settings_drifted
+	local fake_repo="$TEST_ROOT/fake-repo"
+	local fake_home="$TEST_ROOT/fake-home"
+	local live="$fake_home/.codex/config.toml"
+	local legacy="$fake_repo/codex/config.toml"
+	local catalog="$fake_repo/pi/agent/model-roles.json"
+	mkdir -p "$(dirname "$live")" "$(dirname "$legacy")" "$(dirname "$catalog")"
+	cp "$CATALOG" "$catalog"
+	cat >"$live" <<'EOF'
+model = "stale-model-id"
+app_owned = "preserve-me"
+EOF
+	cp "$FIXTURES/setup-codex-config/legacy-runtime.toml" "$legacy"
+	local legacy_snapshot="$TEST_ROOT/legacy.snapshot"
+	cp "$legacy" "$legacy_snapshot"
+
+	run env \
+		HOME="$fake_home" \
+		CODEX_CONFIG_FILE= \
+		CODEX_HOME= \
+		MODEL_ROLES_FILE="$catalog" \
+		"$RESOLVER" --apply
+	[ "$status" -eq 0 ]
+	rg -Fq 'model = "gpt-test-model"' "$live"
+	rg -Fq 'app_owned = "preserve-me"' "$live"
+	cmp -s "$legacy" "$legacy_snapshot"
+
+	printf 'model = "drifted-live-model"\napp_owned = "preserve-me"\n' >"$live"
+
+	run env \
+		HOME="$fake_home" \
+		CODEX_CONFIG_FILE= \
+		CODEX_HOME= \
+		MODEL_ROLES_FILE="$catalog" \
+		"$RESOLVER" --check
+	[ "$status" -ne 0 ]
+	cmp -s "$legacy" "$legacy_snapshot"
 }
 
 @test "GPT roles, review tiers, and modelOverrides align with codex.default catalog model" {
