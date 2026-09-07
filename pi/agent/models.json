@@ -6,61 +6,6 @@
           "contextWindow": 372000
         }
       }
-    },
-    "sakana-ai-console": {
-      "name": "Sakana AI Console",
-      "baseUrl": "https://api.sakana.ai/v1",
-      "api": "openai-responses",
-      "models": [
-        {
-          "id": "fugu",
-          "name": "Sakana Fugu",
-          "reasoning": true,
-          "thinkingLevelMap": {
-            "off": null,
-            "minimal": null,
-            "low": null,
-            "medium": null,
-            "high": "high"
-          },
-          "input": [
-            "text",
-            "image"
-          ],
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "contextWindow": 300000,
-          "maxTokens": 32768
-        },
-        {
-          "id": "fugu-ultra",
-          "name": "Sakana Fugu Ultra",
-          "reasoning": true,
-          "thinkingLevelMap": {
-            "off": null,
-            "minimal": null,
-            "low": null,
-            "medium": null,
-            "high": "high"
-          },
-          "input": [
-            "text",
-            "image"
-          ],
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "contextWindow": 300000,
-          "maxTokens": 8192
-        }
-      ]
     }
   }
 }

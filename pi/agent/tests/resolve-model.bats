@@ -202,33 +202,67 @@ EOF
 	[[ "$output" == *"unknown review level"* ]]
 }
 
-@test "Fugu reviewer appears only in parallel-review level 3" {
-	# Arrange — integration against the tracked repo catalog
+@test "Fugu integration disabled after subscription cancellation" {
+	# Arrange — integration against tracked repo catalog, settings, models, archive
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
+	local real_models="$BATS_TEST_DIRNAME/../models.json"
+	local archive="$BATS_TEST_DIRNAME/../fugu.disabled.json.example"
 
-	# Act / Assert
-	for level in 1 2; do
+	# Assert — no Fugu/sakana at any review tier
+	for level in 1 2 3; do
 		run jq -e --arg lvl "$level" \
 			'[.reviewLevels[$lvl][] | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
 			"$real_catalog"
 		[ "$status" -eq 0 ]
 	done
 
-	run jq -e \
-		'[.reviewLevels["3"][] | select(.pi | startswith("sakana-ai-console/"))] | length == 1' \
+	# Assert — all tiers have exactly 3 reviewers
+	for level in 1 2 3; do
+		run jq -e --arg lvl "$level" \
+			'.reviewLevels[$lvl] | length == 3' \
+			"$real_catalog"
+		[ "$status" -eq 0 ]
+	done
+
+	# Assert — review.fugu role removed from active catalog
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.fugu
+	[ "$status" -ne 0 ]
+
+	# Assert — no enabled Fugu models in catalog or settings
+	run jq -e '[.enabledModels[] | select(startswith("sakana-ai-console/"))] | length == 0' \
 		"$real_catalog"
 	[ "$status" -eq 0 ]
 
-	run jq -e '.reviewLevels["2"] | length == 3' "$real_catalog"
+	run jq -e '[.enabledModels[] | select(startswith("sakana-ai-console/"))] | length == 0' \
+		"$real_settings"
 	[ "$status" -eq 0 ]
 
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
+	# Assert — no active sakana provider in models.json
+	run jq -e '(.providers // {}) | has("sakana-ai-console") | not' "$real_models"
 	[ "$status" -eq 0 ]
-	[[ "$output" != *sakana-ai-console/* ]]
 
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	# Assert — auto-fugu-model extension force-excluded
+	run jq -e '.extensions | index("-extensions/auto-fugu-model.ts") != null' \
+		"$real_settings"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *sakana-ai-console/* ]]
+
+	# Assert — archive preserves Fugu fragments for reactivation
+	[ -f "$archive" ]
+	run jq -e . "$archive"
+	[ "$status" -eq 0 ]
+	run jq -e \
+		'(.enabledModels | sort) == (["sakana-ai-console/fugu:high", "sakana-ai-console/fugu-ultra:high"] | sort)' \
+		"$archive"
+	[ "$status" -eq 0 ]
+	run jq -e '.roles["review.fugu"].pi == "sakana-ai-console/fugu-ultra:high"' "$archive"
+	[ "$status" -eq 0 ]
+	run jq -e \
+		'[.reviewLevels["3"][] | select(.pi | startswith("sakana-ai-console/"))] | length == 1' \
+		"$archive"
+	[ "$status" -eq 0 ]
+	run jq -e '.providers["sakana-ai-console"].models | length == 2' "$archive"
+	[ "$status" -eq 0 ]
 }
 
 @test "review.grok resolves and appears exactly once in every parallel-review level" {

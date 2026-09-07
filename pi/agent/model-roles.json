@@ -7,9 +7,7 @@
     "anthropic/claude-opus-5:high",
     "anthropic/claude-opus-5:max",
     "openai-codex/gpt-6-astra:xhigh",
-    "openai-codex/gpt-6-astra:max",
-    "sakana-ai-console/fugu:high",
-    "sakana-ai-console/fugu-ultra:high"
+    "openai-codex/gpt-6-astra:max"
   ],
   "roles": {
     "review.codex": {
@@ -19,11 +17,6 @@
     "review.claude": {
       "pi": "anthropic/claude-opus-5:high",
       "label": "Claude Opus 5 High"
-    },
-    "review.fugu": {
-      "pi": "sakana-ai-console/fugu-ultra:high",
-      "label": "Sakana Fugu Ultra High",
-      "timeout": 240
     },
     "review.grok": {
       "pi": "xai/grok-4.6",
@@ -62,8 +55,7 @@
     "3": [
       { "pi": "xai/grok-4.6" },
       { "pi": "openai-codex/gpt-6-astra:max" },
-      { "pi": "anthropic/claude-opus-5:max" },
-      { "pi": "sakana-ai-console/fugu-ultra:high" }
+      { "pi": "anthropic/claude-opus-5:max" }
     ]
   }
 }

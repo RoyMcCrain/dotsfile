@@ -36,7 +36,7 @@ abbr mkdir 'mkdir -p'
 # Editor and tools
 abbr a 'nvim'
 abbr cur 'cursor-agent'
-abbr fugu 'codex -p fugu' # codex with Sakana Fugu profile
+# abbr fugu 'codex -p fugu' # 解約につき無効（codex with Sakana Fugu profile）
 abbr code 'code -n .' # vscode
 abbr exp 'explorer.exe .' # explorer
 

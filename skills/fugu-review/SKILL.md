@@ -1,7 +1,16 @@
 ---
 name: fugu-review
-description: Pi headless（Sakana Fugu Ultra）で240秒上限の単体コードレビューを実行する。quota制限があるため明示指定時だけ使う。
+description: "DISABLED — Sakana Fugu subscription cancelled. Do not execute until user explicitly requests reactivation."
 ---
+
+# /fugu-review — DISABLED
+
+**Sakana Fugu は解約により無効。** この skill は実行しない。ユーザーが再契約後に明示的に再有効化を依頼するまで、`fugu-review` / `review.fugu` / Fugu モデルへのルーティングは禁止。別の有料モデルへの自動フォールバックもしない。
+
+再有効化手順は [pi/README.md](../../pi/README.md) の Fugu セクションを参照。
+
+<!--
+Historical instructions (inactive — preserved for reactivation):
 
 # /fugu-review
 
@@ -30,3 +39,4 @@ TIMEOUT=$("$HOME/.pi/agent/resolve-model.sh" --field timeout review.fugu 2>/dev/
 - timeout、quota、rate limit、provider error 時は即座に短く報告する。
 - 自動再試行・別モデルへの自動フォールバックは禁止。
 - 出力は High / Medium / Low、Nit 省略、最大8件。各指摘に `file:line`、実害、根拠、最小修正案。
+-->
