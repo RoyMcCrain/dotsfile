@@ -110,6 +110,14 @@ ln -sf ${BASE_DIR}/antigravity/AGENTS.md ~/.gemini/antigravity-cli/AGENTS.md
 ln -sf ${BASE_DIR}/antigravity/instructions.md ~/.gemini/antigravity-cli/instructions.md
 ln -sf ${BASE_DIR}/antigravity/skills/context-loader ~/.gemini/antigravity-cli/skills/context-loader
 
+# Antigravity custom agents (patch-reviewer for parallel-review)
+mkdir -p ~/.gemini/config/agents/patch-reviewer
+if [ -e ~/.gemini/config/agents/patch-reviewer/agent.md ] && [ ! -L ~/.gemini/config/agents/patch-reviewer/agent.md ]; then
+  echo "skip (owned file): ~/.gemini/config/agents/patch-reviewer/agent.md"
+else
+  ln -sf "${BASE_DIR}/antigravity/agents/patch-reviewer/agent.md" ~/.gemini/config/agents/patch-reviewer/agent.md
+fi
+
 # Pi Coding Agent
 # auth.json は秘密情報/OAuth を含むためリンクしない。
 mkdir -p ~/.pi/agent

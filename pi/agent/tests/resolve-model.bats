@@ -133,6 +133,7 @@ write_catalog_with_levels() {
   "enabledModels": ["provider/pi-model:high"],
   "roles": {
     "review.test": { "pi": "provider/pi-model:high", "label": "Pi Model" },
+    "review.antigravity": { "agy": "agy/test-model", "label": "Antigravity Test" },
     "codex.default": { "id": "gpt-test-model", "label": "Codex Test" }
   },
   "reviewTimeouts": {
@@ -142,7 +143,8 @@ write_catalog_with_levels() {
   "reviewLevels": {
     "1": [
       { "pi": "cursor/fast" },
-      { "pi": "anthropic/sonnet:high" }
+      { "pi": "anthropic/sonnet:high" },
+      { "role": "review.antigravity" }
     ],
     "2": [
       { "pi": "sakana-ai-console/fugu-ultra:high" }
@@ -152,7 +154,7 @@ write_catalog_with_levels() {
 EOF
 }
 
-@test "--review-level prints pi, initial and retry seconds per reviewer" {
+@test "--review-level prints backend, model, initial and retry seconds per reviewer" {
 	# Arrange
 	write_catalog_with_levels
 
@@ -161,9 +163,10 @@ EOF
 
 	# Assert
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "$(printf 'cursor/fast\t45\t90')" ]
-	[ "${lines[1]}" = "$(printf 'anthropic/sonnet:high\t45\t90')" ]
-	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "$(printf 'pi\tcursor/fast\t45\t90')" ]
+	[ "${lines[1]}" = "$(printf 'pi\tanthropic/sonnet:high\t45\t90')" ]
+	[ "${lines[2]}" = "$(printf 'agy\tagy/test-model\t45\t90')" ]
+	[ "${#lines[@]}" -eq 3 ]
 }
 
 @test "--field cursor resolves .cursor consumer model ids" {
@@ -212,15 +215,15 @@ EOF
 	# Assert — no Fugu/sakana at any review tier
 	for level in 1 2 3; do
 		run jq -e --arg lvl "$level" \
-			'[.reviewLevels[$lvl][] | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
+			'[.reviewLevels[$lvl][] | select(has("pi")) | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
 			"$real_catalog"
 		[ "$status" -eq 0 ]
 	done
 
-	# Assert — all tiers have exactly 3 reviewers
+	# Assert — all tiers have exactly 4 reviewers
 	for level in 1 2 3; do
 		run jq -e --arg lvl "$level" \
-			'.reviewLevels[$lvl] | length == 3' \
+			'.reviewLevels[$lvl] | length == 4' \
 			"$real_catalog"
 		[ "$status" -eq 0 ]
 	done
@@ -284,7 +287,7 @@ EOF
 
 	for level in 1 2 3; do
 		jq -e --arg model "$grok_model" --arg lvl "$level" \
-			'(.reviewLevels[$lvl] | map(.pi) | map(select(. == $model)) | length) == 1' \
+			'(.reviewLevels[$lvl] | map(select(has("pi")) | .pi) | map(select(. == $model)) | length) == 1' \
 			"$real_catalog" >/dev/null
 	done
 }
@@ -305,12 +308,125 @@ EOF
 			"$real_catalog" >/dev/null
 	done
 
-	jq -e '.reviewLevels | to_entries[] | .value[] | has("pi") and (. | keys | length == 1)' \
+	jq -e '.reviewLevels | to_entries[] | .value[] | (has("pi") or has("role")) and (. | keys | length == 1)' \
 		"$real_catalog" >/dev/null
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "$(printf 'xai/grok-4.6\t600\t900')" ]
+	[ "${lines[0]}" = "$(printf 'pi\txai/grok-4.6\t600\t900')" ]
+	[ "${lines[3]}" = "$(printf 'agy\tgemini-3.8-flash-high\t600\t900')" ]
+}
+
+@test "review.antigravity resolves with --field agy and fails default Pi resolution" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field agy review.antigravity
+	[ "$status" -eq 0 ]
+	[ "$output" = "gemini-3.8-flash-high" ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.antigravity
+	[ "$status" -ne 0 ]
+	[[ "$output" == *has\ no\ model\ id* ]]
+}
+
+@test "--list includes agy roles with agy model ids" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"review.antigravity"$'\t'"gemini-3.8-flash-high"$'\t'"Gemini 3.8 Flash High (Antigravity)"* ]]
+}
+
+@test "review.antigravity appears exactly once in every parallel-review level" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	for level in 1 2 3; do
+		jq -e --arg lvl "$level" \
+			'[.reviewLevels[$lvl][] | select(has("role") and .role == "review.antigravity")] | length == 1' \
+			"$real_catalog" >/dev/null
+	done
+}
+
+@test "--review-level rejects role reference without agy model" {
+	cat >"$CATALOG" <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.bad": { "pi": "provider/pi-only", "label": "Bad" }
+  },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [ { "role": "review.bad" } ] }
+}
+EOF
+
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+	[[ "$output" == *no\ agy\ model* ]]
+}
+
+@test "--review-level rejects non-positive timeout budgets" {
+	cat >"$CATALOG" <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.antigravity": { "agy": "agy/test", "label": "Agy" }
+  },
+  "reviewTimeouts": { "1": { "initial": 0, "retry": 20 } },
+  "reviewLevels": { "1": [ { "role": "review.antigravity" } ] }
+}
+EOF
+
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+	[[ "$output" == *invalid\ reviewTimeouts\ budgets* ]]
+}
+
+@test "--review-level rejects entries with both pi and role" {
+	cat >"$CATALOG" <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.antigravity": { "agy": "agy/test", "label": "Agy" }
+  },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [ { "pi": "provider/model:high", "role": "review.antigravity" } ] }
+}
+EOF
+
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+	[[ "$output" == *must\ not\ have\ both\ pi\ and\ role* ]]
+}
+
+@test "--label falls back to agy model id" {
+	cat >"$CATALOG" <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.agy-only": { "agy": "gemini-test-model" }
+  }
+}
+EOF
+
+	run "$RESOLVER" --label review.agy-only
+	[ "$status" -eq 0 ]
+	[ "$output" = "gemini-test-model" ]
+}
+
+@test "each parallel-review level has four unique reviewer keys" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	for level in 1 2 3; do
+		jq -e --arg lvl "$level" '
+			.reviewLevels[$lvl] as $entries |
+			($entries | length == 4) and
+			([$entries[] |
+				if has("pi") then ("pi:" + .pi)
+				elif has("role") then ("role:" + .role)
+				else empty end
+			] | unique | length == 4)
+		' "$real_catalog" >/dev/null
+	done
 }
 
 @test "GPT roles, review tiers, and modelOverrides align with codex.default catalog model" {
@@ -345,7 +461,7 @@ EOF
 		3) effort=max ;;
 		esac
 		codex_entry=$(jq -r --arg lvl "$level" \
-			'[.reviewLevels[$lvl][] | select(.pi | startswith("openai-codex/")) | .pi][0]' \
+			'[.reviewLevels[$lvl][] | select(has("pi")) | select(.pi | startswith("openai-codex/")) | .pi][0]' \
 			"$real_catalog")
 		[ "$codex_entry" = "${codex_pi_base}:${effort}" ]
 	done
