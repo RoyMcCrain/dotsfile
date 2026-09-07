@@ -321,10 +321,12 @@ EOF
 	[ "$status" -eq 0 ]
 	[ "$output" = "$codex_id" ]
 
-	# Assert — stale custom OpenAI Codex overrides must not reference other GPT models
+	# Assert — active codex.default model override carries 372K context window
 	jq -e --arg model "$codex_id" \
-		'(.providers["openai-codex"].modelOverrides // {} | keys) |
-		 if length == 0 then true else all(. == $model) end' \
+		'(.providers["openai-codex"].modelOverrides // {}) as $overrides |
+		 ($overrides | has($model)) and
+		 ($overrides[$model].contextWindow == 372000) and
+		 (($overrides | keys) | all(. == $model))' \
 		"$real_models" >/dev/null
 
 	# Assert — no legacy GPT-5 model ids remain in the role catalog
