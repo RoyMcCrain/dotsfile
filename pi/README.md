@@ -83,13 +83,12 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --list                      # role -> model id -> label
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
 ~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
-~/.pi/agent/resolve-model.sh --label review.fugu
 ~/.pi/agent/resolve-model.sh --label review.grok
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Current roles: `review.codex`, `review.claude`, `review.fugu`, `review.grok`,
+Current roles: `review.codex`, `review.claude`, `review.grok`,
 `impl.cursor`, `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
@@ -123,10 +122,26 @@ Run `--check` after editing the catalog to catch drift.
 
 Tracked custom providers:
 
-- `sakana-ai-console/fugu`
-- `sakana-ai-console/fugu-ultra`
 - `lm-studio/*` (dynamically loaded from `LM_STUDIO_BASE_URL` or
   `http://localhost:1234/v1`)
+
+**Fugu (Sakana) — cancelled / disabled.** The `sakana-ai-console` provider,
+`review.fugu` role, and Fugu tier entries are removed from active configs.
+Archived fragments live in `pi/agent/fugu.disabled.json.example`. The
+`auto-fugu-model.ts` extension file remains on disk but is force-excluded via
+`settings.json` (`-extensions/auto-fugu-model.ts`). Local Codex Fugu profile
+(`codex/fugu.json`, `codex/fugu.config.toml.example`) and credentials are
+retained for reference only.
+
+To restore after re-subscribing (explicit user request only):
+
+1. Merge archived sections from `fugu.disabled.json.example` back into
+   `model-roles.json` (enabledModels, roles, reviewLevels) and `models.json`
+   (providers). Do **not** overwrite `models.json` with the archive alone —
+   that would drop the Codex `modelOverrides`.
+2. Remove `-extensions/auto-fugu-model.ts` from `settings.json` extensions.
+3. Run `./pi/agent/resolve-model.sh --apply` and `--check`.
+4. Restart Pi (`/reload` or full restart).
 
 Built-in subscription providers (via `/login`):
 
@@ -143,11 +158,11 @@ export LM_STUDIO_BASE_URL="http://localhost:1234/v1"  # Optional
 export LM_STUDIO_API_KEY="..."           # Optional; dummy key is used if unset
 ```
 
-### Sakana API key
+### Sakana API key (reference only — provider disabled)
 
-`sakana-ai-console` is a custom provider, so keep its key in Pi's auth file. The
-tracked example reads the key directly from macOS Keychain and contains no
-secret:
+`sakana-ai-console` is disabled after subscription cancellation. The auth
+example below is kept for reactivation reference only; Pi will not use Fugu
+until the provider is merged back from the archive.
 
 ```bash
 cp pi/agent/auth.json.example ~/.pi/agent/auth.json
@@ -222,7 +237,7 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | `local-openai.ts`               | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
-| `auto-fugu-model.ts`            | Route everyday work on `fugu`; auto-escalate to `fugu-ultra` at high-stakes points or in-run struggle. Toggle with `/auto-fugu on\|off\|status`. |
+| `auto-fugu-model.ts`            | **Disabled** (force-excluded). Historical: route everyday work on `fugu`; auto-escalate to `fugu-ultra`. Toggle with `/auto-fugu on\|off\|status`. |
 | `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
 | `workspace-cd.ts`               | Fork/switch Pi session cwd after jj workspace setup (`switch_workspace_cwd` tool, `/workspace-cd`). |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
@@ -245,16 +260,13 @@ Usage refreshes at session start, after model switches, and after each settled
 agent run. Run `/codex-usage` to force a refresh; automatic failures stay silent
 and clear stale status.
 
-### Fugu model routing
+### Fugu model routing (disabled)
 
-`auto-fugu-model.ts` keeps `fugu` as the everyday model and promotes to
-`fugu-ultra` only when preflight rules or in-run struggle signals warrant it. PR
-creation stays on `fugu`. Explicit `fugu` / `fugu-ultra` requests override the
-automatic rules. Any temporary fugu ↔ fugu-ultra switch restores the original
-model at turn settlement; manual `/model` selection cancels auto-restore. Use
-`/auto-fugu on|off|status` to toggle automatic routing; an
-empty `/auto-fugu` toggles ON/OFF. After editing extensions or routing logic,
-run `/reload` (core `node_modules` changes still require a Pi restart).
+**Cancelled — extension force-excluded.** `auto-fugu-model.ts` is not loaded.
+Historical behavior (for reactivation reference): kept `fugu` as the everyday
+model and promoted to `fugu-ultra` only when preflight rules or in-run struggle
+signals warranted it. PR creation stayed on `fugu`. See restore steps under
+**Fugu (Sakana) — cancelled / disabled** above.
 
 ### cmux session names
 
@@ -376,7 +388,8 @@ exposure is controlled by which runtime directory links the skill.
 | `review-report` | 「レビューレポート作って」 |
 | `implementation-report` | 「実装レポート作って」 |
 | `review-verify` | 「裏取りして」 / verification パケット |
-| `codex-review` / `claude-review` / `fugu-review` / `grok-review` | 単体 reviewer を明示指定時 |
+| `codex-review` / `claude-review` / `grok-review` | 単体 reviewer を明示指定時 |
+| `fugu-review` | **Disabled**（解約） — 再有効化まで実行しない |
 | `hunk-review` | Hunk バンドル（devbox 同梱） |
 
 **Implementation & PR**:

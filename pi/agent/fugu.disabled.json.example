@@ -1,0 +1,79 @@
+{
+  "description": "Fugu integration archived due to subscription cancellation. Merge role fragments into model-roles.json and providers into models.json, then run resolve-model.sh --apply, only after re-subscribing and explicit user request to re-enable.",
+  "reason": "Subscription cancelled; Fugu disabled 2026-09-08.",
+  "enabledModels": [
+    "sakana-ai-console/fugu:high",
+    "sakana-ai-console/fugu-ultra:high"
+  ],
+  "roles": {
+    "review.fugu": {
+      "pi": "sakana-ai-console/fugu-ultra:high",
+      "label": "Sakana Fugu Ultra High",
+      "timeout": 240
+    }
+  },
+  "reviewLevels": {
+    "3": [
+      {
+        "pi": "sakana-ai-console/fugu-ultra:high"
+      }
+    ]
+  },
+  "providers": {
+    "sakana-ai-console": {
+      "name": "Sakana AI Console",
+      "baseUrl": "https://api.sakana.ai/v1",
+      "api": "openai-responses",
+      "models": [
+        {
+          "id": "fugu",
+          "name": "Sakana Fugu",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": null,
+            "medium": null,
+            "high": "high"
+          },
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 300000,
+          "maxTokens": 32768
+        },
+        {
+          "id": "fugu-ultra",
+          "name": "Sakana Fugu Ultra",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": null,
+            "medium": null,
+            "high": "high"
+          },
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 300000,
+          "maxTokens": 8192
+        }
+      ]
+    }
+  }
+}

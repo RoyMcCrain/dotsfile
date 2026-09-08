@@ -163,8 +163,7 @@ Stage 1/2 reviewer 出力を既存 `report.json` に merge するとき:
 ## Subagent 起動例（read-only、fresh、temp workspace 固定）
 
 共通 runner は隔離 Pi headless を起動する。Stage 0 は implementation-report 規定の入力、Stage 1 は
-patch-only、Stage 2 は patch + plan。`review.claude` は fallback。Fugu（`review.fugu`）は quota
-制限があるためユーザー明示時だけ使い、自動再試行しない。実モデル ID は
+patch-only、Stage 2 は patch + plan。`review.claude` は fallback。Fugu（`review.fugu`）は解約により無効。実モデル ID は
 `~/.pi/agent/model-roles.json` が単一の正。
 
 plan がある場合、blind と plan-aware は互いに独立なので同時に起動する。
@@ -213,7 +212,7 @@ plan がなければ plan-aware 起動を省略する。fallback は `ROLE` だ�
 
 - Codex: `review.codex`
 - Claude: `review.claude`
-- Fugu（明示時のみ、timeout は catalog の review.fugu = 240秒）: `review.fugu`
+- Fugu（`review.fugu`）: 解約により無効 — 使用不可
 
 片方が timeout / provider error
 でも自動再試行せず、成功結果を保持して失敗を明記する。
