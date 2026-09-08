@@ -479,6 +479,15 @@ EOF
 	assert_runner_bash_runtime
 }
 
+@test "rejects private key marker in prompt" {
+	printf '%s\n' '-----BEGIN PRIVATE KEY-----' >"$PROMPT"
+
+	run_runner
+	[ "$status" -ne 0 ]
+	[[ "$output" == *private\ key\ marker* ]]
+	[ ! -f "$ATTEMPT_LOG" ]
+}
+
 @test "rejects actual private key header" {
 	printf '%s\n' '+-----BEGIN PRIVATE KEY-----' '+secret' >"$PATCH"
 
@@ -499,6 +508,48 @@ EOF
 	printf '%s\n' '+    "-----BEGIN PRIVATE KEY-----",' >"$PATCH"
 
 	run_runner
+	[ "$status" -eq 0 ]
+}
+
+@test "rejects private key marker in non-patch txt input with diff prefix" {
+	CHANGES="$TEST_ROOT/changes.txt"
+	printf '%s\n' '+-----BEGIN PRIVATE KEY-----' '+secret' >"$CHANGES"
+	CHANGES=$(resolve_test_path "$CHANGES")
+
+	run_runner 5 provider/model:medium "$CHANGES"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *private\ key\ marker* ]]
+	[ ! -f "$ATTEMPT_LOG" ]
+}
+
+@test "rejects private key marker in md input with deleted diff prefix" {
+	NOTES="$TEST_ROOT/notes.md"
+	printf '%s\n' '------BEGIN ENCRYPTED PRIVATE KEY-----' >"$NOTES"
+	NOTES=$(resolve_test_path "$NOTES")
+
+	run_runner 5 provider/model:medium "$NOTES"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *private\ key\ marker* ]]
+	[ ! -f "$ATTEMPT_LOG" ]
+}
+
+@test "rejects private key marker in extensionless input with space prefix" {
+	CHANGES="$TEST_ROOT/changes"
+	printf '%s\n' ' -----BEGIN RSA PRIVATE KEY-----' >"$CHANGES"
+	CHANGES=$(resolve_test_path "$CHANGES")
+
+	run_runner 5 provider/model:medium "$CHANGES"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *private\ key\ marker* ]]
+	[ ! -f "$ATTEMPT_LOG" ]
+}
+
+@test "allows private key marker as code string in txt input" {
+	CHANGES="$TEST_ROOT/changes.txt"
+	printf '%s\n' '+    "-----BEGIN PRIVATE KEY-----",' >"$CHANGES"
+	CHANGES=$(resolve_test_path "$CHANGES")
+
+	run_runner 5 provider/model:medium "$CHANGES"
 	[ "$status" -eq 0 ]
 }
 

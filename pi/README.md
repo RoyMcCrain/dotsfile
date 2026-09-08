@@ -83,18 +83,24 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --list                      # role -> model id -> label
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
 ~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
+~/.pi/agent/resolve-model.sh --field agy review.antigravity # -> Antigravity model id
+~/.pi/agent/resolve-model.sh --review-level 2              # -> backend/model/timeouts TSV
 ~/.pi/agent/resolve-model.sh --label review.grok
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Current roles: `review.codex`, `review.claude`, `review.grok`,
+Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
 `impl.cursor`, `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
 `reviewLevels` tier models, role labels, and the `enabledModels` cycling list),
 then run `--apply` and `--check`. Skills pick it up immediately because
-`run_pi_review.sh --role ROLE` resolves through the same catalog.
+`run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
+`run_antigravity_review.sh --role review.antigravity` resolves via `--field agy`.
+Parallel-review tiers emit four rows from `--review-level N`
+(`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`).
+Install the Antigravity `patch-reviewer` agent via setup scripts before using the agy runner.
 
 `enabledModels` controls Pi's Ctrl+P cycling choices (configured with
 `/scoped-models`); it is not an allowlist for `--model` or skill role resolution. Role and tier

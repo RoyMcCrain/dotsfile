@@ -7,7 +7,7 @@
 #   resolve-model.sh --json ROLE          print role object
 #   resolve-model.sh --field FIELD ROLE   print one role field
 #   resolve-model.sh --list               list roles
-#   resolve-model.sh --review-level N      print "pi<TAB>initial<TAB>retry" per reviewer for a tier
+#   resolve-model.sh --review-level N      print "backend<TAB>model<TAB>initial<TAB>retry" per reviewer
 #   resolve-model.sh --apply              sync enabledModels into settings.json
 #   resolve-model.sh --check              verify enabledModels matches catalog
 #
@@ -96,7 +96,7 @@ print_pi() {
 }
 
 print_label() {
-	role_query "$1" "$2" '.roles[$role] | .label // .pi // .cursor // .id // empty' 'label'
+	role_query "$1" "$2" '.roles[$role] | .label // .pi // .cursor // .id // .agy // empty' 'label'
 }
 
 print_json() {
@@ -116,16 +116,48 @@ print_field() {
 }
 
 # reviewLevels drive parallel-review tiers (1=light, 2=standard, 3=deep).
-# Emit per reviewer: pi id, initial timeout seconds, and retry timeout seconds.
+# Emit per reviewer: backend (pi or agy), model id, initial timeout, retry timeout.
 print_review_level() {
 	local catalog="$1"
 	local level="$2"
 	jq -e --arg lvl "$level" '.reviewLevels | has($lvl)' "$catalog" >/dev/null 2>&1 ||
 		die "unknown review level: $level"
-	jq -r --arg lvl "$level" '
+	jq -er --arg lvl "$level" '
+		. as $root |
 		.reviewTimeouts[$lvl] as $t |
-		.reviewLevels[$lvl][] |
-		"\(.pi)\t\($t.initial)\t\($t.retry)"
+		if $t == null then
+			error("missing reviewTimeouts for level \($lvl)")
+		elif ($t.initial | type) != "number" or ($t.retry | type) != "number"
+			or $t.initial <= 0 or $t.retry <= 0 then
+			error("invalid reviewTimeouts budgets for level \($lvl)")
+		else
+			$root.reviewLevels[$lvl][] |
+			if has("role") and has("pi") then
+				error("reviewLevels[\($lvl)] entry must not have both pi and role")
+			elif has("role") then
+				.role as $role |
+				if ($role | type) != "string" or $role == "" then
+					error("invalid role reference in reviewLevels[\($lvl)]")
+				else
+					$root.roles[$role] as $def |
+					if $def == null then
+						error("unknown role in reviewLevels[\($lvl)]: \($role)")
+					elif ($def.agy | type) != "string" or $def.agy == "" then
+						error("role \($role) has no agy model")
+					else
+						"agy\t\($def.agy)\t\($t.initial)\t\($t.retry)"
+					end
+				end
+			elif has("pi") then
+				if (.pi | type) != "string" or .pi == "" then
+					error("invalid pi model in reviewLevels[\($lvl)]")
+				else
+					"pi\t\(.pi)\t\($t.initial)\t\($t.retry)"
+				end
+			else
+				error("reviewLevels[\($lvl)] entry must have pi or role")
+			end
+		end
 	' "$catalog"
 }
 
@@ -136,7 +168,7 @@ list_roles() {
 		| .[]
 		| [
 			.key,
-			(.value.pi // .value.cursor // .value.id // ""),
+			(.value.pi // .value.cursor // .value.id // .value.agy // ""),
 			(.value.label // "")
 		]
 		| @tsv

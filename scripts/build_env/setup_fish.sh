@@ -191,6 +191,18 @@ end
 
 echo ""
 
+echo "🛰️  Setting up Antigravity patch-reviewer agent..."
+set AGY_AGENT_DIR ~/.gemini/config/agents/patch-reviewer
+if not test -d $AGY_AGENT_DIR
+    mkdir -p $AGY_AGENT_DIR
+end
+if test -e $AGY_AGENT_DIR/agent.md; and not test -L $AGY_AGENT_DIR/agent.md
+    print_warning "Skipped patch-reviewer agent (owned file): $AGY_AGENT_DIR/agent.md"
+else
+    create_symlink $BASE_DIR/antigravity/agents/patch-reviewer/agent.md $AGY_AGENT_DIR/agent.md "Antigravity patch-reviewer agent"
+end
+
+echo ""
 echo "🤖 Setting up Pi Coding Agent configuration..."
 set PI_AGENT_DIR ~/.pi/agent
 if not test -d $PI_AGENT_DIR
