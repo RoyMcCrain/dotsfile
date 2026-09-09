@@ -7,7 +7,9 @@
     "anthropic/claude-opus-5:high",
     "anthropic/claude-opus-5:max",
     "openai-codex/gpt-6-astra:xhigh",
-    "openai-codex/gpt-6-astra:max"
+    "openai-codex/gpt-6-astra:max",
+    "sakana-ai-console/fugu-max:high",
+    "sakana-ai-console/fugu-ultra-v2.0:high"
   ],
   "roles": {
     "review.codex": {
@@ -26,6 +28,19 @@
     "review.antigravity": {
       "agy": "gemini-3.8-flash-high",
       "label": "Gemini 3.8 Flash High (Antigravity)"
+    },
+    "review.fugu": {
+      "pi": "sakana-ai-console/fugu-ultra-v2.0:high",
+      "label": "Sakana Fugu Ultra v2 High",
+      "timeout": 240
+    },
+    "route.fugu.base": {
+      "id": "fugu-max",
+      "label": "Sakana Fugu Max"
+    },
+    "route.fugu.ultra": {
+      "id": "fugu-ultra-v2.0",
+      "label": "Sakana Fugu Ultra v2"
     },
     "impl.cursor": {
       "cursor": "composer-2.5-fast",
@@ -62,7 +77,8 @@
       { "pi": "xai/grok-4.6" },
       { "pi": "openai-codex/gpt-6-astra:max" },
       { "pi": "anthropic/claude-opus-5:max" },
-      { "role": "review.antigravity" }
+      { "role": "review.antigravity" },
+      { "pi": "sakana-ai-console/fugu-ultra-v2.0:high" }
     ]
   }
 }

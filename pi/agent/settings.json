@@ -9,7 +9,9 @@
     "anthropic/claude-opus-5:high",
     "anthropic/claude-opus-5:max",
     "openai-codex/gpt-6-astra:xhigh",
-    "openai-codex/gpt-6-astra:max"
+    "openai-codex/gpt-6-astra:max",
+    "sakana-ai-console/fugu-max:high",
+    "sakana-ai-console/fugu-ultra-v2.0:high"
   ],
   "theme": "dark",
   "shellPath": "~/.local/share/devbox/global/default/.devbox/nix/profile/default/bin/bash",
@@ -30,8 +32,7 @@
     }
   },
   "extensions": [
-    "extensions/*.ts",
-    "-extensions/auto-fugu-model.ts"
+    "extensions/*.ts"
   ],
   "lastChangelogVersion": "0.84.4",
   "packages": []

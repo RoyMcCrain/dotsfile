@@ -1,7 +1,8 @@
 # Local-only fugu profile.
-# Use with: codex -p fugu -m fugu-ultra ...
+# Use with: codex -p fugu -m fugu-max ...
+# Ultra v2 example: codex -p fugu -m fugu-ultra-v2.0 ...
 
-model = "fugu-ultra"
+model = "fugu-max"
 model_reasoning_effort = "high"
 model_provider = "sakana"
 model_catalog_json = "~/.codex/fugu.json"

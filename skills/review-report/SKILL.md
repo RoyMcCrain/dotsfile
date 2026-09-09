@@ -108,7 +108,7 @@ B. acceptance report がない（既存 legacy report のみを含む）
 - 出力: report contract に沿った **valid JSON**（少なくとも `groups` array）。各
   group に intent、risk、diff explanation、findings（`source: blind`）。
 - 既定 reviewer は role `review.codex`、timeout 180秒。`review.claude` は
-  fallback。Fugu（`review.fugu`）は解約により無効。実モデル ID は
+  fallback。Fugu（`review.fugu`）は明示依頼時のみ（`fugu-review` skill）。実モデル ID は
   `~/.pi/agent/model-roles.json` が単一の正。
 
 Prompt template: [references/prompts.md](references/prompts.md)

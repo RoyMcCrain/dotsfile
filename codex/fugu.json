@@ -1,13 +1,21 @@
 {
   "models": [
     {
-      "slug": "fugu",
-      "display_name": "Fugu",
+      "slug": "fugu-max",
+      "display_name": "Fugu Max",
       "context_window": 1000000,
       "supported_reasoning_levels": [
         {
           "effort": "high",
           "description": "Deep reasoning for complex problems"
+        },
+        {
+          "effort": "xhigh",
+          "description": "Extended reasoning for complex problems"
+        },
+        {
+          "effort": "max",
+          "description": "Maximum reasoning effort (alias for xhigh)"
         }
       ],
       "shell_type": "shell_command",
@@ -29,13 +37,21 @@
       "experimental_supported_tools": []
     },
     {
-      "slug": "fugu-ultra",
-      "display_name": "Fugu Ultra",
+      "slug": "fugu-ultra-v2.0",
+      "display_name": "Fugu Ultra v2",
       "context_window": 1000000,
       "supported_reasoning_levels": [
         {
           "effort": "high",
           "description": "Deep reasoning for complex problems"
+        },
+        {
+          "effort": "xhigh",
+          "description": "Extended reasoning for complex problems"
+        },
+        {
+          "effort": "max",
+          "description": "Maximum reasoning effort (alias for xhigh)"
         }
       ],
       "shell_type": "shell_command",
