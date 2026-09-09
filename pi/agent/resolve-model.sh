@@ -184,14 +184,13 @@ settings_path() {
 	printf '%s\n' "$(dirname "$catalog")/settings.json"
 }
 
-# codex/config.toml cannot expand variables, so keep its model line in sync here.
+# Live Codex config is app-owned at ${CODEX_HOME:-$HOME/.codex}/config.toml.
 codex_config_path() {
-	local catalog="$1"
 	if [[ -n "${CODEX_CONFIG_FILE:-}" ]]; then
 		printf '%s\n' "$CODEX_CONFIG_FILE"
 		return
 	fi
-	printf '%s\n' "$(dirname "$catalog")/../../codex/config.toml"
+	printf '%s\n' "${CODEX_HOME:-$HOME/.codex}/config.toml"
 }
 
 codex_config_model() {
@@ -201,7 +200,7 @@ codex_config_model() {
 apply_codex() {
 	local catalog="$1"
 	local config wanted
-	config=$(codex_config_path "$catalog")
+	config=$(codex_config_path)
 	[[ -f "$config" ]] || return 0
 
 	wanted=$(jq -er '.roles["codex.default"].id // empty' "$catalog") ||
@@ -217,7 +216,7 @@ apply_codex() {
 check_codex() {
 	local catalog="$1"
 	local config wanted actual
-	config=$(codex_config_path "$catalog")
+	config=$(codex_config_path)
 	[[ -f "$config" ]] || return 0
 
 	wanted=$(jq -er '.roles["codex.default"].id // empty' "$catalog") ||

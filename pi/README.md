@@ -117,10 +117,70 @@ above 950K, not a fixed 200K).
 
 `--apply` / `--check` cover the config files that cannot expand variables:
 
-| Target                       | Key                    | Source role / field |
-| ---------------------------- | ---------------------- | ------------------- |
-| `pi/agent/settings.json`     | `enabledModels`        | `enabledModels`     |
-| `codex/config.toml`          | `model`                | `codex.default.id`  |
+| Target                                     | Key             | Source role / field |
+| ------------------------------------------ | --------------- | ------------------- |
+| `pi/agent/settings.json`                   | `enabledModels` | `enabledModels`     |
+| `~/.codex/config.toml` (local, app-owned)  | `model`         | `codex.default.id`  |
+
+Codex config ownership:
+
+- Live config lives at `${CODEX_HOME:-$HOME/.codex}/config.toml` as a regular
+  local file. `CODEX_CONFIG_FILE` overrides that path for resolver tooling;
+  `CODEX_HOME` overrides the default directory when `CODEX_CONFIG_FILE` is unset.
+- Curated manual defaults are in `codex/config.toml.example` (no `model` key).
+  `scripts/build_env/setup_codex_config.sh` initializes the live file only when
+  missing: it prepends `model` from `roles["codex.default"].id`, then appends
+  the template. Existing files are never overwritten; reruns are idempotent.
+- Any machine still using the legacy repo symlink must detach **before**
+  checkout/pull/rebase that deletes tracked `codex/config.toml`. Untracking keeps
+  the file only in the author workspace (via `.gitignore`); consumer checkouts
+  lose the tracked file and leave a dangling `~/.codex/config.toml` link if not
+  migrated first. Tracked contents remain recoverable from VCS history; do not
+  replace old settings with template defaults.
+- Legacy migration is **explicit**, never automatic during normal setup. Stop all
+  Codex apps, CLIs, and other config writers first; the helper lock serializes
+  helper invocations only (apps that ignore the lock can still race). Normal
+  setup refuses a known legacy symlink with an error; run `--migrate-legacy`
+  only after writers are quiescent. Unrelated symlinks are left alone; broken
+  links and directories fail with actionable recovery guidance.
+- **Pre-update migration** (run from repo root while still on old code; choose a
+  revision that contains the migration helper, e.g. `main@origin` after merge):
+
+```bash
+(set -euo pipefail
+  umask 077
+  codex_home="${CODEX_HOME:-$HOME/.codex}"
+  config="${codex_home}/config.toml"
+  workdir="$(mktemp -d /tmp/codex-migrate.XXXXXX)"
+  backup="${workdir}/config-backup.toml"
+  helper="${workdir}/setup_codex_config.sh"
+  trap 'rm -f "$helper"' EXIT
+  cp -L "$config" "$backup"
+  chmod 600 "$backup"
+  jj git fetch
+  jj file show -r 'main@origin' scripts/build_env/setup_codex_config.sh >"$helper"
+  [[ -s "$helper" ]]
+  bash "$helper" --migrate-legacy "$PWD"
+  [[ -f "$config" && ! -L "$config" ]]
+  cmp -s "$config" "$backup"
+  echo "backup kept at $backup (private directory $workdir; remove when done)"
+)
+```
+
+  Only after the block succeeds, update the checkout. Do not run it against a real HOME unless
+  you intend to migrate; back up outside the repo at mode 600 and verify the
+  resulting regular file matches the backup only after the helper succeeds.
+- **Already updated with a broken link:** normal setup fails safe. Restore from
+  the pre-update backup, or extract a known old revision's config into a
+  separate recovery file for inspection (`jj file show -r OLD_REV codex/config.toml`),
+  then restore your local regular file. Never silently reinitialize from template.
+- **Stale lock** at `${CODEX_HOME:-$HOME/.codex}/.config-setup.lock`: confirm no setup helper
+  is active and all Codex config writers are stopped, then remove the empty
+  lock directory.
+- Run the helper standalone: `bash scripts/build_env/setup_codex_config.sh`
+  (optional `--migrate-legacy`, optional repo-root argument; default derives from
+  script location). Setup entrypoints invoke the same helper without
+  `--migrate-legacy`.
 
 `defaultProvider` / `defaultModel` in `settings.json` are intentionally *not*
 managed, because Pi rewrites them at runtime when you switch with `/model`.

@@ -18,6 +18,9 @@ __pycache__/
 # Codex local scratch (research notes, etc.)
 .Codex/docs/research/
 
+# Codex local runtime config (legacy repo path; live file is ~/.codex/config.toml)
+/codex/config.toml
+
 # Codex local profile state (hook trust etc.)
 codex/fugu.config.toml
 

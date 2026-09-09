@@ -223,6 +223,13 @@ else
 end
 
 echo ""
+echo "🤖 Setting up Codex local configuration..."
+if not bash $BASE_DIR/scripts/build_env/setup_codex_config.sh $BASE_DIR
+    print_error "Failed to set up Codex local configuration"
+    exit 1
+end
+
+echo ""
 echo "🤖 Setting up shared agent skills..."
 set AGENTS_SKILL_DIR ~/.agents/skills
 set AGENTS_SKILL_BACKUP_DIR ~/.agents/skill-backups
