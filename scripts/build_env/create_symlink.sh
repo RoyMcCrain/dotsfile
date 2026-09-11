@@ -27,6 +27,9 @@ do
   ln -s ${BASE_DIR}/${ITEM} ${DESTINATION}
 done
 
+mkdir -p ~/.config/git
+ln -s "${BASE_DIR}/gitignore" ~/.config/git/ignore
+
 # Create ~/.local/bin if not exists
 mkdir -p ~/.local/bin
 
