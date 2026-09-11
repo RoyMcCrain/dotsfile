@@ -53,20 +53,11 @@ done
 ln -sf ${BASE_DIR}/codex/AGENTS.md ~/.codex/AGENTS.md
 ln -sf ${BASE_DIR}/codex/instructions.md ~/.codex/instructions.md
 bash "${BASE_DIR}/scripts/build_env/setup_codex_config.sh" "${BASE_DIR}" || exit 1
-# 解約につき無効 — fugu profile symlink/copy/hooks 引き継ぎ（再有効化時にコメント解除）
-# ln -sf ${BASE_DIR}/codex/fugu.json ~/.codex/fugu.json
-# fugu profile は hook trust state などが追記されるためローカル実体で管理する。
-# profile 本体は example から更新し、既存の hooks.state だけ引き継ぐ。
-#TMP_FUGU_HOOKS=$(mktemp)
-#if [ -f ~/.codex/fugu.config.toml ]; then
-#  awk 'BEGIN{keep=0} /^\[hooks\.state\]/{keep=1} keep{print}' ~/.codex/fugu.config.toml > "${TMP_FUGU_HOOKS}"
-#fi
-#cp ${BASE_DIR}/codex/fugu.config.toml.example ~/.codex/fugu.config.toml
-#if [ -s "${TMP_FUGU_HOOKS}" ]; then
-#  printf "\n" >> ~/.codex/fugu.config.toml
-#  cat "${TMP_FUGU_HOOKS}" >> ~/.codex/fugu.config.toml
-#fi
-#rm -f "${TMP_FUGU_HOOKS}"
+ln -sf "${BASE_DIR}/codex/fugu.json" ~/.codex/fugu.json
+# Keep an existing profile (including hook trust state); init only when truly absent.
+if [ ! -e ~/.codex/fugu.config.toml ] && [ ! -L ~/.codex/fugu.config.toml ]; then
+  cp "${BASE_DIR}/codex/fugu.config.toml.example" ~/.codex/fugu.config.toml
+fi
 ln -sf ${BASE_DIR}/codex/hooks.json ~/.codex/hooks.json
 ln -sf ${BASE_DIR}/codex/hooks ~/.codex/hooks
 # Codex 独自 skill（codex/skills/* の実ディレクトリ）を Codex で使えるよう symlink する。

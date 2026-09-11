@@ -206,66 +206,96 @@ EOF
 	[[ "$output" == *"unknown review level"* ]]
 }
 
-@test "Fugu integration disabled after subscription cancellation" {
-	# Arrange — integration against tracked repo catalog, settings, models, archive
+@test "Fugu integration restored with fugu-max and fugu-ultra-v2.0" {
+	# Arrange — integration against tracked repo catalog, settings, models, codex
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local real_models="$BATS_TEST_DIRNAME/../models.json"
-	local archive="$BATS_TEST_DIRNAME/../fugu.disabled.json.example"
+	local codex_fugu="$BATS_TEST_DIRNAME/../../../codex/fugu.json"
+	local base_model="sakana-ai-console/fugu-max:high"
+	local ultra_model="sakana-ai-console/fugu-ultra-v2.0:high"
 
-	# Assert — no Fugu/sakana at any review tier
-	for level in 1 2 3; do
-		run jq -e --arg lvl "$level" \
-			'[.reviewLevels[$lvl][] | select(has("pi")) | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
-			"$real_catalog"
-		[ "$status" -eq 0 ]
-	done
+	# Assert — enabledModels includes both Fugu pair entries
+	jq -e --arg base "$base_model" --arg ultra "$ultra_model" \
+		'(.enabledModels | index($base) != null) and (.enabledModels | index($ultra) != null)' \
+		"$real_catalog" >/dev/null
+	jq -e --arg base "$base_model" --arg ultra "$ultra_model" \
+		'(.enabledModels | index($base) != null) and (.enabledModels | index($ultra) != null)' \
+		"$real_settings" >/dev/null
 
-	# Assert — all tiers have exactly 4 reviewers
-	for level in 1 2 3; do
-		run jq -e --arg lvl "$level" \
-			'.reviewLevels[$lvl] | length == 4' \
-			"$real_catalog"
-		[ "$status" -eq 0 ]
-	done
-
-	# Assert — review.fugu role removed from active catalog
+	# Assert — review.fugu resolves to ultra v2 :high with timeout 240
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.fugu
-	[ "$status" -ne 0 ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "$ultra_model" ]
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.fugu
+	[ "$status" -eq 0 ]
+	[ "$output" = "240" ]
 
-	# Assert — no enabled Fugu models in catalog or settings
-	run jq -e '[.enabledModels[] | select(startswith("sakana-ai-console/"))] | length == 0' \
+	# Assert — route roles expose raw model IDs for extension consumption
+	jq -e '.roles["route.fugu.base"].id == "fugu-max"' "$real_catalog" >/dev/null
+	jq -e '.roles["route.fugu.ultra"].id == "fugu-ultra-v2.0"' "$real_catalog" >/dev/null
+
+	# Assert — L1/L2 have no Fugu; L3 has exactly one Fugu reviewer
+	for level in 1 2; do
+		jq -e --arg lvl "$level" \
+			'[.reviewLevels[$lvl][] | select(has("pi")) | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
+			"$real_catalog" >/dev/null
+	done
+	jq -e --arg ultra "$ultra_model" \
+		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi == $ultra)] | length == 1' \
+		"$real_catalog" >/dev/null
+
+	# Assert — tier counts 4/4/5
+	for level in 1 2; do
+		jq -e --arg lvl "$level" '.reviewLevels[$lvl] | length == 4' "$real_catalog" >/dev/null
+	done
+	jq -e '.reviewLevels["3"] | length == 5' "$real_catalog" >/dev/null
+
+	# Assert — sakana provider transport and caps in models.json
+	jq -e '
+		.providers["sakana-ai-console"] as $provider |
+		($provider.baseUrl == "https://api.sakana.ai/v1") and
+		($provider.api == "openai-responses") and
+		($provider.models | map(.id) | sort) == (["fugu-max", "fugu-ultra-v2.0"] | sort) and
+		($provider.models[] | select(.id == "fugu-max") | .contextWindow == 300000 and .maxTokens == 32768) and
+		($provider.models[] | select(.id == "fugu-ultra-v2.0") | .contextWindow == 300000 and .maxTokens == 8192)
+	' "$real_models" >/dev/null
+
+	# Assert — both models share the same supported/unsupported thinking levels
+	for model_id in fugu-max fugu-ultra-v2.0; do
+		jq -e --arg id "$model_id" '
+			.providers["sakana-ai-console"].models[] | select(.id == $id) |
+			(.thinkingLevelMap.off == null) and
+			(.thinkingLevelMap.minimal == null) and
+			(.thinkingLevelMap.low == null) and
+			(.thinkingLevelMap.medium == null) and
+			(.thinkingLevelMap.high == "high") and
+			(.thinkingLevelMap.xhigh == "xhigh") and
+			(.thinkingLevelMap.max == "max")
+		' "$real_models" >/dev/null
+	done
+
+	# Assert — Codex fugu profile template defaults to Max
+	local fugu_profile="$BATS_TEST_DIRNAME/../../../codex/fugu.config.toml.example"
+	taplo fmt --check - <"$fugu_profile" >/dev/null
+	[ "$(taplo get -f "$fugu_profile" model)" = "fugu-max" ]
+	[ "$(taplo get -f "$fugu_profile" model_providers.sakana.base_url)" = "https://api.sakana.ai/v1" ]
+
+	# Assert — auto-fugu-model extension is active (not force-excluded)
+	run jq -e '.extensions | index("-extensions/auto-fugu-model.ts") == null' "$real_settings"
+	[ "$status" -eq 0 ]
+
+	# Assert — Codex fugu.json registry uses new slugs
+	jq -e '
+		[.models[].slug] | sort == (["fugu-max", "fugu-ultra-v2.0"] | sort)
+	' "$codex_fugu" >/dev/null
+
+	# Assert — no legacy active model IDs (fugu / fugu-ultra without version)
+	run jq -e '[.. | strings | select(. == "sakana-ai-console/fugu:high" or . == "sakana-ai-console/fugu-ultra:high")] | length == 0' \
 		"$real_catalog"
 	[ "$status" -eq 0 ]
-
-	run jq -e '[.enabledModels[] | select(startswith("sakana-ai-console/"))] | length == 0' \
-		"$real_settings"
-	[ "$status" -eq 0 ]
-
-	# Assert — no active sakana provider in models.json
-	run jq -e '(.providers // {}) | has("sakana-ai-console") | not' "$real_models"
-	[ "$status" -eq 0 ]
-
-	# Assert — auto-fugu-model extension force-excluded
-	run jq -e '.extensions | index("-extensions/auto-fugu-model.ts") != null' \
-		"$real_settings"
-	[ "$status" -eq 0 ]
-
-	# Assert — archive preserves Fugu fragments for reactivation
-	[ -f "$archive" ]
-	run jq -e . "$archive"
-	[ "$status" -eq 0 ]
-	run jq -e \
-		'(.enabledModels | sort) == (["sakana-ai-console/fugu:high", "sakana-ai-console/fugu-ultra:high"] | sort)' \
-		"$archive"
-	[ "$status" -eq 0 ]
-	run jq -e '.roles["review.fugu"].pi == "sakana-ai-console/fugu-ultra:high"' "$archive"
-	[ "$status" -eq 0 ]
-	run jq -e \
-		'[.reviewLevels["3"][] | select(.pi | startswith("sakana-ai-console/"))] | length == 1' \
-		"$archive"
-	[ "$status" -eq 0 ]
-	run jq -e '.providers["sakana-ai-console"].models | length == 2' "$archive"
+	run jq -e '[.providers["sakana-ai-console"].models[].id | select(. == "fugu" or . == "fugu-ultra")] | length == 0' \
+		"$real_models"
 	[ "$status" -eq 0 ]
 }
 
@@ -414,18 +444,20 @@ EOF
 	[ "$output" = "gemini-test-model" ]
 }
 
-@test "each parallel-review level has four unique reviewer keys" {
+@test "each parallel-review level has unique reviewer keys (4/4/5)" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local -a expected_counts=(4 4 5)
 
 	for level in 1 2 3; do
-		jq -e --arg lvl "$level" '
+		local expected="${expected_counts[$((level - 1))]}"
+		jq -e --arg lvl "$level" --argjson expected "$expected" '
 			.reviewLevels[$lvl] as $entries |
-			($entries | length == 4) and
+			($entries | length == $expected) and
 			([$entries[] |
 				if has("pi") then ("pi:" + .pi)
 				elif has("role") then ("role:" + .role)
 				else empty end
-			] | unique | length == 4)
+			] | unique | length == $expected)
 		' "$real_catalog" >/dev/null
 	done
 }

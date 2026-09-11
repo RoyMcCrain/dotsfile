@@ -1,5 +1,5 @@
-/** Preflight routing target for the Sakana fugu pair. */
-export type FuguTarget = "fugu" | "fugu-ultra";
+/** Preflight routing target for the Sakana fugu pair (semantic, not model ID). */
+export type FuguTarget = "base" | "ultra";
 
 export type FuguRouteReasonCode =
   | "explicit-base"
@@ -22,13 +22,19 @@ const NO_OVERRIDE: FuguRouteDecision = {
   reason: "routine task; default fugu applies",
 };
 
+/** Map new catalog IDs / display names to legacy fugu / fugu-ultra tokens. */
+const normalizeFuguAliases = (text: string) =>
+  text
+    .replace(/\bfugu(?:-|\s+)ultra(?:-|\s+)v2(?:\.0)?\b/giu, "fugu-ultra")
+    .replace(/\bfugu(?:-|\s+)max\b/giu, "fugu");
+
 // Negative fugu phrasing is an explicit request for the other model.
 const EXPLICIT_NOT_FUGU = new RegExp(
   [
     "fugu\\s*(?:ではなく|でなく|じゃなく).{0,8}ultra",
     "fuguを使っては(?:いけない|ダメ|だめ)",
     "fugu\\s*(?:を|は|も)?\\s*使わない",
-    "(?:do not|don't) use fugu\\b(?!-ultra)",
+    "(?:do not|don't) use fugu\\b(?!-ultra|-max)",
   ].join("|"),
   "iu",
 );
@@ -40,12 +46,13 @@ const EXPLICIT_BASE = new RegExp(
     "fugu\\s*(?:を|は|も)?\\s*使って(?!は(?:いけない|ダメ|だめ))",
     "ultra\\s*(?:を|は|も)?\\s*(?:使わない|使うな)",
     "fugu-?ultra\\s*(?:を|は|も)?\\s*(?:禁止|使わない|使うな)",
+    "fugu-?ultra\\s*(?:を|は|も)?\\s*使っては(?:いけない|ダメ|だめ)",
     "(?:do not|don't) use fugu-ultra",
     "do not use ultra",
     "don't use ultra",
     "without ultra",
-    "stay on fugu",
-    "(?<!do not )(?<!don't )\\buse fugu\\b(?!-ultra)",
+    "stay on fugu\\b(?!-ultra)",
+    "(?<!do not )(?<!don't )\\buse fugu\\b(?!-ultra|-max)(?!\\s+ultra)",
   ].join("|"),
   "iu",
 );
@@ -76,6 +83,7 @@ const EXPLICIT_ULTRA = new RegExp(
     "\\buse fugu-ultra\\b",
     "switch to ultra",
     "switch to fugu-ultra",
+    "stay on fugu-ultra",
   ].join("|"),
   "iu",
 );
@@ -206,22 +214,24 @@ const isCreatePrRequest = (text: string) => {
   return CREATE_PR_PATTERNS.some((pattern) => pattern.test(text));
 };
 
-/** Deterministic preflight classifier for fugu vs fugu-ultra routing. */
+/** Deterministic preflight classifier for Fugu Max vs Fugu Ultra v2 routing. */
 export const classifyFuguPrompt = (text: string): FuguRouteDecision => {
   const trimmed = text.trim();
   if (!trimmed) return NO_OVERRIDE;
 
-  if (EXPLICIT_BASE.test(trimmed)) {
+  const normalized = normalizeFuguAliases(trimmed);
+
+  if (EXPLICIT_BASE.test(normalized)) {
     return {
-      target: "fugu",
+      target: "base",
       reasonCode: "explicit-base",
       reason: "explicit fugu / no-ultra override",
     };
   }
 
-  if (EXPLICIT_NOT_FUGU.test(trimmed) || EXPLICIT_ULTRA.test(trimmed)) {
+  if (EXPLICIT_NOT_FUGU.test(normalized) || EXPLICIT_ULTRA.test(normalized)) {
     return {
-      target: "fugu-ultra",
+      target: "ultra",
       reasonCode: "explicit-ultra",
       reason: "explicit ultra / deep-thinking request",
     };
@@ -229,7 +239,7 @@ export const classifyFuguPrompt = (text: string): FuguRouteDecision => {
 
   if (isCreatePrRequest(trimmed)) {
     return {
-      target: "fugu",
+      target: "base",
       reasonCode: "create-pr",
       reason: "PR creation request",
     };
@@ -247,7 +257,7 @@ export const classifyFuguPrompt = (text: string): FuguRouteDecision => {
 
   if (HIGH_STAKES_DESIGN.test(trimmed)) {
     return {
-      target: "fugu-ultra",
+      target: "ultra",
       reasonCode: "high-stakes-design",
       reason: "architecture / design / trade-off decision",
     };
@@ -255,7 +265,7 @@ export const classifyFuguPrompt = (text: string): FuguRouteDecision => {
 
   if (HIGH_STAKES_RISK.test(trimmed)) {
     return {
-      target: "fugu-ultra",
+      target: "ultra",
       reasonCode: "high-stakes-risk",
       reason: "high-risk operational area",
     };
@@ -263,7 +273,7 @@ export const classifyFuguPrompt = (text: string): FuguRouteDecision => {
 
   if (HIGH_STAKES_ADJUDICATION.test(trimmed)) {
     return {
-      target: "fugu-ultra",
+      target: "ultra",
       reasonCode: "high-stakes-adjudication",
       reason: "final adjudication or conflicting constraints",
     };
@@ -271,7 +281,7 @@ export const classifyFuguPrompt = (text: string): FuguRouteDecision => {
 
   if (STRUGGLE_FEEDBACK.test(trimmed)) {
     return {
-      target: "fugu-ultra",
+      target: "ultra",
       reasonCode: "struggle-feedback",
       reason: "user reports unresolved / repeated failure",
     };

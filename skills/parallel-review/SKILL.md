@@ -1,11 +1,11 @@
 ---
 name: parallel-review
-description: 隔離済み reviewer（Pi 3 + Antigravity reviewer）を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
+description: 隔離済み reviewer（Pi 3–4 + Antigravity reviewer）を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
 ---
 
 # /parallel-review
 
-同じ patch を4 reviewer（xAI Grok 4.6・Codex・Claude・Antigravity Gemini 3.8 Flash High）に同時に渡し、結果を統合する。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。Fugu（Sakana）は解約により無効。
+同じ patch を reviewer（xAI Grok 4.6・Codex・Claude・Antigravity Gemini 3.8 Flash High、L3 では Sakana Fugu Ultra v2 追加）に同時に渡し、結果を統合する。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## 実行要件
 
@@ -19,7 +19,7 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 - **1（簡単/速い）**: Grok 4.6 / Codex high / claude-sonnet-5:high / Antigravity（`review.antigravity`）。
 - **2（標準・既定）**: Grok 4.6 / Codex xhigh / claude-opus-5:high / Antigravity（`review.antigravity`）。
-- **3（deep/高精度）**: Grok 4.6 / Codex max / opus:max / Antigravity（`review.antigravity`）。
+- **3（deep/高精度）**: Grok 4.6 / Codex max / opus:max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high（`review.fugu`）。
 
 xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じ Pi model id を使う。Codex の tier 別 effort（high / xhigh / max）は `model-roles.json` の `reviewLevels` が正本。Antigravity は全 tier で `review.antigravity` ロール（`--field agy` で解決）。
 
@@ -33,7 +33,7 @@ xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できない�
 
 **失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。全 reviewer は `attempts=2`。
 
-どのレベルでも `reviewLevels` に定義された reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**。全 tier で **4 reviewer**（Pi ×3 + agy ×1）。
+どのレベルでも `reviewLevels` に定義された reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**。L1/L2 は **4 reviewer**（Pi ×3 + agy ×1）。L3 は **5 reviewer**（Pi ×4 + agy ×1、Fugu Ultra v2 追加）。
 
 ## Preflight（1回だけ）
 
@@ -109,9 +109,9 @@ CHUNK_DIR="$REVIEW_DIR/chunks"
 mapfile -t CHUNKS < <("$SPLITTER" --input "$REVIEW_DIR/changes.patch" --out "$CHUNK_DIR" --max-bytes 12000)
 ```
 
-- 各 chunk をレベル N の全4 reviewer に渡す（`--input "$chunk"`）。prompt は共通。
+- 各 chunk をレベル N の全 reviewer に渡す（`--input "$chunk"`）。prompt は共通。
 - timeout は level 固定（chunk サイズではない）。
-- 同時実行数は chunk × 4 を抱えすぎない（目安 6 並行程度で順次）。
+- 同時実行数は chunk × reviewer 数を抱えすぎない（目安 6 並行程度で順次）。
 - chunk 失敗時も他 chunk の結果は採用し、欠けた範囲を明記する。
 
 ## 統合

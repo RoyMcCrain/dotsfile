@@ -1,6 +1,6 @@
 {
-  "description": "Fugu integration archived due to subscription cancellation. Merge role fragments into model-roles.json and providers into models.json, then run resolve-model.sh --apply, only after re-subscribing and explicit user request to re-enable.",
-  "reason": "Subscription cancelled; Fugu disabled 2026-09-08.",
+  "description": "Legacy pre-reactivation snapshot (2026-09-08 cancellation). Active configs now use fugu-max and fugu-ultra-v2.0 — do NOT merge these obsolete IDs into model-roles.json or models.json.",
+  "reason": "Historical archive of fugu/fugu-ultra pair before 2026-09-11 reactivation with Fugu Max and Fugu Ultra v2.",
   "enabledModels": [
     "sakana-ai-console/fugu:high",
     "sakana-ai-console/fugu-ultra:high"

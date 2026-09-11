@@ -11,39 +11,45 @@ Deno.test("precedence 1: explicit base override wins over ultra keywords", () =>
   );
   assertEquals(
     classifyFuguPrompt("fuguでアーキテクチャ設計して").target,
-    "fugu",
+    "base",
   );
-  assertEquals(classifyFuguPrompt("fuguを使って熟考して").target, "fugu");
+  assertEquals(classifyFuguPrompt("fuguを使って熟考して").target, "base");
   assertEquals(
     classifyFuguPrompt("ultraを使わない、設計判断して").target,
-    "fugu",
+    "base",
   );
-  assertEquals(classifyFuguPrompt("fugu-ultra禁止で進めて").target, "fugu");
+  assertEquals(classifyFuguPrompt("fugu-ultra禁止で進めて").target, "base");
   assertEquals(
     classifyFuguPrompt("do not use ultra, decide the architecture").target,
-    "fugu",
+    "base",
   );
   assertEquals(
     classifyFuguPrompt("use fugu for this migration").target,
-    "fugu",
+    "base",
   );
   assertEquals(
     classifyFuguPrompt("don't use ultra for this").target,
-    "fugu",
+    "base",
   );
   assertEquals(
     classifyFuguPrompt("without ultra, keep going").target,
-    "fugu",
+    "base",
   );
-  assertEquals(classifyFuguPrompt("stay on fugu please").target, "fugu");
+  assertEquals(classifyFuguPrompt("stay on fugu please").target, "base");
   assertEquals(
     classifyFuguPrompt("fugu-ultraは使わないで進めて").target,
-    "fugu",
+    "base",
   );
   assertEquals(
     classifyFuguPrompt("don't use fugu-ultra for this").target,
-    "fugu",
+    "base",
   );
+});
+
+Deno.test("precedence 1: explicit base with fugu-max naming", () => {
+  assertEquals(classifyFuguPrompt("fugu-maxで進めて").target, "base");
+  assertEquals(classifyFuguPrompt("Fugu Max を使って").target, "base");
+  assertEquals(classifyFuguPrompt("use fugu-max for this").target, "base");
 });
 
 Deno.test("precedence 1: negative ultra phrasing routes to ultra, not base", () => {
@@ -51,28 +57,28 @@ Deno.test("precedence 1: negative ultra phrasing routes to ultra, not base", () 
     classifyFuguPrompt("fuguではなくultraで").reasonCode,
     "explicit-ultra",
   );
-  assertEquals(classifyFuguPrompt("fuguではなくultraで").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("fuguではなくultraで").target, "ultra");
   assertEquals(
     classifyFuguPrompt("fuguじゃなくultraで").reasonCode,
     "explicit-ultra",
   );
-  assertEquals(classifyFuguPrompt("fuguじゃなくultraで").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("fuguでなくultraで").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("fuguじゃなくultraで").target, "ultra");
+  assertEquals(classifyFuguPrompt("fuguでなくultraで").target, "ultra");
   assertEquals(
     classifyFuguPrompt("fuguを使ってはいけない。ultraで進めて").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("don't use fugu").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("don't use fugu").target, "ultra");
   assertEquals(classifyFuguPrompt("fuguで進めて").reasonCode, "explicit-base");
-  assertEquals(classifyFuguPrompt("fuguで進めて").target, "fugu");
+  assertEquals(classifyFuguPrompt("fuguで進めて").target, "base");
 });
 
-Deno.test("precedence 2: PR creation routes to fugu", () => {
+Deno.test("precedence 2: PR creation routes to base", () => {
   assertEquals(classifyFuguPrompt("PRを作って").reasonCode, "create-pr");
-  assertEquals(classifyFuguPrompt("PRを作って").target, "fugu");
-  assertEquals(classifyFuguPrompt("create a pull request").target, "fugu");
-  assertEquals(classifyFuguPrompt("プルリク出して").target, "fugu");
-  assertEquals(classifyFuguPrompt("open a PR for this branch").target, "fugu");
+  assertEquals(classifyFuguPrompt("PRを作って").target, "base");
+  assertEquals(classifyFuguPrompt("create a pull request").target, "base");
+  assertEquals(classifyFuguPrompt("プルリク出して").target, "base");
+  assertEquals(classifyFuguPrompt("open a PR for this branch").target, "base");
 });
 
 Deno.test("precedence 2: PR review/merge requests are NOT create-pr", () => {
@@ -85,11 +91,11 @@ Deno.test("precedence 2: PR review/merge requests are NOT create-pr", () => {
 
 Deno.test("explicit ultra beats the automatic cheap PR route", () => {
   const result = classifyFuguPrompt("create a PR, use fugu-ultra after");
-  assertEquals(result.target, "fugu-ultra");
+  assertEquals(result.target, "ultra");
   assertEquals(result.reasonCode, "explicit-ultra");
   assertEquals(
     classifyFuguPrompt("PRを作って、ultraを使って").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
@@ -98,30 +104,48 @@ Deno.test("precedence 3: explicit ultra / deep-thinking phrases", () => {
     classifyFuguPrompt("fugu-ultraで考えて").reasonCode,
     "explicit-ultra",
   );
-  assertEquals(classifyFuguPrompt("ultraを使って").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("ultraに切り替えて").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("熟考してから答えて").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("じっくり考えて").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("ultraを使って").target, "ultra");
+  assertEquals(classifyFuguPrompt("ultraに切り替えて").target, "ultra");
+  assertEquals(classifyFuguPrompt("熟考してから答えて").target, "ultra");
+  assertEquals(classifyFuguPrompt("じっくり考えて").target, "ultra");
   assertEquals(
     classifyFuguPrompt("think hard about this").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("use ultra for this one").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("use fugu-ultra for this").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("switch to ultra please").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("switch to fugu-ultra now").target,
-    "fugu-ultra",
+    "ultra",
   );
+});
+
+Deno.test("precedence 3: explicit ultra v2 naming", () => {
+  assertEquals(classifyFuguPrompt("fugu-ultra-v2.0で考えて").target, "ultra");
+  assertEquals(classifyFuguPrompt("Fugu Ultra v2 を使って").target, "ultra");
+  assertEquals(
+    classifyFuguPrompt("use fugu ultra v2 for this").target,
+    "ultra",
+  );
+});
+
+Deno.test("precedence 3: use fugu ultra v2 does NOT match base", () => {
+  assertEquals(classifyFuguPrompt("use fugu ultra v2").target, "ultra");
+  assertEquals(
+    classifyFuguPrompt("use fugu ultra v2").reasonCode,
+    "explicit-ultra",
+  );
+  assertEquals(classifyFuguPrompt("use fugu for this").target, "base");
 });
 
 Deno.test("precedence 3: use fugu does NOT match use fugu-ultra", () => {
@@ -131,7 +155,7 @@ Deno.test("precedence 3: use fugu does NOT match use fugu-ultra", () => {
   );
   assertEquals(
     classifyFuguPrompt("use fugu-ultra for architecture").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
@@ -139,6 +163,11 @@ Deno.test("precedence 3: bare ultra mention does NOT force escalation", () => {
   assertEquals(classifyFuguPrompt("ultra").target, undefined);
   assertEquals(classifyFuguPrompt("the ultra setting").target, undefined);
   assertEquals(classifyFuguPrompt("fugu-ultra is expensive").target, undefined);
+  assertEquals(classifyFuguPrompt("fugu-max is expensive").target, undefined);
+  assertEquals(
+    classifyFuguPrompt("fugu-ultra-v2.0 benchmark results").target,
+    undefined,
+  );
 });
 
 Deno.test("precedence 4: high-stakes design (JA/EN)", () => {
@@ -146,51 +175,51 @@ Deno.test("precedence 4: high-stakes design (JA/EN)", () => {
     classifyFuguPrompt("API設計を決めたい").reasonCode,
     "high-stakes-design",
   );
-  assertEquals(classifyFuguPrompt("システム設計の方針").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("システム設計の方針").target, "ultra");
   assertEquals(
     classifyFuguPrompt("データモデル設計をレビュー").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("技術選定を手伝って").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("技術選定を手伝って").target, "ultra");
   assertEquals(
     classifyFuguPrompt("トレードオフを整理して").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("breaking change を避けたい").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("design the system architecture").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("compare trade-offs for dependency selection").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("large refactor strategy").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("choose a library for caching").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("pick a framework for the API").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("select a dependency for auth").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("technology selection for payments").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("architecture decision for caching").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
@@ -201,37 +230,37 @@ Deno.test("precedence 4: high-stakes risk (JA/EN)", () => {
   );
   assertEquals(
     classifyFuguPrompt("マイグレーションを設計して").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("スキーマ変更の影響").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("スキーマ変更の影響").target, "ultra");
   assertEquals(
     classifyFuguPrompt("認可モデルを見直したい").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("billing webhook の設計").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("production incident triage").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("race condition in auth flow").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("schema migration plan").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("review the authorization model").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("本番設定を変更して").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("本番設定を変更して").target, "ultra");
   assertEquals(
     classifyFuguPrompt("update production config").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
@@ -242,31 +271,31 @@ Deno.test("precedence 4: adjudication and struggle feedback", () => {
   );
   assertEquals(
     classifyFuguPrompt("レビュー指摘が割れている").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("conflicting review findings").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("根本原因を特定して").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("根本原因を特定して").target, "ultra");
   assertEquals(
     classifyFuguPrompt("まだ直っていない").reasonCode,
     "struggle-feedback",
   );
-  assertEquals(classifyFuguPrompt("同じエラーが出る").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("同じエラーが出る").target, "ultra");
   assertEquals(
     classifyFuguPrompt("still broken after your fix").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("same error again").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("not fixed yet").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("same error again").target, "ultra");
+  assertEquals(classifyFuguPrompt("not fixed yet").target, "ultra");
   assertEquals(
     classifyFuguPrompt("that didn't work, try again").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("did not work, please try again").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
@@ -333,19 +362,19 @@ Deno.test("routine release/deploy docs do not escalate without production action
   );
   assertEquals(
     classifyFuguPrompt("deploy to production tonight").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("rollback production now").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("production incident triage").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("should we release to production?").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
@@ -354,32 +383,32 @@ Deno.test("mundane decide and parallel-work prompts do not escalate", () => {
   assertEquals(classifyFuguPrompt("変数名を決めて").target, undefined);
   assertEquals(classifyFuguPrompt("これを判断して").target, undefined);
   assertEquals(classifyFuguPrompt("並行して調べて").target, undefined);
-  assertEquals(classifyFuguPrompt("並行処理を設計して").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("並行処理を設計して").target, "ultra");
   assertEquals(
     classifyFuguPrompt("設計方針を判断して").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("choose between architecture options").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("方針を決めて").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("最終判断して").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("方針を決めて").target, "ultra");
+  assertEquals(classifyFuguPrompt("最終判断して").target, "ultra");
   assertEquals(
     classifyFuguPrompt("decide on the migration approach").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
 Deno.test("precedence: explicit base beats create-pr and high-stakes", () => {
   const result = classifyFuguPrompt("fuguで PRを作って");
-  assertEquals(result.target, "fugu");
+  assertEquals(result.target, "base");
   assertEquals(result.reasonCode, "explicit-base");
 });
 
 Deno.test("precedence: create-pr beats high-stakes when not review", () => {
   const result = classifyFuguPrompt("PRを作って、認証も含めて");
-  assertEquals(result.target, "fugu");
+  assertEquals(result.target, "base");
   assertEquals(result.reasonCode, "create-pr");
 });
 
@@ -411,8 +440,8 @@ Deno.test("struggle feedback: no false positives on casual retry phrasing", () =
 });
 
 Deno.test("struggle feedback: fires on failure context", () => {
-  assertEquals(classifyFuguPrompt("また失敗した").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("まだ直っていない").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("また失敗した").target, "ultra");
+  assertEquals(classifyFuguPrompt("まだ直っていない").target, "ultra");
 });
 
 Deno.test("high-stakes risk: routine edits do not escalate", () => {
@@ -436,38 +465,38 @@ Deno.test("high-stakes risk: routine edits do not escalate", () => {
 });
 
 Deno.test("high-stakes risk: fires on domain + verb proximity", () => {
-  assertEquals(classifyFuguPrompt("認証フローを設計して").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("認証フローを設計して").target, "ultra");
   assertEquals(
     classifyFuguPrompt("スキーマ変更をレビュー").target,
-    "fugu-ultra",
+    "ultra",
   );
-  assertEquals(classifyFuguPrompt("課金の実装を見直して").target, "fugu-ultra");
+  assertEquals(classifyFuguPrompt("課金の実装を見直して").target, "ultra");
 });
 
 Deno.test("explicit phrasing: particle and whitespace variants", () => {
   assertEquals(
     classifyFuguPrompt("ultra は使わないで、設計判断して").target,
-    "fugu",
+    "base",
   );
-  assertEquals(classifyFuguPrompt("fuguは使わないで").target, "fugu-ultra");
-  assertEquals(classifyFuguPrompt("fugu で進めて").target, "fugu");
+  assertEquals(classifyFuguPrompt("fuguは使わないで").target, "ultra");
+  assertEquals(classifyFuguPrompt("fugu で進めて").target, "base");
 });
 
-Deno.test("create-pr: migration PR request stays on fugu", () => {
+Deno.test("create-pr: migration PR request stays on base", () => {
   assertEquals(
     classifyFuguPrompt("マイグレーションのPRを出して").target,
-    "fugu",
+    "base",
   );
 });
 
 Deno.test("re-review: compound chore + risky change still escalates", () => {
   assertEquals(
     classifyFuguPrompt("認証を変更して、typoも直して").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("import順を直して。認可モデルも見直して").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
@@ -479,24 +508,72 @@ Deno.test("re-review: english domain words respect word boundaries", () => {
   );
   assertEquals(
     classifyFuguPrompt("change authentication flow").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
 Deno.test("re-review: struggle feedback matches reverse word order", () => {
   assertEquals(
     classifyFuguPrompt("エラーが出たからやり直して").target,
-    "fugu-ultra",
+    "ultra",
   );
   assertEquals(
     classifyFuguPrompt("the error is still there, try again").target,
-    "fugu-ultra",
+    "ultra",
   );
 });
 
 Deno.test("re-review: explicit 'fugu ではなく ultra で' escalates", () => {
   assertEquals(
     classifyFuguPrompt("fugu ではなく ultra で進めて").target,
-    "fugu-ultra",
+    "ultra",
+  );
+});
+
+Deno.test("new naming: negated fugu-max routes to ultra", () => {
+  assertEquals(classifyFuguPrompt("don't use fugu-max").target, "ultra");
+  assertEquals(classifyFuguPrompt("do not use fugu max").target, "ultra");
+  assertEquals(
+    classifyFuguPrompt("fugu-maxを使ってはいけない").target,
+    "ultra",
+  );
+  assertEquals(classifyFuguPrompt("Fugu Max は使わないで").target, "ultra");
+});
+
+Deno.test("new naming: negated fugu-ultra v2 routes to base", () => {
+  assertEquals(
+    classifyFuguPrompt("Fugu Ultra v2 は使わないで").target,
+    "base",
+  );
+  assertEquals(
+    classifyFuguPrompt("fugu-ultra-v2.0は使わないで、設計判断して").target,
+    "base",
+  );
+  assertEquals(classifyFuguPrompt("don't use fugu ultra v2").target, "base");
+  assertEquals(
+    classifyFuguPrompt("do not use fugu-ultra-v2.0").target,
+    "base",
+  );
+  assertEquals(
+    classifyFuguPrompt("Fugu Ultra v2 を使ってはいけない").target,
+    "base",
+  );
+});
+
+Deno.test("new naming: stay on fugu ultra v2 does not force base", () => {
+  assertEquals(classifyFuguPrompt("stay on fugu ultra v2").target, "ultra");
+  assertEquals(
+    classifyFuguPrompt("stay on fugu ultra v2").reasonCode,
+    "explicit-ultra",
+  );
+});
+
+Deno.test("new naming: positive and neutral mentions unchanged", () => {
+  assertEquals(classifyFuguPrompt("fugu-maxで進めて").target, "base");
+  assertEquals(classifyFuguPrompt("Fugu Ultra v2 を使って").target, "ultra");
+  assertEquals(classifyFuguPrompt("fugu-max is expensive").target, undefined);
+  assertEquals(
+    classifyFuguPrompt("fugu-ultra-v2.0 benchmark results").target,
+    undefined,
   );
 });

@@ -228,6 +228,11 @@ if not bash $BASE_DIR/scripts/build_env/setup_codex_config.sh $BASE_DIR
     print_error "Failed to set up Codex local configuration"
     exit 1
 end
+ln -sf $BASE_DIR/codex/fugu.json ~/.codex/fugu.json
+# Keep an existing profile (including hook trust state); init only when truly absent.
+if not test -e ~/.codex/fugu.config.toml; and not test -L ~/.codex/fugu.config.toml
+    cp $BASE_DIR/codex/fugu.config.toml.example ~/.codex/fugu.config.toml
+end
 
 echo ""
 echo "🤖 Setting up shared agent skills..."

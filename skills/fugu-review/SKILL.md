@@ -1,20 +1,11 @@
 ---
 name: fugu-review
-description: "DISABLED — Sakana Fugu subscription cancelled. Do not execute until user explicitly requests reactivation."
+description: Sakana Fugu Ultra v2 単体レビュー。ユーザーが Fugu を明示した場合のみ実行する。
 ---
-
-# /fugu-review — DISABLED
-
-**Sakana Fugu は解約により無効。** この skill は実行しない。ユーザーが再契約後に明示的に再有効化を依頼するまで、`fugu-review` / `review.fugu` / Fugu モデルへのルーティングは禁止。別の有料モデルへの自動フォールバックもしない。
-
-再有効化手順は [pi/README.md](../../pi/README.md) の Fugu セクションを参照。
-
-<!--
-Historical instructions (inactive — preserved for reactivation):
 
 # /fugu-review
 
-Fugu Ultra は quota / rate limit に当たりやすいため、自動選択しない。ユーザーが Fugu を明示した場合だけ実行する。
+Fugu Ultra v2 は quota / rate limit に当たりやすいため、自動選択しない。ユーザーが Fugu を明示した場合だけ実行する。`parallel-review` L3 の Fugu 参加とは別経路。
 
 ## 手順
 
@@ -39,4 +30,3 @@ TIMEOUT=$("$HOME/.pi/agent/resolve-model.sh" --field timeout review.fugu 2>/dev/
 - timeout、quota、rate limit、provider error 時は即座に短く報告する。
 - 自動再試行・別モデルへの自動フォールバックは禁止。
 - 出力は High / Medium / Low、Nit 省略、最大8件。各指摘に `file:line`、実害、根拠、最小修正案。
--->

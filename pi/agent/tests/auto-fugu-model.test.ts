@@ -2,6 +2,8 @@ import { assertEquals } from "jsr:@std/assert@1.0";
 import autoFuguModel from "../extensions/auto-fugu-model.ts";
 
 const PROVIDER = "sakana-ai-console";
+const BASE_MODEL_ID = "fugu-max";
+const ULTRA_MODEL_ID = "fugu-ultra-v2.0";
 
 type Model = {
   provider: string;
@@ -121,7 +123,7 @@ function createCtx(
     scopedModelIds?: string[];
   },
 ): FakeContext {
-  const modelId = overrides?.modelId ?? "fugu";
+  const modelId = overrides?.modelId ?? BASE_MODEL_ID;
   const ui = {
     notify: (_message: string, _level?: string) => {},
   };
@@ -136,7 +138,7 @@ function createCtx(
     modelRegistry: {
       find: (provider: string, id: string) => {
         if (provider !== PROVIDER) return undefined;
-        if (id === "fugu" || id === "fugu-ultra") return makeModel(id);
+        if (id === BASE_MODEL_ID || id === ULTRA_MODEL_ID) return makeModel(id);
         return undefined;
       },
     },
@@ -148,7 +150,7 @@ async function flushMicrotasks() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-Deno.test("escalate → settle → restore returns to fugu", async () => {
+Deno.test("escalate → settle → restore returns to fugu-max", async () => {
   const { pi, dispatch, tools, withCtx } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -164,10 +166,10 @@ Deno.test("escalate → settle → restore returns to fugu", async () => {
       undefined,
       ctx,
     ));
-  assertEquals(ctx.model.id, "fugu-ultra");
+  assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 
   await dispatch("agent_settled", {}, ctx);
-  assertEquals(ctx.model.id, "fugu");
+  assertEquals(ctx.model.id, BASE_MODEL_ID);
 });
 
 Deno.test("manual model_select suppresses automatic routing", async () => {
@@ -176,11 +178,11 @@ Deno.test("manual model_select suppresses automatic routing", async () => {
   await flushMicrotasks();
 
   const ctx = createCtx();
-  ctx.model = makeModel("fugu-ultra");
+  ctx.model = makeModel(ULTRA_MODEL_ID);
 
   await dispatch(
     "model_select",
-    { model: makeModel("fugu-ultra"), source: "set" },
+    { model: makeModel(ULTRA_MODEL_ID), source: "set" },
     ctx,
   );
 
@@ -195,7 +197,7 @@ Deno.test("manual model_select suppresses automatic routing", async () => {
   );
   await dispatch("before_agent_start", { prompt: "PRを作って" }, ctx);
 
-  assertEquals(ctx.model.id, "fugu-ultra");
+  assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
 Deno.test("struggle escalation after consecutive validation failures", async () => {
@@ -223,7 +225,7 @@ Deno.test("struggle escalation after consecutive validation failures", async () 
     );
   }
 
-  assertEquals(ctx.model.id, "fugu-ultra");
+  assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
 Deno.test("scopedModels rejects ultra escalation", async () => {
@@ -231,7 +233,7 @@ Deno.test("scopedModels rejects ultra escalation", async () => {
   autoFuguModel(pi as never);
   await flushMicrotasks();
 
-  const ctx = createCtx({ scopedModelIds: ["fugu"] });
+  const ctx = createCtx({ scopedModelIds: [BASE_MODEL_ID] });
   const escalate = tools.get("escalate_to_fugu_ultra")!;
 
   await withCtx(ctx, () =>
@@ -242,7 +244,7 @@ Deno.test("scopedModels rejects ultra escalation", async () => {
       undefined,
       ctx,
     ));
-  assertEquals(ctx.model.id, "fugu");
+  assertEquals(ctx.model.id, BASE_MODEL_ID);
 });
 
 Deno.test("enabled=false suppresses high-stakes routing", async () => {
@@ -270,7 +272,7 @@ Deno.test("enabled=false suppresses high-stakes routing", async () => {
     ctx,
   );
 
-  assertEquals(ctx.model.id, "fugu");
+  assertEquals(ctx.model.id, BASE_MODEL_ID);
 });
 
 Deno.test("manual override is cleared by session_start", async () => {
@@ -279,10 +281,10 @@ Deno.test("manual override is cleared by session_start", async () => {
   await flushMicrotasks();
 
   const ctx = createCtx();
-  ctx.model = makeModel("fugu-ultra");
+  ctx.model = makeModel(ULTRA_MODEL_ID);
   await dispatch(
     "model_select",
-    { model: makeModel("fugu-ultra"), source: "set" },
+    { model: makeModel(ULTRA_MODEL_ID), source: "set" },
     ctx,
   );
 
@@ -300,7 +302,7 @@ Deno.test("manual override is cleared by session_start", async () => {
   );
   await dispatch("before_agent_start", { prompt: "認証フローを設計して" }, ctx);
 
-  assertEquals(ctx.model.id, "fugu-ultra");
+  assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
 Deno.test("manual override is cleared by /auto-fugu on", async () => {
@@ -309,10 +311,10 @@ Deno.test("manual override is cleared by /auto-fugu on", async () => {
   await flushMicrotasks();
 
   const ctx = createCtx();
-  ctx.model = makeModel("fugu");
+  ctx.model = makeModel(BASE_MODEL_ID);
   await dispatch(
     "model_select",
-    { model: makeModel("fugu"), source: "set" },
+    { model: makeModel(BASE_MODEL_ID), source: "set" },
     ctx,
   );
 
@@ -329,7 +331,7 @@ Deno.test("manual override is cleared by /auto-fugu on", async () => {
   );
   await dispatch("before_agent_start", { prompt: "認証フローを設計して" }, ctx);
 
-  assertEquals(ctx.model.id, "fugu-ultra");
+  assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
 Deno.test("model_select source=restore does not trigger manual override", async () => {
@@ -340,7 +342,7 @@ Deno.test("model_select source=restore does not trigger manual override", async 
   const ctx = createCtx();
   await dispatch(
     "model_select",
-    { model: makeModel("fugu"), source: "restore" },
+    { model: makeModel(BASE_MODEL_ID), source: "restore" },
     ctx,
   );
 
@@ -356,7 +358,7 @@ Deno.test("model_select source=restore does not trigger manual override", async 
   );
   await dispatch("before_agent_start", { prompt: "認証フローを設計して" }, ctx);
 
-  assertEquals(ctx.model.id, "fugu-ultra");
+  assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
 Deno.test("manual override suppresses struggle escalation", async () => {
@@ -367,7 +369,7 @@ Deno.test("manual override suppresses struggle escalation", async () => {
   const ctx = createCtx();
   await dispatch(
     "model_select",
-    { model: makeModel("fugu"), source: "set" },
+    { model: makeModel(BASE_MODEL_ID), source: "set" },
     ctx,
   );
   await dispatch("agent_start", {}, ctx);
@@ -385,5 +387,61 @@ Deno.test("manual override suppresses struggle escalation", async () => {
     );
   }
 
-  assertEquals(ctx.model.id, "fugu");
+  assertEquals(ctx.model.id, BASE_MODEL_ID);
+});
+
+Deno.test("legacy fugu model ids are untouched by automatic routing", async () => {
+  const { pi, dispatch } = createFakePi();
+  autoFuguModel(pi as never);
+  await flushMicrotasks();
+
+  for (const legacyId of ["fugu", "fugu-ultra"]) {
+    const ctx = createCtx({ modelId: legacyId });
+    ctx.model = makeModel(legacyId);
+
+    await dispatch(
+      "input",
+      {
+        source: "interactive",
+        text: "認証フローを設計して",
+        streamingBehavior: "default",
+      },
+      ctx,
+    );
+    await dispatch(
+      "before_agent_start",
+      { prompt: "認証フローを設計して" },
+      ctx,
+    );
+
+    assertEquals(ctx.model.id, legacyId);
+  }
+});
+
+Deno.test("non-Fugu model is untouched by automatic routing", async () => {
+  const { pi, dispatch } = createFakePi();
+  autoFuguModel(pi as never);
+  await flushMicrotasks();
+
+  const ctx = createCtx({ modelId: "gpt-6-astra" });
+  ctx.model = {
+    provider: "openai-codex",
+    id: "gpt-6-astra",
+    name: "gpt-6-astra",
+    contextWindow: 372000,
+    maxTokens: 32768,
+  };
+
+  await dispatch(
+    "input",
+    {
+      source: "interactive",
+      text: "認証フローを設計して",
+      streamingBehavior: "default",
+    },
+    ctx,
+  );
+  await dispatch("before_agent_start", { prompt: "認証フローを設計して" }, ctx);
+
+  assertEquals(ctx.model.id, "gpt-6-astra");
 });

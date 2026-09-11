@@ -1,8 +1,8 @@
 /**
- * fugu を常用しつつ、要所だけ自動で fugu-ultra に切り替える統合ルーター。
+ * Fugu Max を常用しつつ、要所だけ自動で Fugu Ultra v2 に切り替える統合ルーター。
  *
- * why: 常時 fugu-ultra は週次クォータを食う。preflight 分類 + 同一 run 内の
- *   苦戦検知 + モデル自身の escalate ツールで、安価な fugu を維持しつつ
+ * why: 常時 Fugu Ultra v2 は週次クォータを食う。preflight 分類 + 同一 run 内の
+ *   苦戦検知 + モデル自身の escalate ツールで、安価な Fugu Max を維持しつつ
  *   高リスク判断だけ ultra に昇格させ、ターン終了で復元する。
  */
 import type {
@@ -18,10 +18,16 @@ import {
   STRUGGLE_MONITOR_TOOLS,
   STRUGGLE_THRESHOLD,
 } from "../lib/fugu-model-routing.ts";
+import modelRoles from "../model-roles.json" with { type: "json" };
 
 const PROVIDER = "sakana-ai-console";
-const BASE_MODEL = "fugu";
-const ULTRA_MODEL = "fugu-ultra";
+const BASE_MODEL = modelRoles.roles["route.fugu.base"].id;
+const ULTRA_MODEL = modelRoles.roles["route.fugu.ultra"].id;
+
+const TARGET_TO_ID = {
+  base: BASE_MODEL,
+  ultra: ULTRA_MODEL,
+} satisfies Record<FuguTarget, string>;
 
 const AUTO_CONTINUE_PREFIX = "(自動継続)";
 const MODEL_ROUTER_READY_EVENT = "auto-fugu:ready";
@@ -62,10 +68,11 @@ const modelIdentity = (
 });
 
 const isTargetInScope = (ctx: ExtensionContext, target: FuguTarget) => {
+  const targetId = TARGET_TO_ID[target];
   if (ctx.scopedModels.length === 0) return true;
   return ctx.scopedModels.some(
     (scoped) =>
-      scoped.model.provider === PROVIDER && scoped.model.id === target,
+      scoped.model.provider === PROVIDER && scoped.model.id === targetId,
   );
 };
 
@@ -124,9 +131,9 @@ export default function autoFuguModel(pi: ExtensionAPI) {
     if (ctx.hasUI) ctx.ui.notify(message, level);
   };
 
-  const lookupModel = (ctx: ExtensionContext, target: FuguTarget) => {
+  const lookupModel = (ctx: ExtensionContext, modelId: string) => {
     try {
-      return ctx.modelRegistry.find(PROVIDER, target);
+      return ctx.modelRegistry.find(PROVIDER, modelId);
     } catch {
       return undefined;
     }
@@ -141,8 +148,7 @@ export default function autoFuguModel(pi: ExtensionAPI) {
       return true;
     }
 
-    const target = lookupModel(ctx, restoreModel.id as FuguTarget) ??
-      restoreModel;
+    const target = lookupModel(ctx, restoreModel.id) ?? restoreModel;
     const previous = restoreModel;
     const expected = modelIdentity(target);
 
@@ -196,31 +202,32 @@ export default function autoFuguModel(pi: ExtensionAPI) {
   ) => {
     const current = ctx.model;
     if (!current || !isFuguPair(current)) return false;
-    if (target === BASE_MODEL && isBaseModel(current)) {
+    if (target === "base" && isBaseModel(current)) {
       if (restoreModel && sameModel(current, restoreModel)) {
         clearTemporaryRouteState({ preserveContinuation: true });
       }
       return true;
     }
-    if (target === ULTRA_MODEL && isUltraModel(current)) {
+    if (target === "ultra" && isUltraModel(current)) {
       if (restoreModel && sameModel(current, restoreModel)) {
         clearTemporaryRouteState({ preserveContinuation: true });
       }
       return true;
     }
 
+    const modelId = TARGET_TO_ID[target];
     if (!isTargetInScope(ctx, target)) {
       notify(
         ctx,
-        `${PROVIDER}/${target} は scopedModels の対象外です`,
+        `${PROVIDER}/${modelId} は scopedModels の対象外です`,
         "warning",
       );
       return false;
     }
 
-    const next = lookupModel(ctx, target);
+    const next = lookupModel(ctx, modelId);
     if (!next) {
-      notify(ctx, `モデルが見つかりません: ${PROVIDER}/${target}`, "warning");
+      notify(ctx, `モデルが見つかりません: ${PROVIDER}/${modelId}`, "warning");
       return false;
     }
 
@@ -232,7 +239,7 @@ export default function autoFuguModel(pi: ExtensionAPI) {
         return false;
       }
       if (!switched) {
-        notify(ctx, `モデル切替に失敗: ${PROVIDER}/${target}`, "warning");
+        notify(ctx, `モデル切替に失敗: ${PROVIDER}/${modelId}`, "warning");
         return false;
       }
 
@@ -246,7 +253,7 @@ export default function autoFuguModel(pi: ExtensionAPI) {
         activeTemporaryTarget = target;
       }
 
-      notify(ctx, `${reason} → ${PROVIDER}/${target}`);
+      notify(ctx, `${reason} → ${PROVIDER}/${modelId}`);
       return true;
     } catch {
       if (!isAutomaticOperationCurrent(expected)) {
@@ -262,10 +269,10 @@ export default function autoFuguModel(pi: ExtensionAPI) {
         } else {
           activeTemporaryTarget = target;
         }
-        notify(ctx, `${reason} → ${PROVIDER}/${target}`);
+        notify(ctx, `${reason} → ${PROVIDER}/${modelId}`);
         return true;
       }
-      notify(ctx, `モデル切替中にエラー: ${PROVIDER}/${target}`, "warning");
+      notify(ctx, `モデル切替中にエラー: ${PROVIDER}/${modelId}`, "warning");
       return false;
     } finally {
       if (sameModelIdentity(expectedAutomaticModel, expected)) {
@@ -412,8 +419,8 @@ export default function autoFuguModel(pi: ExtensionAPI) {
     consecutiveFailures = 0;
     await applyRouteTarget(
       ctx,
-      ULTRA_MODEL,
-      `fugu が苦戦（${STRUGGLE_THRESHOLD} 回連続失敗）`,
+      "ultra",
+      `Fugu Max が苦戦（${STRUGGLE_THRESHOLD} 回連続失敗）`,
     );
   });
 
@@ -435,9 +442,9 @@ export default function autoFuguModel(pi: ExtensionAPI) {
     name: "escalate_to_fugu_ultra",
     label: "Escalate to Fugu Ultra",
     description:
-      "Escalate the current turn to fugu-ultra for genuinely difficult, high-stakes decisions.",
+      "Escalate the current turn to Fugu Ultra v2 for genuinely difficult, high-stakes decisions.",
     promptSnippet:
-      "Escalate to fugu-ultra for irreversible high-stakes decisions only",
+      "Escalate to Fugu Ultra v2 for irreversible high-stakes decisions only",
     promptGuidelines: [
       "Use escalate_to_fugu_ultra only for irreversible architecture decisions, security/data/money/production correctness, conflicting constraints, or unresolved repeated failure.",
       "Do NOT use for routine reading, implementation, tests, formatting, commits, or PR creation.",
@@ -468,7 +475,7 @@ export default function autoFuguModel(pi: ExtensionAPI) {
       }
       if (isUltraModel(current)) {
         return {
-          content: [{ type: "text", text: "すでに fugu-ultra です。" }],
+          content: [{ type: "text", text: "すでに Fugu Ultra v2 です。" }],
           details: {},
         };
       }
@@ -478,7 +485,7 @@ export default function autoFuguModel(pi: ExtensionAPI) {
           details: {},
         };
       }
-      if (!isTargetInScope(ctx, ULTRA_MODEL)) {
+      if (!isTargetInScope(ctx, "ultra")) {
         return {
           content: [{
             type: "text",
@@ -488,13 +495,13 @@ export default function autoFuguModel(pi: ExtensionAPI) {
         };
       }
 
-      const switched = await applyRouteTarget(ctx, ULTRA_MODEL, reason);
+      const switched = await applyRouteTarget(ctx, "ultra", reason);
       return {
         content: [{
           type: "text",
           text: switched
-            ? `fugu-ultra に昇格しました: ${reason}`
-            : `fugu-ultra への昇格に失敗しました: ${reason}`,
+            ? `Fugu Ultra v2 に昇格しました: ${reason}`
+            : `Fugu Ultra v2 への昇格に失敗しました: ${reason}`,
         }],
         details: {},
       };
@@ -502,7 +509,7 @@ export default function autoFuguModel(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("auto-fugu", {
-    description: "fugu/fugu-ultra 自動切替の ON/OFF / 状態表示",
+    description: "Fugu Max / Fugu Ultra v2 自動切替の ON/OFF / 状態表示",
     handler: async (args, ctx) => {
       const arg = args.trim().toLowerCase();
 
