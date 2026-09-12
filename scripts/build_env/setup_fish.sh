@@ -113,6 +113,8 @@ end
 
 echo ""
 
+create_symlink $BASE_DIR/gitignore ~/.config/git/ignore "Git global ignore"
+
 # devbox設定ファイル
 echo "📦 Setting up devbox configuration..."
 set DEVBOX_GLOBAL_DIR ~/.local/share/devbox/global/default
