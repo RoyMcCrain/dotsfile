@@ -235,20 +235,20 @@ EOF
 	jq -e '.roles["route.fugu.base"].id == "fugu-max"' "$real_catalog" >/dev/null
 	jq -e '.roles["route.fugu.ultra"].id == "fugu-ultra-v2.0"' "$real_catalog" >/dev/null
 
-	# Assert — L1/L2 have no Fugu; L3 has exactly one Fugu reviewer
-	for level in 1 2; do
-		jq -e --arg lvl "$level" \
-			'[.reviewLevels[$lvl][] | select(has("pi")) | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
-			"$real_catalog" >/dev/null
-	done
+	# Assert — L1 has no Fugu; L2 has exactly Fugu Max; L3 has exactly Fugu Ultra v2
+	jq -e \
+		'[.reviewLevels["1"][] | select(has("pi")) | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
+		"$real_catalog" >/dev/null
+	jq -e --arg base "$base_model" \
+		'[.reviewLevels["2"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$base]' \
+		"$real_catalog" >/dev/null
 	jq -e --arg ultra "$ultra_model" \
-		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi == $ultra)] | length == 1' \
+		'[.reviewLevels["3"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$ultra]' \
 		"$real_catalog" >/dev/null
 
-	# Assert — tier counts 4/4/5
-	for level in 1 2; do
-		jq -e --arg lvl "$level" '.reviewLevels[$lvl] | length == 4' "$real_catalog" >/dev/null
-	done
+	# Assert — tier counts 4/5/5
+	jq -e '.reviewLevels["1"] | length == 4' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["2"] | length == 5' "$real_catalog" >/dev/null
 	jq -e '.reviewLevels["3"] | length == 5' "$real_catalog" >/dev/null
 
 	# Assert — sakana provider transport and caps in models.json
@@ -297,6 +297,26 @@ EOF
 	run jq -e '[.providers["sakana-ai-console"].models[].id | select(. == "fugu" or . == "fugu-ultra")] | length == 0' \
 		"$real_models"
 	[ "$status" -eq 0 ]
+}
+
+@test "--review-level 2 emits five rows with Fugu Max as fifth pi reviewer" {
+	# Arrange — integration against the tracked repo catalog
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local base_slug max_model
+
+	base_slug="$(jq -r '.roles["route.fugu.base"].id' "$real_catalog")"
+	max_model="$(jq -r --arg slug "$base_slug" \
+		'.enabledModels[] | select(startswith("sakana-ai-console/" + $slug + ":"))' \
+		"$real_catalog")"
+	[ -n "$max_model" ]
+
+	# Act
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 5 ]
+	[ "${lines[4]}" = "$(printf 'pi\t%s\t600\t600' "$max_model")" ]
 }
 
 @test "review.grok resolves and appears exactly once in every parallel-review level" {
@@ -444,9 +464,9 @@ EOF
 	[ "$output" = "gemini-test-model" ]
 }
 
-@test "each parallel-review level has unique reviewer keys (4/4/5)" {
+@test "each parallel-review level has unique reviewer keys (4/5/5)" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local -a expected_counts=(4 4 5)
+	local -a expected_counts=(4 5 5)
 
 	for level in 1 2 3; do
 		local expected="${expected_counts[$((level - 1))]}"
