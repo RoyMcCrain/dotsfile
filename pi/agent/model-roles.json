@@ -71,7 +71,8 @@
       { "pi": "xai/grok-4.6" },
       { "pi": "openai-codex/gpt-6-astra:xhigh" },
       { "pi": "anthropic/claude-opus-5:high" },
-      { "role": "review.antigravity" }
+      { "role": "review.antigravity" },
+      { "pi": "sakana-ai-console/fugu-max:high" }
     ],
     "3": [
       { "pi": "xai/grok-4.6" },

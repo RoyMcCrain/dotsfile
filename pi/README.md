@@ -99,7 +99,7 @@ To move to a new model version, update `model-roles.json` (role model IDs,
 then run `--apply` and `--check`. Skills pick it up immediately because
 `run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
 `run_antigravity_review.sh --role review.antigravity` resolves via `--field agy`.
-Parallel-review tiers emit four rows for L1/L2 and five for L3 from `--review-level N`
+Parallel-review tiers emit four rows for L1 and five for L2/L3 from `--review-level N`
 (`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`).
 Install the Antigravity `patch-reviewer` agent via setup scripts before using the agy runner.
 
@@ -194,8 +194,9 @@ Tracked custom providers:
 
 **Fugu (Sakana) — active.** The `sakana-ai-console` provider serves
 `fugu-max` (base, everyday) and `fugu-ultra-v2.0` (ultra, deep review).
-`review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). `parallel-review` L3
-adds Fugu as a 5th reviewer; L1/L2 have no Fugu. Legacy pre-reactivation
+`review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). `parallel-review` L2
+adds Fugu Max :high as a 5th reviewer; L3 adds Fugu Ultra v2 :high; L1 has no
+Fugu. Legacy pre-reactivation
 snapshot: `pi/agent/fugu.disabled.json.example` (obsolete IDs — do not merge).
 
 **Local caps** (deliberate Pi operational limits; Sakana's setup catalog lists

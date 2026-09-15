@@ -5,7 +5,7 @@ description: Sakana Fugu Ultra v2 単体レビュー。ユーザーが Fugu を�
 
 # /fugu-review
 
-Fugu Ultra v2 は quota / rate limit に当たりやすいため、自動選択しない。ユーザーが Fugu を明示した場合だけ実行する。`parallel-review` L3 の Fugu 参加とは別経路。
+Fugu Ultra v2 は quota / rate limit に当たりやすいため、自動選択しない。ユーザーが Fugu を明示した場合だけ実行する。`parallel-review` L2（Max :high）/ L3（Ultra v2 :high）の Fugu 参加とは別経路。
 
 ## 手順
 
