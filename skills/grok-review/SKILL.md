@@ -1,11 +1,11 @@
 ---
 name: grok-review
-description: Pi headless（xAI Grok 4.6）で120秒上限の単体コードレビューを実行する。明示的な単体 Grok レビュー依頼時だけ使う。
+description: Pi headless（xAI Grok 4.7）で120秒上限の単体コードレビューを実行する。明示的な単体 Grok レビュー依頼時だけ使う。
 ---
 
 # /grok-review
 
-xAI Grok 4.6 を、再帰起動しない隔離済み Pi headless で実行する。`parallel-review` でも Grok は全レベルに含まれるが、Grok 単体を明示指定された場合はこの skill を使う。
+xAI Grok 4.7 を、再帰起動しない隔離済み Pi headless で実行する。`parallel-review` でも Grok は全レベルに含まれるが、Grok 単体を明示指定された場合はこの skill を使う。
 
 ## 手順
 

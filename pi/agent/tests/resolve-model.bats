@@ -322,6 +322,7 @@ EOF
 @test "review.grok resolves and appears exactly once in every parallel-review level" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local grok_model
 
 	# Act
@@ -329,12 +330,23 @@ EOF
 
 	# Assert
 	[ "$status" -eq 0 ]
-	[ "$output" = "xai/grok-4.6" ]
+	[ "$output" = "xai/grok-4.7" ]
 	grok_model="$output"
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.grok
 	[ "$status" -eq 0 ]
 	[ "$output" = "120" ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" research.xai
+	[ "$status" -eq 0 ]
+	[ "$output" = "$grok_model" ]
+
+	jq -e --arg model "$grok_model" \
+		'[.enabledModels[] | select(startswith("xai/"))] == [$model]' \
+		"$real_catalog" >/dev/null
+	jq -e --arg model "$grok_model" \
+		'[.enabledModels[] | select(startswith("xai/"))] == [$model]' \
+		"$real_settings" >/dev/null
 
 	for level in 1 2 3; do
 		jq -e --arg model "$grok_model" --arg lvl "$level" \
@@ -364,7 +376,7 @@ EOF
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "$(printf 'pi\txai/grok-4.6\t600\t900')" ]
+	[ "${lines[0]}" = "$(printf 'pi\txai/grok-4.7\t600\t900')" ]
 	[ "${lines[3]}" = "$(printf 'agy\tgemini-3.8-flash-high\t600\t900')" ]
 }
 
