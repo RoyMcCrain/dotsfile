@@ -6,12 +6,13 @@
     "xai/grok-4.7",
     "anthropic/claude-sonnet-5:high",
     "anthropic/claude-sonnet-5:max",
-    "anthropic/claude-opus-5:high",
-    "anthropic/claude-opus-5:max",
+    "anthropic/claude-opus-5-5:high",
+    "anthropic/claude-opus-5-5:max",
     "openai-codex/gpt-6-astra:xhigh",
     "openai-codex/gpt-6-astra:max",
     "sakana-ai-console/fugu-max:high",
-    "sakana-ai-console/fugu-ultra-v2.0:high"
+    "sakana-ai-console/fugu-ultra-v2.0:high",
+    "opencode-go/*"
   ],
   "theme": "dark",
   "shellPath": "~/.local/share/devbox/global/default/.devbox/nix/profile/default/bin/bash",
@@ -34,6 +35,6 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.87.1",
   "packages": []
 }

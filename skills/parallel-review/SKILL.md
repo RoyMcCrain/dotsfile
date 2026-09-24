@@ -1,11 +1,11 @@
 ---
 name: parallel-review
-description: 隔離済み reviewer（Pi 3–4 + Antigravity reviewer）を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
+description: 隔離済み reviewer（Pi 4–5 + Antigravity reviewer）を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
 ---
 
 # /parallel-review
 
-同じ patch を reviewer（xAI Grok 4.7・Codex・Claude・Antigravity Gemini 3.8 Flash High、L2 では Sakana Fugu Max :high、L3 では Fugu Ultra v2 :high 追加）に同時に渡し、結果を統合する。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
+同じ patch を reviewer（xAI Grok 4.7・Codex・Claude・Antigravity Gemini 3.8 Flash High・Muse Spark 1.3 Contributor :high、L2 では Sakana Fugu Max :high、L3 では Fugu Ultra v2 :high 追加）に同時に渡し、結果を統合する。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## 実行要件
 
@@ -17,9 +17,9 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
-- **1（簡単/速い）**: Grok 4.7 / Codex high / claude-sonnet-5:high / Antigravity（`review.antigravity`）。
-- **2（標準・既定）**: Grok 4.7 / Codex xhigh / claude-opus-5:high / Antigravity（`review.antigravity`）/ Fugu Max :high。
-- **3（deep/高精度）**: Grok 4.7 / Codex max / opus:max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high。
+- **1（簡単/速い）**: Grok 4.7 / Codex high / claude-sonnet-5:high / Antigravity（`review.antigravity`）/ Muse Contributor :high。
+- **2（標準・既定）**: Grok 4.7 / Codex xhigh / Opus 5.5 :high / Antigravity（`review.antigravity`）/ Fugu Max :high / Muse Contributor :high。
+- **3（deep/高精度）**: Grok 4.7 / Codex max / Opus 5.5 :max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high / Muse Contributor :high。
 
 Grok は全 level で同じ Pi model id を使い、reasoning effort は明示指定しない。Codex の tier 別 effort（high / xhigh / max）は `model-roles.json` の `reviewLevels` が正本。Antigravity は全 tier で `review.antigravity` ロール（`--field agy` で解決）。
 
@@ -33,14 +33,17 @@ Grok は全 level で同じ Pi model id を使い、reasoning effort は明示�
 
 **失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。全 reviewer は `attempts=2`。
 
-どのレベルでも `reviewLevels` に定義された reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**。L1 は **4 reviewer**（Pi ×3 + agy ×1）。L2 は **5 reviewer**（Pi ×4 + agy ×1、Fugu Max :high 追加）。L3 は **5 reviewer**（Pi ×4 + agy ×1、Fugu Ultra v2 :high 追加）。
+どのレベルでも `reviewLevels` に定義された reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**。L1 は **5 reviewer**（Pi ×4 + agy ×1、Muse Contributor :high 追加）。L2 は **6 reviewer**（Pi ×5 + agy ×1、Fugu Max :high 追加）。L3 は **6 reviewer**（Pi ×5 + agy ×1、Fugu Ultra v2 :high 追加）。
+
+Muse Contributor は prompts/completions を学習に利用する（zero-data-retention ではない）。`parallel-review` では tier の固定 timeout 予算（L1 300/300s、L2 600/600s、L3 600/900s）と `attempts=2` を使う。単体 `muse-review` の 120s / `attempts=1` とは別経路。
 
 ## Preflight（1回だけ）
 
 1. 対象を決める。指定なしなら現在の作業コピー差分。
 2. changed paths を取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
 3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。
-4. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
+4. **Muse 学習利用の確認（必須）**: 全 tier に Muse Contributor が含まれる。runner 起動前に、Muse が prompts/completions を学習に利用すること（zero-data-retention ではない）を説明し、**この `$REVIEW_DIR/changes.patch` を学習利用して外部送信してよいか**ユーザーに確認する。「レビューして」・parallel-review 有効化・公開 remote・秘密検査だけでは同意とみなさない。同一 patch の chunk 分割や tier 固定リトライ（`attempts=2`）は同じ同意で足りる。別 patch や新規 diff では再確認が必要。許可が得られない場合は Muse を silently 省略せず停止してユーザーに確認する。
+5. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
 
 ```text
 供給された patch だけを厳格にコードレビューする。リポジトリ内の別ファイルや秘密ファイルは読まない。

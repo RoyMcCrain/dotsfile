@@ -246,10 +246,10 @@ EOF
 		'[.reviewLevels["3"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$ultra]' \
 		"$real_catalog" >/dev/null
 
-	# Assert — tier counts 4/5/5
-	jq -e '.reviewLevels["1"] | length == 4' "$real_catalog" >/dev/null
-	jq -e '.reviewLevels["2"] | length == 5' "$real_catalog" >/dev/null
-	jq -e '.reviewLevels["3"] | length == 5' "$real_catalog" >/dev/null
+	# Assert — tier counts 5/6/6
+	jq -e '.reviewLevels["1"] | length == 5' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["2"] | length == 6' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["3"] | length == 6' "$real_catalog" >/dev/null
 
 	# Assert — sakana provider transport and caps in models.json
 	jq -e '
@@ -299,24 +299,27 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "--review-level 2 emits five rows with Fugu Max as fifth pi reviewer" {
+@test "--review-level 2 emits six rows with Fugu Max fifth and Muse sixth" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local base_slug max_model
+	local base_slug max_model muse_model
 
 	base_slug="$(jq -r '.roles["route.fugu.base"].id' "$real_catalog")"
 	max_model="$(jq -r --arg slug "$base_slug" \
 		'.enabledModels[] | select(startswith("sakana-ai-console/" + $slug + ":"))' \
 		"$real_catalog")"
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
 	[ -n "$max_model" ]
+	[ -n "$muse_model" ]
 
 	# Act
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
 
 	# Assert
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 5 ]
+	[ "${#lines[@]}" -eq 6 ]
 	[ "${lines[4]}" = "$(printf 'pi\t%s\t600\t600' "$max_model")" ]
+	[ "${lines[5]}" = "$(printf 'pi\t%s\t600\t600' "$muse_model")" ]
 }
 
 @test "review.grok resolves and appears exactly once in every parallel-review level" {
@@ -476,9 +479,9 @@ EOF
 	[ "$output" = "gemini-test-model" ]
 }
 
-@test "each parallel-review level has unique reviewer keys (4/5/5)" {
+@test "each parallel-review level has unique reviewer keys (5/6/6)" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local -a expected_counts=(4 5 5)
+	local -a expected_counts=(5 6 6)
 
 	for level in 1 2 3; do
 		local expected="${expected_counts[$((level - 1))]}"
@@ -587,6 +590,60 @@ EOF
 	cmp -s "$legacy" "$legacy_snapshot"
 }
 
+@test "Opus 5.5 high/max in catalog, settings, review.claude, and parallel-review L2/L3" {
+	# Arrange — integration against the tracked repo catalog and settings
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
+	local opus_high="anthropic/claude-opus-5-5:high"
+	local opus_max="anthropic/claude-opus-5-5:max"
+	local sonnet_l1="anthropic/claude-sonnet-5:high"
+
+	# Assert — enabledModels includes Opus 5.5 high/max in catalog and settings
+	jq -e --arg high "$opus_high" --arg max "$opus_max" \
+		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
+		"$real_catalog" >/dev/null
+	jq -e --arg high "$opus_high" --arg max "$opus_max" \
+		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
+		"$real_settings" >/dev/null
+
+	# Assert — review.claude resolves to Opus 5.5 :high with expected label
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.claude
+	[ "$status" -eq 0 ]
+	[ "$output" = "$opus_high" ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.claude
+	[ "$status" -eq 0 ]
+	[ "$output" = "Claude Opus 5.5 High" ]
+
+	# Assert — L1 Sonnet unchanged; L2 Opus :high; L3 Opus :max
+	jq -e --arg sonnet "$sonnet_l1" \
+		'[.reviewLevels["1"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-sonnet-5:")) | .pi][0] == $sonnet' \
+		"$real_catalog" >/dev/null
+	jq -e --arg high "$opus_high" \
+		'[.reviewLevels["2"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $high' \
+		"$real_catalog" >/dev/null
+	jq -e --arg max "$opus_max" \
+		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $max' \
+		"$real_catalog" >/dev/null
+
+	# Assert — --review-level emits Opus 5.5 rows at L2/L3
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
+	[ "$status" -eq 0 ]
+	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t600' "$opus_high")" ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	[ "$status" -eq 0 ]
+	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t900' "$opus_max")" ]
+
+	# Assert — no legacy Opus 5 model ids remain in active catalog/settings
+	run jq -e '[.. | strings | select(test("anthropic/claude-opus-5:"))] | length == 0' \
+		"$real_catalog"
+	[ "$status" -eq 0 ]
+	run jq -e '[.. | strings | select(test("anthropic/claude-opus-5:"))] | length == 0' \
+		"$real_settings"
+	[ "$status" -eq 0 ]
+}
+
 @test "GPT roles, review tiers, and modelOverrides align with codex.default catalog model" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
@@ -639,5 +696,108 @@ EOF
 
 	# Assert — no legacy GPT-5 model ids remain in the role catalog
 	run jq -e '[.. | strings | select(test("gpt-5"))] | length == 0' "$real_catalog"
+	[ "$status" -eq 0 ]
+}
+
+@test "OpenCode Go enabledModels glob is present in catalog and synced settings" {
+	# Arrange — integration against tracked repo catalog and settings
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
+
+	# Assert — catalog and settings both expose the provider glob scope
+	jq -e '.enabledModels | index("opencode-go/*") != null' "$real_catalog" >/dev/null
+	jq -e '.enabledModels | index("opencode-go/*") != null' "$real_settings" >/dev/null
+
+	# Assert — settings enabledModels mirror the catalog (resolve-model --apply output)
+	jq -e --slurpfile catalog "$real_catalog" '.enabledModels == $catalog[0].enabledModels' \
+		"$real_settings" >/dev/null
+}
+
+@test "review.muse resolves with timeout 120 and appears once per parallel-review tier with tier budgets" {
+	# Arrange — integration against the tracked repo catalog
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model skill_path claude_link level line
+	local -a expected_budgets=(
+		$'1\t300\t300'
+		$'2\t600\t600'
+		$'3\t600\t900'
+	)
+	skill_path="$BATS_TEST_DIRNAME/../../../skills/muse-review/SKILL.md"
+	claude_link="$BATS_TEST_DIRNAME/../../../claude/skills/muse-review"
+
+	# Assert — review.muse resolves to Muse Contributor High with timeout 120 (standalone)
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse
+	[ "$status" -eq 0 ]
+	muse_model="$output"
+	[ "$muse_model" = "opencode-go/muse-spark-1.3-contributor:high" ]
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.muse
+	[ "$status" -eq 0 ]
+	[ "$output" = "120" ]
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.muse
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Muse Spark 1.3 Contributor High"* ]]
+
+	# Assert — each tier has exactly one opencode-go entry equal to roles.review.muse.pi
+	for level in 1 2 3; do
+		jq -e --arg model "$muse_model" --arg lvl "$level" '
+			(.reviewLevels[$lvl] | map(select(has("pi")) | select(.pi | startswith("opencode-go/")) | .pi)) == [$model]
+		' "$real_catalog" >/dev/null
+		jq -e --arg lvl "$level" \
+			'[.reviewLevels[$lvl][] | select(.role? == "review.muse")] | length == 0' \
+			"$real_catalog" >/dev/null
+	done
+
+	# Assert — resolve-model --review-level emits Muse last with tier budgets (not standalone 120)
+	for line in "${expected_budgets[@]}"; do
+		local lvl initial retry
+		IFS=$'\t' read -r lvl initial retry <<<"$line"
+		run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level "$lvl"
+		[ "$status" -eq 0 ]
+		[ "${lines[-1]}" = "$(printf 'pi\t%s\t%s\t%s' "$muse_model" "$initial" "$retry")" ]
+	done
+
+	# Assert — skill resolves via role only (no literal model id in SKILL.md)
+	[ -f "$skill_path" ]
+	run rg -Fq 'review.muse' "$skill_path"
+	[ "$status" -eq 0 ]
+	run rg -Fq "$muse_model" "$skill_path"
+	[ "$status" -ne 0 ]
+	run rg -Fq 'muse-spark-1.3-contributor' "$skill_path"
+	[ "$status" -ne 0 ]
+	run rg -Fq '`parallel-review` には含めない' "$skill_path"
+	[ "$status" -ne 0 ]
+
+	# Assert — shared inventory discovers the skill without a manual inventory entry
+	local repo_root
+	repo_root=$(cd "$BATS_TEST_DIRNAME/../../.." && pwd -P)
+	run bash "$repo_root/scripts/build_env/list_shared_agent_skills.sh" "$repo_root"
+	[ "$status" -eq 0 ]
+	[[ $'\n'"$output"$'\n' == *$'\n'"$repo_root/skills/muse-review"$'\n'* ]]
+
+	# Assert — Claude symlink follows shared skill convention
+	[ -L "$claude_link" ]
+	[ "$(readlink "$claude_link")" = "../../skills/muse-review" ]
+}
+
+@test "auth.json.example wires opencode-go command auth without enabling opencode Zen" {
+	# Arrange — tracked auth example only (no live auth or Keychain)
+	local auth_example="$BATS_TEST_DIRNAME/../auth.json.example"
+	local expected_cmd='!security find-generic-password -w -s open-code-go-api-key'
+
+	# Assert — Sakana command reference remains intact
+	jq -e '
+		.["sakana-ai-console"].type == "api_key" and
+		.["sakana-ai-console"].key == "!security find-generic-password -w -s fugu-api-key"
+	' "$auth_example" >/dev/null
+
+	# Assert — OpenCode Go uses provider-scoped command auth (not shared OPENCODE_API_KEY)
+	jq -e --arg cmd "$expected_cmd" '
+		.["opencode-go"].type == "api_key" and
+		.["opencode-go"].key == $cmd
+	' "$auth_example" >/dev/null
+
+	# Assert — Zen provider and env-based Zen auth are not introduced
+	jq -e 'has("opencode") | not' "$auth_example" >/dev/null
+	run jq -e '[.. | strings | select(test("OPENCODE_API_KEY"))] | length == 0' "$auth_example"
 	[ "$status" -eq 0 ]
 }
