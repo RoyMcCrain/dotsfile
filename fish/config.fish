@@ -105,6 +105,8 @@ switch (uname)
     case Darwin
         # Mac用の設定
         set -gx CLICOLOR 1
+        # macOS では GCE metadata server を使わないため、gcloud 起動時の接続待ちを避ける
+        set -gx CLOUDSDK_CORE_CHECK_GCE_METADATA false
         if test -f /opt/homebrew/bin/brew
             eval (/opt/homebrew/bin/brew shellenv)
         end
