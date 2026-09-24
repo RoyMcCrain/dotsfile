@@ -587,6 +587,60 @@ EOF
 	cmp -s "$legacy" "$legacy_snapshot"
 }
 
+@test "Opus 5.5 high/max in catalog, settings, review.claude, and parallel-review L2/L3" {
+	# Arrange — integration against the tracked repo catalog and settings
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
+	local opus_high="anthropic/claude-opus-5-5:high"
+	local opus_max="anthropic/claude-opus-5-5:max"
+	local sonnet_l1="anthropic/claude-sonnet-5:high"
+
+	# Assert — enabledModels includes Opus 5.5 high/max in catalog and settings
+	jq -e --arg high "$opus_high" --arg max "$opus_max" \
+		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
+		"$real_catalog" >/dev/null
+	jq -e --arg high "$opus_high" --arg max "$opus_max" \
+		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
+		"$real_settings" >/dev/null
+
+	# Assert — review.claude resolves to Opus 5.5 :high with expected label
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.claude
+	[ "$status" -eq 0 ]
+	[ "$output" = "$opus_high" ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.claude
+	[ "$status" -eq 0 ]
+	[ "$output" = "Claude Opus 5.5 High" ]
+
+	# Assert — L1 Sonnet unchanged; L2 Opus :high; L3 Opus :max
+	jq -e --arg sonnet "$sonnet_l1" \
+		'[.reviewLevels["1"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-sonnet-5:")) | .pi][0] == $sonnet' \
+		"$real_catalog" >/dev/null
+	jq -e --arg high "$opus_high" \
+		'[.reviewLevels["2"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $high' \
+		"$real_catalog" >/dev/null
+	jq -e --arg max "$opus_max" \
+		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $max' \
+		"$real_catalog" >/dev/null
+
+	# Assert — --review-level emits Opus 5.5 rows at L2/L3
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
+	[ "$status" -eq 0 ]
+	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t600' "$opus_high")" ]
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	[ "$status" -eq 0 ]
+	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t900' "$opus_max")" ]
+
+	# Assert — no legacy Opus 5 model ids remain in active catalog/settings
+	run jq -e '[.. | strings | select(test("anthropic/claude-opus-5:"))] | length == 0' \
+		"$real_catalog"
+	[ "$status" -eq 0 ]
+	run jq -e '[.. | strings | select(test("anthropic/claude-opus-5:"))] | length == 0' \
+		"$real_settings"
+	[ "$status" -eq 0 ]
+}
+
 @test "GPT roles, review tiers, and modelOverrides align with codex.default catalog model" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"

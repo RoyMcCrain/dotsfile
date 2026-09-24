@@ -18,8 +18,8 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
 - **1（簡単/速い）**: Grok 4.7 / Codex high / claude-sonnet-5:high / Antigravity（`review.antigravity`）。
-- **2（標準・既定）**: Grok 4.7 / Codex xhigh / claude-opus-5:high / Antigravity（`review.antigravity`）/ Fugu Max :high。
-- **3（deep/高精度）**: Grok 4.7 / Codex max / opus:max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high。
+- **2（標準・既定）**: Grok 4.7 / Codex xhigh / Opus 5.5 :high / Antigravity（`review.antigravity`）/ Fugu Max :high。
+- **3（deep/高精度）**: Grok 4.7 / Codex max / Opus 5.5 :max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high。
 
 Grok は全 level で同じ Pi model id を使い、reasoning effort は明示指定しない。Codex の tier 別 effort（high / xhigh / max）は `model-roles.json` の `reviewLevels` が正本。Antigravity は全 tier で `review.antigravity` ロール（`--field agy` で解決）。
 

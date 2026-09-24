@@ -4,8 +4,8 @@
     "xai/grok-4.7",
     "anthropic/claude-sonnet-5:high",
     "anthropic/claude-sonnet-5:max",
-    "anthropic/claude-opus-5:high",
-    "anthropic/claude-opus-5:max",
+    "anthropic/claude-opus-5-5:high",
+    "anthropic/claude-opus-5-5:max",
     "openai-codex/gpt-6-astra:xhigh",
     "openai-codex/gpt-6-astra:max",
     "sakana-ai-console/fugu-max:high",
@@ -17,8 +17,8 @@
       "label": "Codex GPT-6 Astra High"
     },
     "review.claude": {
-      "pi": "anthropic/claude-opus-5:high",
-      "label": "Claude Opus 5 High"
+      "pi": "anthropic/claude-opus-5-5:high",
+      "label": "Claude Opus 5.5 High"
     },
     "review.grok": {
       "pi": "xai/grok-4.7",
@@ -70,14 +70,14 @@
     "2": [
       { "pi": "xai/grok-4.7" },
       { "pi": "openai-codex/gpt-6-astra:xhigh" },
-      { "pi": "anthropic/claude-opus-5:high" },
+      { "pi": "anthropic/claude-opus-5-5:high" },
       { "role": "review.antigravity" },
       { "pi": "sakana-ai-console/fugu-max:high" }
     ],
     "3": [
       { "pi": "xai/grok-4.7" },
       { "pi": "openai-codex/gpt-6-astra:max" },
-      { "pi": "anthropic/claude-opus-5:max" },
+      { "pi": "anthropic/claude-opus-5-5:max" },
       { "role": "review.antigravity" },
       { "pi": "sakana-ai-console/fugu-ultra-v2.0:high" }
     ]
