@@ -5,7 +5,7 @@ description: 隔離済み reviewer（Pi 3–4 + Antigravity reviewer）を3段�
 
 # /parallel-review
 
-同じ patch を reviewer（xAI Grok 4.6・Codex・Claude・Antigravity Gemini 3.8 Flash High、L2 では Sakana Fugu Max :high、L3 では Fugu Ultra v2 :high 追加）に同時に渡し、結果を統合する。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
+同じ patch を reviewer（xAI Grok 4.7・Codex・Claude・Antigravity Gemini 3.8 Flash High、L2 では Sakana Fugu Max :high、L3 では Fugu Ultra v2 :high 追加）に同時に渡し、結果を統合する。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## 実行要件
 
@@ -17,11 +17,11 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
-- **1（簡単/速い）**: Grok 4.6 / Codex high / claude-sonnet-5:high / Antigravity（`review.antigravity`）。
-- **2（標準・既定）**: Grok 4.6 / Codex xhigh / claude-opus-5:high / Antigravity（`review.antigravity`）/ Fugu Max :high。
-- **3（deep/高精度）**: Grok 4.6 / Codex max / opus:max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high。
+- **1（簡単/速い）**: Grok 4.7 / Codex high / claude-sonnet-5:high / Antigravity（`review.antigravity`）。
+- **2（標準・既定）**: Grok 4.7 / Codex xhigh / claude-opus-5:high / Antigravity（`review.antigravity`）/ Fugu Max :high。
+- **3（deep/高精度）**: Grok 4.7 / Codex max / opus:max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high。
 
-xAI Grok 4.6 は現在の Pi catalog で reasoning effort を固定できないため、全 level で同じ Pi model id を使う。Codex の tier 別 effort（high / xhigh / max）は `model-roles.json` の `reviewLevels` が正本。Antigravity は全 tier で `review.antigravity` ロール（`--field agy` で解決）。
+Grok は全 level で同じ Pi model id を使い、reasoning effort は明示指定しない。Codex の tier 別 effort（high / xhigh / max）は `model-roles.json` の `reviewLevels` が正本。Antigravity は全 tier で `review.antigravity` ロール（`--field agy` で解決）。
 
 **timeout 予算（固定）**:
 

@@ -3,7 +3,7 @@
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "xhigh",
   "enabledModels": [
-    "xai/grok-4.6",
+    "xai/grok-4.7",
     "anthropic/claude-sonnet-5:high",
     "anthropic/claude-sonnet-5:max",
     "anthropic/claude-opus-5:high",
