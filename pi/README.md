@@ -91,16 +91,17 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ```
 
 Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
-`review.fugu`, `route.fugu.base`, `route.fugu.ultra`, `impl.cursor`, `research.xai`,
-`codex.default`.
+`review.fugu`, `review.muse`, `route.fugu.base`, `route.fugu.ultra`, `impl.cursor`,
+`research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
 `reviewLevels` tier models, role labels, and the `enabledModels` cycling list),
 then run `--apply` and `--check`. Skills pick it up immediately because
 `run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
 `run_antigravity_review.sh --role review.antigravity` resolves via `--field agy`.
-Parallel-review tiers emit four rows for L1 and five for L2/L3 from `--review-level N`
-(`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`).
+Parallel-review tiers emit five rows for L1 and six for L2/L3 from `--review-level N`
+(`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`). All tiers include
+Muse Contributor :high with tier timeout budgets (not the standalone 120s).
 Install the Antigravity `patch-reviewer` agent via setup scripts before using the agy runner.
 
 `enabledModels` controls Pi's Ctrl+P cycling choices (configured with
@@ -249,6 +250,51 @@ security find-generic-password -w -s fugu-api-key >/dev/null
 
 If you do not want to use Keychain, edit `~/.pi/agent/auth.json` and store a
 literal API key or an environment reference such as `$SAKANA_API_KEY`.
+
+### OpenCode Go API key
+
+Pi ships a built-in `opencode-go` provider (distinct from OpenCode Zen /
+`opencode`). No custom provider, endpoints, or model catalog are tracked here;
+`enabledModels` uses the `opencode-go/*` glob so bundled model IDs stay in sync
+with Pi.
+
+1. Unlock Bitwarden if needed, then sync the Keychain item (fish uses the default
+   env var derived from the item name):
+
+   ```bash
+   bw-unlock   # if BW_SESSION is unset
+   sync-key open-code-go-api-key
+   ```
+
+2. Add or merge the `opencode-go` command entry into `~/.pi/agent/auth.json`
+   without overwriting other credentials (copy from `pi/agent/auth.json.example`
+   if helpful):
+
+   ```json
+   "opencode-go": {
+     "type": "api_key",
+     "key": "!security find-generic-password -w -s open-code-go-api-key"
+   }
+   ```
+
+   Avoid the shared `OPENCODE_API_KEY` environment variable here; both Go and
+   Zen use it. The provider-scoped entry keeps this key limited to Go.
+
+3. Restrict permissions and restart Pi:
+
+   ```bash
+   chmod 600 ~/.pi/agent/auth.json
+   ```
+
+4. Verify readiness:
+
+   ```bash
+   pi auth check --provider opencode-go --json
+   pi --list-models opencode-go
+   ```
+
+   In an interactive session, `/model` and search for `opencode-go` to pick a
+   model.
 
 ### Claude Pro/Max (`anthropic`)
 
@@ -464,6 +510,7 @@ exposure is controlled by which runtime directory links the skill.
 | `review-verify` | 「裏取りして」 / verification パケット |
 | `codex-review` / `claude-review` / `grok-review` | 単体 reviewer を明示指定時 |
 | `fugu-review` | Fugu 単体 reviewer を明示指定時 |
+| `muse-review` | Muse 単体 reviewer を明示指定時（`/skill:muse-review`）。Contributor は prompts/completions を学習利用（非 ZDR）。parallel でも全 tier に Muse が含まれるが、単体 skill は明示時のみ（timeout 120s、`attempts=1`）。parallel / 単体とも runner 前に対象パッチの学習利用送信許可を確認。role `review.muse`、`run_pi_review.sh` 再利用 |
 | `hunk-review` | Hunk バンドル（devbox 同梱） |
 
 **Implementation & PR**:

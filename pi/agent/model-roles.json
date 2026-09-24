@@ -9,7 +9,8 @@
     "openai-codex/gpt-6-astra:xhigh",
     "openai-codex/gpt-6-astra:max",
     "sakana-ai-console/fugu-max:high",
-    "sakana-ai-console/fugu-ultra-v2.0:high"
+    "sakana-ai-console/fugu-ultra-v2.0:high",
+    "opencode-go/*"
   ],
   "roles": {
     "review.codex": {
@@ -33,6 +34,11 @@
       "pi": "sakana-ai-console/fugu-ultra-v2.0:high",
       "label": "Sakana Fugu Ultra v2 High",
       "timeout": 240
+    },
+    "review.muse": {
+      "pi": "opencode-go/muse-spark-1.3-contributor:high",
+      "label": "Muse Spark 1.3 Contributor High",
+      "timeout": 120
     },
     "route.fugu.base": {
       "id": "fugu-max",
@@ -65,21 +71,24 @@
       { "pi": "xai/grok-4.7" },
       { "pi": "openai-codex/gpt-6-astra:high" },
       { "pi": "anthropic/claude-sonnet-5:high" },
-      { "role": "review.antigravity" }
+      { "role": "review.antigravity" },
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
     ],
     "2": [
       { "pi": "xai/grok-4.7" },
       { "pi": "openai-codex/gpt-6-astra:xhigh" },
       { "pi": "anthropic/claude-opus-5-5:high" },
       { "role": "review.antigravity" },
-      { "pi": "sakana-ai-console/fugu-max:high" }
+      { "pi": "sakana-ai-console/fugu-max:high" },
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
     ],
     "3": [
       { "pi": "xai/grok-4.7" },
       { "pi": "openai-codex/gpt-6-astra:max" },
       { "pi": "anthropic/claude-opus-5-5:max" },
       { "role": "review.antigravity" },
-      { "pi": "sakana-ai-console/fugu-ultra-v2.0:high" }
+      { "pi": "sakana-ai-console/fugu-ultra-v2.0:high" },
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
     ]
   }
 }
