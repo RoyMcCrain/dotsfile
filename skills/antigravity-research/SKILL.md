@@ -21,7 +21,7 @@ Antigravity CLI (`agy`) **単独**で調査・リサーチを実行するスキ�
 2. 以下のコマンドで agy を非対話(headless)で呼び出す：
 
 ```bash
-agy --print-timeout 120s -p "以下について調査してください: [調査内容]"
+agy --print-timeout 600s -p "以下について調査してください: [調査内容]"
 ```
 
 3. agy の出力を要約してユーザーに報告（**agy 単独の事実は確証扱いしない**。重要なら `/cross-research` で裏取り）
@@ -30,6 +30,9 @@ agy --print-timeout 120s -p "以下について調査してください: [調査
 ## 補足
 
 - `-p` / `--print` で単発プロンプトを非対話実行する（旧 `gemini -p` の代替）
-- timeout は既定 `--print-timeout 120s`（cross-research と統一。ハング防止）
+- timeout は既定 `--print-timeout 600s`（10分。cross-research と統一。ハング防止）
+- 呼び出し元の Bash/tool timeout は660秒以上にする（起動・認証時間を含め、agy より先に打ち切らない）
+- Claude Code は `BASH_MAX_TIMEOUT_MS=660000 claude` で起動し、Bash tool の `timeout` に `660000`（ミリ秒）を指定する。
+  - 上限は親の Claude Code 側の設定。Bash 内の `export` や `agy` への環境変数指定では変更できないため、未設定のセッションはこの設定で再起動する。
 - モデル指定は `--model`（一覧は `agy models`）
 - 初回のみ Google OAuth ログインが必要（`agy` を対話起動して認証）

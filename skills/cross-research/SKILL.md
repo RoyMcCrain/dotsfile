@@ -24,7 +24,7 @@ Firecrawl、Antigravity CLI (`agy`)、xAI Grok **X Search** を**並行**で走�
 1. 調査クエリと観点を整理
 2. 以下を**並行**で実行する（1メッセージ内で3つの Bash を同時に投げる）:
    - `firecrawl search "[クエリ]" --scrape --limit 3 -o .firecrawl/cross-research.json --json`（実Web検索＋本文取得。canonical ドキュメントの一次ソース。無料プラン節約のため既定 limit 3）
-   - `agy --print-timeout 120s -p "次について調査して要点と出典を返して: [クエリ]"`（横断調査・推論・トレンド。単独では確証にしない）
+   - `agy --print-timeout 600s -p "次について調査して要点と出典を返して: [クエリ]"`（横断調査・推論・トレンド。単独では確証にしない）
    - `~/.agents/skills/cross-research/scripts/grok-x-search.sh --query "[クエリ]" --output .firecrawl/cross-research-grok-x.json`（X 上の一次発表と公開議論。生 JSON は `.firecrawl/` に保存）
 3. firecrawl の結果は本文込みで保存されるので、`jq` で要点と出典URLを抽出する:
    - `jq -r '.data.web[] | "- \(.title): \(.url)"' .firecrawl/cross-research.json`
@@ -82,5 +82,8 @@ Firecrawl、Antigravity CLI (`agy`)、xAI Grok **X Search** を**並行**で走�
 
 - firecrawl はクレジット消費。結果は `.firecrawl/` に保存して再取得を避ける
 - コストが気になる時は `firecrawl search-feedback <id>` を1回送ると 1credit 返金
+- agy の timeout は600秒（10分）。呼び出し元の Bash/tool timeout は660秒以上にする（起動・認証時間を含め、agy より先に打ち切らない）
+- Claude Code は `BASH_MAX_TIMEOUT_MS=660000 claude` で起動し、Bash tool の `timeout` に `660000`（ミリ秒）を指定する。
+  - 上限は親の Claude Code 側の設定。Bash 内の `export` や `agy` への環境変数指定では変更できないため、未設定のセッションはこの設定で再起動する。
 - agy 初回は Google OAuth ログインが必要
 - 単に agy だけで十分なら `/antigravity-research` を使う
