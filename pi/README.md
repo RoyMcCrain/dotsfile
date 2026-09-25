@@ -510,7 +510,7 @@ exposure is controlled by which runtime directory links the skill.
 | `review-verify` | 「裏取りして」 / verification パケット |
 | `codex-review` / `claude-review` / `grok-review` | 単体 reviewer を明示指定時 |
 | `fugu-review` | Fugu 単体 reviewer を明示指定時 |
-| `muse-review` | Muse 単体 reviewer を明示指定時（`/skill:muse-review`）。Contributor は prompts/completions を学習利用（非 ZDR）。parallel でも全 tier に Muse が含まれるが、単体 skill は明示時のみ（timeout 120s、`attempts=1`）。parallel / 単体とも runner 前に対象パッチの学習利用送信許可を確認。role `review.muse`、`run_pi_review.sh` 再利用 |
+| `muse-review` | Muse 単体 reviewer を明示指定時（`/skill:muse-review`）。Contributor は prompts/completions を学習利用（非 ZDR）。parallel でも全 tier に Muse が含まれる。単体 skill は明示時のみ（timeout 120s、`attempts=1`）。**個人設定によりユーザー依頼レビューの学習利用送信は常時許可済み**（patch ごとの再確認なし。秘密検査は必須）。role `review.muse`、`run_pi_review.sh` 再利用 |
 | `hunk-review` | Hunk バンドル（devbox 同梱） |
 
 **Implementation & PR**:

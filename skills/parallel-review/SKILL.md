@@ -42,7 +42,7 @@ Muse Contributor は prompts/completions を学習に利用する（zero-data-re
 1. 対象を決める。指定なしなら現在の作業コピー差分。
 2. changed paths を取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
 3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。
-4. **Muse 学習利用の確認（必須）**: 全 tier に Muse Contributor が含まれる。runner 起動前に、Muse が prompts/completions を学習に利用すること（zero-data-retention ではない）を説明し、**この `$REVIEW_DIR/changes.patch` を学習利用して外部送信してよいか**ユーザーに確認する。「レビューして」・parallel-review 有効化・公開 remote・秘密検査だけでは同意とみなさない。同一 patch の chunk 分割や tier 固定リトライ（`attempts=2`）は同じ同意で足りる。別 patch や新規 diff では再確認が必要。許可が得られない場合は Muse を silently 省略せず停止してユーザーに確認する。
+4. **Muse 学習利用（個人設定）**: 全 tier に Muse Contributor が含まれる（prompts/completions を学習に利用、zero-data-retention ではない）。ユーザー依頼のレビューに限り、秘密除外・検査済み `$REVIEW_DIR/changes.patch` の学習利用外部送信は**常時許可済み**とみなす（patch/chunk/リトライごとの再確認は不要）。**例外**: 認証情報・顧客データ・雇用先機密の疑いがある場合は停止して確認する。ユーザーが撤回・制限・拒否した場合は停止し、Muse を silently 省略したり別 provider へ切り替えない。
 5. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
 
 ```text

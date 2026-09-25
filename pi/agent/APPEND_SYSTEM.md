@@ -49,8 +49,8 @@
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
 - 委譲後は必ず diff 目視、lint、test、仕様充足チェックで検証し、投げっぱなしにしない。
-- 「レビューして」と言われたら、単体レビュアーを明示されない限り `parallel-review` skill を優先して使う（reviewLevels の3段階：1=簡単 / 2=標準・既定 / 3=deep。全 tier に Muse Contributor :high を含む。現在使用中の provider と同じ reviewer も含める）。parallel reviewer を起動する前に、秘密除外済み対象パッチについて Muse Contributor の学習利用送信をユーザーが許可したことを確認する（「レビューして」だけでは不十分。同一 patch の chunk/リトライは同一同意で足りる）。
-- ユーザーがレビュアーを明示した場合のみ `grok-review` / `codex-review` / `claude-review` / `fugu-review` / `muse-review` skill を使う。`muse-review` 単体も Muse Contributor が学習利用するため明示 opt-in のみ。runner 実行前に、対象パッチの学習利用送信をユーザーが許可したことを確認する（Muse 指定だけでは不十分）。
+- 「レビューして」と言われたら、単体レビュアーを明示されない限り `parallel-review` skill を優先して使う（reviewLevels の3段階：1=簡単 / 2=標準・既定 / 3=deep。全 tier に Muse Contributor :high を含む。現在使用中の provider と同じ reviewer も含める）。ユーザー依頼のレビューでは、秘密除外・検査済みパッチの Muse Contributor 学習利用外部送信は**個人設定として常時許可済み**とみなす（patch/chunk/リトライごとの再確認は不要）。認証情報・顧客データ・雇用先機密の疑いがある場合、またはユーザーが撤回・制限・拒否した場合は停止して確認する（Muse を silently 省略したり別 provider へ切り替えない）。
+- ユーザーがレビュアーを明示した場合のみ `grok-review` / `codex-review` / `claude-review` / `fugu-review` / `muse-review` skill を使う。`muse-review` 単体は Muse の明示指定時のみ使う。学習利用の再確認は不要（ユーザー依頼レビューの常時許可対象）。秘密の疑いまたは許可の撤回・制限・拒否時は停止する。
 
 ## Simplicity Principles
 

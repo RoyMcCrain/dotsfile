@@ -1,19 +1,19 @@
 ---
 name: muse-review
-description: Pi headless（Muse Spark 1.3 Contributor）で120秒上限の単体コードレビューを実行する。ユーザーが Muse を明示し、学習利用への同意を得た場合のみ使う。
+description: Pi headless（Muse Spark 1.3 Contributor）で120秒上限の単体コードレビューを実行する。ユーザーが Muse を明示した場合に使う（学習利用はレビュー経路の常時許可対象。patch ごとの再確認は不要）。
 ---
 
 # /muse-review
 
-Muse Spark 1.3 Contributor は **prompt / completion を学習に利用する** Contributor モデルであり、zero-data-retention ではない。`parallel-review` の全 tier にも Muse Contributor :high が含まれるが、**この skill は単体レビュー専用**（`/skill:muse-review` または Muse 明示時のみ）。parallel 経路は tier の固定 timeout 予算と `attempts=2`、単体は role `review.muse` の 120s と `attempts=1`。ユーザーが Muse 単体レビューを明示し、**提出対象パッチの学習利用を許可した場合のみ** 実行する。
+Muse Spark 1.3 Contributor は **prompt / completion を学習に利用する** Contributor モデルであり、zero-data-retention ではない。`parallel-review` の全 tier にも Muse Contributor :high が含まれるが、**この skill は単体レビュー専用**（`/skill:muse-review` または Muse 明示時のみ）。parallel 経路は tier の固定 timeout 予算と `attempts=2`、単体は role `review.muse` の 120s と `attempts=1`。ユーザーが Muse 単体レビューを明示した場合に実行する（Muse 選択は必須。学習利用はレビュー経路の個人常時許可対象で、patch/chunk ごとの再確認は不要）。
 
-## 事前確認（必須）
+## 事前確認
 
 runner 実行前に必ず行う:
 
-1. Muse Contributor が prompts/completions を学習に利用すること、zero-data-retention ではないことを説明する。
-2. 対象パッチ（秘密除外済み `$REVIEW_DIR/changes.patch`）を学習利用して外部送信してよいか、ユーザーに確認する。Muse 指定・公開 remote・秘密検査だけでは同意とみなさない。ユーザーが対象を public / 非機密と明示し、学習利用を伴う送信も許可済みなら再確認は不要。
-3. 認証情報・顧客データ・雇用先機密コードが含まれる可能性がある場合は送信せず、許可を得るまで停止する。許可が得られない場合、別 provider へ silently fallback しない。
+1. Muse Contributor が prompts/completions を学習に利用すること、zero-data-retention ではないことを開示する（再同意は求めない）。
+2. **Muse 単体選択**: ユーザーが `/skill:muse-review` または Muse 単体 reviewer を明示していること（`parallel-review` 経由の「レビューして」だけではこの skill を起動しない）。
+3. **安全例外**: 認証情報・顧客データ・雇用先機密コードが含まれる可能性がある場合は送信せず、許可を得るまで停止する。ユーザーが学習利用送信を撤回・制限・拒否した場合も停止し、別 provider へ silently fallback しない。
 
 ## 手順
 
