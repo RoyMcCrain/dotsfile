@@ -41,26 +41,56 @@ function add-key --description 'Create a Bitwarden API key item, then cache it t
     bw get template item \
         | jq --arg n "$item" --arg k "$value" --arg f "$folder_id" '.name=$n | .type=1 | .notes=null | .folderId=(if $f=="" then null else $f end) | .login={username:"",password:$k,totp:null,uris:[]}' \
         | bw encode | bw create item >/dev/null
+    set -l create_status $pipestatus
     set -e value
+    for s in $create_status
+        if test "$s" -ne 0
+            echo "add-key: Bitwarden への作成に失敗しました" >&2
+            return 1
+        end
+    end
 
     echo "Bitwarden に '$item' を作成しました"
 
     # 作成後すぐ Keychain にキャッシュ＋現在のシェルへ反映
-    sync-key $item
+    if not sync-key $item
+        return 1
+    end
 
     # config.fish のキー一覧に自動追記（version 管理。差分は commit すること）
     set -l cfg ~/.config/fish/config.fish
-    if test -f "$cfg"
-        set -l current (grep '^set -l api_key_items ' "$cfg" | head -1 | string replace 'set -l api_key_items ' '')
-        if contains $item (string split ' ' -- $current)
-            echo "config.fish: '$item' は既に登録済み"
-        else
-            set -l tmp (mktemp)
-            # 行末に item を追記。`>` は symlink を辿って実体に書くため symlink を壊さない
-            awk -v it="$item" '/^set -l api_key_items / && !d {print $0" "it; d=1; next} {print}' "$cfg" >$tmp
-            cat $tmp >"$cfg"
-            rm -f $tmp
-            echo "config.fish のキー一覧に '$item' を追記しました（jj/git で commit を）"
+    if not test -f "$cfg"
+        echo "add-key: config.fish が見つかりません ($cfg)" >&2
+        return 1
+    end
+
+    set -l decl_line (rg -N '^\s*set -l api_key_items ' "$cfg" | head -1)
+    if test -z "$decl_line"
+        echo "add-key: config.fish に api_key_items 宣言が見つかりません" >&2
+        return 1
+    end
+
+    set -l current (string replace -r '^\s*set -l api_key_items ' '' $decl_line)
+    if contains $item (string split ' ' -- $current)
+        echo "config.fish: '$item' は既に登録済み"
+    else
+        set -l tmp (mktemp)
+        if test -z "$tmp"
+            echo "add-key: 一時ファイルの作成に失敗しました" >&2
+            return 1
         end
+        # 行末に item を追記。`>` は symlink を辿って実体に書くため symlink を壊さない
+        if not awk -v it="$item" '/^[[:space:]]*set -l api_key_items / && !d {print $0" "it; d=1; next} {print}' "$cfg" >$tmp
+            rm -f $tmp
+            echo "add-key: config.fish の更新に失敗しました" >&2
+            return 1
+        end
+        if not cat $tmp >"$cfg"
+            rm -f $tmp
+            echo "add-key: config.fish の書き込みに失敗しました" >&2
+            return 1
+        end
+        rm -f $tmp
+        echo "config.fish のキー一覧に '$item' を追記しました（jj/git で commit を）"
     end
 end

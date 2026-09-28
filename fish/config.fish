@@ -31,7 +31,7 @@ end
 # add-key が新規アイテムを作る Bitwarden フォルダ
 set -gx BW_KEY_FOLDER "env"
 if command -q security
-    set -l api_key_items firecrawl-api-key devin-api-key open-router-management-key
+    set -l api_key_items firecrawl-api-key devin-api-key open-router-api-key open-router-management-key
     # set -a api_key_items fugu-api-key  # 解約につき無効
     for item in $api_key_items
         set -l val (security find-generic-password -s $item -w 2>/dev/null)
@@ -43,6 +43,14 @@ end
 # SSH の Match exec が $SHELL を execve するため絶対パスを設定する（裸の "fish" だと exec 失敗）
 set -gx SHELL (status fish-path)
 devbox global shellenv | source
+
+# pnpm global binaries (devbox sets PNPM_HOME; append so devbox tools stay first)
+if test -n "$PNPM_HOME"
+    set -l pnpm_bin "$PNPM_HOME/bin"
+    if not contains -- $pnpm_bin $PATH
+        set -gx PATH $PATH $pnpm_bin
+    end
+end
 
 # JAVA_HOME (devbox's temurin)
 if command -q java
