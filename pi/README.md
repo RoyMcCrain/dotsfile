@@ -91,7 +91,7 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Set `OPENROUTER_API_KEY` in the environment for parallel-review **auto** level selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). Auto uses `route.review` plus scoped Deno permissions documented in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPENROUTER_API_KEY`). Unspecified review level → auto (Jev); failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
+Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** level selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). Auto uses `route.review` plus scoped Deno permissions documented in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto (Jev); failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
 
 Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
 `review.fugu`, `review.muse`, `route.review`, `route.fugu.base`, `route.fugu.ultra`, `impl.cursor`,
@@ -361,6 +361,7 @@ Configured by `settings.json` via `extensions/*.ts` and npm packages.
 | `local-openai.ts`               | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
+| `openrouter-balance.ts`         | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
 | `auto-fugu-model.ts`            | Route everyday work on `fugu-max`; auto-escalate to `fugu-ultra-v2.0` when on the Fugu pair. Toggle with `/auto-fugu on\|off\|status`. |
 | `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
 | `workspace-cd.ts`               | Fork/switch Pi session cwd after jj workspace setup (`switch_workspace_cwd` tool, `/workspace-cd`). |
@@ -383,6 +384,52 @@ app-server`, so Codex CLI must be installed and logged in.
 Usage refreshes at session start, after model switches, and after each settled
 agent run. Run `/codex-usage` to force a refresh; automatic failures stay silent
 and clear stale status.
+
+### OpenRouter prepaid balance
+
+`openrouter-balance.ts` adds a compact TUI status such as `OpenRouter $12.34`
+via the extension status bar (alongside Codex usage and other statuses). It is
+shown in TUI mode regardless of the selected main model, because Jev and other
+flows still use OpenRouter when the primary provider is not OpenRouter.
+
+The balance comes from OpenRouter's management API (`GET /api/v1/credits`), not
+from the inference key (`OPEN_ROUTER_API_KEY`).
+
+**Credential flow (Bitwarden → Pi):**
+
+1. Store the management key in Bitwarden as the password item
+   `open-router-management-key` (same folder convention as other env keys).
+2. In a **fish** shell, unlock Bitwarden if needed, then run **`sync-key`**
+   (fish function — not bash):
+
+   ```fish
+   bw-unlock   # if BW_SESSION is unset
+   sync-key open-router-management-key
+   ```
+
+   `sync-key` pulls the password from Bitwarden, writes it to macOS Keychain
+   (`security add-generic-password -s open-router-management-key`), and exports
+   `OPEN_ROUTER_MANAGEMENT_KEY` in the **current** fish session.
+3. On every new fish startup, `config.fish` reads that Keychain item and
+   `set -gx OPEN_ROUTER_MANAGEMENT_KEY …` (item name → env name:
+   `open-router-management-key` → `OPEN_ROUTER_MANAGEMENT_KEY`).
+4. Start or **fully restart** Pi from that fish session so the process inherits
+   the variable. Pi loads `openrouter-balance.ts` automatically via
+   `settings.json` → `extensions: ["extensions/*.ts"]` (repo symlink under
+   `~/.pi/agent/extensions`); no extra settings entry is required after adding
+   the file.
+
+**`/reload` limits:** `/reload` reloads extensions and other Pi resources, but
+it does **not** re-read the parent shell environment. If you `sync-key` or export a new
+`OPEN_ROUTER_MANAGEMENT_KEY` after Pi is already running, quit Pi and start it
+again from the fish session that has the key — `/reload` alone will not pick up
+the new value.
+
+Usage refreshes at session start and after each settled agent run. Run
+`/openrouter-balance` to force a refresh. Automatic failures stay silent and
+clear stale status; manual refresh shows a short Japanese message on failure.
+Print, JSON, and RPC modes do not call the API. TUI without UI (`hasUI: false`)
+also skips the API.
 
 ### Fugu model routing
 
