@@ -4,12 +4,15 @@
 
 ## グループ化
 
-モデルサマリのキーは **完全一致** の 4 要素:
+モデルサマリのキーは **完全一致** の 5 要素:
 
 1. `execution.backend`
 2. `execution.model`（effort 含む完全文字列）
-3. `metadata.level`
-4. `snapshot.actor.kind`（`agent` / `human` は混ぜない）
+3. `metadata.level`（1–5。scale 内での位置）
+4. `metadata.levelScale`（省略 = legacy `3`、新規 run = `5`）
+5. `snapshot.actor.kind`（`agent` / `human` は混ぜない）
+
+実行統計・issue 集計を run に戻すときも上記 5 要素でフィルタする。同じ数値 level でも legacy 3 段階と 5 段階は別行（HTML では `L2 [3段階・旧]` / `L2 [5段階]` 等）。
 
 同一グループに寄与した `actor.id` を列挙し、判断源バイアスを可視化する。合成スコアや自動ランキングは行わない。
 

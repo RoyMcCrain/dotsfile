@@ -1,11 +1,11 @@
 ---
 name: parallel-review
-description: 隔離済み reviewer（Pi 4–5 + Antigravity reviewer）を3段階レベル（1=簡単/2=標準/3=deep）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
+description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=軽量動的 / 3=標準・既定 / 4=deep / 5=最深）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
 ---
 
 # /parallel-review
 
-同じ patch を reviewer（xAI Grok 4.7・Codex・Claude・Antigravity Gemini 3.8 Flash High・Muse Spark 1.3 Contributor :high、L2 では Sakana Fugu Max :high、L3 では Fugu Ultra v2 :high 追加）に同時に渡し、結果を統合する。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
+同じ patch を `model-roles.json` の `reviewLevels` で定義された reviewer に同時に渡し、結果を統合する。L1/L2 は **現在の caller モデル**（Pi が bash ごとに export する `PI_PROVIDER` / `PI_MODEL` / 任意 `PI_REASONING_LEVEL`）+ 固定 reviewer。L3 以降は従来どおり固定 6 reviewer（Grok・Codex・Opus・Antigravity Gemini・Fugu・Muse）。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## 実行要件
 
@@ -13,29 +13,39 @@ description: 隔離済み reviewer（Pi 4–5 + Antigravity reviewer）を3段�
 
 Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み `patch-reviewer` agent 定義（改変検知あり。runner は自動インストールしない）。agy は toolless agent + 空 cwd + `--disable-slash-commands` だが、Pi 相当の `--no-session` / `--no-context` は存在せず、ローカル会話の永続化やグローバル設定の影響は残る。完全隔離とみなさない。
 
-## レベル（1/2/3）
+## レベル（1/2/3/4/5）
 
-レビューは3段階から選ぶ。指定なしは **2**。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
+レビューは5段階から選ぶ。指定なしは **3**（従来 L2 相当の 6 reviewer）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
-- **1（簡単/速い）**: Grok 4.7 / Codex high / claude-sonnet-5:high / Antigravity（`review.antigravity`）/ Muse Contributor :high。
-- **2（標準・既定）**: Grok 4.7 / Codex xhigh / Opus 5.5 :high / Antigravity（`review.antigravity`）/ Fugu Max :high / Muse Contributor :high。
-- **3（deep/高精度）**: Grok 4.7 / Codex max / Opus 5.5 :max / Antigravity（`review.antigravity`）/ Fugu Ultra v2 :high / Muse Contributor :high。
+- **1（最軽量）**: **現在の caller モデル** + Muse Contributor :high（通常 **2 reviewer**。caller が Muse と同一 ID のとき dedupe して **1**）。
+- **2（軽量）**: **caller** + Antigravity（`review.antigravity`）+ Muse（通常 **3**。caller が Muse または Antigravity と解決される Gemini と同一 ID のとき **2**）。
+- **3（標準・既定）**: Grok / Codex xhigh / Opus 5.5 :high / Antigravity / Fugu Max :high / Muse（**6 reviewer**、旧 L2 と同一）。
+- **4（deep）**: L3 と同構成だが Codex max・Opus 5.5 :max（Fugu Max :high のまま）（**6 reviewer**）。
+- **5（最深）**: Grok / Codex max / Opus 5.5 :max / Antigravity / Fugu Ultra v2 :high / Muse（**6 reviewer**、旧 L3 と同一）。
 
-Grok は全 level で同じ Pi model id を使い、reasoning effort は明示指定しない。Codex の tier 別 effort（high / xhigh / max）は `model-roles.json` の `reviewLevels` が正本。Antigravity は全 tier で `review.antigravity` ロール（`--field agy` で解決）。
+**旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。指定なしは新 L3。
+
+**current モデルの解決**: カタログは `{"current":true}` のみ。Pi の bash ツール呼び出しでは `PI_PROVIDER` / `PI_MODEL`（任意 `PI_REASONING_LEVEL`）が注入され、`provider/model[:reasoning]` として current reviewer になる（effort は Pi が export した値をそのまま使う。最短 latency の保証ではない）。手元スクリプトや非 Pi では `resolve-model.sh --review-level N --current-model MODEL [--current-backend pi|agy]` を明示する。L3+ は current 不要。
+
+**dedupe**: current が固定 Muse または Antigravity Gemini と **同一モデル ID**（`:high` / `:max` 等の thinking 接尾辞と pi/agy 表記差は正規化）のとき、固定側（Muse :high / agy Gemini）を残し current 行は省略する。provider 名だけでは dedupe しない。
+
+Grok は L3+ で同じ Pi model id を使い、reasoning effort は明示指定しない。Codex / Opus の tier 別 effort は `model-roles.json` の `reviewLevels` が正本。Antigravity は L2+ で `review.antigravity` ロール（`--field agy` で解決）。
 
 **timeout 予算（固定）**:
 
 | Level | 初回 (s) | リトライ (s) |
 |-------|---------|-------------|
 | 1     | 300 (5分) | 300 (5分) |
-| 2     | 600 (10分) | 600 (10分) |
-| 3     | 600 (10分) | 900 (15分) |
+| 2     | 300 (5分) | 300 (5分) |
+| 3     | 600 (10分) | 600 (10分) |
+| 4     | 600 (10分) | 900 (15分) |
+| 5     | 600 (10分) | 900 (15分) |
 
-**失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。全 reviewer は `attempts=2`。
+**失敗時は1回だけリトライ**する（timeout 含むあらゆる nonzero 終了）。2回目は `--retry-timeout` 予算を使う。2回目も失敗ならその reviewer は失敗扱い。全 reviewer は `attempts=2`。軽量 tier は reviewer 数が少ないだけで、任意の短い timeout 上限は設けない（実測 ~2–3 分程度の latency を潰さない）。
 
-どのレベルでも `reviewLevels` に定義された reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**。L1 は **5 reviewer**（Pi ×4 + agy ×1、Muse Contributor :high 追加）。L2 は **6 reviewer**（Pi ×5 + agy ×1、Fugu Max :high 追加）。L3 は **6 reviewer**（Pi ×5 + agy ×1、Fugu Ultra v2 :high 追加）。
+どのレベルでも解決後の reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**（L1/L2 では caller 自身が current として含まれる）。
 
-Muse Contributor は prompts/completions を学習に利用する（zero-data-retention ではない）。`parallel-review` では tier の固定 timeout 予算（L1 300/300s、L2 600/600s、L3 600/900s）と `attempts=2` を使う。単体 `muse-review` の 120s / `attempts=1` とは別経路。
+Muse Contributor は prompts/completions を学習に利用する（zero-data-retention ではない）。`parallel-review` では tier の固定 timeout 予算と `attempts=2` を使う。単体 `muse-review` の 120s / `attempts=1` とは別経路。
 
 ## 実行記録（provenance）
 
@@ -46,7 +56,7 @@ Muse Contributor は prompts/completions を学習に利用する（zero-data-re
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
 
-LEVEL="${LEVEL:-2}" # 1=簡単 / 2=標準(既定) / 3=deep
+LEVEL="${LEVEL:-3}" # 1=最軽量 / 2=軽量 / 3=標準(既定) / 4=deep / 5=最深
 : "${REVISION:?REVISION is required (concrete commit hash or <baseCommit>..<headCommit>)}"
 
 umask 077
@@ -83,7 +93,10 @@ REVIEW_DIR=$(deno run --no-config --allow-read --allow-write \
 
 ```bash
 RESOLVER="${RESOLVER:-$HOME/.pi/agent/resolve-model.sh}"
-levels_out=$("$RESOLVER" --review-level "$LEVEL") || exit 1
+resolver_args=(--review-level "$LEVEL")
+# Pi bash 内: PI_PROVIDER / PI_MODEL [/ PI_REASONING_LEVEL] が自動注入され L1/L2 の current が解決される。
+# 非 Pi 実行で L1/L2 を使う場合のみ例: resolver_args+=(--current-model "$CALLER_MODEL")
+levels_out=$("$RESOLVER" "${resolver_args[@]}") || exit 1
 [[ -n "$levels_out" ]] || {
 	echo "no reviewers for level $LEVEL" >&2
 	exit 1

@@ -7,7 +7,8 @@
 #   resolve-model.sh --json ROLE          print role object
 #   resolve-model.sh --field FIELD ROLE   print one role field
 #   resolve-model.sh --list               list roles
-#   resolve-model.sh --review-level N      print "backend<TAB>model<TAB>initial<TAB>retry" per reviewer
+#   resolve-model.sh --review-level N [--current-model MODEL [--current-backend pi|agy]]
+#                                          print "backend<TAB>model<TAB>initial<TAB>retry" per reviewer
 #   resolve-model.sh --apply              sync enabledModels into settings.json
 #   resolve-model.sh --check              verify enabledModels matches catalog
 #
@@ -24,7 +25,7 @@ die() {
 
 usage() {
 	cat >&2 <<'EOF'
-Usage: resolve-model.sh [--label|--json|--field FIELD|--list|--review-level N|--apply|--check] [ROLE]
+Usage: resolve-model.sh [--label|--json|--field FIELD|--list|--review-level N [--current-model MODEL [--current-backend pi|agy]]|--apply|--check] [ROLE]
 EOF
 	exit 1
 }
@@ -115,50 +116,124 @@ print_field() {
 	printf '%s\n' "$value"
 }
 
-# reviewLevels drive parallel-review tiers (1=light, 2=standard, 3=deep).
+# reviewLevels drive parallel-review tiers (1=lightest … 5=deepest).
 # Emit per reviewer: backend (pi or agy), model id, initial timeout, retry timeout.
+# Levels with {"current":true} need PI_PROVIDER/PI_MODEL (optional PI_REASONING_LEVEL) or --current-model.
+
 print_review_level() {
 	local catalog="$1"
 	local level="$2"
-	jq -e --arg lvl "$level" '.reviewLevels | has($lvl)' "$catalog" >/dev/null 2>&1 ||
-		die "unknown review level: $level"
-	jq -er --arg lvl "$level" '
-		. as $root |
-		.reviewTimeouts[$lvl] as $t |
-		if $t == null then
-			error("missing reviewTimeouts for level \($lvl)")
-		elif ($t.initial | type) != "number" or ($t.retry | type) != "number"
-			or $t.initial <= 0 or $t.retry <= 0 then
-			error("invalid reviewTimeouts budgets for level \($lvl)")
-		else
-			$root.reviewLevels[$lvl][] |
-			if has("role") and has("pi") then
-				error("reviewLevels[\($lvl)] entry must not have both pi and role")
-			elif has("role") then
-				.role as $role |
-				if ($role | type) != "string" or $role == "" then
-					error("invalid role reference in reviewLevels[\($lvl)]")
+	local explicit_current_model="${3:-}"
+	local explicit_current_backend="${4:-pi}"
+
+	jq -er \
+		--arg lvl "$level" \
+		--arg em "$explicit_current_model" \
+		--arg eb "$explicit_current_backend" \
+		--arg pp "${PI_PROVIDER:-}" \
+		--arg pm "${PI_MODEL:-}" \
+		--arg pr "${PI_REASONING_LEVEL:-}" \
+		'
+		def pos_int($x):
+			($x | type) == "number" and ($x > 0) and ($x == ($x | floor));
+		def valid_token($s):
+			($s | type) == "string" and ($s | length) > 0
+			and (($s | test("[[:space:]]|[[:cntrl:]]")) | not);
+		def strip_effort($m):
+			$m | sub(":(off|minimal|low|medium|high|xhigh|max)$"; "");
+		def pi_rest($m):
+			($m | index("/")) as $i |
+			if $i == null then error("incomplete pi model (expected provider/model): \($m)")
+			else $m[$i + 1:] end;
+		def model_key($backend; $model):
+			if $backend == "pi" then strip_effort(pi_rest($model))
+			elif $backend == "agy" then strip_effort($model)
+			else error("unsupported review backend") end;
+		def checked_row($backend; $model):
+			if ($backend | IN("pi", "agy") | not) then error("unsupported review backend: \($backend)")
+			elif valid_token($model) | not then error("invalid model id (control characters or whitespace): \($model)")
+			elif $backend == "pi" then
+				($model | index("/")) as $i |
+				if $i == null then error("incomplete pi model (expected provider/model): \($model)")
 				else
-					$root.roles[$role] as $def |
-					if $def == null then
-						error("unknown role in reviewLevels[\($lvl)]: \($role)")
-					elif ($def.agy | type) != "string" or $def.agy == "" then
-						error("role \($role) has no agy model")
-					else
-						"agy\t\($def.agy)\t\($t.initial)\t\($t.retry)"
-					end
+					($model[0:$i] as $prov | strip_effort(pi_rest($model)) as $bare |
+					if ($prov | length) == 0 or ($bare | length) == 0 then
+						error("incomplete pi model (expected provider/model): \($model)")
+					else . end)
 				end
-			elif has("pi") then
-				if (.pi | type) != "string" or .pi == "" then
-					error("invalid pi model in reviewLevels[\($lvl)]")
+			else . end;
+		def validate_entry($e):
+			if ($e | type) != "object" then error("invalid reviewLevels entry")
+			elif ($e | has("pi")) and ($e | has("role")) then error("reviewLevels entry must not have both pi and role")
+			elif ($e | keys | length) != 1 then error("reviewLevels entry must have exactly one key")
+			elif $e | has("current") then
+				if $e.current != true then error("invalid reviewLevels entry: current must be true") else $e end
+			elif $e | has("pi") then
+				if ($e.pi | type) != "string" or ($e.pi | length) == 0 then error("invalid pi model in reviewLevels")
+				else $e end
+			elif $e | has("role") then
+				if ($e.role | type) != "string" or ($e.role | length) == 0 then error("invalid role reference in reviewLevels")
+				else $e end
+			else error("reviewLevels entry must have pi, role, or current") end;
+		def known_effort($e): $e | IN("off", "minimal", "low", "medium", "high", "xhigh", "max");
+		# Colon suffixes on model ids are literal catalog/runtime ids; PI_REASONING_LEVEL is validated separately.
+		def resolve_current($needs):
+			if ($em | length) > 0 then
+				if ($eb | IN("pi", "agy") | not) then error("unsupported --current-backend: \($eb) (use pi or agy)")
 				else
-					"pi\t\(.pi)\t\($t.initial)\t\($t.retry)"
+					checked_row($eb; $em) |
+					if $needs then {backend: $eb, model: $em, current: true} else null end
 				end
+			elif $needs | not then null
+			elif $eb != "pi" then error("--current-backend \($eb) requires --current-model")
+			elif ($pp | length) == 0 or ($pm | length) == 0 then
+				error("review level requires current model: export PI_PROVIDER and PI_MODEL or pass --current-model")
 			else
-				error("reviewLevels[\($lvl)] entry must have pi or role")
-			end
-		end
-	' "$catalog"
+				if valid_token($pp) | not then error("invalid PI_PROVIDER for current model (control characters or whitespace)") else . end |
+				if ($pp | index("/")) != null then error("invalid PI_PROVIDER for current model (must not contain slash): \($pp)") else . end |
+				if valid_token($pm) | not then error("invalid PI_MODEL for current model (control characters or whitespace)") else . end |
+				if ($pr | length) > 0 then
+					if valid_token($pr) | not then error("invalid PI_REASONING_LEVEL for current model (control characters or whitespace)") else . end |
+					if known_effort($pr) | not then error("invalid PI_REASONING_LEVEL: \($pr)") else . end
+				else . end |
+				("\($pp)/\($pm)" + (if ($pr | length) > 0 then ":\($pr)" else "" end)) as $assembled |
+				checked_row("pi"; $assembled) | {backend: "pi", model: $assembled, current: true}
+			end;
+		def entry_row($roles; $cur; $e):
+			validate_entry($e) |
+			if has("current") then $cur
+			elif has("pi") then {backend: "pi", model: .pi, current: false}
+			else
+				(.role as $r | $roles[$r].agy) as $agy |
+				if $agy == null or ($agy | type) != "string" or ($agy | length) == 0 then
+					error("role \(.role) has no agy model")
+				else {backend: "agy", model: $agy, current: false} end
+			end;
+
+		if (.reviewLevels | has($lvl) | not) then error("unknown review level: \($lvl)") else . end |
+		(.reviewTimeouts[$lvl]) as $t |
+		if ($t | type) != "object" or (pos_int($t.initial) | not) or (pos_int($t.retry) | not) then
+			error("invalid reviewTimeouts budgets")
+		else . end |
+		(.reviewLevels[$lvl]) as $raw |
+		if ($raw | type) != "array" then error("invalid reviewLevels for level \($lvl)")
+		elif ($raw | length) == 0 then error("empty reviewLevels for level \($lvl)")
+		else . end |
+		if ($raw | map(select(has("current"))) | length) > 1 then
+			error("reviewLevels tier must have at most one current marker")
+		else . end |
+		.roles as $roles |
+		($raw | any(has("current"))) as $needs |
+		(resolve_current($needs)) as $cur |
+		if $needs and $cur == null then error("internal error: current model not resolved") else . end |
+		[ $raw[] | entry_row($roles; $cur; .) ] as $rows |
+		($rows | map(checked_row(.backend; .model) | .)) as $validated |
+		($validated | map(select(.current | not) | model_key(.backend; .model))) as $fixed_keys |
+		$validated
+		| map(if .current and (model_key(.backend; .model) as $k | $fixed_keys | index($k) != null) then empty else . end)
+		| map([.backend, .model, ($t.initial | tostring), ($t.retry | tostring)] | join("\t"))
+		| .[]
+		' "$catalog"
 }
 
 list_roles() {
@@ -270,7 +345,7 @@ check_settings() {
 
 main() {
 	require_jq
-	local catalog mode field role level
+	local catalog mode field role level current_model current_backend current_model_flag
 	catalog=$(resolve_catalog)
 	require_catalog "$catalog"
 
@@ -278,6 +353,9 @@ main() {
 	field=''
 	role=''
 	level=''
+	current_model=''
+	current_backend='pi'
+	current_model_flag=0
 
 	while (($# > 0)); do
 		case "$1" in
@@ -301,6 +379,17 @@ main() {
 			[[ $# -gt 0 ]] || usage
 			mode="review-level"
 			level=$1
+			;;
+		--current-model)
+			shift
+			[[ $# -gt 0 ]] || usage
+			current_model=$1
+			current_model_flag=1
+			;;
+		--current-backend)
+			shift
+			[[ $# -gt 0 ]] || usage
+			current_backend=$1
 			;;
 		--apply)
 			mode="apply"
@@ -339,7 +428,14 @@ main() {
 		;;
 	review-level)
 		[[ -n "$level" ]] || usage
-		print_review_level "$catalog" "$level"
+		if ((current_model_flag)) && [[ -z "$current_model" ]]; then
+			die "missing model for --current-model"
+		fi
+		case "$current_backend" in
+		pi | agy) ;;
+		*) die "unsupported --current-backend: $current_backend (use pi or agy)" ;;
+		esac
+		print_review_level "$catalog" "$level" "$current_model" "$current_backend"
 		;;
 	apply)
 		require_sd

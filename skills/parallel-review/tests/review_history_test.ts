@@ -9,7 +9,12 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { saveAssessment } from "../scripts/review_history.ts";
+import {
+  getLevelScale,
+  parseLevel,
+  saveAssessment,
+  validateSnapshot,
+} from "../scripts/review_history.ts";
 
 const SCRIPT_PATH = join(import.meta.dirname!, "../scripts/review_history.ts");
 const SKILL_PATH = join(import.meta.dirname!, "../SKILL.md");
@@ -189,6 +194,18 @@ const multiAssessment = (
   },
 ): Assessment => ({ actor, reviews });
 
+const prepareRunForSave = async (
+  runDir: string,
+  exec: ExecutionRecord = minimalExecution(),
+): Promise<void> => {
+  await writeFile(join(runDir, "changes.patch"), "patch\n", { mode: 0o600 });
+  await writeFile(join(runDir, "prompt.md"), "prompt\n", { mode: 0o600 });
+  await mkdir(join(runDir, "logs"), { recursive: true });
+  await writeExecution(runDir, exec);
+  await writeFile(join(runDir, exec.stdoutLog), "out\n", { mode: 0o600 });
+  await writeFile(join(runDir, exec.stderrLog), "err\n", { mode: 0o600 });
+};
+
 const runCli = async (
   args: string[],
   env?: Record<string, string>,
@@ -213,6 +230,27 @@ const runCli = async (
     stdout: new TextDecoder().decode(out.stdout),
     stderr: new TextDecoder().decode(out.stderr),
   };
+};
+
+const saveRunViaCli = async (
+  home: string,
+  xdg: string,
+  runDir: string,
+  assessment: Assessment,
+): Promise<string> => {
+  const assessmentPath = join(runDir, "assessment.json");
+  await writeFile(assessmentPath, JSON.stringify(assessment), {
+    mode: 0o600,
+  });
+  const saveOut = await runCli([
+    "save",
+    "--dir",
+    runDir,
+    "--input",
+    assessmentPath,
+  ], childEnv(home, xdg));
+  assert.equal(saveOut.code, 0, saveOut.stderr);
+  return saveOut.stdout.trim();
 };
 
 const devboxBashEnv = (): Record<string, string> => {
@@ -328,6 +366,7 @@ Deno.test("init creates private run dir with metadata context", async () => {
     assert.equal(meta.repository, "/Users/roy/project");
     assert.equal(meta.revision, "abc123");
     assert.equal(meta.level, 1);
+    assert.equal(meta.levelScale, 5);
     assert.match(
       meta.createdAt,
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
@@ -340,7 +379,7 @@ Deno.test("init creates private run dir with metadata context", async () => {
 
 Deno.test("init rejects invalid level and relative XDG_DATA_HOME", async () => {
   await withTempHome(async (home, xdg) => {
-    for (const level of [0, 4]) {
+    for (const level of [0, 6]) {
       const out = await runCli([
         "init",
         "--repository",
@@ -351,7 +390,7 @@ Deno.test("init rejects invalid level and relative XDG_DATA_HOME", async () => {
         String(level),
       ], childEnv(home, xdg));
       assert.notEqual(out.code, 0);
-      assert.match(out.stderr, /level must be 1, 2, or 3/);
+      assert.match(out.stderr, /level must be 1, 2, 3, 4, or 5/);
     }
     const noRepo = await runCli([
       "init",
@@ -1555,7 +1594,7 @@ Deno.test("CLI rejects unknown duplicate and positional args", async () => {
       "nope",
     ], childEnv(home, xdg));
     assert.notEqual(badLevel.code, 0);
-    assert.match(badLevel.stderr, /level must be 1, 2, or 3/);
+    assert.match(badLevel.stderr, /level must be 1, 2, 3, 4, or 5/);
 
     const coercedLevel = await runCli([
       "init",
@@ -1567,55 +1606,255 @@ Deno.test("CLI rejects unknown duplicate and positional args", async () => {
       "01",
     ], childEnv(home, xdg));
     assert.notEqual(coercedLevel.code, 0);
-    assert.match(coercedLevel.stderr, /level must be 1, 2, or 3/);
+    assert.match(coercedLevel.stderr, /level must be 1, 2, 3, 4, or 5/);
   });
+});
+
+Deno.test("parseLevel accepts 1-5 and rejects coercion", () => {
+  for (const n of [1, 2, 3, 4, 5]) {
+    assert.equal(parseLevel(n), n);
+    assert.equal(parseLevel(String(n)), n);
+  }
+  for (const bad of [0, 6, true, "01", "4.0", null]) {
+    assert.throws(() => parseLevel(bad), /level must be 1, 2, 3, 4, or 5/);
+  }
+});
+
+Deno.test("getLevelScale and metadata levelScale validation", () => {
+  assert.equal(getLevelScale({}), 3);
+  assert.equal(getLevelScale({ levelScale: 3 }), 3);
+  assert.equal(getLevelScale({ levelScale: 5 }), 5);
+  for (const bad of ["3", 4, true, null]) {
+    assert.throws(
+      () => getLevelScale({ levelScale: bad }),
+      /metadata.levelScale must be 3 or 5/,
+    );
+  }
+});
+
+Deno.test("validateSnapshot rejects legacy level 4/5 and scale mismatches", () => {
+  const baseExec = {
+    id: "whole-r01",
+    backend: "pi",
+    model: "provider/model-a:high",
+    chunk: "changes.patch",
+    timeout: 600,
+    retryTimeout: 600,
+    maxAttempts: 2,
+    status: "completed",
+    startedAt: ISO,
+    endedAt: ISO_END,
+    exitCode: 0,
+    stdoutLog: "logs/whole-r01.stdout.log",
+    stderrLog: "logs/whole-r01.stderr.log",
+    files: {
+      chunk: { path: "changes.patch", sha256: "a".repeat(64) },
+      stdoutLog: { path: "logs/whole-r01.stdout.log", sha256: "b".repeat(64) },
+      stderrLog: { path: "logs/whole-r01.stderr.log", sha256: "c".repeat(64) },
+    },
+  };
+  const review = {
+    executionId: "whole-r01",
+    verdict: "no_findings",
+    findings: [],
+  };
+  const snapshotBase = {
+    schemaVersion: 1,
+    runId: "00000000-0000-4000-8000-000000000001",
+    savedAt: ISO_MS,
+    actor: { kind: "agent", id: "cursor/test:default" },
+    files: {
+      patch: { path: "changes.patch", sha256: "d".repeat(64) },
+      prompt: { path: "prompt.md", sha256: "e".repeat(64) },
+    },
+    executions: [baseExec],
+    reviews: [review],
+  };
+
+  const meta = (
+    metadata: Record<string, unknown>,
+  ) => ({
+    schemaVersion: 1,
+    runId: snapshotBase.runId,
+    createdAt: ISO_MS,
+    repository: "/tmp/r",
+    revision: "abc",
+    ...metadata,
+  });
+
+  for (const level of [4, 5]) {
+    assert.throws(
+      () =>
+        validateSnapshot({
+          ...snapshotBase,
+          metadata: meta({ level }),
+        }),
+      new RegExp(`legacy 3-level metadata does not support level ${level}`),
+    );
+  }
+
+  assert.throws(
+    () =>
+      validateSnapshot({
+        ...snapshotBase,
+        metadata: meta({ level: 4, levelScale: 3 }),
+      }),
+    /metadata.level exceeds levelScale 3/,
+  );
+
+  assert.throws(
+    () =>
+      validateSnapshot({
+        ...snapshotBase,
+        metadata: meta({ level: 5, levelScale: 3 }),
+      }),
+    /metadata.level exceeds levelScale 3/,
+  );
+
+  for (const badScale of [4, "5", true]) {
+    assert.throws(
+      () =>
+        validateSnapshot({
+          ...snapshotBase,
+          metadata: meta({ level: 2, levelScale: badScale }),
+        }),
+      /metadata.levelScale must be 3 or 5/,
+    );
+  }
+
+  for (const level of [4, 5]) {
+    validateSnapshot({
+      ...snapshotBase,
+      metadata: meta({ level, levelScale: 5 }),
+    });
+  }
 });
 
 Deno.test("CLI init and save smoke", async () => {
   await withTempHome(async (home, xdg) => {
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "deadbeef",
-      "--level",
-      "3",
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
+    const { runDir, metadata } = await initRunViaCli(home, xdg, {
+      repository: "/tmp/repo",
+      revision: "deadbeef",
+      level: 3,
+    });
     assert.match(runDir, new RegExp(`^${xdg.replaceAll("/", "\\/")}`));
+    assert.equal(metadata.levelScale, 5);
 
-    await writeFile(join(runDir, "changes.patch"), "patch\n", { mode: 0o600 });
-    await writeFile(join(runDir, "prompt.md"), "prompt\n", { mode: 0o600 });
-    await mkdir(join(runDir, "logs"), { recursive: true });
-    await mkdir(join(runDir, "executions"), { recursive: true });
-    const exec = minimalExecution();
-    await writeFile(
-      join(runDir, "executions/whole-r01.json"),
-      JSON.stringify(exec),
-      { mode: 0o600 },
-    );
-    await writeFile(join(runDir, exec.stdoutLog), "out\n", { mode: 0o600 });
-    await writeFile(join(runDir, exec.stderrLog), "err\n", { mode: 0o600 });
-
-    const assessmentPath = join(runDir, "assessment.json");
-    await writeFile(
-      assessmentPath,
-      JSON.stringify(minimalAssessment("whole-r01", "no_findings")),
-      { mode: 0o600 },
-    );
-
-    const saveOut = await runCli([
-      "save",
-      "--dir",
+    await prepareRunForSave(runDir);
+    const snapshotPath = await saveRunViaCli(
+      home,
+      xdg,
       runDir,
-      "--input",
-      assessmentPath,
-    ], childEnv(home, xdg));
-    assert.equal(saveOut.code, 0, saveOut.stderr);
-    const snapshotPath = saveOut.stdout.trim();
+      minimalAssessment("whole-r01", "no_findings"),
+    );
     assert.match(snapshotPath, /snapshots\/\d{8}T\d{6}Z-[0-9a-f-]+\.json$/);
+    const snapshot = validateSnapshot(
+      JSON.parse(await readFile(snapshotPath, "utf8")),
+    );
+    assert.equal(snapshot.metadata.level, 3);
+    assert.equal(snapshot.metadata.levelScale, 5);
+  });
+});
+
+Deno.test("CLI init and save for level 4 and 5 embeds levelScale 5 in metadata and snapshot", async () => {
+  for (const level of [4, 5] as const) {
+    await withTempHome(async (home, xdg) => {
+      const { runDir, metadata } = await initRunViaCli(home, xdg, {
+        repository: "/tmp/repo",
+        revision: "cafebabe",
+        level,
+      });
+      assert.equal(metadata.level, level);
+      assert.equal(metadata.levelScale, 5);
+
+      await prepareRunForSave(runDir);
+      const snapshotPath = await saveRunViaCli(
+        home,
+        xdg,
+        runDir,
+        minimalAssessment("whole-r01", "no_findings"),
+      );
+      const snapshot = validateSnapshot(
+        JSON.parse(await readFile(snapshotPath, "utf8")),
+      );
+      assert.equal(snapshot.metadata.level, level);
+      assert.equal(snapshot.metadata.levelScale, 5);
+      assert.equal(
+        JSON.parse(await readFile(join(runDir, "metadata.json"), "utf8"))
+          .levelScale,
+        5,
+      );
+    });
+  }
+});
+
+Deno.test("legacy metadata without levelScale survives saves and rejects levelScale mutation", async () => {
+  await withTempHome(async (home, xdg) => {
+    const { runDir } = await initRunViaCli(home, xdg, {
+      repository: "/tmp/repo",
+      revision: "legacyrev",
+      level: 2,
+    });
+    const metaPath = join(runDir, "metadata.json");
+    const meta = JSON.parse(await readFile(metaPath, "utf8"));
+    delete meta.levelScale;
+    const legacyMetaBytes = `${JSON.stringify(meta, null, 2)}\n`;
+    await writeFile(metaPath, legacyMetaBytes, { mode: 0o600 });
+
+    await prepareRunForSave(runDir);
+    const snap1Path = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      minimalAssessment("whole-r01", "no_findings"),
+    );
+    const metaAfterFirst = await readFile(metaPath, "utf8");
+    const snap1Bytes = await readFile(snap1Path);
+    assert.equal(metaAfterFirst, legacyMetaBytes);
+    assert.equal(
+      JSON.parse(await readFile(snap1Path, "utf8")).metadata.levelScale,
+      undefined,
+    );
+
+    const snap2Path = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      multiAssessment([
+        {
+          executionId: "whole-r01",
+          verdict: "findings",
+          findings: [{
+            id: "f1",
+            issueKey: "k1",
+            severity: "low",
+            location: "a.ts:1",
+            original: "note",
+            decision: "accepted",
+            reason: "ok",
+          }],
+        },
+      ]),
+    );
+    assert.notEqual(snap2Path, snap1Path);
+    assert.equal(await readFile(metaPath, "utf8"), metaAfterFirst);
+    assert.deepEqual(await readFile(snap1Path), snap1Bytes);
+
+    const explicitLegacy = JSON.parse(await readFile(metaPath, "utf8"));
+    explicitLegacy.levelScale = 3;
+    await writeFile(
+      metaPath,
+      `${JSON.stringify(explicitLegacy, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+    await assert.rejects(
+      () =>
+        saveAssessment({
+          runDir,
+          assessment: minimalAssessment("whole-r01", "no_findings"),
+        }),
+      /metadata changed across snapshots/,
+    );
   });
 });
 

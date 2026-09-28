@@ -122,7 +122,7 @@ type RunsEnv = { home: string; xdg: string };
 const setupRunDir = async (
   env: RunsEnv,
   executions: ExecutionRecord[],
-  level: 1 | 2 | 3 = 2,
+  level: 1 | 2 | 3 | 4 | 5 = 2,
 ) => {
   const initOut = await runHistoryCli([
     "init",
@@ -161,6 +161,61 @@ const saveSnapshot = async (
   const { snapshotPath } = await saveAssessment({ runDir, assessment });
   return snapshotPath;
 };
+
+const stripLevelScaleForLegacy = async (runDir: string): Promise<void> => {
+  const metaPath = join(runDir, "metadata.json");
+  const meta = JSON.parse(await readFile(metaPath, "utf8"));
+  delete meta.levelScale;
+  await writeFile(metaPath, `${JSON.stringify(meta, null, 2)}\n`, {
+    mode: 0o600,
+  });
+};
+
+const crossScaleQualityFinding = (
+  scale: "legacy" | "scale5",
+): Record<string, unknown> => {
+  const base = {
+    id: "f-cross",
+    issueKey: "cross-scale-quality",
+    severity: "high" as const,
+    location: "shared.ts:1",
+    original: "shared finding body",
+  };
+  if (scale === "legacy") {
+    return {
+      ...base,
+      decision: "accepted",
+      reason: "legacy adopt",
+      verification: "confirmed",
+      evidence: "legacy evidence",
+      action: "fixed",
+      actionEvidence: "legacy fix",
+    };
+  }
+  return {
+    ...base,
+    decision: "rejected",
+    reason: "scale5 reject",
+    verification: "contradicted",
+    evidence: "scale5 evidence",
+    action: "not_fixed",
+  };
+};
+
+const dualExecutionPair = (
+  successElapsedSeconds: number,
+): ExecutionRecord[] => [
+  minimalExecution({
+    id: "whole-r01",
+    endedAt: new Date(Date.parse(ISO) + successElapsedSeconds * 1000)
+      .toISOString(),
+  }),
+  minimalExecution({
+    id: "whole-r02",
+    endedAt: "2026-09-25T06:01:00.000Z",
+    exitCode: 1,
+  }),
+];
 
 const withTempRuns = async (
   fn: (ctx: { home: string; xdg: string; runsRoot: string }) => Promise<void>,
@@ -740,21 +795,119 @@ Deno.test("separates level actor backend effort and coverage comparability", asy
     const report = buildReport(loaded, runsRoot);
     assert.equal(report.modelSummaries.length, 6);
     const keys = report.modelSummaries.map((s) =>
-      JSON.stringify([s.backend, s.model, s.level, s.actorKind])
+      JSON.stringify([
+        s.backend,
+        s.model,
+        s.level,
+        s.levelScale,
+        s.actorKind,
+      ])
     ).sort();
     assert.deepEqual(keys, [
-      JSON.stringify(["agy", "provider/model-a:high", 2, "agent"]),
-      JSON.stringify(["pi", "provider/model-a:high", 1, "agent"]),
-      JSON.stringify(["pi", "provider/model-a:high", 2, "agent"]),
-      JSON.stringify(["pi", "provider/model-a:high", 2, "human"]),
-      JSON.stringify(["pi", "provider/model-a:xhigh", 2, "agent"]),
-      JSON.stringify(["pi", "provider/model-b:high", 2, "agent"]),
+      JSON.stringify(["agy", "provider/model-a:high", 2, 5, "agent"]),
+      JSON.stringify(["pi", "provider/model-a:high", 1, 5, "agent"]),
+      JSON.stringify(["pi", "provider/model-a:high", 2, 5, "agent"]),
+      JSON.stringify(["pi", "provider/model-a:high", 2, 5, "human"]),
+      JSON.stringify(["pi", "provider/model-a:xhigh", 2, 5, "agent"]),
+      JSON.stringify(["pi", "provider/model-b:high", 2, 5, "agent"]),
     ]);
     for (const c of report.cases) {
       assert.ok(c.coverageKey.length > 0);
       assert.equal(c.completedParsed, true);
       assert.equal(c.comparableForQuality, false);
     }
+  });
+});
+
+Deno.test("legacy and 5-level runs with same numeric level do not merge", async () => {
+  await withTempRuns(async ({ home, xdg, runsRoot }) => {
+    const model = "provider/model-a:high";
+    const actor = { kind: "agent" as const, id: "cursor/integrator:default" };
+    const qualityReviews = (scale: "legacy" | "scale5") => [
+      {
+        executionId: "whole-r01",
+        verdict: "findings" as const,
+        findings: [crossScaleQualityFinding(scale)],
+      },
+      {
+        executionId: "whole-r02",
+        verdict: "unavailable" as const,
+        findings: [],
+      },
+    ];
+
+    const { runDir: legacyRun } = await setupRunDir(
+      { home, xdg },
+      dualExecutionPair(300).map((e) => ({ ...e, model })),
+      2,
+    );
+    await stripLevelScaleForLegacy(legacyRun);
+    await saveSnapshot(legacyRun, {
+      actor,
+      reviews: qualityReviews("legacy"),
+    });
+
+    const { runDir: scale5Run } = await setupRunDir(
+      { home, xdg },
+      dualExecutionPair(120).map((e) => ({ ...e, model })),
+      2,
+    );
+    await saveSnapshot(scale5Run, {
+      actor,
+      reviews: qualityReviews("scale5"),
+    });
+
+    const loaded = await loadSelectedRuns(runsRoot);
+    const report = buildReport(loaded, runsRoot);
+    const sameLevel = report.modelSummaries.filter((s) =>
+      s.model === model && s.level === 2
+    );
+    assert.equal(sameLevel.length, 2);
+    assert.deepEqual(
+      sameLevel.map((s) => s.levelScale).sort(),
+      [3, 5],
+    );
+
+    const legacySummary = sameLevel.find((s) => s.levelScale === 3)!;
+    const scale5Summary = sameLevel.find((s) => s.levelScale === 5)!;
+    assert.equal(legacySummary.executions.total, 2);
+    assert.equal(legacySummary.executions.successful, 1);
+    assert.equal(legacySummary.executions.failed, 1);
+    assert.equal(legacySummary.executions.medianElapsedSeconds, 300);
+    assert.equal(legacySummary.adoption.numerator, 1);
+    assert.equal(legacySummary.adoption.denominator, 1);
+    assert.equal(legacySummary.adoption.rate, 1);
+    assert.equal(legacySummary.verificationConfirmation.numerator, 1);
+    assert.equal(legacySummary.verificationConfirmation.denominator, 1);
+    assert.equal(legacySummary.actions.fixed, 1);
+    assert.equal(legacySummary.actions.not_fixed, 0);
+
+    assert.equal(scale5Summary.executions.total, 2);
+    assert.equal(scale5Summary.executions.successful, 1);
+    assert.equal(scale5Summary.executions.failed, 1);
+    assert.equal(scale5Summary.executions.medianElapsedSeconds, 120);
+    assert.equal(scale5Summary.adoption.numerator, 0);
+    assert.equal(scale5Summary.adoption.denominator, 1);
+    assert.equal(scale5Summary.adoption.rate, 0);
+    assert.equal(scale5Summary.verificationConfirmation.numerator, 0);
+    assert.equal(scale5Summary.verificationConfirmation.denominator, 1);
+    assert.equal(scale5Summary.actions.not_fixed, 1);
+    assert.equal(scale5Summary.actions.fixed, 0);
+
+    const legacyCase = report.cases.find((c) => c.levelScale === 3)!;
+    const scale5Case = report.cases.find((c) => c.levelScale === 5)!;
+    assert.equal(legacyCase.level, 2);
+    assert.equal(scale5Case.level, 2);
+    assert.equal(legacyCase.issueCount, 1);
+    assert.equal(scale5Case.issueCount, 1);
+    assert.notEqual(legacyCase.runId, scale5Case.runId);
+
+    const html = renderReportHtml(report);
+    assert.match(html, /L2 \[3段階・旧\]/);
+    assert.match(html, /L2 \[5段階\]/);
+    const json = JSON.stringify(report);
+    assert.ok(json.includes('"levelScale":3'));
+    assert.ok(json.includes('"levelScale":5'));
   });
 });
 

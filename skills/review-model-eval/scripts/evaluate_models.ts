@@ -17,8 +17,11 @@ import {
 } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
+  getLevelScale,
   getRunsBaseDir,
+  type LevelScale,
   parseLevel,
+  type ReviewLevel,
   validateSnapshot,
 } from "../../parallel-review/scripts/review_history.ts";
 import { renderReportHtml } from "./render_report.ts";
@@ -52,7 +55,8 @@ type DimensionCounts<T extends string> = Record<T, number>;
 export type ModelSummary = {
   backend: string;
   model: string;
-  level: 1 | 2 | 3;
+  level: ReviewLevel;
+  levelScale: LevelScale;
   actorKind: "agent" | "human";
   actorIds: string[];
   distinctBenchmarks: number;
@@ -100,7 +104,8 @@ export type CaseRow = {
   snapshotPath: string;
   repository: string;
   revision: string;
-  level: 1 | 2 | 3;
+  level: ReviewLevel;
+  levelScale: LevelScale;
   actorKind: "agent" | "human";
   actorId: string;
   backend: string;
@@ -500,6 +505,7 @@ const buildCasesForRun = (item: SelectedRun): CaseRow[] => {
   const { snapshot, runDir, snapshotPath } = item;
   const metadata = snapshot.metadata;
   const level = parseLevel(metadata.level);
+  const levelScale = getLevelScale(metadata);
   const createdAt = metadata.createdAt as string;
   const repository = metadata.repository as string;
   const revision = metadata.revision as string;
@@ -550,6 +556,7 @@ const buildCasesForRun = (item: SelectedRun): CaseRow[] => {
       repository,
       revision,
       level,
+      levelScale,
       actorKind: snapshot.actor.kind,
       actorId: snapshot.actor.id,
       backend,
@@ -739,7 +746,13 @@ export const buildReport = (
   const groupRuns = new Map<GroupKey, Set<string>>();
 
   for (const c of allCases) {
-    const gk = JSON.stringify([c.backend, c.model, c.level, c.actorKind]);
+    const gk = JSON.stringify([
+      c.backend,
+      c.model,
+      c.level,
+      c.levelScale,
+      c.actorKind,
+    ]);
     const cases = groupCases.get(gk) ?? [];
     cases.push(c);
     groupCases.set(gk, cases);
@@ -766,10 +779,11 @@ export const buildReport = (
       a.localeCompare(b)
     )
   ) {
-    const [backend, model, level, actorKind] = JSON.parse(gk) as [
+    const [backend, model, level, levelScale, actorKind] = JSON.parse(gk) as [
       string,
       string,
-      1 | 2 | 3,
+      ReviewLevel,
+      LevelScale,
       "agent" | "human",
     ];
     const issues = groupIssues.get(gk) ?? [];
@@ -799,6 +813,7 @@ export const buildReport = (
       for (const exec of item.snapshot.executions) {
         if (exec.backend !== backend || exec.model !== model) continue;
         if (parseLevel(item.snapshot.metadata.level) !== level) continue;
+        if (getLevelScale(item.snapshot.metadata) !== levelScale) continue;
         if (item.snapshot.actor.kind !== actorKind) continue;
 
         execStats.total++;
@@ -830,6 +845,7 @@ export const buildReport = (
       backend,
       model,
       level,
+      levelScale,
       actorKind: actorKind as "agent" | "human",
       actorIds: [...(groupActorIds.get(gk) ?? [])].sort(),
       distinctBenchmarks: groupBenchmarks.get(gk)?.size ?? 0,
