@@ -31,7 +31,7 @@ end
 # add-key が新規アイテムを作る Bitwarden フォルダ
 set -gx BW_KEY_FOLDER "env"
 if command -q security
-    set -l api_key_items firecrawl-api-key devin-api-key
+    set -l api_key_items firecrawl-api-key devin-api-key open-router-management-key
     # set -a api_key_items fugu-api-key  # 解約につき無効
     for item in $api_key_items
         set -l val (security find-generic-password -s $item -w 2>/dev/null)

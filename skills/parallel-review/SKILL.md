@@ -15,7 +15,7 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 ## レベル（1/2/3/4/5）
 
-レビューは5段階から選ぶ。**指定なしは auto**（Jev が OpenRouter Decisions API で1回だけ深さを推定）。ユーザーが **1..5 を明示**した場合はその数値が常に優先され、Jev / `OPENROUTER_API_KEY` は使わない。auto が失敗・低信頼・patch 空/ oversized のときは **L3 にフォールバック**（6 reviewer 標準）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
+レビューは5段階から選ぶ。**指定なしは auto**（Jev が OpenRouter Decisions API で1回だけ深さを推定）。ユーザーが **1..5 を明示**した場合はその数値が常に優先され、Jev / `OPEN_ROUTER_API_KEY` は使わない。auto が失敗・低信頼・patch 空のときは **L3 にフォールバック**（6 reviewer 標準）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
 - **1（最軽量）**: **現在の caller モデル** + Muse Contributor :high（通常 **2 reviewer**。caller が Muse と同一 ID のとき dedupe して **1**）。
 - **2（軽量）**: **caller** + Antigravity（`review.antigravity`）+ Muse（通常 **3**。caller が Muse または Antigravity と解決される Gemini と同一 ID のとき **2**）。
@@ -25,7 +25,7 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 **旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。**指定なしは auto**（フォールバック L3）。
 
-**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPENROUTER_API_KEY` のみ（`--allow-env=OPENROUTER_API_KEY`）。patch は **UTF-8 24,000 バイト上限**（超過は切り詰めず L3 フォールバック）。`--min-confidence`（既定 **0.7**）は Jev 応答の **集中度しきい値**（正答確率の保証ではない）。API 送信前に **秘密・顧客・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限**があれば停止する（`--approved-input` は自動検出ではなく、呼び出し側がこの patch の外部送信を許可した宣言）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外（履歴・チャット・ホームパス・revision 文字列）は送らない。**明示 1..5 はレベル選択のみオフライン**（並行 reviewer 実行は従来どおりネットワークあり得る）。決定 JSON の `source` / `reason` / `level` をユーザーに短く伝える。
+**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPEN_ROUTER_API_KEY` のみ（`--allow-env=OPEN_ROUTER_API_KEY`）。patch は **ローカルでのサイズ上限・切り詰めなし**で全文送信する（API 失敗・タイムアウト時は L3 フォールバック）。`--min-confidence`（既定 **0.7**）は Jev 応答の **集中度しきい値**（正答確率の保証ではない）。API 送信前に **秘密・顧客・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限**があれば停止する（`--approved-input` は自動検出ではなく、呼び出し側がこの patch の外部送信を許可した宣言）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外（履歴・チャット・ホームパス・revision 文字列）は送らない。**明示 1..5 はレベル選択のみオフライン**（並行 reviewer 実行は従来どおりネットワークあり得る）。決定 JSON の `source` / `reason` / `level` をユーザーに短く伝える。
 
 **current モデルの解決**: カタログは `{"current":true}` のみ。Pi の bash ツール呼び出しでは `PI_PROVIDER` / `PI_MODEL`（任意 `PI_REASONING_LEVEL`）が注入され、`provider/model[:reasoning]` として current reviewer になる（effort は Pi が export した値をそのまま使う。最短 latency の保証ではない）。手元スクリプトや非 Pi では `resolve-model.sh --review-level N --current-model MODEL [--current-backend pi|agy]` を明示する。L3+ は current 不要。
 
@@ -89,7 +89,7 @@ if [[ "$REQUESTED_LEVEL" == "auto" ]]; then
 	fi
 fi
 LEVEL_DECISION_JSON=$(
-	deno run --no-config --no-prompt --allow-read --allow-net=openrouter.ai:443 --allow-env=OPENROUTER_API_KEY "$SELECT_LEVEL" \
+	deno run --no-config --no-prompt --allow-read --allow-net=openrouter.ai:443 --allow-env=OPEN_ROUTER_API_KEY "$SELECT_LEVEL" \
 		"${level_args[@]}"
 ) || exit 1
 LEVEL=$(printf '%s' "$LEVEL_DECISION_JSON" | jq -er '.level') || exit 1

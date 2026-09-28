@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 export const SCHEMA_VERSION = 1;
-export const PATCH_MAX_BYTES = 24_000;
 export const DEFAULT_MIN_CONFIDENCE = 0.7;
 export const CLI_TIMEOUT_MS = 15_000;
 export const RESPONSE_MAX_BYTES = 64 * 1024;
@@ -51,7 +50,7 @@ const FALLBACK_REASONS = new Set([
   "missing_api_key",
   "missing_model",
   "empty_patch",
-  "patch_too_large",
+  "patch_too_large", // historical decision compatibility; auto selection no longer emits this
   "http_error",
   "redirect",
   "network_error",
@@ -538,9 +537,7 @@ export const selectAutoLevel = async (options: {
       ...extra,
     });
 
-  const patchBytes = new TextEncoder().encode(options.patchText);
-  if (patchBytes.byteLength === 0) return fb("empty_patch");
-  if (patchBytes.byteLength > PATCH_MAX_BYTES) return fb("patch_too_large");
+  if (options.patchText.length === 0) return fb("empty_patch");
   if (!options.model) return fb("missing_model");
   if (!options.apiKey) return fb("missing_api_key");
 
@@ -658,7 +655,6 @@ export const selectReviewLevel = async (options: {
     });
 
   if (patchBytes.byteLength === 0) return fb("empty_patch");
-  if (patchBytes.byteLength > PATCH_MAX_BYTES) return fb("patch_too_large");
   if (!options.model) return fb("missing_model");
   if (!options.apiKey) return fb("missing_api_key");
 
@@ -684,7 +680,7 @@ const HELP =
 
 Usage:
   deno run --no-config --no-prompt --allow-read \\
-    [--allow-net=openrouter.ai:443 --allow-env=OPENROUTER_API_KEY] \\
+    [--allow-net=openrouter.ai:443 --allow-env=OPEN_ROUTER_API_KEY] \\
     select_review_level.ts \\
     --input PATCH_FILE \\
     [--level auto|1|2|3|4|5] \\
@@ -699,9 +695,9 @@ Flags:
   --min-confidence  Jev concentration threshold (default 0.7, auto only; not P(correct))
   --approved-input  Caller inspected patch and authorizes external classification
 
-Explicit numeric levels hash raw patch bytes offline; no OPENROUTER_API_KEY or network.
+Explicit numeric levels hash raw patch bytes offline; no OPEN_ROUTER_API_KEY or network.
 Auto requires --approved-input, one OpenRouter Decisions call (15s total timeout),
-patch <= 24k UTF-8 bytes (no truncation), response body <= 64KiB.
+full UTF-8 patch sent (no local size cutoff or truncation), response body <= 64KiB.
 Stdout: JSON level decision. Errors on stderr.
 `;
 
@@ -821,7 +817,7 @@ export const runCli = async (
 
 const main = async () => {
   const result = await runCli(Deno.args, {
-    getOpenRouterApiKey: () => Deno.env.get("OPENROUTER_API_KEY") ?? undefined,
+    getOpenRouterApiKey: () => Deno.env.get("OPEN_ROUTER_API_KEY") ?? undefined,
   });
   if (result.code !== 0) {
     await Deno.stderr.write(new TextEncoder().encode(result.stderr));

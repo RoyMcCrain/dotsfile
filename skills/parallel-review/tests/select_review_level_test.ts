@@ -10,7 +10,6 @@ import {
   decodeUtf8Strict,
   DEFAULT_MIN_CONFIDENCE,
   JEV_ENDPOINT,
-  PATCH_MAX_BYTES,
   RESPONSE_MAX_BYTES,
   runCli,
   selectAutoLevel,
@@ -349,7 +348,7 @@ Deno.test("missing key and model fall back to L3 without fetch", async () => {
   assert.equal(noModel.reason, "missing_model");
 });
 
-Deno.test("empty and oversize patch: L3 fallback, no network", async () => {
+Deno.test("empty patch: L3 fallback, no network", async () => {
   let calls = 0;
   const fetchImpl = () => {
     calls++;
@@ -365,24 +364,41 @@ Deno.test("empty and oversize patch: L3 fallback, no network", async () => {
   });
   assert.equal(calls, 0);
   assert.equal(empty.reason, "empty_patch");
+});
 
-  const big = "a".repeat(PATCH_MAX_BYTES + 1);
+Deno.test("large ASCII patch (64KiB): single Jev call with full patch", async () => {
+  const big = "a".repeat(64 * 1024);
   const bigBytes = new TextEncoder().encode(big);
-  const large = await selectAutoLevel({
+  assert.equal(bigBytes.byteLength, 64 * 1024);
+  const hash = sha256Bytes(bigBytes);
+  let calls = 0;
+  let seenPatch: string | undefined;
+  const decision = await selectAutoLevel({
     patchText: big,
-    patchSha256: sha256Bytes(bigBytes),
+    patchSha256: hash,
     model: "typesafe/jev-1.13",
     apiKey: "k",
     minConfidence: 0.7,
-    fetchImpl,
+    fetchImpl: (input, init) => {
+      calls++;
+      const req = new Request(input, init);
+      return req.text().then((text) => {
+        seenPatch = (JSON.parse(text) as { state: { patch: string } }).state
+          .patch;
+        return new Response(validJevBody("3", 0.9));
+      });
+    },
   });
-  assert.equal(calls, 0);
-  assert.equal(large.reason, "patch_too_large");
+  assert.equal(calls, 1);
+  assert.equal(seenPatch, big);
+  assert.equal(decision.source, "jev");
+  assert.equal(decision.patchSha256, hash);
+  validateLevelDecision(decision);
 });
 
 const UTF8_BOM_BYTES = new Uint8Array([0xef, 0xbb, 0xbf]);
 
-Deno.test("raw UTF-8 BOM patch: byte limit before decode, BOM preserved in Jev state", async () => {
+Deno.test("raw UTF-8 BOM patch: BOM preserved in Jev state", async () => {
   const payload = new TextEncoder().encode("+" + "a".repeat(100) + "\n");
   const patchBytes = new Uint8Array(UTF8_BOM_BYTES.length + payload.length);
   patchBytes.set(UTF8_BOM_BYTES, 0);
@@ -397,12 +413,7 @@ Deno.test("raw UTF-8 BOM patch: byte limit before decode, BOM preserved in Jev s
     model: "typesafe/jev-1.13",
     apiKey: "k",
     fetchImpl: (input, init) => {
-      const url = typeof input === "string"
-        ? input
-        : input instanceof URL
-        ? input.href
-        : input.url;
-      const req = new Request(url, init);
+      const req = new Request(input, init);
       return req.text().then((text) => {
         seenPatch = (JSON.parse(text) as { state: { patch: string } }).state
           .patch;
@@ -416,15 +427,17 @@ Deno.test("raw UTF-8 BOM patch: byte limit before decode, BOM preserved in Jev s
   assert.equal(seenPatch, decodeUtf8Strict(patchBytes));
 });
 
-Deno.test("raw UTF-8 BOM patch over 24k bytes: patch_too_large without fetch", async () => {
-  const fill = new Uint8Array(PATCH_MAX_BYTES - UTF8_BOM_BYTES.length + 1);
+Deno.test("raw UTF-8 BOM patch over 64KiB: full patch sent, BOM and hash preserved", async () => {
+  const fillLen = 64 * 1024 - UTF8_BOM_BYTES.length + 1;
+  const fill = new Uint8Array(fillLen);
   fill.fill(0x61);
   const patchBytes = new Uint8Array(UTF8_BOM_BYTES.length + fill.length);
   patchBytes.set(UTF8_BOM_BYTES, 0);
   patchBytes.set(fill, UTF8_BOM_BYTES.length);
-  assert.equal(patchBytes.byteLength, PATCH_MAX_BYTES + 1);
+  assert.ok(patchBytes.byteLength > 64 * 1024);
   const hash = sha256Bytes(patchBytes);
   let calls = 0;
+  let seenPatch: string | undefined;
   const decision = await selectReviewLevel({
     patchBytes,
     levelArg: "auto",
@@ -432,30 +445,51 @@ Deno.test("raw UTF-8 BOM patch over 24k bytes: patch_too_large without fetch", a
     minConfidence: 0.7,
     model: "typesafe/jev-1.13",
     apiKey: "k",
-    fetchImpl: () => {
+    fetchImpl: (input, init) => {
       calls++;
-      return Promise.resolve(new Response("{}"));
+      const req = new Request(input, init);
+      return req.text().then((text) => {
+        seenPatch = (JSON.parse(text) as { state: { patch: string } }).state
+          .patch;
+        return new Response(validJevBody("3", 0.9));
+      });
     },
   });
-  assert.equal(calls, 0);
-  assert.equal(decision.reason, "patch_too_large");
+  assert.equal(calls, 1);
   assert.equal(decision.patchSha256, hash);
+  assert.equal(decision.source, "jev");
+  assert.ok(seenPatch?.startsWith("\uFEFF"));
+  assert.equal(seenPatch, decodeUtf8Strict(patchBytes));
 });
 
-Deno.test("unicode patch uses UTF-8 byte limit and exact hash", async () => {
+Deno.test("large multibyte UTF-8 patch: single call with full text and exact hash", async () => {
   const patchText = "+" + "🙂".repeat(8_000);
   const patchBytes = new TextEncoder().encode(patchText);
-  assert.ok(patchBytes.byteLength > PATCH_MAX_BYTES);
+  assert.ok(patchBytes.byteLength > 24_000);
   const hash = sha256Bytes(patchBytes);
-  const decision = await selectAutoLevel({
-    patchText,
-    patchSha256: hash,
-    model: "m",
+  let calls = 0;
+  let seenPatch: string | undefined;
+  const decision = await selectReviewLevel({
+    patchBytes,
+    levelArg: "auto",
+    approvedInput: true,
+    model: "typesafe/jev-1.13",
     apiKey: "k",
     minConfidence: 0.7,
-    fetchImpl: () => Promise.resolve(new Response("{}")),
+    fetchImpl: (input, init) => {
+      calls++;
+      const req = new Request(input, init);
+      return req.text().then((text) => {
+        seenPatch = (JSON.parse(text) as { state: { patch: string } }).state
+          .patch;
+        return new Response(validJevBody("4", 0.85));
+      });
+    },
   });
-  assert.equal(decision.reason, "patch_too_large");
+  assert.equal(calls, 1);
+  assert.equal(seenPatch, patchText);
+  assert.equal(decision.source, "jev");
+  assert.equal(decision.level, 4);
   assert.equal(decision.patchSha256, hash);
 });
 
@@ -732,6 +766,15 @@ Deno.test("validateLevelDecision enforces fallback and explicit field rules", ()
     minConfidence: 0.7,
   });
   validateLevelDecision(fallback);
+
+  const historicalOversize = buildFallbackDecision({
+    requestedLevel: "auto",
+    reason: "patch_too_large",
+    patchSha256: hash,
+    minConfidence: 0.7,
+  });
+  validateLevelDecision(historicalOversize);
+
   assert.throws(
     () => validateLevelDecision({ ...fallback, level: 2 }),
     /fallback decision level must be 3/,
@@ -837,7 +880,7 @@ Deno.test("subprocess: invalid UTF-8 missing key falls back without decode", asy
   await writeFile(patchPath, patchBytes);
   try {
     // Override any key inherited from the parent test process.
-    const envNoKey = { OPENROUTER_API_KEY: "" };
+    const envNoKey = { OPEN_ROUTER_API_KEY: "" };
     const out = await runSelectLevelSubprocess(
       [
         "--input",
@@ -846,7 +889,7 @@ Deno.test("subprocess: invalid UTF-8 missing key falls back without decode", asy
         "--model",
         "typesafe/jev-1.13",
       ],
-      ["--allow-read", "--allow-env=OPENROUTER_API_KEY"],
+      ["--allow-read", "--allow-env=OPEN_ROUTER_API_KEY"],
       envNoKey,
     );
     assert.equal(out.code, 0, out.stderr);
@@ -875,13 +918,48 @@ Deno.test("subprocess: auto missing key with scoped env only", async () => {
         "--model",
         "typesafe/jev-1.13",
       ],
-      ["--allow-read", "--allow-env=OPENROUTER_API_KEY"],
-      { OPENROUTER_API_KEY: "" },
+      ["--allow-read", "--allow-env=OPEN_ROUTER_API_KEY"],
+      { OPEN_ROUTER_API_KEY: "" },
     );
     assert.equal(out.code, 0, out.stderr);
     const fb = JSON.parse(out.stdout);
     assert.equal(fb.reason, "missing_api_key");
     assert.doesNotMatch(out.stderr, /NotCapable/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("subprocess: canonical key recognized offline without network", async () => {
+  const SYNTH_KEY = "test-synthetic-open-router-key-offline-only";
+  const dir = await mkdtemp(join(tmpdir(), "pr-sub-"));
+  const patchPath = join(dir, "p.patch");
+  await writeFile(patchPath, "+line\n");
+  try {
+    const out = await runSelectLevelSubprocess(
+      [
+        "--input",
+        patchPath,
+        "--approved-input",
+        "--model",
+        "typesafe/jev-1.13",
+      ],
+      [
+        "--allow-read",
+        "--allow-env=OPEN_ROUTER_API_KEY",
+        "--deny-net",
+      ],
+      { OPEN_ROUTER_API_KEY: SYNTH_KEY },
+    );
+    assert.equal(out.code, 0, out.stderr);
+    const fb = JSON.parse(out.stdout);
+    assert.equal(fb.source, "fallback");
+    assert.equal(fb.reason, "network_error");
+    assert.equal(fb.level, 3);
+    validateLevelDecision(fb);
+    assert.doesNotMatch(out.stderr, new RegExp(SYNTH_KEY));
+    assert.doesNotMatch(out.stdout, new RegExp(SYNTH_KEY));
+    assert.doesNotMatch(out.stderr, /missing_api_key/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -911,7 +989,7 @@ Deno.test("SKILL documents select_review_level deno permissions", async () => {
     block.split("\n").find((line) => line.includes("deno run")) ??
       "";
   assert.match(denoLine, /--allow-net=openrouter\.ai:443/);
-  assert.match(denoLine, /--allow-env=OPENROUTER_API_KEY/);
+  assert.match(denoLine, /--allow-env=OPEN_ROUTER_API_KEY/);
   assert.match(denoLine, /--no-prompt/);
 });
 
@@ -966,8 +1044,8 @@ Deno.test("stderr does not echo patch content on UTF-8 decode errors", async () 
         "--model",
         "typesafe/jev-1.13",
       ],
-      ["--allow-read", "--allow-env=OPENROUTER_API_KEY"],
-      { OPENROUTER_API_KEY: "test-synthetic-key-no-live-calls" },
+      ["--allow-read", "--allow-env=OPEN_ROUTER_API_KEY"],
+      { OPEN_ROUTER_API_KEY: "test-synthetic-key-no-live-calls" },
     );
     assert.equal(out.code, 1, out.stdout);
     assert.match(out.stderr, /valid UTF-8/);
