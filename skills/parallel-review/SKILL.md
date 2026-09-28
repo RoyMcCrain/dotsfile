@@ -25,7 +25,7 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 **旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。**指定なしは auto**（フォールバック L3）。
 
-**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPEN_ROUTER_API_KEY` のみ（`--allow-env=OPEN_ROUTER_API_KEY`）。patch は **ローカルでのサイズ上限・切り詰めなし**で全文送信する（API 失敗・タイムアウト時は L3 フォールバック）。`--min-confidence`（既定 **0.7**）は Jev 応答の **集中度しきい値**（正答確率の保証ではない）。API 送信前に **秘密・顧客・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限**があれば停止する（`--approved-input` は自動検出ではなく、呼び出し側がこの patch の外部送信を許可した宣言）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外（履歴・チャット・ホームパス・revision 文字列）は送らない。**明示 1..5 はレベル選択のみオフライン**（並行 reviewer 実行は従来どおりネットワークあり得る）。決定 JSON の `source` / `reason` / `level` をユーザーに短く伝える。
+**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び、**review 深さ**と **chunk 分割計画**を独立質問で分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPEN_ROUTER_API_KEY` のみ（`--allow-env=OPEN_ROUTER_API_KEY`）。patch は **ローカル切り詰めなし**で全文送信（API 失敗・タイムアウト時は L3 フォールバック）。`chunk_size` の選択肢は `none` / `12000` / `24000` / `48000`（10進バイト目安、12/24/48KB）。`--min-confidence`（既定 **0.7**）は各質問の **集中度しきい値**（正答確率の保証ではない）。深さと chunk は独立に検証され、一方だけ低信頼でも他方は採用されうる。API 送信前に **秘密・顧客・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限**があれば停止する（`--approved-input` は呼び出し側の外部送信許可宣言）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外は送らない。**明示 1..5 のレベル選択はオフライン**（Jev / OpenRouter を呼ばない。chunk は raw バイト閾値 15KB/400 行で `fixed`）。**reviewer 実行はネットワークあり**（Pi / Antigravity 等）。ユーザーには `level` と `chunking` の `source` / `reason` / 信頼度を分けて短く伝える。
 
 **current モデルの解決**: カタログは `{"current":true}` のみ。Pi の bash ツール呼び出しでは `PI_PROVIDER` / `PI_MODEL`（任意 `PI_REASONING_LEVEL`）が注入され、`provider/model[:reasoning]` として current reviewer になる（effort は Pi が export した値をそのまま使う。最短 latency の保証ではない）。手元スクリプトや非 Pi では `resolve-model.sh --review-level N --current-model MODEL [--current-backend pi|agy]` を明示する。L3+ は current 不要。
 
@@ -55,6 +55,10 @@ Muse Contributor は prompts/completions を学習に利用する（zero-data-re
 
 各 run の判断・採用実績はローカルに永続化し、後のモデル評価に使う。レイアウトとスキーマは [references/history-format.md](references/history-format.md) を正本とする。reviewer には assessment / 過去 snapshot を渡さない（アンカリング防止）。
 
+**深度判定の診断**: `metadata` の `createdAt` と `metadata.levelDecision`（`model` / `suggestedLevel` / `confidence` / `minConfidence` / 採用 `level` / `source` / `reason` / `patchSha256` / 任意 `chunking` / 任意 `probabilities`）が正本。Jev が返した場合のみ、任意で深さ 1..5 の **`probabilities`**（各 0..1 の有限数、5 キー完備）を同じ JSON に残す（正答率の保証ではない）。`confidence` も同様。低信頼で L3 に落ちた run も診断は残るが、**高信頼結果を得るために同じ patch で auto を再実行しない**（独立試行ではない）。同一 `patchSha256` の繰り返し run は後分析用の provenance だが統計上独立な観測とはみなさない。診断 JSON に秘密や raw API 応答を含めない。
+
+未完了 run（reviewer 未実行・snapshot なし）も `metadata.json` に depth 判断は残る。
+
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
 SELECT_LEVEL="$HOME/.agents/skills/parallel-review/scripts/select_review_level.ts"
@@ -63,6 +67,12 @@ RESOLVER="${RESOLVER:-$HOME/.pi/agent/resolve-model.sh}"
 REQUESTED_LEVEL="${LEVEL:-auto}" # auto または 1..5（明示数値は Jev を使わない）
 : "${REVISION:?REVISION is required (concrete commit hash or <baseCommit>..<headCommit>)}"
 : "${HISTORY:?}" "${SELECT_LEVEL:?}" "${RESOLVER:?}" "${REQUESTED_LEVEL:?}"
+```
+
+後から read-only で depth 判断を一覧する（`decisions` サブコマンド。任意 `--runs-dir DIR` は履歴ルート指定、`--repository PATH` は保存された repository 文字列の完全一致フィルター。runs ルートや `metadata.json` が symlink の run は `warnings` に載せ、未検査のファイル内容は stdout に出さない。同一 `runId` 重複は先勝ちで後続を skip）:
+
+```bash
+deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME "$HISTORY" decisions
 ```
 
 `REVISION` は呼び出し元が **確定した VCS ターゲット**（実際に取得した commit hash、または `<baseCommit>..<headCommit>` のような concrete range）を渡す。浮動 `HEAD` / `@` だけ、または未解決の `main..HEAD` 等は使わない。
@@ -93,8 +103,12 @@ LEVEL_DECISION_JSON=$(
 		"${level_args[@]}"
 ) || exit 1
 LEVEL=$(printf '%s' "$LEVEL_DECISION_JSON" | jq -er '.level') || exit 1
-: "${LEVEL:?}"
-# ユーザーへ source / reason / level を短く報告
+CHUNK_CHOICE=$(printf '%s' "$LEVEL_DECISION_JSON" | jq -er '.chunking.choice') || {
+	echo "level decision missing chunking.choice" >&2
+	exit 1
+}
+: "${LEVEL:?}" "${CHUNK_CHOICE:?}"
+# ユーザーへ level と chunking（source/reason/confidence）を分けて短く報告
 ```
 
 明示 `LEVEL=1..5` のレベル選択はネットワーク不要。auto で `route.review` 解決失敗時は `--model` 省略 → helper が `missing_model` で L3 フォールバック（明示指定はブロックしない）。
@@ -286,18 +300,52 @@ Antigravity を単体で使う場合: `"$AGY_RUNNER" --role review.antigravity -
 
 ## 大きい patch（分割レビュー）
 
-`changes.patch` が大きい（目安 ≥ 15KB または ≥ 400 行）ときは `diff --git` 境界で chunk に分割し、chunk ごとにレビューする。
+Jev / explicit / fallback 決定の `chunking.choice` に従う（**init 前の 1 回 Jev のみ**）。`none` は分割しない。数値は allowlist `12000` / `24000` / `48000` のみ（`split_patch.sh --max-bytes` のソフト目標。単一 `diff --git` セクションは分割しないため 1 chunk が目標を超えうる。mid-file 切り詰めなし、patch バイト順序は不変）。
+
+**ローカル chunk ガード（auto / fallback / explicit 共通の意味）**
+
+| 経路 | 条件 | 採用 `chunking.choice` |
+|------|------|------------------------|
+| explicit / fallback の**固定ルール** | raw `byteLength >= 15000` **または** 改行数 `>= 400` | `12000` |
+| explicit / fallback | 上記以外 | `none` |
+| Jev **`none`** | patch `byteLength <= 48000` | `none` |
+| Jev **`none`** | patch `byteLength > 48000` | fallback `whole_patch_limit`（実効 `12000`、`suggestedChoice` は `none`） |
+
+固定ルールは `15000` バイト以上または `400` 改行以上。Jev の `none` は `48000` バイトちょうどまで許可し、それを超えた場合だけ fallback。`split_patch.sh` はファイル境界パックのソフト上限のみ（単一 `diff --git` が `--max-bytes` を超える場合は **1 chunk のまま**切り詰めない）。
 
 ```bash
-SPLITTER="$HOME/.agents/skills/parallel-review/scripts/split_patch.sh"
-CHUNK_DIR="$REVIEW_DIR/chunks"
-mapfile -t CHUNKS < <("$SPLITTER" --input "$REVIEW_DIR/changes.patch" --out "$CHUNK_DIR" --max-bytes 12000)
-((${#CHUNKS[@]} > 0)) || {
-	echo "split produced no chunks" >&2
+SPLITTER="${SPLITTER:-$HOME/.agents/skills/parallel-review/scripts/split_patch.sh}"
+case "$CHUNK_CHOICE" in
+none)
+	# shellcheck disable=SC2034
+	CHUNK_ID=whole
+	# shellcheck disable=SC2034
+	CHUNK_FILE=changes.patch
+	;;
+12000 | 24000 | 48000)
+	CHUNK_DIR="$REVIEW_DIR/chunks"
+	CHUNKS_LIST="$REVIEW_DIR/chunks.list"
+	split_status=0
+	"$SPLITTER" --input "$REVIEW_DIR/changes.patch" --out "$CHUNK_DIR" --max-bytes "$CHUNK_CHOICE" >"$CHUNKS_LIST" || split_status=$?
+	if ((split_status != 0)); then
+		echo "split_patch failed (exit $split_status)" >&2
+		exit "$split_status"
+	fi
+	mapfile -t CHUNKS <"$CHUNKS_LIST"
+	((${#CHUNKS[@]} > 0)) || {
+		echo "split produced no chunks" >&2
+		exit 1
+	}
+	;;
+*)
+	echo "unknown chunking.choice: $CHUNK_CHOICE" >&2
 	exit 1
-}
+	;;
+esac
 ```
 
+- `none`: 上の並行実行ループを `CHUNK_ID=whole` `CHUNK_FILE=changes.patch` で 1 回。
+- 数値 choice: 各 chunk パスに対し `CHUNK_ID=c001` 形式でループ（`chunks/chunk-NNN.patch`）。
 - 各 chunk をレベル N の全 reviewer に渡す。prompt は共通。`changes.patch` 全体が benchmark identity、各 chunk ファイル hash が execution identity。
 - chunk ごとに上の並行実行ループを繰り返す。`CHUNK_ID=c001` `CHUNK_FILE=chunks/chunk-001.patch` のように安定 ID を付け、ログ / execution JSON パスが上書きされないようにする。
 - timeout は level 固定（chunk サイズではない）。

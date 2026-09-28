@@ -3,7 +3,7 @@ import { complete } from "@earendil-works/pi-ai/compat";
 import { Type } from "typebox";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { appendFile, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, chmod, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -25,6 +25,13 @@ Rules:
 const errorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
   return String(error);
+};
+
+const isEnoent = (error: unknown) => {
+  if (error && typeof error === "object" && "code" in error) {
+    return error.code === "ENOENT";
+  }
+  return false;
 };
 
 const walkUpFrom = (startDir: string, visit: (dir: string) => boolean | void) => {
@@ -132,7 +139,7 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
     indexSnapshot = buildMemoryIndex(text);
   });
 
-  pi.on("before_agent_start", async (event) => ({
+  pi.on("before_agent_start", (event) => ({
     systemPrompt: `${event.systemPrompt}\n\n${indexSnapshot}`,
   }));
 
@@ -303,7 +310,10 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
     };
   };
 
-  const applyConsolidation = async (rawContent: string, curated: string) => {
+  const applyConsolidation = async (
+    rawContent: string,
+    curated: string,
+  ) => {
     await mkdir(join(memoryPath, ".."), { recursive: true });
     await writeFile(`${memoryPath}.bak`, rawContent, { encoding: "utf8", mode: 0o600 });
     const curatedText = curated.endsWith("\n") ? curated : `${curated}\n`;
@@ -311,16 +321,24 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
     await chmod(memoryPath, 0o600).catch(() => {});
     // Reflect the consolidated memory in the current session's injected index.
     indexSnapshot = buildMemoryIndex(curated);
+    try {
+      await unlink(`${memoryPath}.bak`);
+    } catch (error) {
+      if (isEnoent(error)) return undefined;
+      return `Temporary .bak backup could not be removed: ${errorMessage(error)}`;
+    }
+    return undefined;
   };
 
   pi.registerTool({
     name: "review_memory",
     label: "Consolidate Repo Memory",
     description:
-      "Consolidates this repository's local memory in one LLM pass (dedupe, prune, regroup) and keeps a .bak backup.",
-    promptSnippet: "Consolidate repo memory (dedupe, prune, regroup); keeps a .bak backup",
+      "Consolidates this repository's local memory in one LLM pass (dedupe, prune, regroup); writes a temporary .bak backup removed after a successful save.",
+    promptSnippet:
+      "Consolidate repo memory (dedupe, prune, regroup); temporary .bak backup removed after success",
     promptGuidelines: [
-      'Use review_memory when the user asks to clean up or consolidate repo memory (e.g. "メモリ整理して"), or when memory has grown large or drifted. It rewrites memory.md and keeps a .bak backup.',
+      'Use review_memory when the user asks to clean up or consolidate repo memory (e.g. "メモリ整理して"), or when memory has grown large or drifted. It rewrites memory.md with a temporary .bak backup that is removed after a successful save (kept if saving fails).',
     ],
     parameters: Type.Object({}),
     async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
@@ -342,17 +360,28 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
         };
       }
 
+      let cleanupWarning: string | undefined;
       try {
-        await applyConsolidation(result.rawContent, result.curated);
+        cleanupWarning = await applyConsolidation(result.rawContent, result.curated);
       } catch (error) {
         return {
-          content: [{ type: "text", text: `Failed to write consolidated memory: ${errorMessage(error)}` }],
+          content: [{ type: "text", text: `Failed to apply consolidated memory: ${errorMessage(error)}` }],
         };
       }
 
+      const summary =
+        `Repo memory consolidated: ${result.beforeCount} → ${result.afterCount} notes.`;
+      if (cleanupWarning) {
+        if (ctx.hasUI) {
+          ctx.ui.notify(`${summary} ${cleanupWarning}`, "warning");
+        }
+        return {
+          content: [{ type: "text", text: `${summary} ${cleanupWarning}` }],
+        };
+      }
       if (ctx.hasUI) {
         ctx.ui.notify(
-          `Repo memory consolidated: ${result.beforeCount} → ${result.afterCount} notes (.bak saved)`,
+          `Repo memory consolidated: ${result.beforeCount} → ${result.afterCount} notes (temporary .bak removed)`,
           "info",
         );
       }
@@ -360,8 +389,7 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
         content: [
           {
             type: "text",
-            text:
-              `Repo memory consolidated: ${result.beforeCount} → ${result.afterCount} notes. A .bak backup was kept.`,
+            text: `${summary} Temporary .bak backup removed after successful save.`,
           },
         ],
       };
@@ -395,7 +423,7 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
       if (ctx.hasUI) {
         const confirmed = await ctx.ui.confirm(
           "Apply memory review?",
-          `Before: ${result.beforeCount} notes → After: ${result.afterCount} notes. Overwrite memory.md? A .bak backup is kept.`,
+          `Before: ${result.beforeCount} notes → After: ${result.afterCount} notes. Overwrite memory.md? A temporary .bak backup is removed after a successful save (kept if saving fails).`,
         );
         if (!confirmed) {
           ctx.ui.notify("Cancelled", "info");
@@ -404,12 +432,15 @@ export default function repoMemoryLocal(pi: ExtensionAPI) {
       }
 
       try {
-        await applyConsolidation(result.rawContent, result.curated);
+        const cleanupWarning = await applyConsolidation(result.rawContent, result.curated);
         if (ctx.hasUI) {
-          ctx.ui.notify(
-            `Repo memory reviewed: ${result.beforeCount} → ${result.afterCount} notes (.bak saved)`,
-            "info",
-          );
+          const reviewedSummary =
+            `Repo memory reviewed: ${result.beforeCount} → ${result.afterCount} notes`;
+          if (cleanupWarning) {
+            ctx.ui.notify(`${reviewedSummary}. ${cleanupWarning}`, "warning");
+          } else {
+            ctx.ui.notify(`${reviewedSummary} (temporary .bak removed)`, "info");
+          }
         }
       } catch (error) {
         ctx.ui.notify(`Failed to review repo memory: ${errorMessage(error)}`, "error");

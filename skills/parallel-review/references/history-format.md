@@ -80,6 +80,35 @@ SKILL.md の統合節から `$REVIEW_DIR/assessment.json` を書き、上記 sav
 
 `levelDecision` は **採用した実レベル**（Jev 推奨・明示・L3 フォールバック後の数値）を `level` と共に記録する。`source` は `explicit` / `jev` / `fallback`、`requestedLevel` は明示数値または `auto`。`reason` は固定コード、`patchSha256` は判定対象の生バイト SHA-256。auto は `minConfidence` も必須。Jev 採用時と `low_confidence` fallback 時は検証済み `model` / `suggestedLevel` / `confidence` と任意 `costUsd` を保持する（raw 応答・秘密値は保存しない）。
 
+任意 **`probabilities`**（深さ診断のみ）: キー `"1"`…`"5"` のみ、各値は JSON number で 0..1 の有限値。**5 キーすべて必須**（欠損・未知キー・NaN/文字列は metadata 検証で拒否）。API 側で optional block が malformed のときは **省略**（選択・`confidence` は従来どおり）。`source: jev` または `fallback` かつ `reason: low_confidence` のときだけ保存しうる。`explicit`、HTTP/JSON/schema 等の共通 fallback、`low_confidence` 以外の fallback では **含めない**。`confidence` は分布の集中度、`probabilities` は選択肢ごとの予測値であり、履歴から実測した正答率ではない。legacy レコードはフィールドなしのまま。
+
+**read-only 一覧**（snapshot 不要・未完了 run 含む）:
+
+```bash
+deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
+  "$HOME/.agents/skills/parallel-review/scripts/review_history.ts" decisions
+```
+
+任意フラグ: `--runs-dir DIR`（省略時は `${XDG_DATA_HOME:-$HOME/.local/share}/parallel-review/runs`）、`--repository PATH`（metadata の `repository` 文字列と **完全一致**；空文字・空白のみは CLI 拒否）。`--runs-dir` / `--repository` に空や空白のみを渡さない。
+
+stdout は `{ "decisions": [ { runId, createdAt, repository, revision, levelDecision } ], "warnings": [ { runDir, reason } ] }`。存在しない runs ルートは空配列（警告なし）。runs ルート自体、`metadata.json`、または run ディレクトリが symlink の場合は当該 run を列挙せず `warnings` に理由コード（例: `symlink_runs_root`, `symlink_run_dir`, `symlink_metadata`）のみ。無効 metadata / levelDecision も警告のみ（canary や raw ファイル内容は stdout/stderr に出さない）。同一 `runId` が複数 run に現れた場合は先に読んだ 1 件を採用し、残りは `duplicate_run_id`。`review-model-eval` の snapshot 集計とは別契約。
+
+任意のネスト `chunking`（schemaVersion 1 互換）。**省略時は legacy どおり検証しない**（`chunking` キー自体が無い JSON のみ legacy）。
+
+| フィールド | 意味 |
+|-----------|------|
+| `source` | `jev` / `fallback` / `fixed` |
+| `reason` | `jev_ok` / `explicit_level` / 固定 fallback コード（`whole_patch_limit` 等） |
+| `choice` | `none` \| `12000` \| `24000` \| `48000`（10進バイト目安）。**`fixed` / `fallback` の実効 `choice` は `none` または `12000` のみ** |
+| `minConfidence` | auto 系 `jev` / `fallback` で必須。**存在時は親 `levelDecision.minConfidence` と同一** |
+| `confidence` / `suggestedChoice` / `model` | **通常 `jev` 採用時も必須**（`suggestedChoice` は `choice` と一致）。`low_confidence` / `whole_patch_limit` fallback 時も必須 |
+
+**親との対応**: `levelDecision.source === "explicit"` ⇔ `chunking.source === "fixed"`。malformed 共通 envelope（HTTP/JSON/schema 等）では深さ・chunk **両方** fallback。
+
+**`whole_patch_limit`**: `suggestedChoice === "none"`、実効 `choice === "12000"`、`confidence >= minConfidence`（未満なら `low_confidence`）。
+
+深さと chunk の信頼度は独立。新規 `selectReviewLevel` / auto 出力は `chunking` を含む。
+
 既存 run（`levelDecision` なし）は従来どおり。auto と手動を分けた評価集計は今回追加しない。
 
 run 作成後は不変（`runId` / `createdAt` / `repository` / `revision` / `level` / `levelScale` / `levelDecision` を含む metadata 全体）。既存 legacy metadata を save 時に書き換えない。snapshot 間で patch/prompt の SHA-256 も不変。未完了 execution の identity と chunk hash は固定し、出力途中の stdout/stderr hash は変化を許す。完了後は record 全体とファイル hash が不変。
