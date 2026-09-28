@@ -55,6 +55,13 @@ minimal_path_without_sd() {
 	printf '%s\n' "$bin"
 }
 
+@test "production catalog resolves route.review id field" {
+	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
+	run "$RESOLVER" --field id route.review
+	[ "$status" -eq 0 ]
+	[ "$output" = "typesafe/jev-1.13" ]
+}
+
 @test "resolves .pi for pi roles and .id fallback for codex.default" {
 	# Arrange
 	write_catalog

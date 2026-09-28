@@ -84,14 +84,17 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
 ~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
 ~/.pi/agent/resolve-model.sh --field agy review.antigravity # -> Antigravity model id
-~/.pi/agent/resolve-model.sh --review-level 3              # -> backend/model/timeouts TSV (default tier)
+~/.pi/agent/resolve-model.sh --field id route.review       # -> Jev OpenRouter model id (parallel-review auto)
+~/.pi/agent/resolve-model.sh --review-level 3              # -> backend/model/timeouts TSV (L3 / auto fallback tier)
 ~/.pi/agent/resolve-model.sh --label review.grok
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
+Set `OPENROUTER_API_KEY` in the environment for parallel-review **auto** level selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). Auto uses `route.review` plus scoped Deno permissions documented in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPENROUTER_API_KEY`). Unspecified review level → auto (Jev); failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
+
 Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
-`review.fugu`, `review.muse`, `route.fugu.base`, `route.fugu.ultra`, `impl.cursor`,
+`review.fugu`, `review.muse`, `route.review`, `route.fugu.base`, `route.fugu.ultra`, `impl.cursor`,
 `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
@@ -503,7 +506,7 @@ exposure is controlled by which runtime directory links the skill.
 
 ### Pi skill inventory (by category)
 
-**Review** (plain 「レビューして」 → `parallel-review` L3 default):
+**Review** (plain 「レビューして」 → `parallel-review` **auto** Jev level, L3 fallback):
 
 | Skill | Trigger |
 | ----- | ------- |

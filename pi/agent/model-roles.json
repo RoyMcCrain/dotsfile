@@ -40,6 +40,10 @@
       "label": "Muse Spark 1.3 Contributor High",
       "timeout": 120
     },
+    "route.review": {
+      "id": "typesafe/jev-1.13",
+      "label": "Jev 1.13 (OpenRouter review routing)"
+    },
     "route.fugu.base": {
       "id": "fugu-max",
       "label": "Sakana Fugu Max"

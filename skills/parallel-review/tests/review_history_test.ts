@@ -15,6 +15,11 @@ import {
   saveAssessment,
   validateSnapshot,
 } from "../scripts/review_history.ts";
+import {
+  buildExplicitDecision,
+  buildFallbackDecision,
+  sha256Bytes,
+} from "../scripts/select_review_level.ts";
 
 const SCRIPT_PATH = join(import.meta.dirname!, "../scripts/review_history.ts");
 const SKILL_PATH = join(import.meta.dirname!, "../SKILL.md");
@@ -1863,7 +1868,7 @@ Deno.test("SKILL bash blocks pass bash -n shellcheck and shfmt", async () => {
   const bash5 = await findBash5();
   const blocks = [
     extractBashBlock(skill, "## 実行記録（provenance）"),
-    extractBashBlock(skill, "## Preflight（1回だけ）"),
+    extractBashBlock(skill, "## Preflight → レベル選択 → init（1回だけ）"),
     extractBashBlock(skill, "## 並行実行（chunk ごと）"),
     extractBashBlock(skill, "## 大きい patch（分割レビュー）"),
     extractBashBlock(skill, "### 採用判断の保存（必須）"),
@@ -2361,5 +2366,397 @@ Deno.test("save publishes snapshots atomically when write is interrupted", async
     );
     const secondStat = await Deno.stat(second.snapshotPath);
     assert.equal(secondStat.mode! & 0o777, 0o600);
+  });
+});
+
+Deno.test("levelDecision: init CLI roundtrip and snapshot preservation", async () => {
+  await withTempHome(async (home, xdg) => {
+    const patchBytes = new TextEncoder().encode("diff for decision\n");
+    const patchPath = join(home, "staging.patch");
+    await writeFile(patchPath, patchBytes, { mode: 0o600 });
+    const decision = buildExplicitDecision({
+      level: 3,
+      patchSha256: sha256Bytes(patchBytes),
+    });
+    const decisionPath = join(home, "decision.json");
+    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
+
+    const initOut = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "deadbeef",
+      "--level",
+      "3",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.equal(initOut.code, 0, initOut.stderr);
+    const runDir = initOut.stdout.trim();
+    const metadata = JSON.parse(
+      await readFile(join(runDir, "metadata.json"), "utf8"),
+    );
+    assert.deepEqual(metadata.levelDecision, decision);
+    assert.equal(metadata.level, 3);
+
+    await prepareRunForSave(runDir);
+    await writeFile(join(runDir, "changes.patch"), patchBytes, {
+      mode: 0o600,
+    });
+    const snapshotPath = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      minimalAssessment("whole-r01", "no_findings"),
+    );
+    const snapshot = validateSnapshot(
+      JSON.parse(await readFile(snapshotPath, "utf8")),
+    );
+    assert.deepEqual(snapshot.metadata.levelDecision, decision);
+  });
+});
+
+Deno.test("levelDecision: rejects mismatch at init and save", async () => {
+  await withTempHome(async (home, xdg) => {
+    const patchBytes = new TextEncoder().encode("same patch\n");
+    const decision = buildExplicitDecision({
+      level: 2,
+      patchSha256: sha256Bytes(patchBytes),
+    });
+    const decisionPath = join(home, "decision.json");
+    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
+
+    const levelMismatch = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "rev1",
+      "--level",
+      "3",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.notEqual(levelMismatch.code, 0);
+    assert.match(levelMismatch.stderr, /must match levelDecision/);
+
+    const goodInitOut = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "rev1",
+      "--level",
+      "2",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.equal(goodInitOut.code, 0, goodInitOut.stderr);
+    const goodRunDir = goodInitOut.stdout.trim();
+    await writeFile(
+      join(goodRunDir, "changes.patch"),
+      "different bytes\n",
+      { mode: 0o600 },
+    );
+    await prepareRunForSave(goodRunDir);
+    await assert.rejects(
+      () =>
+        saveAssessment({
+          runDir: goodRunDir,
+          assessment: minimalAssessment("whole-r01", "no_findings"),
+        }),
+      /levelDecision patchSha256 mismatch/,
+    );
+  });
+});
+
+Deno.test("validateSnapshot rejects levelDecision patch hash mismatch", () => {
+  const patchSha = "d".repeat(64);
+  const otherSha = "e".repeat(64);
+  const decision = buildExplicitDecision({
+    level: 3,
+    patchSha256: otherSha,
+  });
+  const baseExec = {
+    id: "whole-r01",
+    backend: "pi",
+    model: "provider/model-a:high",
+    chunk: "changes.patch",
+    timeout: 600,
+    retryTimeout: 600,
+    maxAttempts: 2,
+    status: "completed",
+    startedAt: ISO,
+    endedAt: ISO_END,
+    exitCode: 0,
+    stdoutLog: "logs/whole-r01.stdout.log",
+    stderrLog: "logs/whole-r01.stderr.log",
+    files: {
+      chunk: { path: "changes.patch", sha256: patchSha },
+      stdoutLog: { path: "logs/whole-r01.stdout.log", sha256: "b".repeat(64) },
+      stderrLog: { path: "logs/whole-r01.stderr.log", sha256: "c".repeat(64) },
+    },
+  };
+  const snapshot = {
+    schemaVersion: 1,
+    runId: "00000000-0000-4000-8000-000000000001",
+    savedAt: ISO_MS,
+    actor: { kind: "agent", id: "cursor/test:default" },
+    metadata: {
+      schemaVersion: 1,
+      runId: "00000000-0000-4000-8000-000000000001",
+      createdAt: ISO_MS,
+      repository: "/tmp/r",
+      revision: "abc",
+      level: 3,
+      levelScale: 5,
+      levelDecision: decision,
+    },
+    files: {
+      patch: { path: "changes.patch", sha256: patchSha },
+      prompt: { path: "prompt.md", sha256: "f".repeat(64) },
+    },
+    executions: [baseExec],
+    reviews: [{
+      executionId: "whole-r01",
+      verdict: "no_findings",
+      findings: [],
+    }],
+  };
+  assert.throws(
+    () => validateSnapshot(snapshot),
+    /levelDecision patchSha256 must match snapshot patch hash/,
+  );
+});
+
+Deno.test("validateSnapshot rejects null levelDecision and metadata level mismatch", () => {
+  const patchSha = "a".repeat(64);
+  const base = {
+    schemaVersion: 1,
+    runId: "00000000-0000-4000-8000-000000000001",
+    savedAt: ISO_MS,
+    actor: { kind: "agent", id: "cursor/test:default" },
+    files: {
+      patch: { path: "changes.patch", sha256: patchSha },
+      prompt: { path: "prompt.md", sha256: "b".repeat(64) },
+    },
+    executions: [{
+      id: "whole-r01",
+      backend: "pi",
+      model: "m",
+      chunk: "changes.patch",
+      timeout: 600,
+      retryTimeout: 600,
+      maxAttempts: 2,
+      status: "completed",
+      startedAt: ISO,
+      endedAt: ISO_END,
+      exitCode: 0,
+      stdoutLog: "logs/whole-r01.stdout.log",
+      stderrLog: "logs/whole-r01.stderr.log",
+      files: {
+        chunk: { path: "changes.patch", sha256: patchSha },
+        stdoutLog: {
+          path: "logs/whole-r01.stdout.log",
+          sha256: "c".repeat(64),
+        },
+        stderrLog: {
+          path: "logs/whole-r01.stderr.log",
+          sha256: "d".repeat(64),
+        },
+      },
+    }],
+    reviews: [{
+      executionId: "whole-r01",
+      verdict: "no_findings",
+      findings: [],
+    }],
+  };
+  assert.throws(
+    () =>
+      validateSnapshot({
+        ...base,
+        metadata: {
+          schemaVersion: 1,
+          runId: base.runId,
+          createdAt: ISO_MS,
+          repository: "/tmp/r",
+          revision: "abc",
+          level: 3,
+          levelScale: 5,
+          levelDecision: null,
+        },
+      }),
+    /levelDecision must not be null/,
+  );
+
+  const level2Decision = buildExplicitDecision({
+    level: 2,
+    patchSha256: patchSha,
+  });
+  assert.throws(
+    () =>
+      validateSnapshot({
+        ...base,
+        metadata: {
+          schemaVersion: 1,
+          runId: base.runId,
+          createdAt: ISO_MS,
+          repository: "/tmp/r",
+          revision: "abc",
+          level: 3,
+          levelScale: 5,
+          levelDecision: level2Decision,
+        },
+      }),
+    /metadata\.level must match levelDecision\.level/,
+  );
+});
+
+Deno.test("save rejects metadata level mismatch with levelDecision", async () => {
+  await withTempHome(async (home, xdg) => {
+    const patchBytes = new TextEncoder().encode("patch\n");
+    const patchSha = sha256Bytes(patchBytes);
+    const decision = buildExplicitDecision({
+      level: 2,
+      patchSha256: patchSha,
+    });
+    const decisionPath = join(home, "decision.json");
+    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
+
+    const initOut = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "rev-level-mismatch",
+      "--level",
+      "2",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.equal(initOut.code, 0, initOut.stderr);
+    const runDir = initOut.stdout.trim();
+
+    await prepareRunForSave(runDir);
+    await writeFile(join(runDir, "changes.patch"), patchBytes, { mode: 0o600 });
+
+    const metadata = JSON.parse(
+      await readFile(join(runDir, "metadata.json"), "utf8"),
+    );
+    metadata.level = 3;
+    await writeFile(
+      join(runDir, "metadata.json"),
+      JSON.stringify(metadata),
+      { mode: 0o600 },
+    );
+
+    const assessment = minimalAssessment("whole-r01", "no_findings");
+    await assert.rejects(
+      () => saveAssessment({ runDir, assessment }),
+      /metadata.level must match levelDecision.level/,
+    );
+
+    const assessmentPath = join(runDir, "assessment.json");
+    await writeFile(assessmentPath, JSON.stringify(assessment), {
+      mode: 0o600,
+    });
+    const saveOut = await runCli([
+      "save",
+      "--dir",
+      runDir,
+      "--input",
+      assessmentPath,
+    ], childEnv(home, xdg));
+    assert.notEqual(saveOut.code, 0);
+    assert.match(
+      saveOut.stderr,
+      /metadata.level must match levelDecision.level/,
+    );
+
+    const snapshotsDir = join(runDir, "snapshots");
+    try {
+      let snapshotCount = 0;
+      for await (const _ of Deno.readDir(snapshotsDir)) snapshotCount++;
+      assert.equal(snapshotCount, 0);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+  });
+});
+
+Deno.test("low_confidence levelDecision history roundtrip", async () => {
+  await withTempHome(async (home, xdg) => {
+    const patchBytes = new TextEncoder().encode("diff\n");
+    const decision = buildFallbackDecision({
+      requestedLevel: "auto",
+      reason: "low_confidence",
+      patchSha256: sha256Bytes(patchBytes),
+      minConfidence: 0.71,
+      confidence: 0.7,
+      suggestedLevel: 2,
+      model: "typesafe/jev-1.13-20260917",
+      costUsd: 0.00001,
+    });
+    const decisionPath = join(home, "decision.json");
+    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
+
+    const initOut = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "rev",
+      "--level",
+      "3",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.equal(initOut.code, 0, initOut.stderr);
+    const runDir = initOut.stdout.trim();
+    await prepareRunForSave(runDir);
+    await writeFile(join(runDir, "changes.patch"), patchBytes, { mode: 0o600 });
+    const snapshotPath = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      minimalAssessment("whole-r01", "no_findings"),
+    );
+    const snapshot = validateSnapshot(
+      JSON.parse(await readFile(snapshotPath, "utf8")),
+    );
+    const ld = snapshot.metadata.levelDecision as {
+      reason?: string;
+      confidence?: number;
+    };
+    assert.equal(ld.reason, "low_confidence");
+    assert.equal(ld.confidence, 0.7);
+  });
+});
+
+Deno.test("legacy metadata without levelDecision still validates", async () => {
+  await withTempHome(async (home, xdg) => {
+    const { runDir } = await initRunViaCli(home, xdg, {
+      repository: "/tmp/repo",
+      revision: "legacy-rev",
+      level: 2,
+    });
+    const metadata = JSON.parse(
+      await readFile(join(runDir, "metadata.json"), "utf8"),
+    );
+    assert.equal(metadata.levelDecision, undefined);
+    await writeFile(join(runDir, "changes.patch"), "patch\n", { mode: 0o600 });
+    await prepareRunForSave(runDir);
+    const snapshotPath = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      minimalAssessment("whole-r01", "no_findings"),
+    );
+    const snapshot = validateSnapshot(
+      JSON.parse(await readFile(snapshotPath, "utf8")),
+    );
+    assert.equal(snapshot.metadata.levelDecision, undefined);
   });
 });

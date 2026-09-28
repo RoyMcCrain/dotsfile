@@ -6,7 +6,7 @@
 
 ```text
 <run-dir>/
-  metadata.json          # 不変: runId, createdAt, repository, revision, level
+  metadata.json          # 不変: runId, createdAt, repository, revision, level [, levelDecision]
   changes.patch          # 共有 benchmark（全 reviewer 同一）
   prompt.md
   reviewers.tsv          # 解決済み reviewer 一覧（1 run 1 回）
@@ -26,21 +26,16 @@
 
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
-LEVEL="${LEVEL:-3}"
-: "${REVISION:?REVISION is required}"
-
-# patch preflight より前
-umask 077
-REVIEW_DIR=$(deno run --no-config --allow-read --allow-write \
-	--allow-env=HOME,XDG_DATA_HOME "$HISTORY" init \
-	--repository "$PWD" --revision "$REVISION" --level "$LEVEL") || exit 1
+# Preflight → Jev/explicit レベル選択 → init（SKILL.md 正本）
+# init は --level に **実際に採用した数値**（auto の場合は helper 出力の level）と
+# 任意 --level-decision FILE（select_review_level.ts の JSON）を受け付ける。
 
 # 統合完了後（必須）
 SNAPSHOT=$(deno run --no-config --allow-read --allow-write "$HISTORY" save \
 	--dir "$REVIEW_DIR" --input "$REVIEW_DIR/assessment.json") || exit 1
 ```
 
-SKILL.md の統合節から `$REVIEW_DIR/assessment.json` を書き、上記 save で永続化する。
+SKILL.md の統合節から `$REVIEW_DIR/assessment.json` を書き、上記 save で永続化する。`save` 時、`metadata.levelDecision.patchSha256` がある場合は `changes.patch` の SHA-256 と一致必須。
 
 ## execution ID
 
@@ -79,10 +74,15 @@ SKILL.md の統合節から `$REVIEW_DIR/assessment.json` を書き、上記 sav
 | `revision` | ✓ | 非空文字列（concrete VCS ターゲット: commit hash または `<baseCommit>..<headCommit>`） |
 | `level` | ✓ | JSON number または CLI 文字列リテラル `1` / `2` / `3` / `4` / `5` のみ（`01` 等の coercion 不可） |
 | `levelScale` | 新規 run ✓ | `3` または `5`。新規 `init` は `5`。省略時は **legacy 3 段階**（既存履歴） |
+| `levelDecision` | 任意（新規 auto/explicit フロー） | `select_review_level.ts` 出力 JSON（schemaVersion 1）。`level` と一致必須。`levelScale: 5` の run のみ |
 
 `level` は `levelScale` を超えてはならない。legacy（`levelScale` 省略）では `level` は 1–3 のみ。`levelScale: 3` も 1–3、`levelScale: 5` は 1–5。
 
-run 作成後は不変（`runId` / `createdAt` / `repository` / `revision` / `level` / `levelScale` を含む metadata 全体）。既存 legacy metadata を save 時に書き換えない。snapshot 間で patch/prompt の SHA-256 も不変。未完了 execution の identity と chunk hash は固定し、出力途中の stdout/stderr hash は変化を許す。完了後は record 全体とファイル hash が不変。
+`levelDecision` は **採用した実レベル**（Jev 推奨・明示・L3 フォールバック後の数値）を `level` と共に記録する。`source` は `explicit` / `jev` / `fallback`、`requestedLevel` は明示数値または `auto`。`reason` は固定コード、`patchSha256` は判定対象の生バイト SHA-256。auto は `minConfidence` も必須。Jev 採用時と `low_confidence` fallback 時は検証済み `model` / `suggestedLevel` / `confidence` と任意 `costUsd` を保持する（raw 応答・秘密値は保存しない）。
+
+既存 run（`levelDecision` なし）は従来どおり。auto と手動を分けた評価集計は今回追加しない。
+
+run 作成後は不変（`runId` / `createdAt` / `repository` / `revision` / `level` / `levelScale` / `levelDecision` を含む metadata 全体）。既存 legacy metadata を save 時に書き換えない。snapshot 間で patch/prompt の SHA-256 も不変。未完了 execution の identity と chunk hash は固定し、出力途中の stdout/stderr hash は変化を許す。完了後は record 全体とファイル hash が不変。
 
 オフライン評価（`review-model-eval`）のモデルグループキーは `backend` + `model` + `level` + **`levelScale`** + `actor.kind`。同じ数値 `level` でも legacy 3 段階と 5 段階は別グループ（例: 旧 L2 と新 L2 は統計を混ぜない）。
 

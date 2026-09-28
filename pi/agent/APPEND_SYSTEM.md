@@ -49,7 +49,7 @@
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
 - 委譲後は必ず diff 目視、lint、test、仕様充足チェックで検証し、投げっぱなしにしない。
-- 「レビューして」と言われたら、単体レビュアーを明示されない限り `parallel-review` skill を優先して使う（reviewLevels の5段階：1=最軽量 / 2=軽量 / 3=標準・既定 / 4=deep / 5=最深。L1/L2 は runtime caller（`PI_PROVIDER`/`PI_MODEL`）を current reviewer として含む。全 tier に Muse Contributor :high を含む。現在使用中の provider と同じ reviewer も除外しない）。ユーザー依頼のレビューでは、秘密除外・検査済みパッチの Muse Contributor 学習利用外部送信は**個人設定として常時許可済み**とみなす（patch/chunk/リトライごとの再確認は不要）。認証情報・顧客データ・雇用先機密の疑いがある場合、またはユーザーが撤回・制限・拒否した場合は停止して確認する（Muse を silently 省略したり別 provider へ切り替えない）。
+- 「レビューして」と言われたら、単体レビュアーを明示されない限り `parallel-review` skill を優先して使う（reviewLevels の5段階。レベル**未指定は auto**（Jev → 失敗時 L3）。**1..5 明示は Jev より優先**）。L1/L2 は runtime caller（`PI_PROVIDER`/`PI_MODEL`）を current reviewer として含む。全 tier に Muse Contributor :high を含む。Jev auto は `OPENROUTER_API_KEY` と `route.review` モデルで patch のみを OpenRouter に送る（メイン Pi モデルは変更しない）。現在使用中の provider と同じ reviewer も除外しない。ユーザー依頼のレビューでは、秘密除外・検査済みパッチの Muse Contributor 学習利用外部送信は**個人設定として常時許可済み**とみなす（patch/chunk/リトライごとの再確認は不要）。認証情報・顧客データ・雇用先機密の疑い、Jev/Muse 送信の撤回・制限がある場合は API/reviewer 送信前に停止して確認する（Muse を silently 省略したり別 provider へ切り替えない）。
 - ユーザーがレビュアーを明示した場合のみ `grok-review` / `codex-review` / `claude-review` / `fugu-review` / `muse-review` skill を使う。`muse-review` 単体は Muse の明示指定時のみ使う。学習利用の再確認は不要（ユーザー依頼レビューの常時許可対象）。秘密の疑いまたは許可の撤回・制限・拒否時は停止する。
 
 ## Simplicity Principles
