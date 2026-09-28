@@ -19,14 +19,22 @@ function sync-key --description 'Sync an API key from Bitwarden into macOS Keych
         return 1
     end
 
-    bw sync
+    if not bw sync
+        echo "sync-key: Bitwarden sync に失敗しました" >&2
+        return 1
+    end
+
     set -l key (bw get password $item)
-    if test -z "$key"
+    if test $status -ne 0; or test -z "$key"
         echo "sync-key: Bitwarden から '$item' を取得できませんでした" >&2
         return 1
     end
 
-    security add-generic-password -U -s $item -a $USER -w $key
+    if not security add-generic-password -U -s $item -a $USER -w $key
+        echo "sync-key: Keychain への保存に失敗しました" >&2
+        return 1
+    end
+
     set -gx $var $key
     echo "$var を Keychain に保存し、現在のシェルにも反映しました"
 end

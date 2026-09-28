@@ -13,6 +13,12 @@ for d in "$HOME/.cargo/bin" "$HOME/.local/bin" \
          "$HOME/.codeium/windsurf/bin"; do
   [ -d "$d" ] && PATH="$d:$PATH"
 done
+if [ -n "${PNPM_HOME:-}" ]; then
+  case ":${PATH}:" in
+    *":${PNPM_HOME}/bin:"*) ;;
+    *) PATH="${PATH}:${PNPM_HOME}/bin" ;;
+  esac
+fi
 export PATH
 
 # direnv: login 非interactive shell（Claude/Zed の Bash）では precmd hook が発火しない。
