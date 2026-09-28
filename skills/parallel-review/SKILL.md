@@ -1,6 +1,6 @@
 ---
 name: parallel-review
-description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=軽量動的 / 3=標準・既定 / 4=deep / 5=最深）で並行実行する。「レビューして」だけの依頼ではこれを優先する。
+description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=軽量動的 / 3=標準 / 4=deep / 5=最深）で並行実行する。レベル未指定は auto（Jev 推定、失敗時 L3）。「レビューして」だけの依頼ではこれを優先する。
 ---
 
 # /parallel-review
@@ -15,15 +15,17 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 ## レベル（1/2/3/4/5）
 
-レビューは5段階から選ぶ。指定なしは **3**（従来 L2 相当の 6 reviewer）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
+レビューは5段階から選ぶ。**指定なしは auto**（Jev が OpenRouter Decisions API で1回だけ深さを推定）。ユーザーが **1..5 を明示**した場合はその数値が常に優先され、Jev / `OPENROUTER_API_KEY` は使わない。auto が失敗・低信頼・patch 空/ oversized のときは **L3 にフォールバック**（6 reviewer 標準）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
 - **1（最軽量）**: **現在の caller モデル** + Muse Contributor :high（通常 **2 reviewer**。caller が Muse と同一 ID のとき dedupe して **1**）。
 - **2（軽量）**: **caller** + Antigravity（`review.antigravity`）+ Muse（通常 **3**。caller が Muse または Antigravity と解決される Gemini と同一 ID のとき **2**）。
-- **3（標準・既定）**: Grok / Codex xhigh / Opus 5.5 :high / Antigravity / Fugu Max :high / Muse（**6 reviewer**、旧 L2 と同一）。
+- **3（標準 / auto フォールバック）**: Grok / Codex xhigh / Opus 5.5 :high / Antigravity / Fugu Max :high / Muse（**6 reviewer**、旧 L2 と同一）。**Jev 失敗・低信頼時の採用 tier**。
 - **4（deep）**: L3 と同構成だが Codex max・Opus 5.5 :max（Fugu Max :high のまま）（**6 reviewer**）。
 - **5（最深）**: Grok / Codex max / Opus 5.5 :max / Antigravity / Fugu Ultra v2 :high / Muse（**6 reviewer**、旧 L3 と同一）。
 
-**旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。指定なしは新 L3。
+**旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。**指定なしは auto**（フォールバック L3）。
+
+**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPENROUTER_API_KEY` のみ（`--allow-env=OPENROUTER_API_KEY`）。patch は **UTF-8 24,000 バイト上限**（超過は切り詰めず L3 フォールバック）。`--min-confidence`（既定 **0.7**）は Jev 応答の **集中度しきい値**（正答確率の保証ではない）。API 送信前に **秘密・顧客・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限**があれば停止する（`--approved-input` は自動検出ではなく、呼び出し側がこの patch の外部送信を許可した宣言）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外（履歴・チャット・ホームパス・revision 文字列）は送らない。**明示 1..5 はレベル選択のみオフライン**（並行 reviewer 実行は従来どおりネットワークあり得る）。決定 JSON の `source` / `reason` / `level` をユーザーに短く伝える。
 
 **current モデルの解決**: カタログは `{"current":true}` のみ。Pi の bash ツール呼び出しでは `PI_PROVIDER` / `PI_MODEL`（任意 `PI_REASONING_LEVEL`）が注入され、`provider/model[:reasoning]` として current reviewer になる（effort は Pi が export した値をそのまま使う。最短 latency の保証ではない）。手元スクリプトや非 Pi では `resolve-model.sh --review-level N --current-model MODEL [--current-backend pi|agy]` を明示する。L3+ は current 不要。
 
@@ -55,34 +57,68 @@ Muse Contributor は prompts/completions を学習に利用する（zero-data-re
 
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
+SELECT_LEVEL="$HOME/.agents/skills/parallel-review/scripts/select_review_level.ts"
+RESOLVER="${RESOLVER:-$HOME/.pi/agent/resolve-model.sh}"
 
-LEVEL="${LEVEL:-3}" # 1=最軽量 / 2=軽量 / 3=標準(既定) / 4=deep / 5=最深
+REQUESTED_LEVEL="${LEVEL:-auto}" # auto または 1..5（明示数値は Jev を使わない）
 : "${REVISION:?REVISION is required (concrete commit hash or <baseCommit>..<headCommit>)}"
-
-umask 077
-REVIEW_DIR=$(deno run --no-config --allow-read --allow-write \
-	--allow-env=HOME,XDG_DATA_HOME "$HISTORY" init \
-	--repository "$PWD" --revision "$REVISION" --level "$LEVEL") || {
-	echo "review run init failed" >&2
-	exit 1
-}
-# stdout: 絶対パス (${XDG_DATA_HOME:-$HOME/.local/share}/parallel-review/runs/<UTC-date>-<uuid>)
-[[ -n "$REVIEW_DIR" ]] || {
-	echo "review run init returned empty dir" >&2
-	exit 1
-}
+: "${HISTORY:?}" "${SELECT_LEVEL:?}" "${RESOLVER:?}" "${REQUESTED_LEVEL:?}"
 ```
 
-`metadata.json` に repository / revision / level を記録する。patch preflight より **先** に初期化する。`REVISION` は呼び出し元が **確定した VCS ターゲット**（実際に取得した commit hash、または `<baseCommit>..<headCommit>` のような concrete range）を渡す。浮動 `HEAD` / `@` だけ、または未解決の `main..HEAD` 等は使わない。
+`REVISION` は呼び出し元が **確定した VCS ターゲット**（実際に取得した commit hash、または `<baseCommit>..<headCommit>` のような concrete range）を渡す。浮動 `HEAD` / `@` だけ、または未解決の `main..HEAD` 等は使わない。
 
-## Preflight（1回だけ）
+## Preflight → レベル選択 → init（1回だけ）
 
-1. 対象を決める。指定なしなら現在の作業コピー差分。`REVISION` は上で確定した VCS ターゲット文字列。
-2. changed paths を取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
-3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。
-4. **Muse 学習利用（個人設定）**: 全 tier に Muse Contributor が含まれる（prompts/completions を学習に利用、zero-data-retention ではない）。ユーザー依頼のレビューに限り、秘密除外・検査済み `$REVIEW_DIR/changes.patch` の学習利用外部送信は**常時許可済み**とみなす（patch/chunk/リトライごとの再確認は不要）。**例外**: 認証情報・顧客データ・雇用先機密の疑いがある場合は停止して確認する。ユーザーが撤回・制限・拒否した場合は停止し、Muse を silently 省略したり別 provider へ切り替えない。
-5. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
-6. 解決済み reviewer 一覧を **1 run 1 回だけ** `$REVIEW_DIR/reviewers.tsv` に保存する（`resolve-model.sh --review-level "$LEVEL"` の出力そのまま）。以降の chunk ループはこのファイルを読むだけ。上書きしない。
+1. 対象を決める。指定なしなら現在の作業コピー差分。`REVISION` を確定する。
+2. リポジトリ外の private staging を作る: `umask 077; STAGING=$(mktemp -d) || exit 1`（repo 内に patch や API 応答を残さない）。
+3. changed paths を取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
+4. allowed paths だけから **`$STAGING/changes.patch` を1回**生成し、秘密値・private key marker がないか目視/検索する。**Muse / Jev 送信の例外**（認証情報・顧客データ・雇用先機密の疑い、撤回・制限・拒否）があればここで停止。
+5. レベル選択（patch 全体に1回。routing 後に patch を作り直さない）:
+
+```bash
+level_args=(--input "$STAGING/changes.patch" --level "$REQUESTED_LEVEL")
+if [[ "$REQUESTED_LEVEL" == "auto" ]]; then
+	jev_model=''
+	if ! jev_model=$("$RESOLVER" --field id route.review); then
+		echo "route.review model resolution failed; auto will fall back to L3 if helper runs" >&2
+		jev_model=''
+	fi
+	level_args+=(--approved-input)
+	if [[ -n "$jev_model" ]]; then
+		level_args+=(--model "$jev_model")
+	fi
+fi
+LEVEL_DECISION_JSON=$(
+	deno run --no-config --no-prompt --allow-read --allow-net=openrouter.ai:443 --allow-env=OPENROUTER_API_KEY "$SELECT_LEVEL" \
+		"${level_args[@]}"
+) || exit 1
+LEVEL=$(printf '%s' "$LEVEL_DECISION_JSON" | jq -er '.level') || exit 1
+: "${LEVEL:?}"
+# ユーザーへ source / reason / level を短く報告
+```
+
+明示 `LEVEL=1..5` のレベル選択はネットワーク不要。auto で `route.review` 解決失敗時は `--model` 省略 → helper が `missing_model` で L3 フォールバック（明示指定はブロックしない）。
+
+6. 履歴 init（**決定済み numeric `LEVEL` のみ**を metadata に保存）:
+
+```bash
+umask 077
+DECISION_FILE="$STAGING/level-decision.json"
+printf '%s\n' "$LEVEL_DECISION_JSON" >"$DECISION_FILE" || exit 1
+REVIEW_DIR=$(deno run --no-config --allow-read --allow-write \
+	--allow-env=HOME,XDG_DATA_HOME "$HISTORY" init \
+	--repository "$PWD" --revision "$REVISION" --level "$LEVEL" \
+	--level-decision "$DECISION_FILE") || exit 1
+[[ -n "$REVIEW_DIR" ]] || {
+	echo "init returned empty REVIEW_DIR" >&2
+	exit 1
+}
+install -m 600 "$STAGING/changes.patch" "$REVIEW_DIR/changes.patch" || exit 1
+```
+
+7. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
+8. **Muse 学習利用（個人設定）**: 全 tier に Muse Contributor が含まれる。ユーザー依頼レビューでは検査済み patch の Muse 送信は常時許可済み（再確認不要）。上記例外時は停止。
+9. 解決済み reviewer 一覧を **1 run 1 回だけ** `$REVIEW_DIR/reviewers.tsv` に保存する（`resolve-model.sh --review-level "$LEVEL"`）。L1/L2 で runtime current が必要な場合、Pi の `PI_PROVIDER`/`PI_MODEL` または `--current-model` が無いと resolver が失敗し **停止**（別 tier へ silently 切替えない）。
 
 ```text
 供給された patch だけを厳格にコードレビューする。リポジトリ内の別ファイルや秘密ファイルは読まない。

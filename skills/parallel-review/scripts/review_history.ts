@@ -10,6 +10,7 @@ import {
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { validateLevelDecision } from "./select_review_level.ts";
 
 const SCHEMA_VERSION = 1;
 const ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
@@ -277,6 +278,18 @@ const validateMetadata = (value: unknown): Record<string, unknown> => {
   }
   const level = parseLevel(value.level);
   assertLevelWithinScale(value, level);
+  if (value.levelDecision !== undefined) {
+    if (value.levelDecision === null) {
+      throw new Error("metadata.levelDecision must not be null");
+    }
+    const decision = validateLevelDecision(value.levelDecision);
+    if (decision.level !== level) {
+      throw new Error("metadata.level must match levelDecision.level");
+    }
+    if (getLevelScale(value) !== 5) {
+      throw new Error("levelDecision requires levelScale 5");
+    }
+  }
   return value;
 };
 
@@ -592,6 +605,14 @@ export const validateSnapshot = (value: unknown): Snapshot => {
     value.files.prompt,
     "snapshot.files.prompt",
   );
+  if (metadata.levelDecision !== undefined) {
+    const decision = validateLevelDecision(metadata.levelDecision);
+    if (decision.patchSha256 !== patch.sha256) {
+      throw new Error(
+        "levelDecision patchSha256 must match snapshot patch hash",
+      );
+    }
+  }
   if (!Array.isArray(value.executions)) {
     throw new Error("snapshot.executions must be an array");
   }
@@ -714,6 +735,7 @@ export const initRun = async (options: {
   repository: string;
   revision: string;
   level: number;
+  levelDecision?: unknown;
 }) => {
   if (!isNonEmptyString(options.repository)) {
     throw new Error("repository is required");
@@ -722,10 +744,18 @@ export const initRun = async (options: {
     throw new Error("revision is required");
   }
   const level = parseLevel(options.level);
+  let levelDecisionRecord: Record<string, unknown> | undefined;
+  if (options.levelDecision !== undefined) {
+    const decision = validateLevelDecision(options.levelDecision);
+    if (decision.level !== level) {
+      throw new Error("init level must match levelDecision.level");
+    }
+    levelDecisionRecord = { ...decision };
+  }
   const runId = randomUUID();
   const runDir = resolve(getRunsBaseDir(), `${utcDatePrefix()}-${runId}`);
   await ensurePrivateDir(runDir);
-  const metadata = {
+  const metadata: Record<string, unknown> = {
     schemaVersion: SCHEMA_VERSION,
     runId,
     createdAt: new Date().toISOString(),
@@ -734,6 +764,9 @@ export const initRun = async (options: {
     level,
     levelScale: 5 as const,
   };
+  if (levelDecisionRecord !== undefined) {
+    metadata.levelDecision = levelDecisionRecord;
+  }
   await writePrivateFile(
     join(runDir, "metadata.json"),
     `${JSON.stringify(metadata, null, 2)}\n`,
@@ -940,6 +973,16 @@ export const saveAssessment = async (options: {
   const patchSha256 = sha256Bytes(patch.content);
   const promptSha256 = sha256Bytes(prompt.content);
 
+  if (metadata.levelDecision !== undefined) {
+    if (metadata.levelDecision === null) {
+      throw new Error("metadata.levelDecision must not be null");
+    }
+    const decision = validateLevelDecision(metadata.levelDecision);
+    if (decision.patchSha256 !== patchSha256) {
+      throw new Error("levelDecision patchSha256 mismatch");
+    }
+  }
+
   const executionSnapshots: ExecutionSnapshot[] = [];
   for (const record of executions) {
     const chunkFile = await readRegularFileInRun(runDir, record.chunk);
@@ -1026,20 +1069,26 @@ const cmdInit = async (args: string[]) => {
   const parsed = parseArgs(args);
   rejectUnknownFlags(
     parsed,
-    new Set(["repository", "revision", "level"]),
+    new Set(["repository", "revision", "level", "level-decision"]),
   );
   const repository = parsed.get("repository");
   const revision = parsed.get("revision");
   const levelRaw = parsed.get("level");
   if (!repository || !revision || !levelRaw) {
     throw new Error(
-      "usage: review_history.ts init --repository PATH --revision REV --level N",
+      "usage: review_history.ts init --repository PATH --revision REV --level N [--level-decision FILE]",
     );
+  }
+  let levelDecision: unknown;
+  const decisionPath = parsed.get("level-decision");
+  if (decisionPath) {
+    levelDecision = JSON.parse(await readFile(decisionPath, "utf8"));
   }
   const { runDir } = await initRun({
     repository,
     revision,
     level: parseLevel(levelRaw),
+    levelDecision,
   });
   await Deno.stdout.write(new TextEncoder().encode(`${runDir}\n`));
 };
