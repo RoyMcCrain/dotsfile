@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run all repo tests (Deno + bats). Used by the git pre-push hook and manually.
+# Run all repo tests (Deno + Node + bats). Used by the git pre-push hook and manually.
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -9,12 +9,21 @@ fail=0
 
 # Required tools: missing any of them is a failure, not a silent skip,
 # otherwise the pre-push hook would let untested code through.
-for tool in deno bats fd; do
+for tool in deno bats fd node; do
 	if ! command -v "$tool" >/dev/null 2>&1; then
 		echo "missing required tool: $tool" >&2
 		exit 1
 	fi
 done
+
+pi_deno_test_tmp=$(mktemp -d "${TMPDIR:-/tmp}/pi-deno-perms.XXXXXX")
+pi_deno_test_tmp=$(cd "$pi_deno_test_tmp" && pwd -P)
+node_tests_nul="$pi_deno_test_tmp/node-tests.nul"
+
+cleanup_pi_deno_test_tmp() {
+	rm -rf "$pi_deno_test_tmp"
+}
+trap cleanup_pi_deno_test_tmp EXIT
 
 run() {
 	local label=$1
@@ -26,8 +35,30 @@ run() {
 	fi
 }
 
-# Deno tests (pi extensions)
-run "deno test (pi/agent)" deno test --allow-read --quiet pi/agent/tests/
+# Deno tests (pi extensions); *.node.test.mjs run below with node --experimental-vm-modules
+run "deno test (pi/agent)" env \
+	TMPDIR="$pi_deno_test_tmp" \
+	PI_CODING_AGENT_DIR="$pi_deno_test_tmp/pi-agent" \
+	deno test --no-prompt \
+	--allow-read \
+	--allow-env \
+	--allow-sys=homedir \
+	--allow-write="$pi_deno_test_tmp" \
+	--quiet \
+	--ignore='**/*.node.test.mjs' \
+	pi/agent/tests/
+
+if ! fd -H -0 -g '*.node.test.mjs' pi/agent/tests >"$node_tests_nul"; then
+	echo "failed to discover pi/agent node tests (fd)" >&2
+	exit 1
+fi
+node_agent_tests=()
+while IFS= read -r -d '' file; do
+	node_agent_tests+=("$file")
+done <"$node_tests_nul"
+if ((${#node_agent_tests[@]} > 0)); then
+	run "node test (pi/agent *.node.test.mjs)" node --experimental-vm-modules --test "${node_agent_tests[@]}"
+fi
 
 # Deno tests (report skills)
 # These are integration tests that spawn git/jj and re-exec deno (via the full

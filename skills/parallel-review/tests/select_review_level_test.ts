@@ -3,18 +3,24 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  buildChunkFallbackDecision,
   buildExplicitDecision,
   buildFallbackDecision,
   buildJevDecision,
   buildJevRequestBody,
+  computeFixedChunkChoice,
+  countPatchNewlines,
   decodeUtf8Strict,
   DEFAULT_MIN_CONFIDENCE,
+  FIXED_CHUNK_BYTE_THRESHOLD,
   JEV_ENDPOINT,
+  JEV_NONE_MAX_PATCH_BYTES,
   RESPONSE_MAX_BYTES,
   runCli,
   selectAutoLevel,
   selectReviewLevel,
   sha256Bytes,
+  validateChunkDecision,
   validateLevelDecision,
 } from "../scripts/select_review_level.ts";
 
@@ -50,7 +56,21 @@ const runSelectLevelSubprocess = async (
   };
 };
 
-const validJevBody = (choice: string, confidence: number) =>
+const defaultDepthProbabilities = {
+  "1": 0,
+  "2": 0,
+  "3": 1,
+  "4": 0,
+  "5": 0,
+} as const;
+
+const validJevBody = (
+  choice: string,
+  confidence: number,
+  chunkChoice = "none",
+  chunkConfidence = confidence,
+  depthProbabilities: unknown = { ...defaultDepthProbabilities },
+) =>
   JSON.stringify({
     model: "typesafe/jev-1.13-20260917",
     answers: {
@@ -58,7 +78,13 @@ const validJevBody = (choice: string, confidence: number) =>
         type: "choice",
         choice,
         confidence,
-        probabilities: { "1": 0, "2": 0, "3": 1, "4": 0, "5": 0 },
+        probabilities: depthProbabilities,
+      },
+      chunk_size: {
+        type: "choice",
+        choice: chunkChoice,
+        confidence: chunkConfidence,
+        probabilities: { none: 1, "12000": 0, "24000": 0, "48000": 0 },
       },
     },
     usage: { cost: 0.00001 },
@@ -84,6 +110,8 @@ Deno.test("explicit levels 1..5: no env, no network", async () => {
     assert.equal(decision.source, "explicit");
     assert.equal(decision.level, level);
     assert.equal(decision.patchSha256, hash);
+    assert.equal(decision.chunking?.source, "fixed");
+    assert.equal(decision.chunking?.choice, "none");
     validateLevelDecision(decision);
   }
 });
@@ -515,9 +543,10 @@ Deno.test("Jev request: endpoint, schema, auth, redirect:error", async () => {
     });
   };
 
+  const patchBytes = new TextEncoder().encode(patch);
   const decision = await selectAutoLevel({
     patchText: patch,
-    patchSha256: sha256Bytes(new TextEncoder().encode(patch)),
+    patchSha256: sha256Bytes(patchBytes),
     model: "typesafe/jev-1.13",
     apiKey: "test-key-123",
     minConfidence: 0.7,
@@ -549,9 +578,10 @@ Deno.test("all valid Jev choices 1..5", async () => {
 });
 
 Deno.test("confidence threshold boundary and low confidence", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
   const base = {
     patchText: "d\n",
-    patchSha256: sha256Bytes(new TextEncoder().encode("d\n")),
+    patchSha256: sha256Bytes(patchBytes),
     model: "typesafe/jev-1.13",
     apiKey: "k",
     fetchImpl: () => Promise.resolve(new Response(validJevBody("2", 0.7))),
@@ -573,9 +603,10 @@ Deno.test("confidence threshold boundary and low confidence", async () => {
 });
 
 Deno.test("invalid choice, confidence, schema, error envelope", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
   const opts = {
     patchText: "d\n",
-    patchSha256: sha256Bytes(new TextEncoder().encode("d\n")),
+    patchSha256: sha256Bytes(patchBytes),
     model: "typesafe/jev-1.13",
     apiKey: "k",
     minConfidence: 0.7,
@@ -621,9 +652,10 @@ Deno.test("invalid choice, confidence, schema, error envelope", async () => {
 });
 
 Deno.test("HTTP error and oversized body cancel response stream", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
   const opts = {
     patchText: "d\n",
-    patchSha256: sha256Bytes(new TextEncoder().encode("d\n")),
+    patchSha256: sha256Bytes(patchBytes),
     model: "typesafe/jev-1.13",
     apiKey: "k",
     minConfidence: 0.7,
@@ -665,9 +697,10 @@ Deno.test("HTTP error and oversized body cancel response stream", async () => {
 });
 
 Deno.test("HTTP errors, malformed JSON, network, timeout, bounded body", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
   const opts = {
     patchText: "d\n",
-    patchSha256: sha256Bytes(new TextEncoder().encode("d\n")),
+    patchSha256: sha256Bytes(patchBytes),
     model: "typesafe/jev-1.13",
     apiKey: "k",
     minConfidence: 0.7,
@@ -965,6 +998,345 @@ Deno.test("subprocess: canonical key recognized offline without network", async 
   }
 });
 
+Deno.test("Jev request includes independent chunk_size question", () => {
+  const body = buildJevRequestBody("typesafe/jev-1.13", "patch\n");
+  const questions = body.questions as Record<string, unknown>;
+  assert.ok(questions.review_level);
+  assert.ok(questions.chunk_size);
+  assert.notEqual(questions.review_level, questions.chunk_size);
+});
+
+Deno.test("all four Jev chunk size choices accepted", async () => {
+  for (const chunkChoice of ["none", "12000", "24000", "48000"] as const) {
+    const patchBytes = new TextEncoder().encode("diff\n");
+    const decision = await selectAutoLevel({
+      patchText: "diff\n",
+      patchSha256: sha256Bytes(patchBytes),
+      model: "typesafe/jev-1.13",
+      apiKey: "k",
+      minConfidence: 0.7,
+      fetchImpl: () =>
+        Promise.resolve(
+          new Response(validJevBody("3", 0.9, chunkChoice, 0.9)),
+        ),
+    });
+    assert.equal(decision.chunking?.source, "jev");
+    assert.equal(decision.chunking?.choice, chunkChoice);
+    validateLevelDecision(decision);
+  }
+});
+
+Deno.test("independent confidence: low depth with high chunk", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  const decision = await selectAutoLevel({
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.71,
+    fetchImpl: () =>
+      Promise.resolve(new Response(validJevBody("2", 0.7, "24000", 0.9))),
+  });
+  assert.equal(decision.source, "fallback");
+  assert.equal(decision.reason, "low_confidence");
+  assert.equal(decision.chunking?.source, "jev");
+  assert.equal(decision.chunking?.choice, "24000");
+  validateLevelDecision(decision);
+});
+
+Deno.test("independent confidence: high depth with low chunk", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  const decision = await selectAutoLevel({
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.71,
+    fetchImpl: () =>
+      Promise.resolve(new Response(validJevBody("4", 0.9, "12000", 0.5))),
+  });
+  assert.equal(decision.source, "jev");
+  assert.equal(decision.level, 4);
+  assert.equal(decision.chunking?.source, "fallback");
+  assert.equal(decision.chunking?.reason, "low_confidence");
+  assert.equal(decision.chunking?.suggestedChoice, "12000");
+  assert.equal(decision.chunking?.model, "typesafe/jev-1.13-20260917");
+  validateLevelDecision(decision);
+});
+
+Deno.test("invalid chunk choice falls back chunk only", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  const decision = await selectAutoLevel({
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () =>
+      Promise.resolve(new Response(validJevBody("3", 0.9, "99999", 0.9))),
+  });
+  assert.equal(decision.source, "jev");
+  assert.equal(decision.chunking?.source, "fallback");
+  assert.equal(decision.chunking?.reason, "invalid_choice");
+  validateLevelDecision(decision);
+});
+
+Deno.test("missing chunk_size answer falls back chunk only", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  const body = JSON.stringify({
+    model: "typesafe/jev-1.13-20260917",
+    answers: {
+      review_level: { type: "choice", choice: "3", confidence: 0.9 },
+    },
+  });
+  const decision = await selectAutoLevel({
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () => Promise.resolve(new Response(body)),
+  });
+  assert.equal(decision.source, "jev");
+  assert.equal(decision.chunking?.source, "fallback");
+  assert.equal(decision.chunking?.reason, "invalid_schema");
+  validateLevelDecision(decision);
+});
+
+Deno.test("fixed chunk thresholds bytes and newlines", () => {
+  const underBytes = new Uint8Array(FIXED_CHUNK_BYTE_THRESHOLD - 1);
+  assert.equal(computeFixedChunkChoice(underBytes), "none");
+  const atBytes = new Uint8Array(FIXED_CHUNK_BYTE_THRESHOLD);
+  assert.equal(computeFixedChunkChoice(atBytes), "12000");
+
+  const lines399 = new TextEncoder().encode("x\n".repeat(399));
+  assert.equal(countPatchNewlines(lines399), 399);
+  assert.equal(computeFixedChunkChoice(lines399), "none");
+  const lines400 = new TextEncoder().encode("x\n".repeat(400));
+  assert.equal(countPatchNewlines(lines400), 400);
+  assert.equal(computeFixedChunkChoice(lines400), "12000");
+});
+
+Deno.test("fixed chunk uses UTF-8 byte length for multibyte", () => {
+  const patchText = "🙂".repeat(4000);
+  const patchBytes = new TextEncoder().encode(patchText);
+  assert.ok(patchBytes.byteLength >= FIXED_CHUNK_BYTE_THRESHOLD);
+  assert.equal(computeFixedChunkChoice(patchBytes), "12000");
+});
+
+Deno.test("invalid UTF-8 explicit uses raw byte thresholds for chunking", async () => {
+  const invalid = new Uint8Array(FIXED_CHUNK_BYTE_THRESHOLD);
+  invalid.fill(0xff);
+  const decision = await selectReviewLevel({
+    patchBytes: invalid,
+    levelArg: "2",
+    approvedInput: false,
+    minConfidence: 0.7,
+  });
+  assert.equal(decision.chunking?.source, "fixed");
+  assert.equal(decision.chunking?.choice, "12000");
+});
+
+Deno.test("Jev none accepted at 48000 bytes, whole_patch_limit at 48001", async () => {
+  const at = new Uint8Array(JEV_NONE_MAX_PATCH_BYTES);
+  at.fill(0x61);
+  const atText = new TextDecoder().decode(at);
+  const atDecision = await selectAutoLevel({
+    patchText: atText,
+    patchSha256: sha256Bytes(at),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () => Promise.resolve(new Response(validJevBody("3", 0.9))),
+  });
+  assert.equal(atDecision.chunking?.source, "jev");
+  assert.equal(atDecision.chunking?.choice, "none");
+
+  const over = new Uint8Array(JEV_NONE_MAX_PATCH_BYTES + 1);
+  over.fill(0x61);
+  const overText = new TextDecoder().decode(over);
+  const overDecision = await selectAutoLevel({
+    patchText: overText,
+    patchSha256: sha256Bytes(over),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () => Promise.resolve(new Response(validJevBody("3", 0.9))),
+  });
+  assert.equal(overDecision.chunking?.source, "fallback");
+  assert.equal(overDecision.chunking?.reason, "whole_patch_limit");
+  assert.equal(overDecision.chunking?.suggestedChoice, "none");
+  assert.equal(overDecision.chunking?.confidence, 0.9);
+  validateLevelDecision(overDecision);
+});
+
+Deno.test("common HTTP failure falls back depth and chunk", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  const decision = await selectAutoLevel({
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () => Promise.resolve(new Response("secret", { status: 500 })),
+  });
+  assert.equal(decision.source, "fallback");
+  assert.equal(decision.reason, "http_error");
+  assert.equal(decision.chunking?.source, "fallback");
+  assert.equal(decision.chunking?.reason, "http_error");
+  assert.doesNotMatch(JSON.stringify(decision), /secret/);
+  validateLevelDecision(decision);
+});
+
+Deno.test("validateChunkDecision rejects unknown nested keys", () => {
+  assert.throws(
+    () =>
+      validateChunkDecision({
+        source: "fixed",
+        reason: "explicit_level",
+        choice: "none",
+        extra: true,
+      }),
+    /unknown chunk decision field/,
+  );
+});
+
+Deno.test("chunk schema invariants: fixed/fallback choice and cross-fields", () => {
+  const hash = "a".repeat(64);
+  const patchBytes = new TextEncoder().encode("x\n");
+  const jevBase = buildJevDecision({
+    level: 3,
+    patchSha256: hash,
+    minConfidence: 0.7,
+    model: "typesafe/jev-1.13",
+    confidence: 0.9,
+  });
+
+  const cases: { label: string; run: () => void }[] = [
+    {
+      label: "fixed choice 24000",
+      run: () =>
+        validateChunkDecision({
+          source: "fixed",
+          reason: "explicit_level",
+          choice: "24000",
+        }),
+    },
+    {
+      label: "fallback choice 48000",
+      run: () =>
+        validateChunkDecision({
+          source: "fallback",
+          reason: "http_error",
+          choice: "48000",
+          minConfidence: 0.7,
+        }),
+    },
+    {
+      label: "whole_patch_limit low confidence",
+      run: () =>
+        validateChunkDecision({
+          source: "fallback",
+          reason: "whole_patch_limit",
+          choice: "12000",
+          minConfidence: 0.7,
+          confidence: 0.65,
+          suggestedChoice: "none",
+          model: "typesafe/jev-1.13",
+        }),
+    },
+    {
+      label: "whole_patch_limit wrong suggestedChoice",
+      run: () =>
+        validateChunkDecision({
+          source: "fallback",
+          reason: "whole_patch_limit",
+          choice: "12000",
+          minConfidence: 0.7,
+          confidence: 0.9,
+          suggestedChoice: "24000",
+          model: "typesafe/jev-1.13",
+        }),
+    },
+    {
+      label: "explicit with jev chunking",
+      run: () =>
+        validateLevelDecision({
+          ...buildExplicitDecision({
+            level: 2,
+            patchSha256: hash,
+            patchBytes,
+          }),
+          chunking: {
+            source: "jev",
+            reason: "jev_ok",
+            choice: "12000",
+            minConfidence: 0.7,
+            confidence: 0.9,
+            suggestedChoice: "12000",
+            model: "typesafe/jev-1.13",
+          },
+        }),
+    },
+    {
+      label: "chunk minConfidence mismatch",
+      run: () =>
+        validateLevelDecision({
+          ...jevBase,
+          chunking: buildChunkFallbackDecision({
+            reason: "low_confidence",
+            patchBytes,
+            minConfidence: 0.71,
+            confidence: 0.5,
+            suggestedChoice: "12000",
+            model: "typesafe/jev-1.13",
+          }),
+        }),
+    },
+  ];
+  for (const { label, run } of cases) {
+    assert.throws(run, new RegExp(/.+/), label);
+  }
+});
+
+Deno.test("chunk parse independence: invalid depth with valid chunk and reverse", async () => {
+  const patchText = "d\n";
+  const patchSha256 = sha256Bytes(new TextEncoder().encode(patchText));
+  const badDepth = await selectAutoLevel({
+    patchText,
+    patchSha256,
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () =>
+      Promise.resolve(new Response(validJevBody("9", 0.9, "24000", 0.9))),
+  });
+  assert.equal(badDepth.source, "fallback");
+  assert.equal(badDepth.reason, "invalid_choice");
+  assert.equal(badDepth.chunking?.source, "jev");
+  assert.equal(badDepth.chunking?.choice, "24000");
+
+  const badChunk = await selectAutoLevel({
+    patchText,
+    patchSha256,
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () =>
+      Promise.resolve(
+        new Response(validJevBody("3", 0.9, "12000", Number.NaN)),
+      ),
+  });
+  assert.equal(badChunk.source, "jev");
+  assert.equal(badChunk.chunking?.source, "fallback");
+  assert.equal(badChunk.chunking?.reason, "invalid_confidence");
+});
+
+Deno.test("legacy explicit decision without chunking still validates", () => {
+  const hash = "a".repeat(64);
+  validateLevelDecision(buildExplicitDecision({ level: 2, patchSha256: hash }));
+});
+
 Deno.test("subprocess: auto without approval fails without env permission", async () => {
   const dir = await mkdtemp(join(tmpdir(), "pr-sub-"));
   const patchPath = join(dir, "p.patch");
@@ -1024,6 +1396,151 @@ Deno.test("CLI integration explicit and auto fallback without live network", asy
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+Deno.test("jev accept and low_confidence preserve valid depth probabilities", async () => {
+  const patch = "+line\n";
+  const probs = { "1": 0.05, "2": 0.1, "3": 0.2, "4": 0.35, "5": 0.3 };
+  const accepted = await selectAutoLevel({
+    patchText: patch,
+    patchSha256: sha256Bytes(new TextEncoder().encode(patch)),
+    model: "typesafe/jev-1.13-20260917",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () =>
+      Promise.resolve(
+        new Response(validJevBody("4", 0.85, "none", 0.85, probs)),
+      ),
+  });
+  assert.equal(accepted.source, "jev");
+  assert.deepEqual(accepted.probabilities, probs);
+  validateLevelDecision(accepted);
+
+  const low = await selectAutoLevel({
+    patchText: patch,
+    patchSha256: sha256Bytes(new TextEncoder().encode(patch)),
+    model: "typesafe/jev-1.13-20260917",
+    apiKey: "k",
+    minConfidence: 0.71,
+    fetchImpl: () =>
+      Promise.resolve(new Response(validJevBody("2", 0.7, "none", 0.9, probs))),
+  });
+  assert.equal(low.source, "fallback");
+  assert.equal(low.reason, "low_confidence");
+  assert.deepEqual(low.probabilities, probs);
+  validateLevelDecision(low);
+});
+
+Deno.test("invalid optional depth probabilities omitted without changing selection", async () => {
+  const patch = "+line\n";
+  const base = {
+    patchText: patch,
+    patchSha256: sha256Bytes(new TextEncoder().encode(patch)),
+    model: "typesafe/jev-1.13-20260917",
+    apiKey: "k",
+    minConfidence: 0.7,
+  };
+  const badProbs = { "1": 0, "2": 0, "3": "1", "4": 0, "5": 0 };
+  const missingKey = { "1": 0, "2": 0, "3": 1, "4": 0 };
+  for (
+    const depthProbabilities of [
+      badProbs,
+      missingKey,
+      { "1": 0, "2": 0, "3": 1, "4": 0, "5": 0, "6": 0 },
+      { none: 1 },
+      { "1": NaN, "2": 0, "3": 0, "4": 0, "5": 0 },
+      { "1": Infinity, "2": 0, "3": 0, "4": 0, "5": 0 },
+      { "1": null, "2": 0, "3": 0, "4": 0, "5": 0 },
+      { "1": 0, "2": 0, "3": 1.2, "4": 0, "5": 0 },
+      [0, 0, 1, 0, 0],
+    ]
+  ) {
+    const decision = await selectAutoLevel({
+      ...base,
+      fetchImpl: () =>
+        Promise.resolve(
+          new Response(validJevBody("3", 0.9, "none", 0.9, depthProbabilities)),
+        ),
+    });
+    assert.equal(decision.source, "jev");
+    assert.equal(decision.level, 3);
+    assert.equal(decision.probabilities, undefined);
+  }
+});
+
+Deno.test("validateLevelDecision rejects malformed persisted probabilities", () => {
+  const hash = "a".repeat(64);
+  const base = buildJevDecision({
+    level: 3,
+    patchSha256: hash,
+    minConfidence: 0.7,
+    model: "typesafe/jev-1.13",
+    confidence: 0.9,
+    probabilities: { "1": 0, "2": 0, "3": 1, "4": 0, "5": 0 },
+  });
+  validateLevelDecision(base);
+
+  const probError =
+    /decision\.probabilities values must be finite numbers 0\.\.1/;
+  for (
+    const probabilities of [
+      { "1": 0, "2": 0, "3": 1, "4": 0 },
+      { "1": 0, "2": 0, "3": 1, "4": 0, "5": 0, extra: 1 },
+      { "1": NaN, "2": 0, "3": 0, "4": 0, "5": 0 },
+      { "1": Infinity, "2": 0, "3": 0, "4": 0, "5": 0 },
+      { "1": null, "2": 0, "3": 0, "4": 0, "5": 0 },
+      { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 },
+      { "1": 0, "2": 0, "3": "1", "4": 0, "5": 0 },
+      { "1": 0, "2": 0, "3": 1.1, "4": 0, "5": 0 },
+      { "1": 0, "2": 0, "3": -0.01, "4": 0, "5": 0 },
+      [0, 0, 1, 0, 0],
+      null,
+      "bad",
+    ]
+  ) {
+    assert.throws(
+      () => validateLevelDecision({ ...base, probabilities }),
+      probError,
+    );
+  }
+  assert.throws(
+    () =>
+      validateLevelDecision({
+        ...buildExplicitDecision({ level: 2, patchSha256: hash }),
+        probabilities: { "1": 0, "2": 1, "3": 0, "4": 0, "5": 0 },
+      }),
+    /explicit decision must not include probabilities/,
+  );
+  assert.throws(
+    () =>
+      validateLevelDecision({
+        ...buildFallbackDecision({
+          requestedLevel: "auto",
+          reason: "missing_api_key",
+          patchSha256: hash,
+          minConfidence: 0.7,
+        }),
+        probabilities: { "1": 0, "2": 0, "3": 1, "4": 0, "5": 0 },
+      }),
+    /fallback decision must not include probabilities/,
+  );
+});
+
+Deno.test("transport and explicit fallbacks omit depth probabilities", async () => {
+  const patch = "+line\n";
+  const hash = sha256Bytes(new TextEncoder().encode(patch));
+  const missingKey = await selectAutoLevel({
+    patchText: patch,
+    patchSha256: hash,
+    model: "typesafe/jev-1.13-20260917",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () => Promise.resolve(new Response("{}", { status: 500 })),
+  });
+  assert.equal(missingKey.probabilities, undefined);
+
+  const explicit = buildExplicitDecision({ level: 2, patchSha256: hash });
+  assert.equal(explicit.probabilities, undefined);
 });
 
 Deno.test("stderr does not echo patch content on UTF-8 decode errors", async () => {

@@ -91,7 +91,21 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** level selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). Auto uses `route.review` plus scoped Deno permissions documented in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto (Jev); failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
+Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). One auto Decisions call classifies **review depth** and **chunk plan** (`chunking.choice`: `none` or decimal-byte targets `12000` / `24000` / `48000`; independent confidence). Explicit levels use offline fixed chunk thresholds (15KB or 400 newlines → `12000`, else `none`). Auto uses `route.review` plus scoped Deno permissions in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto; depth failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
+
+Each run retains the suggested depth, confidence, threshold, applied level and
+fallback reason in `metadata.json`; valid five-level probabilities are also saved
+when Jev supplies them. Inspect these records offline, including unfinished runs:
+
+```bash
+deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
+  "$HOME/.agents/skills/parallel-review/scripts/review_history.ts" decisions \
+  --repository "$PWD"
+```
+
+The repository filter matches the stored path exactly. Confidence is not measured
+accuracy; repeated decisions for the same patch are not independent samples.
+Thresholds are not automatically adjusted and old records are not rewritten.
 
 Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
 `review.fugu`, `review.muse`, `route.review`, `route.fugu.base`, `route.fugu.ultra`, `impl.cursor`,
@@ -505,7 +519,7 @@ versioned). A small index is injected at `session_start`.
 - `remember` — append one durable note (deduped; `[topic]` tag optional).
 - `review_memory` — **agent-callable** consolidation tool. Saying e.g. 「メモリ整理して」
   triggers it: it rewrites `memory.md` in one LLM pass (using the current model)
-  and keeps a `.bak` backup.
+  with a temporary `.bak` backup removed after a successful save.
 
 The same consolidation is also available as a user slash command (interactive,
 asks to confirm before overwriting):
@@ -516,10 +530,25 @@ asks to confirm before overwriting):
 
 Both paths consolidate `memory.md` in **one LLM pass** (dedupe, prune
 obsolete/one-off items, regroup under `## <topic>` headings, each bullet ≤ 220
-chars, timestamps dropped) and keep a `.bak` backup. The `review_memory` tool
-overwrites directly (no confirm) since `.bak` makes it recoverable; the slash
-command asks to confirm and reports before/after note counts. The extension also
-nudges (session_start index) to consolidate once memory grows past ~8KB.
+chars, timestamps dropped) and write a temporary `.bak` backup that is **removed
+after a successful save** (retained if saving fails). The `review_memory` tool
+overwrites directly (no confirm); the slash command asks to confirm and reports
+before/after note counts. A cleanup failure after saving is reported as a success
+with a warning, not a failed consolidation; an already absent backup is harmless.
+The extension also nudges (session_start index) to consolidate once memory grows
+past ~8KB.
+
+Focused regression tests (Node 24):
+
+```bash
+node --experimental-vm-modules --test pi/agent/tests/repo-memory-local.node.test.mjs
+```
+
+`scripts/run_tests.sh` runs `*.node.test.mjs` with this Node flag and excludes them
+from Deno test discovery. Pi Deno tests run with `--allow-env`, `--allow-sys=homedir`,
+and `--allow-write` scoped to a dedicated temp directory (`TMPDIR` and
+`PI_CODING_AGENT_DIR` overrides for that invocation only): no writes to real
+`~/.pi` session state, and no `--allow-run` / `--allow-net` for the Pi suite.
 
 ## Skills
 

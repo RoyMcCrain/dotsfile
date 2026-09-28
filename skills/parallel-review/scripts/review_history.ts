@@ -10,7 +10,10 @@ import {
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { validateLevelDecision } from "./select_review_level.ts";
+import {
+  type LevelDecision,
+  validateLevelDecision,
+} from "./select_review_level.ts";
 
 const SCHEMA_VERSION = 1;
 const ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
@@ -1035,6 +1038,126 @@ export const saveAssessment = async (options: {
   return { snapshotPath };
 };
 
+export type DecisionHistoryEntry = {
+  runId: string;
+  createdAt: string;
+  repository: string;
+  revision: string;
+  levelDecision: LevelDecision;
+};
+
+export type DecisionHistoryWarning = {
+  runDir: string;
+  reason: string;
+};
+
+export type DecisionHistoryResult = {
+  decisions: DecisionHistoryEntry[];
+  warnings: DecisionHistoryWarning[];
+};
+
+export const readDecisionHistory = async (options: {
+  runsDir?: string;
+  repository?: string;
+}): Promise<DecisionHistoryResult> => {
+  const runsRoot = options.runsDir ?? getRunsBaseDir();
+  const repositoryFilter = options.repository;
+  const decisions: DecisionHistoryEntry[] = [];
+  const warnings: DecisionHistoryWarning[] = [];
+  const seenRunIds = new Set<string>();
+
+  let entries: string[];
+  try {
+    const rootLstat = await Deno.lstat(runsRoot);
+    if (rootLstat.isSymlink) {
+      warnings.push({ runDir: runsRoot, reason: "symlink_runs_root" });
+      return { decisions, warnings };
+    }
+    entries = await readdir(runsRoot);
+  } catch (error) {
+    if (isMissingDir(error)) return { decisions, warnings };
+    throw error;
+  }
+
+  for (const name of entries.sort()) {
+    const runDir = join(runsRoot, name);
+    let childLstat;
+    try {
+      childLstat = await Deno.lstat(runDir);
+    } catch {
+      warnings.push({ runDir, reason: "unreadable_run_dir" });
+      continue;
+    }
+    if (childLstat.isSymlink) {
+      warnings.push({ runDir, reason: "symlink_run_dir" });
+      continue;
+    }
+    if (!childLstat.isDirectory) continue;
+
+    const metadataPath = join(runDir, "metadata.json");
+    let metadataLstat;
+    try {
+      metadataLstat = await Deno.lstat(metadataPath);
+    } catch {
+      warnings.push({ runDir, reason: "unreadable_metadata" });
+      continue;
+    }
+    if (metadataLstat.isSymlink) {
+      warnings.push({ runDir, reason: "symlink_metadata" });
+      continue;
+    }
+
+    let metadata: Record<string, unknown>;
+    try {
+      metadata = await loadMetadata(runDir);
+    } catch {
+      warnings.push({ runDir, reason: "invalid_metadata" });
+      continue;
+    }
+
+    if (metadata.levelDecision === undefined) continue;
+
+    let levelDecision: LevelDecision;
+    try {
+      levelDecision = validateLevelDecision(metadata.levelDecision);
+    } catch {
+      warnings.push({ runDir, reason: "invalid_level_decision" });
+      continue;
+    }
+
+    const runId = metadata.runId as string;
+    const createdAt = metadata.createdAt as string;
+    const repository = metadata.repository as string;
+    const revision = metadata.revision as string;
+
+    if (repositoryFilter !== undefined && repository !== repositoryFilter) {
+      continue;
+    }
+
+    if (seenRunIds.has(runId)) {
+      warnings.push({ runDir, reason: "duplicate_run_id" });
+      continue;
+    }
+    seenRunIds.add(runId);
+
+    decisions.push({
+      runId,
+      createdAt,
+      repository,
+      revision,
+      levelDecision,
+    });
+  }
+
+  decisions.sort((a, b) => {
+    const byTime = Date.parse(a.createdAt) - Date.parse(b.createdAt);
+    if (byTime !== 0) return byTime;
+    return a.runId.localeCompare(b.runId);
+  });
+
+  return { decisions, warnings };
+};
+
 const parseArgs = (args: string[]): Map<string, string> => {
   const map = new Map<string, string>();
   let i = 0;
@@ -1111,6 +1234,30 @@ const cmdSave = async (args: string[]) => {
   await Deno.stdout.write(new TextEncoder().encode(`${snapshotPath}\n`));
 };
 
+const rejectEmptyFlagValue = (value: string, flag: string): void => {
+  if (value.length === 0 || value.trim().length === 0) {
+    throw new Error(`${flag} must not be empty`);
+  }
+};
+
+const cmdDecisions = async (args: string[]) => {
+  const parsed = parseArgs(args);
+  rejectUnknownFlags(parsed, new Set(["runs-dir", "repository"]));
+  const runsDirRaw = parsed.get("runs-dir");
+  const repositoryRaw = parsed.get("repository");
+  if (runsDirRaw !== undefined) rejectEmptyFlagValue(runsDirRaw, "--runs-dir");
+  if (repositoryRaw !== undefined) {
+    rejectEmptyFlagValue(repositoryRaw, "--repository");
+  }
+  const result = await readDecisionHistory({
+    runsDir: runsDirRaw !== undefined ? resolve(runsDirRaw) : undefined,
+    repository: repositoryRaw,
+  });
+  await Deno.stdout.write(
+    new TextEncoder().encode(`${JSON.stringify(result)}\n`),
+  );
+};
+
 const main = async () => {
   const [command, ...rest] = Deno.args;
   if (command === "init") {
@@ -1121,7 +1268,11 @@ const main = async () => {
     await cmdSave(rest);
     return;
   }
-  throw new Error("usage: review_history.ts <init|save> ...");
+  if (command === "decisions") {
+    await cmdDecisions(rest);
+    return;
+  }
+  throw new Error("usage: review_history.ts <init|save|decisions> ...");
 };
 
 if (import.meta.main) {
