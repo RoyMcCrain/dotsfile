@@ -26,7 +26,7 @@
 
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
-LEVEL="${LEVEL:-2}"
+LEVEL="${LEVEL:-3}"
 : "${REVISION:?REVISION is required}"
 
 # patch preflight より前
@@ -77,9 +77,14 @@ SKILL.md の統合節から `$REVIEW_DIR/assessment.json` を書き、上記 sav
 | `createdAt` | ✓ | ミリ秒精度の ISO-8601 UTC（`YYYY-MM-DDTHH:MM:SS.sssZ`） |
 | `repository` | ✓ | 非空文字列 |
 | `revision` | ✓ | 非空文字列（concrete VCS ターゲット: commit hash または `<baseCommit>..<headCommit>`） |
-| `level` | ✓ | JSON number または CLI 文字列リテラル `1` / `2` / `3` のみ |
+| `level` | ✓ | JSON number または CLI 文字列リテラル `1` / `2` / `3` / `4` / `5` のみ（`01` 等の coercion 不可） |
+| `levelScale` | 新規 run ✓ | `3` または `5`。新規 `init` は `5`。省略時は **legacy 3 段階**（既存履歴） |
 
-run 作成後は不変（`runId` / `createdAt` / `repository` / `revision` / `level` を含む metadata 全体）。snapshot 間で patch/prompt の SHA-256 も不変。未完了 execution の identity と chunk hash は固定し、出力途中の stdout/stderr hash は変化を許す。完了後は record 全体とファイル hash が不変。
+`level` は `levelScale` を超えてはならない。legacy（`levelScale` 省略）では `level` は 1–3 のみ。`levelScale: 3` も 1–3、`levelScale: 5` は 1–5。
+
+run 作成後は不変（`runId` / `createdAt` / `repository` / `revision` / `level` / `levelScale` を含む metadata 全体）。既存 legacy metadata を save 時に書き換えない。snapshot 間で patch/prompt の SHA-256 も不変。未完了 execution の identity と chunk hash は固定し、出力途中の stdout/stderr hash は変化を許す。完了後は record 全体とファイル hash が不変。
+
+オフライン評価（`review-model-eval`）のモデルグループキーは `backend` + `model` + `level` + **`levelScale`** + `actor.kind`。同じ数値 `level` でも legacy 3 段階と 5 段階は別グループ（例: 旧 L2 と新 L2 は統計を混ぜない）。
 
 ## assessment.json / snapshot
 

@@ -45,7 +45,7 @@ deno run --no-config --allow-read --allow-write --allow-env=HOME,XDG_DATA_HOME \
 
 `<runs-dir>/<run-dir>/snapshots/*.json` のみ。raw patch / log は読まない。各 run では invalid snapshot が 1 件でもあれば run 全体を除外し、`savedAt` 最新を 1 件だけ使用（[references/metrics.md](references/metrics.md) 参照）。
 
-検証は `parallel-review/scripts/review_history.ts` の `validateSnapshot` を共用する。
+検証は `parallel-review/scripts/review_history.ts` の `validateSnapshot` を共用する。`metadata.levelScale` 省略は legacy 3 段階、新規 run は 5 段階。評価のグループ化は level + levelScale の両方を見る。
 
 ## レポート内容
 

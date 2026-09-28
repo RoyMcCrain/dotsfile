@@ -84,7 +84,7 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
 ~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
 ~/.pi/agent/resolve-model.sh --field agy review.antigravity # -> Antigravity model id
-~/.pi/agent/resolve-model.sh --review-level 2              # -> backend/model/timeouts TSV
+~/.pi/agent/resolve-model.sh --review-level 3              # -> backend/model/timeouts TSV (default tier)
 ~/.pi/agent/resolve-model.sh --label review.grok
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
@@ -99,9 +99,12 @@ To move to a new model version, update `model-roles.json` (role model IDs,
 then run `--apply` and `--check`. Skills pick it up immediately because
 `run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
 `run_antigravity_review.sh --role review.antigravity` resolves via `--field agy`.
-Parallel-review tiers emit five rows for L1 and six for L2/L3 from `--review-level N`
-(`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`). All tiers include
-Muse Contributor :high with tier timeout budgets (not the standalone 120s).
+Parallel-review tiers resolve from `--review-level N` (L1 **1–2** rows, L2 **2–3** after
+caller-vs-fixed dedupe; L3–L5 fixed six rows)
+(`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`). L1/L2 take the runtime
+caller from `PI_PROVIDER`/`PI_MODEL` (optional `PI_REASONING_LEVEL`) or `--current-model`
+/`--current-backend`; explicit flags override Pi env. All tiers include Muse Contributor
+:high with tier timeout budgets (not the standalone 120s).
 Install the Antigravity `patch-reviewer` agent via setup scripts before using the agy runner.
 
 `enabledModels` controls Pi's Ctrl+P cycling choices (configured with
@@ -195,9 +198,9 @@ Tracked custom providers:
 
 **Fugu (Sakana) — active.** The `sakana-ai-console` provider serves
 `fugu-max` (base, everyday) and `fugu-ultra-v2.0` (ultra, deep review).
-`review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). `parallel-review` L2
-adds Fugu Max :high as a 5th reviewer; L3 adds Fugu Ultra v2 :high; L1 has no
-Fugu. Legacy pre-reactivation
+`review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). `parallel-review` L3/L4
+use Fugu Max :high; L5 adds Fugu Ultra v2 :high; L1/L2 have no **fixed**
+Fugu slot (the runtime caller may still be Fugu). Legacy pre-reactivation
 snapshot: `pi/agent/fugu.disabled.json.example` (obsolete IDs — do not merge).
 
 **Local caps** (deliberate Pi operational limits; Sakana's setup catalog lists
@@ -500,7 +503,7 @@ exposure is controlled by which runtime directory links the skill.
 
 ### Pi skill inventory (by category)
 
-**Review** (plain 「レビューして」 → `parallel-review` L2 default):
+**Review** (plain 「レビューして」 → `parallel-review` L3 default):
 
 | Skill | Trigger |
 | ----- | ------- |

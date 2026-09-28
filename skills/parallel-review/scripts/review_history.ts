@@ -149,12 +149,43 @@ const isMissingDir = (error: unknown): boolean => {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-export const parseLevel = (value: unknown): 1 | 2 | 3 => {
-  if (value === 1 || value === 2 || value === 3) return value;
-  if (value === "1" || value === "2" || value === "3") {
-    return Number(value) as 1 | 2 | 3;
+export type ReviewLevel = 1 | 2 | 3 | 4 | 5;
+export type LevelScale = 3 | 5;
+
+export const parseLevel = (value: unknown): ReviewLevel => {
+  if (
+    value === 1 || value === 2 || value === 3 || value === 4 || value === 5
+  ) return value;
+  if (
+    value === "1" || value === "2" || value === "3" || value === "4" ||
+    value === "5"
+  ) {
+    return Number(value) as ReviewLevel;
   }
-  throw new Error("level must be 1, 2, or 3");
+  throw new Error("level must be 1, 2, 3, 4, or 5");
+};
+
+export const getLevelScale = (
+  metadata: Record<string, unknown>,
+): LevelScale => {
+  const raw = metadata.levelScale;
+  if (raw === undefined) return 3;
+  if (raw === 3 || raw === 5) return raw;
+  throw new Error("metadata.levelScale must be 3 or 5");
+};
+
+const assertLevelWithinScale = (
+  metadata: Record<string, unknown>,
+  level: ReviewLevel,
+): void => {
+  const scale = getLevelScale(metadata);
+  if (level <= scale) return;
+  if (metadata.levelScale === undefined) {
+    throw new Error(
+      `legacy 3-level metadata does not support level ${level}`,
+    );
+  }
+  throw new Error(`metadata.level exceeds levelScale ${scale}`);
 };
 
 const validateId = (value: unknown, label: string): string => {
@@ -244,7 +275,8 @@ const validateMetadata = (value: unknown): Record<string, unknown> => {
   if (!isNonEmptyString(value.revision)) {
     throw new Error("metadata.revision is required");
   }
-  parseLevel(value.level);
+  const level = parseLevel(value.level);
+  assertLevelWithinScale(value, level);
   return value;
 };
 
@@ -700,6 +732,7 @@ export const initRun = async (options: {
     repository: options.repository,
     revision: options.revision,
     level,
+    levelScale: 5 as const,
   };
   await writePrivateFile(
     join(runDir, "metadata.json"),

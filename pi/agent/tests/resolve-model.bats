@@ -235,21 +235,29 @@ EOF
 	jq -e '.roles["route.fugu.base"].id == "fugu-max"' "$real_catalog" >/dev/null
 	jq -e '.roles["route.fugu.ultra"].id == "fugu-ultra-v2.0"' "$real_catalog" >/dev/null
 
-	# Assert — L1 has no Fugu; L2 has exactly Fugu Max; L3 has exactly Fugu Ultra v2
+	# Assert — L1/L2 dynamic (no static Fugu); L3/L4 Fugu Max; L5 Fugu Ultra v2
 	jq -e \
 		'[.reviewLevels["1"][] | select(has("pi")) | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
 		"$real_catalog" >/dev/null
+	jq -e \
+		'[.reviewLevels["2"][] | select(has("pi")) | select(.pi | startswith("sakana-ai-console/"))] | length == 0' \
+		"$real_catalog" >/dev/null
 	jq -e --arg base "$base_model" \
-		'[.reviewLevels["2"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$base]' \
+		'[.reviewLevels["3"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$base]' \
+		"$real_catalog" >/dev/null
+	jq -e --arg base "$base_model" \
+		'[.reviewLevels["4"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$base]' \
 		"$real_catalog" >/dev/null
 	jq -e --arg ultra "$ultra_model" \
-		'[.reviewLevels["3"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$ultra]' \
+		'[.reviewLevels["5"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$ultra]' \
 		"$real_catalog" >/dev/null
 
-	# Assert — tier counts 5/6/6
-	jq -e '.reviewLevels["1"] | length == 5' "$real_catalog" >/dev/null
-	jq -e '.reviewLevels["2"] | length == 6' "$real_catalog" >/dev/null
+	# Assert — catalog entry counts (L1/L2 include current marker)
+	jq -e '.reviewLevels["1"] | length == 2' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["2"] | length == 3' "$real_catalog" >/dev/null
 	jq -e '.reviewLevels["3"] | length == 6' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["4"] | length == 6' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["5"] | length == 6' "$real_catalog" >/dev/null
 
 	# Assert — sakana provider transport and caps in models.json
 	jq -e '
@@ -299,7 +307,7 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "--review-level 2 emits six rows with Fugu Max fifth and Muse sixth" {
+@test "--review-level 3 emits six rows with Fugu Max fifth and Muse sixth (legacy L2)" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local base_slug max_model muse_model
@@ -313,7 +321,7 @@ EOF
 	[ -n "$muse_model" ]
 
 	# Act
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
 
 	# Assert
 	[ "$status" -eq 0 ]
@@ -322,7 +330,7 @@ EOF
 	[ "${lines[5]}" = "$(printf 'pi\t%s\t600\t600' "$muse_model")" ]
 }
 
-@test "review.grok resolves and appears exactly once in every parallel-review level" {
+@test "review.grok resolves and appears exactly once in parallel-review L3 through L5" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
@@ -351,7 +359,7 @@ EOF
 		'[.enabledModels[] | select(startswith("xai/"))] == [$model]' \
 		"$real_settings" >/dev/null
 
-	for level in 1 2 3; do
+	for level in 3 4 5; do
 		jq -e --arg model "$grok_model" --arg lvl "$level" \
 			'(.reviewLevels[$lvl] | map(select(has("pi")) | .pi) | map(select(. == $model)) | length) == 1' \
 			"$real_catalog" >/dev/null
@@ -362,8 +370,10 @@ EOF
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local -a expected_timeouts=(
 		$'1\t300\t300'
-		$'2\t600\t600'
-		$'3\t600\t900'
+		$'2\t300\t300'
+		$'3\t600\t600'
+		$'4\t600\t900'
+		$'5\t600\t900'
 	)
 	local line level initial retry
 
@@ -374,10 +384,13 @@ EOF
 			"$real_catalog" >/dev/null
 	done
 
-	jq -e '.reviewLevels | to_entries[] | .value[] | (has("pi") or has("role")) and (. | keys | length == 1)' \
+	jq -e '[.reviewLevels[][]] | all(
+		(has("pi") or has("role") or (has("current") and .current == true)) and
+		(. | keys | length == 1)
+	)' \
 		"$real_catalog" >/dev/null
 
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 5
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "$(printf 'pi\txai/grok-4.7\t600\t900')" ]
 	[ "${lines[3]}" = "$(printf 'agy\tgemini-3.8-flash-high\t600\t900')" ]
@@ -403,10 +416,10 @@ EOF
 	[[ "$output" == *"review.antigravity"$'\t'"gemini-3.8-flash-high"$'\t'"Gemini 3.8 Flash High (Antigravity)"* ]]
 }
 
-@test "review.antigravity appears exactly once in every parallel-review level" {
+@test "review.antigravity appears exactly once in parallel-review L2 through L5" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 
-	for level in 1 2 3; do
+	for level in 2 3 4 5; do
 		jq -e --arg lvl "$level" \
 			'[.reviewLevels[$lvl][] | select(has("role") and .role == "review.antigravity")] | length == 1' \
 			"$real_catalog" >/dev/null
@@ -479,20 +492,18 @@ EOF
 	[ "$output" = "gemini-test-model" ]
 }
 
-@test "each parallel-review level has unique reviewer keys (5/6/6)" {
+@test "each parallel-review catalog entry has a single key (pi, role, or current)" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local -a expected_counts=(5 6 6)
 
-	for level in 1 2 3; do
-		local expected="${expected_counts[$((level - 1))]}"
-		jq -e --arg lvl "$level" --argjson expected "$expected" '
+	for level in 1 2 3 4 5; do
+		jq -e --arg lvl "$level" '
 			.reviewLevels[$lvl] as $entries |
-			($entries | length == $expected) and
 			([$entries[] |
 				if has("pi") then ("pi:" + .pi)
 				elif has("role") then ("role:" + .role)
+				elif has("current") then "current"
 				else empty end
-			] | unique | length == $expected)
+			] | unique | length == ($entries | length))
 		' "$real_catalog" >/dev/null
 	done
 }
@@ -590,13 +601,12 @@ EOF
 	cmp -s "$legacy" "$legacy_snapshot"
 }
 
-@test "Opus 5.5 high/max in catalog, settings, review.claude, and parallel-review L2/L3" {
+@test "Opus 5.5 high/max in catalog, settings, review.claude, and parallel-review L3/L4/L5" {
 	# Arrange — integration against the tracked repo catalog and settings
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local opus_high="anthropic/claude-opus-5-5:high"
 	local opus_max="anthropic/claude-opus-5-5:max"
-	local sonnet_l1="anthropic/claude-sonnet-5:high"
 
 	# Assert — enabledModels includes Opus 5.5 high/max in catalog and settings
 	jq -e --arg high "$opus_high" --arg max "$opus_max" \
@@ -615,23 +625,23 @@ EOF
 	[ "$status" -eq 0 ]
 	[ "$output" = "Claude Opus 5.5 High" ]
 
-	# Assert — L1 Sonnet unchanged; L2 Opus :high; L3 Opus :max
-	jq -e --arg sonnet "$sonnet_l1" \
-		'[.reviewLevels["1"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-sonnet-5:")) | .pi][0] == $sonnet' \
-		"$real_catalog" >/dev/null
+	# Assert — L3 Opus :high; L4/L5 Opus :max
 	jq -e --arg high "$opus_high" \
-		'[.reviewLevels["2"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $high' \
+		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $high' \
 		"$real_catalog" >/dev/null
 	jq -e --arg max "$opus_max" \
-		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $max' \
+		'[.reviewLevels["4"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $max' \
+		"$real_catalog" >/dev/null
+	jq -e --arg max "$opus_max" \
+		'[.reviewLevels["5"][] | select(has("pi")) | select(.pi | startswith("anthropic/claude-opus-5-5:")) | .pi][0] == $max' \
 		"$real_catalog" >/dev/null
 
-	# Assert — --review-level emits Opus 5.5 rows at L2/L3
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2
+	# Assert — --review-level emits Opus 5.5 rows at L3/L5
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
 	[ "$status" -eq 0 ]
 	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t600' "$opus_high")" ]
 
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 5
 	[ "$status" -eq 0 ]
 	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t900' "$opus_max")" ]
 
@@ -667,13 +677,12 @@ EOF
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"High"* ]]
 
-	# Assert — parallel-review GPT tiers use high / xhigh / max efforts
+	# Assert — parallel-review static GPT tiers use xhigh (L3) and max (L4/L5)
 	local level effort
-	for level in 1 2 3; do
+	for level in 3 4 5; do
 		case "$level" in
-		1) effort=high ;;
-		2) effort=xhigh ;;
-		3) effort=max ;;
+		3) effort=xhigh ;;
+		4 | 5) effort=max ;;
 		esac
 		codex_entry=$(jq -r --arg lvl "$level" \
 			'[.reviewLevels[$lvl][] | select(has("pi")) | select(.pi | startswith("openai-codex/")) | .pi][0]' \
@@ -718,9 +727,9 @@ EOF
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local muse_model skill_path claude_link level line
 	local -a expected_budgets=(
-		$'1\t300\t300'
-		$'2\t600\t600'
-		$'3\t600\t900'
+		$'3\t600\t600'
+		$'4\t600\t900'
+		$'5\t600\t900'
 	)
 	skill_path="$BATS_TEST_DIRNAME/../../../skills/muse-review/SKILL.md"
 	claude_link="$BATS_TEST_DIRNAME/../../../claude/skills/muse-review"
@@ -738,7 +747,7 @@ EOF
 	[[ "$output" == *"Muse Spark 1.3 Contributor High"* ]]
 
 	# Assert — each tier has exactly one opencode-go entry equal to roles.review.muse.pi
-	for level in 1 2 3; do
+	for level in 1 2 3 4 5; do
 		jq -e --arg model "$muse_model" --arg lvl "$level" '
 			(.reviewLevels[$lvl] | map(select(has("pi")) | select(.pi | startswith("opencode-go/")) | .pi)) == [$model]
 		' "$real_catalog" >/dev/null
@@ -747,7 +756,7 @@ EOF
 			"$real_catalog" >/dev/null
 	done
 
-	# Assert — resolve-model --review-level emits Muse last with tier budgets (not standalone 120)
+	# Assert — resolve-model --review-level emits Muse last with tier budgets on static tiers
 	for line in "${expected_budgets[@]}"; do
 		local lvl initial retry
 		IFS=$'\t' read -r lvl initial retry <<<"$line"
@@ -755,6 +764,14 @@ EOF
 		[ "$status" -eq 0 ]
 		[ "${lines[-1]}" = "$(printf 'pi\t%s\t%s\t%s' "$muse_model" "$initial" "$retry")" ]
 	done
+
+	# Assert — dynamic L1/L2 include Muse with 300/300 when caller differs
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model "openai-codex/gpt-6-astra:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[-1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
 
 	# Assert — skill resolves via role only (no literal model id in SKILL.md)
 	[ -f "$skill_path" ]
@@ -777,6 +794,625 @@ EOF
 	# Assert — Claude symlink follows shared skill convention
 	[ -L "$claude_link" ]
 	[ "$(readlink "$claude_link")" = "../../skills/muse-review" ]
+}
+
+@test "--review-level 1 fails without current model context" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+	[[ "$output" == *current\ model* ]]
+}
+
+@test "--review-level 1 uses PI_PROVIDER PI_MODEL and optional PI_REASONING_LEVEL" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+
+	run env -u PI_REASONING_LEVEL \
+		PI_PROVIDER=anthropic PI_MODEL=claude-sonnet-5 PI_REASONING_LEVEL=max \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "$(printf 'pi\tanthropic/claude-sonnet-5:max\t300\t300')" ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+}
+
+@test "--review-level 1 dedupes to one row when caller is Muse" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model "$muse_model"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 1 ]
+	[ "${lines[0]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+}
+
+@test "--review-level 2 dedupes caller against Muse and Antigravity Gemini" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model agy_model
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+	agy_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field agy review.antigravity)"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2 \
+		--current-model "$muse_model"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "$(printf 'agy\t%s\t300\t300' "$agy_model")" ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2 \
+		--current-backend agy --current-model "$agy_model"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "$(printf 'agy\t%s\t300\t300' "$agy_model")" ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+}
+
+@test "--review-level rejects invalid current model and backend" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model $'openai-codex/gpt-6-astra:high\tinjected'
+	[ "$status" -ne 0 ]
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model "incomplete-model-without-provider"
+	[ "$status" -ne 0 ]
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-backend cursor --current-model "cursor/fast"
+	[ "$status" -ne 0 ]
+}
+
+@test "--review-level 4 raises Codex and Opus to max while keeping Fugu Max" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local base_slug max_model opus_max codex_max
+	base_slug="$(jq -r '.roles["route.fugu.base"].id' "$real_catalog")"
+	max_model="$(jq -r --arg slug "$base_slug" \
+		'.enabledModels[] | select(startswith("sakana-ai-console/" + $slug + ":"))' \
+		"$real_catalog")"
+	opus_max="anthropic/claude-opus-5-5:max"
+	codex_max="openai-codex/gpt-6-astra:max"
+
+	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 4
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 6 ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t600\t900' "$codex_max")" ]
+	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t900' "$opus_max")" ]
+	[ "${lines[4]}" = "$(printf 'pi\t%s\t600\t900' "$max_model")" ]
+}
+
+review_fixture_catalog() {
+	cat >"$CATALOG"
+}
+
+@test "review dedupe strips Muse effort off minimal low medium high xhigh max only" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.muse": { "pi": "opencode-go/muse-spark-1.3-contributor:high", "label": "Muse High" },
+    "review.antigravity": { "agy": "gemini-3.8-flash-high", "label": "Agy" }
+  },
+  "reviewTimeouts": { "2": { "initial": 300, "retry": 300 } },
+  "reviewLevels": {
+    "2": [
+      { "role": "review.antigravity" },
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" },
+      { "current": true }
+    ]
+  }
+}
+EOF
+	local muse_high="opencode-go/muse-spark-1.3-contributor:high"
+	local agy_model="gemini-3.8-flash-high"
+
+	for effort in low medium minimal off; do
+		run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+			"$RESOLVER" --review-level 2 \
+			--current-model "opencode-go/muse-spark-1.3-contributor:${effort}"
+		[ "$status" -eq 0 ]
+		[ "${#lines[@]}" -eq 2 ]
+		[ "${lines[0]}" = "$(printf 'agy\t%s\t300\t300' "$agy_model")" ]
+		[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_high")" ]
+	done
+}
+
+@test "review dedupe does not strip thinking suffix or version tags like 7b" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.muse": { "pi": "opencode-go/muse-spark-1.3-contributor:high", "label": "Muse High" }
+  },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": {
+    "1": [
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" },
+      { "current": true }
+    ]
+  }
+}
+EOF
+	local muse_high="opencode-go/muse-spark-1.3-contributor:high"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 \
+		--current-model "opencode-go/muse-spark-1.3-contributor:thinking"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 \
+		--current-model "test-provider/some-model-7b:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "$(printf 'pi\t%s\t10\t20' "$muse_high")" ]
+	[ "${lines[1]}" = "$(printf 'pi\ttest-provider/some-model-7b:high\t10\t20')" ]
+}
+
+@test "review dedupe matches max and low Muse efforts against fixed Muse high" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.muse": { "pi": "opencode-go/muse-spark-1.3-contributor:high", "label": "Muse High" }
+  },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": {
+    "1": [
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" },
+      { "current": true }
+    ]
+  }
+}
+EOF
+	local muse_high="opencode-go/muse-spark-1.3-contributor:high"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 \
+		--current-model "opencode-go/muse-spark-1.3-contributor:max"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 1 ]
+	[ "${lines[0]}" = "$(printf 'pi\t%s\t10\t20' "$muse_high")" ]
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 \
+		--current-model "opencode-go/muse-spark-1.3-contributor:low"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 1 ]
+}
+
+@test "--review-level rejects string boolean and fractional timeout budgets" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.antigravity": { "agy": "agy/test", "label": "Agy" } },
+  "reviewTimeouts": { "1": { "initial": "300", "retry": 20 } },
+  "reviewLevels": { "1": [ { "role": "review.antigravity" } ] }
+}
+EOF
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.antigravity": { "agy": "agy/test", "label": "Agy" } },
+  "reviewTimeouts": { "1": { "initial": true, "retry": 20 } },
+  "reviewLevels": { "1": [ { "role": "review.antigravity" } ] }
+}
+EOF
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.antigravity": { "agy": "agy/test", "label": "Agy" } },
+  "reviewTimeouts": { "1": { "initial": 300.5, "retry": 20 } },
+  "reviewLevels": { "1": [ { "role": "review.antigravity" } ] }
+}
+EOF
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+}
+
+@test "--review-level rejects static pi and agy strings with whitespace or control chars and emits no stdout" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.test": { "pi": "provider/model:high", "label": "Ok" } },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [ { "pi": "provider/bad\nmodel:high" } ] }
+}
+EOF
+	local stdout_file exit_code
+	stdout_file="$TEST_ROOT/stdout-pi-bad.txt"
+	set +e
+	env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 >"$stdout_file" 2>/dev/null
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[ ! -s "$stdout_file" ]
+
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.test": { "pi": "provider/model:high", "label": "Ok" } },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [ { "pi": "provider/model\t:high" } ] }
+}
+EOF
+	stdout_file="$TEST_ROOT/stdout-pi-tab.txt"
+	set +e
+	env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 >"$stdout_file" 2>/dev/null
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[ ! -s "$stdout_file" ]
+
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.bad": { "agy": "agy/bad\nmodel", "label": "Bad" } },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [ { "role": "review.bad" } ] }
+}
+EOF
+	stdout_file="$TEST_ROOT/stdout-agy-bad.txt"
+	set +e
+	"$RESOLVER" --review-level 1 >"$stdout_file" 2>/dev/null
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[ ! -s "$stdout_file" ]
+}
+
+@test "--review-level rejects non-string role agy and pi model fields" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.bad": { "agy": 42, "label": "Bad" } },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [ { "role": "review.bad" } ] }
+}
+EOF
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.test": { "pi": "provider/model:high", "label": "Ok" } },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [ { "pi": 99 } ] }
+}
+EOF
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+}
+
+@test "--review-level emits no stdout when valid entries precede a malformed one" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.antigravity": { "agy": "gemini-test", "label": "Agy" },
+    "review.muse": { "pi": "opencode-go/muse-spark-1.3-contributor:high", "label": "Muse" }
+  },
+  "reviewTimeouts": { "2": { "initial": 10, "retry": 20 } },
+  "reviewLevels": {
+    "2": [
+      { "role": "review.antigravity" },
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" },
+      { "bogus": true }
+    ]
+  }
+}
+EOF
+	local stdout_file stderr_file exit_code
+	stdout_file="$TEST_ROOT/stdout.txt"
+	stderr_file="$TEST_ROOT/stderr.txt"
+	set +e
+	env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 2 \
+		--current-model "anthropic/claude-sonnet-5:high" \
+		>"$stdout_file" 2>"$stderr_file"
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[ ! -s "$stdout_file" ]
+	[ -s "$stderr_file" ]
+}
+
+@test "--current-backend agy without explicit model rejects and does not use PI env" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.muse": { "pi": "opencode-go/muse-spark-1.3-contributor:high", "label": "Muse" }
+  },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": {
+    "1": [
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" },
+      { "current": true }
+    ]
+  }
+}
+EOF
+	run env PI_PROVIDER=anthropic PI_MODEL=claude-sonnet-5 PI_REASONING_LEVEL=high \
+		"$RESOLVER" --review-level 1 --current-backend agy
+	[ "$status" -ne 0 ]
+
+	run env PI_PROVIDER=anthropic PI_MODEL=claude-sonnet-5 \
+		"$RESOLVER" --review-level 1 --current-backend unsupported
+	[ "$status" -ne 0 ]
+}
+
+@test "explicit --current-model overrides PI env including effort" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+
+	run env PI_PROVIDER=anthropic PI_MODEL=claude-sonnet-5 PI_REASONING_LEVEL=max \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model "openai-codex/gpt-6-astra:high"
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "$(printf 'pi\topenai-codex/gpt-6-astra:high\t300\t300')" ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+}
+
+@test "--review-level L2 yields three rows for two different caller providers" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model agy_model
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+	agy_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field agy review.antigravity)"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2 \
+		--current-model "openai-codex/gpt-6-astra:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 3 ]
+	[ "${lines[0]}" = "$(printf 'pi\topenai-codex/gpt-6-astra:high\t300\t300')" ]
+	[ "${lines[1]}" = "$(printf 'agy\t%s\t300\t300' "$agy_model")" ]
+	[ "${lines[2]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2 \
+		--current-model "anthropic/claude-sonnet-5:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 3 ]
+}
+
+@test "--review-level uses PI env without PI_REASONING_LEVEL when effort omitted" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+
+	run env -u PI_REASONING_LEVEL \
+		PI_PROVIDER=openai-codex PI_MODEL=gpt-6-astra \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "$(printf 'pi\topenai-codex/gpt-6-astra\t300\t300')" ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+}
+
+@test "Pi current provider slash effort only rejects as incomplete model" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model "openai-codex/:high"
+	[ "$status" -ne 0 ]
+}
+
+@test "cross-backend Pi current with exact agy id dedupes Antigravity Gemini entry" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local agy_model muse_model
+	agy_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field agy review.antigravity)"
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2 \
+		--current-model "google/${agy_model}:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "$(printf 'agy\t%s\t300\t300' "$agy_model")" ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+}
+
+@test "same provider different models are not deduped" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {
+    "review.muse": { "pi": "opencode-go/muse-spark-1.3-contributor:high", "label": "Muse" }
+  },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": {
+    "1": [
+      { "pi": "opencode-go/muse-spark-1.3-contributor:high" },
+      { "current": true }
+    ]
+  }
+}
+EOF
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 \
+		--current-model "opencode-go/another-model:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "$(printf 'pi\topencode-go/muse-spark-1.3-contributor:high\t10\t20')" ]
+	[ "${lines[1]}" = "$(printf 'pi\topencode-go/another-model:high\t10\t20')" ]
+}
+
+@test "--review-level 3 resolves without PI env" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 6 ]
+}
+
+@test "--review-level rejects empty reviewLevels list" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {},
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": { "1": [] }
+}
+EOF
+	run "$RESOLVER" --review-level 1
+	[ "$status" -ne 0 ]
+}
+
+@test "reviewLevels catalog shape all() rejects invalid current:false before valid pi" {
+	# Arrange — first entry invalid; stream jq -e without all() only checks the last row
+	local bad='{"reviewLevels":{"x":[{"current":false},{"pi":"provider/model:high"}],"y":[{"pi":"provider/last:high"}]}}'
+
+	# Assert — every entry in every tier must pass, not just the final tier
+	run jq -e '[.reviewLevels[][]] | all(
+		(has("pi") or has("role") or (has("current") and .current == true)) and
+		(. | keys | length == 1)
+	)' <<<"$bad"
+	[ "$status" -ne 0 ]
+
+	# Assert — legacy per-entry stream predicate false-positive (documents jq -e last-row behavior)
+	run jq -e '.reviewLevels | to_entries[] | .value[] |
+		(has("pi") or has("role") or (has("current") and .current == true)) and
+		(. | keys | length == 1)' <<<"$bad"
+	[ "$status" -eq 0 ]
+}
+
+@test "--review-level rejects more than one current marker in a tier" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": { "review.muse": { "pi": "opencode-go/muse:high", "label": "M" } },
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": {
+    "1": [
+      { "current": true },
+      { "pi": "opencode-go/muse:high" },
+      { "current": true }
+    ]
+  }
+}
+EOF
+	local stdout_file exit_code
+	stdout_file="$TEST_ROOT/stdout-dup-current.txt"
+	set +e
+	env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 \
+		--current-model "test-provider/caller:high" \
+		>"$stdout_file" 2>/dev/null
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[ ! -s "$stdout_file" ]
+}
+
+@test "--review-level validates explicit --current-model on static tiers without changing roster" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local stdout_file exit_code
+	stdout_file="$TEST_ROOT/stdout-l3-bad-current.txt"
+
+	# Assert — malformed explicit current fails with zero stdout even when tier ignores PI env
+	set +e
+	env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3 \
+		--current-model $'bad\tmodel' >"$stdout_file" 2>/dev/null
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[ ! -s "$stdout_file" ]
+
+	# Assert — valid explicit current on L3 leaves static six-row roster unchanged
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3 \
+		--current-model "openai-codex/gpt-6-astra:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 6 ]
+
+	run env PI_PROVIDER=$'bad\tprovider' PI_MODEL=$'bad\tmodel' PI_REASONING_LEVEL=bogus \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3 \
+		--current-model "openai-codex/gpt-6-astra:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 6 ]
+}
+
+@test "PI_PROVIDER must not contain slash; PI_MODEL may use namespaces and colon tags" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local muse_model stdout_file exit_code
+	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
+	stdout_file="$TEST_ROOT/stdout-bad-pi-provider.txt"
+
+	# Assert — slash in PI_PROVIDER is rejected before assembly (zero stdout)
+	set +e
+	env PI_PROVIDER=bad/provider PI_MODEL=model MODEL_ROLES_FILE="$real_catalog" \
+		"$RESOLVER" --review-level 1 >"$stdout_file" 2>/dev/null
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[ ! -s "$stdout_file" ]
+
+	# Assert — namespaced PI_MODEL with literal colon tag and known reasoning effort
+	run env -u PI_REASONING_LEVEL \
+		PI_PROVIDER=test-provider PI_MODEL=namespace/model:7b PI_REASONING_LEVEL=high \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "$(printf 'pi\ttest-provider/namespace/model:7b:high\t300\t300')" ]
+	[ "${lines[1]}" = "$(printf 'pi\t%s\t300\t300' "$muse_model")" ]
+}
+
+@test "--review-level rejects malformed PI env with zero stdout on dynamic tiers" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local stdout_file exit_code
+
+	assert_pi_env_fails() {
+		stdout_file="$TEST_ROOT/stdout-pi-env-$1.txt"
+		shift
+		set +e
+		env "$@" MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+			>"$stdout_file" 2>/dev/null
+		exit_code=$?
+		set -e
+		[ "$exit_code" -ne 0 ]
+		[ ! -s "$stdout_file" ]
+	}
+
+	# Arrange / Act / Assert — table-driven malformed PI env (implementation may already reject)
+	assert_pi_env_fails tab-model -u PI_REASONING_LEVEL \
+		PI_PROVIDER=anthropic PI_MODEL=$'claude\tmodel'
+	assert_pi_env_fails newline-model -u PI_REASONING_LEVEL \
+		PI_PROVIDER=anthropic PI_MODEL=$'claude\nmodel'
+	assert_pi_env_fails ws-provider -u PI_REASONING_LEVEL \
+		"PI_PROVIDER=bad provider" PI_MODEL=model
+	assert_pi_env_fails bogus-reasoning \
+		PI_PROVIDER=anthropic PI_MODEL=claude-sonnet-5 PI_REASONING_LEVEL=bogus
+
+	# Assert — explicit valid current ignores malformed PI env
+	run env PI_PROVIDER=$'bad\tprovider' PI_MODEL=$'bad\tmodel' PI_REASONING_LEVEL=bogus \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model "openai-codex/gpt-6-astra:high"
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "$(printf 'pi\topenai-codex/gpt-6-astra:high\t300\t300')" ]
 }
 
 @test "auth.json.example wires opencode-go command auth without enabling opencode Zen" {
