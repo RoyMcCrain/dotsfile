@@ -23,6 +23,24 @@ import {
   validateChunkDecision,
   validateLevelDecision,
 } from "../scripts/select_review_level.ts";
+import {
+  hashReviewContext,
+  REVIEW_CONTEXT_SCHEMA_VERSION,
+  validateReviewContext,
+} from "../scripts/review_context.ts";
+
+const baseUnknownContextInput = () => ({
+  schemaVersion: REVIEW_CONTEXT_SCHEMA_VERSION,
+  intent: "unknown" as const,
+  runtime: "unknown" as const,
+  impact: "unknown" as const,
+  dataAndPermissions: "unknown" as const,
+  rollback: "unknown" as const,
+  tests: "unknown" as const,
+});
+
+const allUnknownContext = () =>
+  validateReviewContext(baseUnknownContextInput());
 
 const SCRIPT_PATH = join(
   import.meta.dirname!,
@@ -1381,6 +1399,15 @@ Deno.test("doc policy: parallel-review standing permission and routing", async (
   const piReadme = await Deno.readTextFile(PI_README_PATH);
 
   assert.match(skill, /## レビュー外部送信の常時許可/);
+  const skillStandingLine =
+    skill.split("\n").find((line) => line.includes("常時許可（個人設定）")) ??
+      "";
+  assert.ok(skillStandingLine.length > 0);
+  assert.match(
+    skillStandingLine,
+    /Jev.*routing context|最小 routing context|schemaVersion.*1/s,
+  );
+  assert.match(skillStandingLine, /reviewer.*patch のみ|patch のみ.*reviewer/s);
   assert.match(
     skill,
     /preflight 成功後.*即時.*parallel-review|即時.*preflight/s,
@@ -1411,9 +1438,34 @@ Deno.test("doc policy: parallel-review standing permission and routing", async (
 
   assert.match(piAgents, /execute immediately|immediate execution/i);
   assert.match(piAgents, /Jev.*standing permission|standing permission.*Jev/i);
+  const piStandingClause = piAgents.match(
+    /\*\*Standing permission \(personal setup\)\*\*:.*?(?=\*\*Exceptions\*\*)/,
+  )?.[0] ?? "";
+  assert.ok(piStandingClause.length > 0);
+  assert.match(
+    piStandingClause,
+    /routing context|routing context JSON|minimal routing context/i,
+  );
+  assert.match(
+    piStandingClause,
+    /patch only.*reviewer|reviewer.*patch only/i,
+  );
 
   assert.match(piReadme, /\/reload/);
   assert.match(piReadme, /Muse\/Jev.*再確認不要/);
+  assert.match(skill, /review-context\.json/);
+  assert.match(skill, /--context-file/);
+  assert.match(skill, /Jev.*routing context|routing context.*Jev/s);
+  assert.match(
+    append,
+    /Jev.*routing context|routing context.*Jev|patch.*routing context/s,
+  );
+  assert.match(
+    injection,
+    /Jev.*routing context|routing context.*Jev|patch.*routing context/s,
+  );
+  assert.match(piAgents, /routing context.*Jev|Jev.*routing context/s);
+  assert.match(piReadme, /routing context.*Jev|Jev.*routing context/s);
 });
 
 Deno.test("CLI integration explicit and auto fallback without live network", async () => {
@@ -1592,6 +1644,427 @@ Deno.test("transport and explicit fallbacks omit depth probabilities", async () 
 
   const explicit = buildExplicitDecision({ level: 2, patchSha256: hash });
   assert.equal(explicit.probabilities, undefined);
+});
+
+Deno.test("buildJevRequestBody includes context when provided and preserves patch", () => {
+  const patch = "diff --git a/x b/x\n+line\n";
+  const ctx = allUnknownContext();
+  const body = buildJevRequestBody("typesafe/jev-1.13", patch, ctx);
+  const state = body.state as { patch: string; context?: unknown };
+  assert.equal(state.patch, patch);
+  assert.ok(state.context);
+  assert.deepEqual(
+    body.questions,
+    buildJevRequestBody("m", "p").questions,
+  );
+  assert.equal(
+    JSON.stringify(buildJevRequestBody("m", patch).state),
+    JSON.stringify({ patch }),
+  );
+});
+
+Deno.test("buildJevRequestBody rejects invalid context through validateReviewContext", () => {
+  const CANARY = "pr-jev-body-canary-field-q1";
+  assert.throws(
+    () =>
+      buildJevRequestBody("m", "p", {
+        ...baseUnknownContextInput(),
+        [CANARY]: true,
+      }),
+    /unsupported field/,
+  );
+  assert.throws(() => buildJevRequestBody("m", "p", null), /must be an object/);
+  assert.throws(
+    () =>
+      buildJevRequestBody("m", "p", {
+        ...baseUnknownContextInput(),
+        intent: { summary: "ok", evidence: [] },
+      }),
+    /intent evidence is invalid/,
+  );
+  const hugeSummary = "x".repeat(1001);
+  assert.throws(
+    () =>
+      buildJevRequestBody("m", "p", {
+        ...baseUnknownContextInput(),
+        intent: { summary: hugeSummary, evidence: ["e"] },
+      }),
+    /intent summary exceeds limit/,
+  );
+});
+
+Deno.test("selectAutoLevel rejects invalid reviewContext before fetch", async () => {
+  let fetchCalled = false;
+  await assert.rejects(
+    () =>
+      selectAutoLevel({
+        patchText: "d\n",
+        patchSha256: sha256Bytes(new TextEncoder().encode("d\n")),
+        model: "typesafe/jev-1.13",
+        apiKey: "k",
+        minConfidence: 0.7,
+        reviewContext: { bad: true },
+        fetchImpl: () => {
+          fetchCalled = true;
+          return Promise.resolve(new Response("{}"));
+        },
+      }),
+    /review context/,
+  );
+  assert.equal(fetchCalled, false);
+});
+
+Deno.test("auto with context attaches contextSha256 on jev and fallbacks", async () => {
+  const ctx = allUnknownContext();
+  const ctxHash = hashReviewContext(ctx);
+  const patch = "+line\n";
+  const hash = sha256Bytes(new TextEncoder().encode(patch));
+
+  const jev = await selectAutoLevel({
+    patchText: patch,
+    patchSha256: hash,
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    reviewContext: ctx,
+    fetchImpl: () => Promise.resolve(new Response(validJevBody("3", 0.9))),
+  });
+  assert.equal(jev.contextSha256, ctxHash);
+  validateLevelDecision(jev);
+
+  const fb = await selectAutoLevel({
+    patchText: patch,
+    patchSha256: hash,
+    model: "typesafe/jev-1.13",
+    minConfidence: 0.7,
+    reviewContext: ctx,
+  });
+  assert.equal(fb.reason, "missing_api_key");
+  assert.equal(fb.contextSha256, ctxHash);
+  validateLevelDecision(fb);
+});
+
+Deno.test("explicit level ignores context path and omits contextSha256", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-ctx-explicit-"));
+  const patchPath = join(dir, "p.patch");
+  const ctxPath = join(dir, "missing-context.json");
+  await writeFile(patchPath, "+line\n");
+  try {
+    const decision = await selectReviewLevel({
+      patchBytes: new TextEncoder().encode("+line\n"),
+      levelArg: "2",
+      approvedInput: false,
+      minConfidence: 0.7,
+      apiKey: "secret",
+      reviewContext: allUnknownContext(),
+    });
+    assert.equal(decision.source, "explicit");
+    assert.equal(decision.contextSha256, undefined);
+
+    const out = await runCli([
+      "--input",
+      patchPath,
+      "--level",
+      "2",
+      "--context-file",
+      ctxPath,
+    ], { getOpenRouterApiKey: () => "must-not-be-used" });
+    assert.equal(out.code, 0);
+    const parsed = JSON.parse(out.stdout);
+    assert.equal(parsed.contextSha256, undefined);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("auto invalid context fails before missing_api_key fallback", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-ctx-bad-"));
+  const patchPath = join(dir, "p.patch");
+  const ctxPath = join(dir, "bad.json");
+  await writeFile(patchPath, "+line\n");
+  const CANARY = "pr-bad-context-canary-88ee";
+  await writeFile(ctxPath, `{${CANARY}`);
+  try {
+    const out = await runCli([
+      "--input",
+      patchPath,
+      "--approved-input",
+      "--context-file",
+      ctxPath,
+    ], { getOpenRouterApiKey: () => "" });
+    assert.equal(out.code, 1);
+    assert.match(out.stderr, /valid JSON/);
+    assert.doesNotMatch(out.stderr, /missing_api_key/);
+    assert.doesNotMatch(out.stderr, new RegExp(CANARY));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("runCli reads context file on auto and attaches contextSha256", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-ctx-cli-"));
+  const patchPath = join(dir, "p.patch");
+  const ctxPath = join(dir, "review-context.json");
+  await writeFile(patchPath, "+line\n");
+  await writeFile(ctxPath, JSON.stringify(allUnknownContext()));
+  const ctxHash = hashReviewContext(allUnknownContext());
+  try {
+    const out = await runCli([
+      "--input",
+      patchPath,
+      "--approved-input",
+      "--context-file",
+      ctxPath,
+      "--model",
+      "typesafe/jev-1.13",
+    ], { getOpenRouterApiKey: () => "" });
+    assert.equal(out.code, 0);
+    const decision = JSON.parse(out.stdout);
+    assert.equal(decision.reason, "missing_api_key");
+    assert.equal(decision.contextSha256, ctxHash);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("selectReviewLevel auto sends validated context in single mocked fetch", async () => {
+  const ctx = validateReviewContext({
+    ...baseUnknownContextInput(),
+    intent: {
+      summary: "Add schema validation on Jev routing context builder",
+      evidence: ["skills/parallel-review/scripts/review_context.ts:89"],
+    },
+    tests: {
+      summary: "Ran review_context_test before wiring buildJevRequestBody",
+      evidence: ["skills/parallel-review/tests/review_context_test.ts:1"],
+    },
+  });
+  const patch = "\uFEFFdiff --git a/x b/x\n+\u3042line\n";
+  let calls = 0;
+  let seenBody: Record<string, unknown> | undefined;
+  const decision = await selectReviewLevel({
+    patchBytes: new TextEncoder().encode(patch),
+    levelArg: "auto",
+    approvedInput: true,
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    reviewContext: ctx,
+    fetchImpl: (input, init) => {
+      calls++;
+      const req = new Request(input, init);
+      return req.text().then((text) => {
+        seenBody = JSON.parse(text);
+        return new Response(validJevBody("4", 0.85));
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(
+    seenBody,
+    buildJevRequestBody("typesafe/jev-1.13", patch, ctx),
+  );
+  const state = seenBody!.state as {
+    patch: string;
+    context: ReturnType<typeof validateReviewContext>;
+  };
+  assert.equal(state.patch, patch);
+  assert.deepEqual(state.context.intent, ctx.intent);
+  assert.deepEqual(state.context.tests, ctx.tests);
+  assert.equal(decision.contextSha256, hashReviewContext(ctx));
+  assert.ok((seenBody!.questions as Record<string, unknown>).review_level);
+  assert.ok((seenBody!.questions as Record<string, unknown>).chunk_size);
+});
+
+Deno.test("validateLevelDecision contextSha256 rules", () => {
+  const hash = "a".repeat(64);
+  const ctxHash = "b".repeat(64);
+  const jev = {
+    ...buildJevDecision({
+      level: 3,
+      patchSha256: hash,
+      minConfidence: 0.7,
+      model: "typesafe/jev-1.13",
+      confidence: 0.9,
+    }),
+    contextSha256: ctxHash,
+  };
+  validateLevelDecision(jev);
+  assert.throws(
+    () =>
+      validateLevelDecision({
+        ...buildExplicitDecision({ level: 2, patchSha256: hash }),
+        contextSha256: ctxHash,
+      }),
+    /explicit decision must not include contextSha256/,
+  );
+  assert.throws(
+    () =>
+      validateLevelDecision({
+        ...jev,
+        contextSha256: "not-a-hash",
+      }),
+    /contextSha256 is invalid/,
+  );
+  assert.throws(
+    () =>
+      validateLevelDecision({
+        ...jev,
+        contextSha256: null,
+      }),
+    /contextSha256 is invalid/,
+  );
+});
+
+Deno.test("CLI --context-file flag parsing and empty path", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-ctx-cli-flags-"));
+  const patchPath = join(dir, "p.patch");
+  await writeFile(patchPath, "+line\n");
+  try {
+    const missingVal = await runCli([
+      "--input",
+      patchPath,
+      "--approved-input",
+      "--context-file",
+    ]);
+    assert.equal(missingVal.code, 1);
+    assert.match(missingVal.stderr, /missing value for --context-file/);
+
+    const dup = await runCli([
+      "--input",
+      patchPath,
+      "--approved-input",
+      "--context-file",
+      join(dir, "a.json"),
+      "--context-file",
+      join(dir, "b.json"),
+    ]);
+    assert.equal(dup.code, 1);
+    assert.match(dup.stderr, /duplicate flag: --context-file/);
+
+    const emptyPath = await runCli([
+      "--input",
+      patchPath,
+      "--approved-input",
+      "--context-file",
+      "",
+    ]);
+    assert.equal(emptyPath.code, 1);
+    assert.match(emptyPath.stderr, /context-file path is required/);
+
+    const wsPath = await runCli([
+      "--input",
+      patchPath,
+      "--approved-input",
+      "--context-file",
+      "   ",
+    ]);
+    assert.equal(wsPath.code, 1);
+    assert.match(wsPath.stderr, /context-file path is required/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("invalid context rejects before api key getter on auto CLI", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-ctx-key-"));
+  const patchPath = join(dir, "p.patch");
+  const ctxPath = join(dir, "bad.json");
+  await writeFile(patchPath, "+line\n");
+  await writeFile(ctxPath, '{"schemaVersion":1}');
+  let keyCalls = 0;
+  try {
+    const out = await runCli([
+      "--input",
+      patchPath,
+      "--approved-input",
+      "--context-file",
+      ctxPath,
+    ], {
+      getOpenRouterApiKey: () => {
+        keyCalls++;
+        return "k";
+      },
+    });
+    assert.equal(out.code, 1);
+    assert.match(out.stderr, /missing required field/);
+    assert.equal(keyCalls, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("auto without approval fails before throwing key getter or missing context", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-ctx-approve-"));
+  const patchPath = join(dir, "p.patch");
+  await writeFile(patchPath, "+line\n");
+  let keyCalls = 0;
+  try {
+    const out = await runCli([
+      "--input",
+      patchPath,
+      "--context-file",
+      join(dir, "missing-context.json"),
+    ], {
+      getOpenRouterApiKey: () => {
+        keyCalls++;
+        throw new Error("key getter must not run");
+      },
+    });
+    assert.equal(out.code, 1);
+    assert.match(out.stderr, /approved-input is required/);
+    assert.equal(keyCalls, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("explicit level ignores missing context file and never calls key getter", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-ctx-explicit-key-"));
+  const patchPath = join(dir, "p.patch");
+  await writeFile(patchPath, "+line\n");
+  let keyCalls = 0;
+  try {
+    const out = await runCli([
+      "--input",
+      patchPath,
+      "--level",
+      "2",
+      "--context-file",
+      join(dir, "does-not-exist.json"),
+    ], {
+      getOpenRouterApiKey: () => {
+        keyCalls++;
+        throw new Error("key getter must not run");
+      },
+    });
+    assert.equal(out.code, 0);
+    assert.equal(keyCalls, 0);
+    assert.equal(JSON.parse(out.stdout).source, "explicit");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("selectAutoLevel invalid reviewContext does not invoke fetch", async () => {
+  let fetchCalls = 0;
+  await assert.rejects(
+    () =>
+      selectAutoLevel({
+        patchText: "+x\n",
+        patchSha256: sha256Bytes(new TextEncoder().encode("+x\n")),
+        model: "typesafe/jev-1.13",
+        apiKey: "k",
+        minConfidence: 0.7,
+        reviewContext: { schemaVersion: 1 },
+        fetchImpl: () => {
+          fetchCalls++;
+          return Promise.resolve(new Response("{}"));
+        },
+      }),
+    /missing required field/,
+  );
+  assert.equal(fetchCalls, 0);
 });
 
 Deno.test("stderr does not echo patch content on UTF-8 decode errors", async () => {
