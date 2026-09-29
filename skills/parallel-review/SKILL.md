@@ -1,11 +1,23 @@
 ---
 name: parallel-review
-description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=軽量動的 / 3=標準 / 4=deep / 5=最深）で並行実行する。レベル未指定は auto（Jev 推定、失敗時 L3）。「レビューして」だけの依頼ではこれを優先する。
+description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=軽量動的 / 3=標準 / 4=deep / 5=最深）で並行実行する。レベル未指定は auto（Jev 推定、失敗時 L3）。単体 reviewer・レポート系を明示されない「レビューして」は preflight 成功後に即時実行（Muse/Jev 常時許可済み。skill 利用や送信の都度確認は不要）。
 ---
 
 # /parallel-review
 
 同じ patch を `model-roles.json` の `reviewLevels` で定義された reviewer に同時に渡し、結果を統合する。L1/L2 は **現在の caller モデル**（Pi が bash ごとに export する `PI_PROVIDER` / `PI_MODEL` / 任意 `PI_REASONING_LEVEL`）+ 固定 reviewer。L3 以降は従来どおり固定 6 reviewer（Grok・Codex・Opus・Antigravity Gemini・Fugu・Muse）。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
+
+## レビュー外部送信の常時許可
+
+**対象**: 当該ターンでユーザーが実際にレビューを依頼した run のみ（「レビューして」の引用・議論だけでは依頼にならない）。単体 reviewer や `review-report` 等を明示された場合は本節の即時 `parallel-review` ルールよりその skill を優先する。
+
+**常時許可（個人設定）**: 秘密除外・検査済み patch について、(a) **Jev**（TypeSafe / OpenRouter Decisions API、auto 時 **1 回**/run）への送信、(b) 採用 tier の **全 reviewer**（**Muse Contributor** の prompts/completions 学習利用を含む。非 ZDR）への送信、および patch/chunk/設定どおりの **リトライ**。Muse/Jev 利用の都度同意や skill 採用の確認は求めない。短い告知は可だが承認ゲートにせず返答待ちしない。
+
+**`--approved-input`（auto CLI 必須）**: preflight 成功後、上記常時許可に基づき呼び出し側が付与する宣言。**run ごとの人間同意要求ではない**。
+
+**停止して確認**: 認証情報・顧客データ・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限・拒否。Muse を silently 省略したり別 provider へ切り替えない。上記以外の無関係な外部 API・メール・メッセージ・hook・任意タスクへの許可拡大はしない。
+
+通常 preflight（下記）成功後、ただちに `parallel-review` を実行する。
 
 ## 実行要件
 
@@ -25,7 +37,7 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 **旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。**指定なしは auto**（フォールバック L3）。
 
-**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び、**review 深さ**と **chunk 分割計画**を独立質問で分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPEN_ROUTER_API_KEY` のみ（`--allow-env=OPEN_ROUTER_API_KEY`）。patch は **ローカル切り詰めなし**で全文送信（API 失敗・タイムアウト時は L3 フォールバック）。`chunk_size` の選択肢は `none` / `12000` / `24000` / `48000`（10進バイト目安、12/24/48KB）。`--min-confidence`（既定 **0.7**）は各質問の **集中度しきい値**（正答確率の保証ではない）。深さと chunk は独立に検証され、一方だけ低信頼でも他方は採用されうる。API 送信前に **秘密・顧客・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限**があれば停止する（`--approved-input` は呼び出し側の外部送信許可宣言）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外は送らない。**明示 1..5 のレベル選択はオフライン**（Jev / OpenRouter を呼ばない。chunk は raw バイト閾値 15KB/400 行で `fixed`）。**reviewer 実行はネットワークあり**（Pi / Antigravity 等）。ユーザーには `level` と `chunking` の `source` / `reason` / 信頼度を分けて短く伝える。
+**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び、**review 深さ**と **chunk 分割計画**を独立質問で分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPEN_ROUTER_API_KEY` のみ（`--allow-env=OPEN_ROUTER_API_KEY`）。patch は **ローカル切り詰めなし**で全文送信（API 失敗・タイムアウト時は L3 フォールバック）。`chunk_size` の選択肢は `none` / `12000` / `24000` / `48000`（10進バイト目安、12/24/48KB）。`--min-confidence`（既定 **0.7**）は各質問の **集中度しきい値**（正答確率の保証ではない）。深さと chunk は独立に検証され、一方だけ低信頼でも他方は採用されうる。API 送信前に **上記「レビュー外部送信の常時許可」の停止条件**を満たさないことを確認する。auto では preflight 成功後に `--approved-input` を付与（常時許可の反映。run ごとの人間同意ではない）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外は送らない。**明示 1..5 のレベル選択はオフライン**（Jev / OpenRouter を呼ばない。chunk は raw バイト閾値 15KB/400 行で `fixed`）。**reviewer 実行はネットワークあり**（Pi / Antigravity 等）。ユーザーには `level` と `chunking` の `source` / `reason` / 信頼度を分けて短く伝える。
 
 **current モデルの解決**: カタログは `{"current":true}` のみ。Pi の bash ツール呼び出しでは `PI_PROVIDER` / `PI_MODEL`（任意 `PI_REASONING_LEVEL`）が注入され、`provider/model[:reasoning]` として current reviewer になる（effort は Pi が export した値をそのまま使う。最短 latency の保証ではない）。手元スクリプトや非 Pi では `resolve-model.sh --review-level N --current-model MODEL [--current-backend pi|agy]` を明示する。L3+ は current 不要。
 
@@ -131,7 +143,7 @@ install -m 600 "$STAGING/changes.patch" "$REVIEW_DIR/changes.patch" || exit 1
 ```
 
 7. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
-8. **Muse 学習利用（個人設定）**: 全 tier に Muse Contributor が含まれる。ユーザー依頼レビューでは検査済み patch の Muse 送信は常時許可済み（再確認不要）。上記例外時は停止。
+8. **外部 reviewer 送信**: 全 tier に Muse Contributor が含まれる。**「レビュー外部送信の常時許可」節**（Muse 学習利用・Jev・その他採用 reviewer）に従う。再確認不要。停止条件は同節。
 9. 解決済み reviewer 一覧を **1 run 1 回だけ** `$REVIEW_DIR/reviewers.tsv` に保存する（`resolve-model.sh --review-level "$LEVEL"`）。L1/L2 で runtime current が必要な場合、Pi の `PI_PROVIDER`/`PI_MODEL` または `--current-model` が無いと resolver が失敗し **停止**（別 tier へ silently 切替えない）。
 
 ```text

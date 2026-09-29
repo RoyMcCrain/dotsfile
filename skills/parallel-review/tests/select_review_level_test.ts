@@ -29,6 +29,14 @@ const SCRIPT_PATH = join(
   "../scripts/select_review_level.ts",
 );
 const SKILL_PATH = join(import.meta.dirname!, "../SKILL.md");
+const REPO_ROOT = join(import.meta.dirname!, "../../..");
+const APPEND_SYSTEM_PATH = join(REPO_ROOT, "pi/agent/APPEND_SYSTEM.md");
+const INJECTION_DEFENSE_PATH = join(
+  REPO_ROOT,
+  "claude/rules/injection-defense.md",
+);
+const PI_AGENTS_PATH = join(REPO_ROOT, "pi/agent/AGENTS.md");
+const PI_README_PATH = join(REPO_ROOT, "pi/README.md");
 
 const runSelectLevelSubprocess = async (
   args: string[],
@@ -1363,6 +1371,49 @@ Deno.test("SKILL documents select_review_level deno permissions", async () => {
   assert.match(denoLine, /--allow-net=openrouter\.ai:443/);
   assert.match(denoLine, /--allow-env=OPEN_ROUTER_API_KEY/);
   assert.match(denoLine, /--no-prompt/);
+});
+
+Deno.test("doc policy: parallel-review standing permission and routing", async () => {
+  const skill = await Deno.readTextFile(SKILL_PATH);
+  const append = await Deno.readTextFile(APPEND_SYSTEM_PATH);
+  const injection = await Deno.readTextFile(INJECTION_DEFENSE_PATH);
+  const piAgents = await Deno.readTextFile(PI_AGENTS_PATH);
+  const piReadme = await Deno.readTextFile(PI_README_PATH);
+
+  assert.match(skill, /## レビュー外部送信の常時許可/);
+  assert.match(
+    skill,
+    /preflight 成功後.*即時.*parallel-review|即時.*preflight/s,
+  );
+  assert.match(skill, /Jev.*常時許可|OpenRouter.*常時許可/s);
+  assert.match(skill, /Muse Contributor.*常時許可/s);
+  assert.match(
+    skill,
+    /--approved-input.*preflight 成功.*常時許可|常時許可.*--approved-input/s,
+  );
+  assert.match(skill, /8\..*Jev|常時許可.*節/s);
+  assert.match(skill, /秘密.*停止|Muse\/Jev 送信の撤回/);
+  assert.match(skill, /silently 省略|別 provider へ切り替え/);
+
+  assert.match(append, /当該ターン.*レビューを依頼.*外部送信要件を充足/s);
+  assert.match(
+    append,
+    /都度確認はしない|preflight 成功後に即時.*parallel-review/s,
+  );
+  assert.match(append, /Jev と Muse Contributor.*常時許可/s);
+
+  assert.match(
+    injection,
+    /parallel-review.*レビューを依頼|レビューを依頼.*parallel-review/s,
+  );
+  assert.match(injection, /Muse.*Jev|Jev.*Muse/);
+  assert.match(injection, /秘密|撤回|制限/);
+
+  assert.match(piAgents, /execute immediately|immediate execution/i);
+  assert.match(piAgents, /Jev.*standing permission|standing permission.*Jev/i);
+
+  assert.match(piReadme, /\/reload/);
+  assert.match(piReadme, /Muse\/Jev.*再確認不要/);
 });
 
 Deno.test("CLI integration explicit and auto fallback without live network", async () => {
