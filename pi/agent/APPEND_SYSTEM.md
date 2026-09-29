@@ -39,7 +39,7 @@
 
 - PR merge / branch deletion / bookmark deletion
 - force-push
-- 外部送信（メール・メッセージ・API投稿）。**例外**: 当該ターンでユーザーが実際にレビューを依頼した場合、その依頼自体が **スコープ限定のレビュー API 送信**（Jev / OpenRouter、Muse Contributor 学習利用、採用 tier の reviewer 実行）に対する外部送信要件を充足する（`parallel-review` 常時許可。秘密検査は毎回実施し、認証情報・顧客データ・雇用先機密の疑い、または送信許可の撤回・制限・拒否時は停止して確認）。引用・議論だけの「レビューして」は依頼にならない。無関係な API・メール等は従来どおり明示依頼必須。
+- 外部送信（メール・メッセージ・API投稿）。**例外**: 当該ターンでユーザーが実際にレビューを依頼した場合、その依頼自体が **スコープ限定のレビュー API 送信**（Jev / OpenRouter、Muse Contributor 学習利用、採用 tier の reviewer 実行）に対する外部送信要件を充足する（`parallel-review` 常時許可。秘密検査は毎回実施し、認証情報・顧客データ・雇用先機密の疑い、または送信許可の撤回・制限・拒否時は停止して確認）。Jev auto に載せる **preflight 済み・検査済み最小 routing context JSON**（reviewer 入力は patch のみ）も同じスコープに含める。引用・議論だけの「レビューして」は依頼にならない。無関係な API・メール等は従来どおり明示依頼必須。
 - 破壊的削除（`rm -rf` 等）
 
 ## Implementation Delegation
@@ -49,7 +49,7 @@
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
 - 委譲後は必ず diff 目視、lint、test、仕様充足チェックで検証し、投げっぱなしにしない。
-- 当該ターンで実際のレビュー依頼（引用・議論だけの「レビューして」は除く）かつ単体レビュアー・レポート系を明示されない限り、**preflight 成功後に即時** `parallel-review` skill を実行する（skill 採用や Muse/Jev 送信の都度確認はしない。reviewLevels の5段階。レベル**未指定は auto**（Jev → 失敗時 L3）。**1..5 明示は Jev より優先**）。L1/L2 は runtime caller（`PI_PROVIDER`/`PI_MODEL`）を current reviewer として含む。全 tier に Muse Contributor :high を含む。Jev auto は `OPEN_ROUTER_API_KEY` と `route.review` モデルで patch のみを OpenRouter に送る（メイン Pi モデルは変更しない）。現在使用中の provider と同じ reviewer も除外しない。**Jev と Muse Contributor 学習利用を含む採用 reviewer への送信は個人設定として常時許可済み**（patch/chunk/リトライごとの再確認は不要）。認証情報・顧客データ・雇用先機密の疑い、Jev/Muse 送信の撤回・制限・拒否がある場合は API/reviewer 送信前に停止して確認する（Muse を silently 省略したり別 provider へ切り替えない）。
+- 当該ターンで実際のレビュー依頼（引用・議論だけの「レビューして」は除く）かつ単体レビュアー・レポート系を明示されない限り、**preflight 成功後に即時** `parallel-review` skill を実行する（skill 採用や Muse/Jev 送信の都度確認はしない。reviewLevels の5段階。レベル**未指定は auto**（Jev → 失敗時 L3）。**1..5 明示は Jev より優先**）。L1/L2 は runtime caller（`PI_PROVIDER`/`PI_MODEL`）を current reviewer として含む。全 tier に Muse Contributor :high を含む。Jev auto は `OPEN_ROUTER_API_KEY` と `route.review` モデルで patch と（preflight 済みの）最小 routing context を OpenRouter に送る（reviewer 入力は patch のみ。メイン Pi モデルは変更しない）。現在使用中の provider と同じ reviewer も除外しない。**Jev と Muse Contributor 学習利用を含む採用 reviewer への送信は個人設定として常時許可済み**（patch/chunk/リトライごとの再確認は不要）。認証情報・顧客データ・雇用先機密の疑い、Jev/Muse 送信の撤回・制限・拒否がある場合は API/reviewer 送信前に停止して確認する（Muse を silently 省略したり別 provider へ切り替えない）。
 - ユーザーがレビュアーを明示した場合のみ `grok-review` / `codex-review` / `claude-review` / `fugu-review` / `muse-review` skill を使う。`muse-review` 単体は Muse の明示指定時のみ使う。学習利用の再確認は不要（ユーザー依頼レビューの常時許可対象）。秘密の疑いまたは許可の撤回・制限・拒否時は停止する。
 
 ## Simplicity Principles

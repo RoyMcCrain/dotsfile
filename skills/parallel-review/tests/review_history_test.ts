@@ -3159,6 +3159,72 @@ const runDecisionsCli = async (
   };
 };
 
+Deno.test("levelDecision contextSha256 init and snapshot roundtrip", async () => {
+  await withTempHome(async (home, xdg) => {
+    const patchBytes = new TextEncoder().encode("diff\n");
+    const ctxHash = "c".repeat(64);
+    const decision = {
+      ...buildJevDecision({
+        level: 3,
+        patchSha256: sha256Bytes(patchBytes),
+        minConfidence: 0.7,
+        model: "typesafe/jev-1.13-20260917",
+        confidence: 0.9,
+      }),
+      contextSha256: ctxHash,
+    };
+    validateLevelDecision(decision);
+    const decisionPath = join(home, "decision.json");
+    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
+    const initOut = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "rev-ctx-hash",
+      "--level",
+      "3",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.equal(initOut.code, 0, initOut.stderr);
+    const runDir = initOut.stdout.trim();
+    await prepareRunForSave(runDir);
+    await writeFile(join(runDir, "changes.patch"), patchBytes, {
+      mode: 0o600,
+    });
+    const snapshotPath = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      minimalAssessment("whole-r01", "no_findings"),
+    );
+    const snapshot = validateSnapshot(
+      JSON.parse(await readFile(snapshotPath, "utf8")),
+    );
+    assert.equal(
+      (snapshot.metadata.levelDecision as { contextSha256?: string })
+        .contextSha256,
+      ctxHash,
+    );
+
+    const history = await readDecisionHistory({ runsDir: runsRootFor(xdg) });
+    assert.equal(history.decisions.length, 1);
+    assert.equal(
+      history.decisions[0].levelDecision.contextSha256,
+      ctxHash,
+    );
+
+    const cliOut = await runDecisionsCli([], childEnv(home, xdg));
+    assert.equal(cliOut.code, 0, cliOut.stderr);
+    const cliParsed = JSON.parse(cliOut.stdout) as {
+      decisions: Array<{ levelDecision: { contextSha256?: string } }>;
+    };
+    assert.equal(cliParsed.decisions.length, 1);
+    assert.equal(cliParsed.decisions[0].levelDecision.contextSha256, ctxHash);
+  });
+});
+
 Deno.test("levelDecision probabilities init and snapshot roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");

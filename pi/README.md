@@ -91,7 +91,7 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). One auto Decisions call classifies **review depth** and **chunk plan** (`chunking.choice`: `none` or decimal-byte targets `12000` / `24000` / `48000`; independent confidence). Explicit levels use offline fixed chunk thresholds (15KB or 400 newlines → `12000`, else `none`). Auto uses `route.review` plus scoped Deno permissions in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto; depth failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
+Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). One auto Decisions call classifies **review depth** and **chunk plan** (`chunking.choice`: `none` or decimal-byte targets `12000` / `24000` / `48000`; independent confidence) from the sanitized patch and optional secret-screened routing context (`review-context.json`; reviewers still receive patch only). Explicit levels use offline fixed chunk thresholds (15KB or 400 newlines → `12000`, else `none`) and ignore context. Auto uses `route.review` plus scoped Deno permissions in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto; depth failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
 
 Each run retains the suggested depth, confidence, threshold, applied level and
 fallback reason in `metadata.json`; valid five-level probabilities are also saved
@@ -582,7 +582,7 @@ exposure is controlled by which runtime directory links the skill.
 
 ### Pi skill inventory (by category)
 
-**Review** (plain 「レビューして」 → `parallel-review` **auto** Jev level, L3 fallback):
+**Review** (plain 「レビューして」 → `parallel-review` **auto** Jev level with optional routing context, L3 fallback):
 
 単独の「レビューして」は preflight 後に `parallel-review` を即実行（Muse/Jev 送信の都度再確認不要。秘密検査・撤回/制限時の停止は従来どおり）。instructions/skills を手編集した既存 Pi セッションでは `/reload` で反映（upstream `docs/configuration.md` / `docs/skills.md`）。
 

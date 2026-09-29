@@ -11,9 +11,31 @@ description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=�
 
 **対象**: 当該ターンでユーザーが実際にレビューを依頼した run のみ（「レビューして」の引用・議論だけでは依頼にならない）。単体 reviewer や `review-report` 等を明示された場合は本節の即時 `parallel-review` ルールよりその skill を優先する。
 
-**常時許可（個人設定）**: 秘密除外・検査済み patch について、(a) **Jev**（TypeSafe / OpenRouter Decisions API、auto 時 **1 回**/run）への送信、(b) 採用 tier の **全 reviewer**（**Muse Contributor** の prompts/completions 学習利用を含む。非 ZDR）への送信、および patch/chunk/設定どおりの **リトライ**。Muse/Jev 利用の都度同意や skill 採用の確認は求めない。短い告知は可だが承認ゲートにせず返答待ちしない。
+**常時許可（個人設定）**: 秘密除外・検査済み patch について、(a) **Jev**（TypeSafe / OpenRouter Decisions API、auto 時 **1 回**/run）には **検査済み patch** と（同一 Decisions リクエストで）**検査済み・schema 検証済みの最小 routing context**（`schemaVersion: 1`、下記スキーマ）を送信してよい、(b) 採用 tier の **全 reviewer**（**Muse Contributor** の prompts/completions 学習利用を含む。非 ZDR）には **検査済み patch のみ**を送信してよい、および patch/chunk/設定どおりの **リトライ**。Muse/Jev 利用の都度同意や skill 採用の確認は求めない。短い告知は可だが承認ゲートにせず返答待ちしない。
 
-**`--approved-input`（auto CLI 必須）**: preflight 成功後、上記常時許可に基づき呼び出し側が付与する宣言。**run ごとの人間同意要求ではない**。
+**`--approved-input`（auto CLI 必須）**: preflight 成功後、**検査済み patch** と（auto で `--context-file` を渡す場合）**同じく検査済み routing context** を Jev 送信してよいと呼び出し側が宣言するフラグ。上記常時許可に基づく。**run ごとの人間同意要求ではない**。schema 検証は秘密スキャンではない; preflight の目視・除外は毎回必須。
+
+**Jev routing context（auto のみ）**: reviewer には **patch のみ**（従来どおり）。Jev auto では **skill ワークフローが `$STAGING/review-context.json` を用意し、patch と context の preflight 成功後に `--context-file` で必ず渡す**（事実ベース routing ヒント。`unknown` だけでも可）。CLI 単体では `--context-file` は **任意**（省略時は patch のみで従来互換）。いずれも `state: { patch, context? }` として **同一 Decisions リクエスト 1 回**に載せる（深さと chunk で共有）。explicit 1..5 は context を読まない・付けない。
+
+**context JSON スキーマ（`schemaVersion: 1`）**: トップレベルは **6 キー固定**（`intent`, `runtime`, `impact`, `dataAndPermissions`, `rollback`, `tests`）+ `schemaVersion` のみ。**余計なキーは拒否**。各 fact は `"unknown"` または `{ "summary", "evidence" }` のみ（ネストに余計なキー不可）。`summary` は **非空白**の JS 文字列 **1..1000 文字**。`evidence` は **1..5** 件の非空白文字列参照、各 **1..300 文字**。**参照は自動で開かない**（routing ヒント用の文字列）。`--context-file` は **通常ファイル**（regular file）に解決されること。読み取りは raw **最大 16384+1 バイト**で打ち切り、超過・非通常ファイル・UTF-8/JSON/schema 不正は **ネットワーク前**に停止する。ファイル raw UTF-8 **≤16384 バイト**、正規化後 `JSON.stringify` UTF-8 **≤16384 バイト**。検証は **ネットワーク前**（CLI / `buildJevRequestBody`）。`unknown` は「リスクなし」ではなく「未確認」。
+
+```json
+{
+  "schemaVersion": 1,
+  "intent": {
+    "summary": "Jev の深度判定に根拠付きの context を追加する",
+    "evidence": ["user request: 精度を上げるためにstateの情報を増やそう"]
+  },
+  "runtime": "unknown",
+  "impact": {
+    "summary": "Touches Jev Decisions payload only; reviewer stdin stays patch-only",
+    "evidence": ["skills/parallel-review/scripts/select_review_level.ts:797"]
+  },
+  "dataAndPermissions": "unknown",
+  "rollback": "unknown",
+  "tests": "unknown"
+}
+```
 
 **停止して確認**: 認証情報・顧客データ・雇用先機密の疑い、または Muse/Jev 送信の撤回・制限・拒否。Muse を silently 省略したり別 provider へ切り替えない。上記以外の無関係な外部 API・メール・メッセージ・hook・任意タスクへの許可拡大はしない。
 
@@ -37,7 +59,7 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 **旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。**指定なしは auto**（フォールバック L3）。
 
-**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**に対して **1 回だけ** OpenRouter Decisions API を呼び、**review 深さ**と **chunk 分割計画**を独立質問で分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPEN_ROUTER_API_KEY` のみ（`--allow-env=OPEN_ROUTER_API_KEY`）。patch は **ローカル切り詰めなし**で全文送信（API 失敗・タイムアウト時は L3 フォールバック）。`chunk_size` の選択肢は `none` / `12000` / `24000` / `48000`（10進バイト目安、12/24/48KB）。`--min-confidence`（既定 **0.7**）は各質問の **集中度しきい値**（正答確率の保証ではない）。深さと chunk は独立に検証され、一方だけ低信頼でも他方は採用されうる。API 送信前に **上記「レビュー外部送信の常時許可」の停止条件**を満たさないことを確認する。auto では preflight 成功後に `--approved-input` を付与（常時許可の反映。run ごとの人間同意ではない）。preflight は **auto でも explicit でも**同じ。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。patch 以外は送らない。**明示 1..5 のレベル選択はオフライン**（Jev / OpenRouter を呼ばない。chunk は raw バイト閾値 15KB/400 行で `fixed`）。**reviewer 実行はネットワークあり**（Pi / Antigravity 等）。ユーザーには `level` と `chunking` の `source` / `reason` / 信頼度を分けて短く伝える。
+**Jev 自動レベル（auto）**: メイン Pi セッションのモデルは変えない。`select_review_level.ts` が **検査済み patch 全体**（と任意の **検査済み routing context**）に対して **1 回だけ** OpenRouter Decisions API を呼び、**review 深さ**と **chunk 分割計画**を独立質問で分類する（chunk ごとに再実行しない。**15 秒・1 試行**の総タイムアウト）。モデル ID は `resolve-model.sh --field id route.review`（`model-roles.json` の `route.review.id`）。認証は環境変数 `OPEN_ROUTER_API_KEY` のみ（`--allow-env=OPEN_ROUTER_API_KEY`）。patch は **ローカル切り詰めなし**で全文送信（API 失敗・タイムアウト時は L3 フォールバック）。context 未指定時は従来どおり patch のみ。`chunk_size` の選択肢は `none` / `12000` / `24000` / `48000`（10進バイト目安、12/24/48KB）。`--min-confidence`（既定 **0.7**）は各質問の **集中度しきい値**（正答確率の保証ではない）。深さと chunk は独立に検証され、一方だけ低信頼でも他方は採用されうる。API 送信前に **上記「レビュー外部送信の常時許可」の停止条件**を満たさないことを確認する。auto では preflight 成功後に `--approved-input` を付与（常時許可の反映。run ごとの人間同意ではない）。preflight は **auto でも explicit でも** patch を検査し、auto で context を使う場合は **context も同様に**認証情報・顧客データ・雇用先機密が無いことを確認する。Jev は Muse とは別の TypeSafe/OpenRouter 送信先。**reviewer には patch のみ**。**明示 1..5 のレベル選択はオフライン**（Jev / OpenRouter を呼ばない。context も収集・送信しない。chunk は raw バイト閾値 15KB/400 行で `fixed`）。**reviewer 実行はネットワークあり**（Pi / Antigravity 等）。ユーザーには `level` と `chunking` の `source` / `reason` / 信頼度を分けて短く伝える。
 
 **current モデルの解決**: カタログは `{"current":true}` のみ。Pi の bash ツール呼び出しでは `PI_PROVIDER` / `PI_MODEL`（任意 `PI_REASONING_LEVEL`）が注入され、`provider/model[:reasoning]` として current reviewer になる（effort は Pi が export した値をそのまま使う。最短 latency の保証ではない）。手元スクリプトや非 Pi では `resolve-model.sh --review-level N --current-model MODEL [--current-backend pi|agy]` を明示する。L3+ は current 不要。
 
@@ -67,7 +89,7 @@ Muse Contributor は prompts/completions を学習に利用する（zero-data-re
 
 各 run の判断・採用実績はローカルに永続化し、後のモデル評価に使う。レイアウトとスキーマは [references/history-format.md](references/history-format.md) を正本とする。reviewer には assessment / 過去 snapshot を渡さない（アンカリング防止）。
 
-**深度判定の診断**: `metadata` の `createdAt` と `metadata.levelDecision`（`model` / `suggestedLevel` / `confidence` / `minConfidence` / 採用 `level` / `source` / `reason` / `patchSha256` / 任意 `chunking` / 任意 `probabilities`）が正本。Jev が返した場合のみ、任意で深さ 1..5 の **`probabilities`**（各 0..1 の有限数、5 キー完備）を同じ JSON に残す（正答率の保証ではない）。`confidence` も同様。低信頼で L3 に落ちた run も診断は残るが、**高信頼結果を得るために同じ patch で auto を再実行しない**（独立試行ではない）。同一 `patchSha256` の繰り返し run は後分析用の provenance だが統計上独立な観測とはみなさない。診断 JSON に秘密や raw API 応答を含めない。
+**深度判定の診断**: `metadata` の `createdAt` と `metadata.levelDecision`（`model` / `suggestedLevel` / `confidence` / `minConfidence` / 採用 `level` / `source` / `reason` / `patchSha256` / 任意 `contextSha256` / 任意 `chunking` / 任意 `probabilities`）が正本。auto で context を渡した場合のみ **`contextSha256`**（正規化 context の SHA-256。raw context の復元アーカイブではない）。Jev が返した場合のみ、任意で深さ 1..5 の **`probabilities`**（各 0..1 の有限数、5 キー完備）を同じ JSON に残す（正答率の保証ではない）。`confidence` も同様。低信頼で L3 に落ちた run も診断は残るが、**高信頼結果を得るために同じ patch で auto を再実行しない**（独立試行ではない）。同一 `patchSha256` の繰り返し run は後分析用の provenance だが統計上独立な観測とはみなさない。診断 JSON に秘密・raw context・raw API 応答を含めない。
 
 未完了 run（reviewer 未実行・snapshot なし）も `metadata.json` に depth 判断は残る。
 
@@ -95,7 +117,32 @@ deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME "$HISTORY" deci
 2. リポジトリ外の private staging を作る: `umask 077; STAGING=$(mktemp -d) || exit 1`（repo 内に patch や API 応答を残さない）。
 3. changed paths を取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
 4. allowed paths だけから **`$STAGING/changes.patch` を1回**生成し、秘密値・private key marker がないか目視/検索する。**Muse / Jev 送信の例外**（認証情報・顧客データ・雇用先機密の疑い、撤回・制限・拒否）があればここで停止。
-5. レベル選択（patch 全体に1回。routing 後に patch を作り直さない）:
+5. **auto のみ（skill 必須）**: 実際に確認した事実だけで `$STAGING/review-context.json` を書く（`umask 077` の staging 内）。会話全文・AGENTS ダンプ・cwd/env/VCS メタデータは入れない。スキーマは上記 **context JSON**（6 キー必須、サイズ上限、evidence 付き known fact）。テストファイルが存在するだけで「テスト合格」と書かない。preflight で context も patch と同様に秘密疑いが無いことを確認する。
+
+   最小テンプレ（未知は `unknown` のまま可。分かる項目だけ evidence 付きで埋める）:
+
+```json
+{
+  "schemaVersion": 1,
+  "intent": "unknown",
+  "runtime": "unknown",
+  "impact": "unknown",
+  "dataAndPermissions": "unknown",
+  "rollback": "unknown",
+  "tests": "unknown"
+}
+```
+
+   フィールドの意味（いずれも routing ヒント。リスクスコアや推奨レベルは書かない）:
+
+   - **intent**: ユーザーが求める変更の目的（例: バグ修正 / リファクタ / 新機能）。
+   - **runtime**: 実行環境・デプロイ面（例: Deno CLI のみ / Cloudflare Workers）。
+   - **impact**: 影響範囲（例: parallel-review の Jev 入力のみ）。
+   - **dataAndPermissions**: データ・権限境界（確認できた事実のみ。根拠なしの「新規外部送信なし」は書かない）。
+   - **rollback**: 戻し手順の事実（例: 触ったファイルと revert 単位）。根拠のない「安全に戻せる」断言は書かない。
+   - **tests**: 実行済み検証（例: 実行した `deno test …` と結果）。未実行なら `unknown`。
+
+6. レベル選択（patch 全体に1回。routing 後に patch を作り直さない）:
 
 ```bash
 level_args=(--input "$STAGING/changes.patch" --level "$REQUESTED_LEVEL")
@@ -105,7 +152,7 @@ if [[ "$REQUESTED_LEVEL" == "auto" ]]; then
 		echo "route.review model resolution failed; auto will fall back to L3 if helper runs" >&2
 		jev_model=''
 	fi
-	level_args+=(--approved-input)
+	level_args+=(--approved-input --context-file "$STAGING/review-context.json")
 	if [[ -n "$jev_model" ]]; then
 		level_args+=(--model "$jev_model")
 	fi
@@ -125,7 +172,7 @@ CHUNK_CHOICE=$(printf '%s' "$LEVEL_DECISION_JSON" | jq -er '.chunking.choice') |
 
 明示 `LEVEL=1..5` のレベル選択はネットワーク不要。auto で `route.review` 解決失敗時は `--model` 省略 → helper が `missing_model` で L3 フォールバック（明示指定はブロックしない）。
 
-6. 履歴 init（**決定済み numeric `LEVEL` のみ**を metadata に保存）:
+7. 履歴 init（**決定済み numeric `LEVEL` のみ**を metadata に保存）:
 
 ```bash
 umask 077
@@ -142,9 +189,9 @@ REVIEW_DIR=$(deno run --no-config --allow-read --allow-write \
 install -m 600 "$STAGING/changes.patch" "$REVIEW_DIR/changes.patch" || exit 1
 ```
 
-7. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
-8. **外部 reviewer 送信**: 全 tier に Muse Contributor が含まれる。**「レビュー外部送信の常時許可」節**（Muse 学習利用・Jev・その他採用 reviewer）に従う。再確認不要。停止条件は同節。
-9. 解決済み reviewer 一覧を **1 run 1 回だけ** `$REVIEW_DIR/reviewers.tsv` に保存する（`resolve-model.sh --review-level "$LEVEL"`）。L1/L2 で runtime current が必要な場合、Pi の `PI_PROVIDER`/`PI_MODEL` または `--current-model` が無いと resolver が失敗し **停止**（別 tier へ silently 切替えない）。
+8. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
+9. **外部 reviewer 送信**: 全 tier に Muse Contributor が含まれる。**「レビュー外部送信の常時許可」節**（Muse 学習利用・Jev・その他採用 reviewer）に従う。再確認不要。停止条件は同節。
+10. 解決済み reviewer 一覧を **1 run 1 回だけ** `$REVIEW_DIR/reviewers.tsv` に保存する（`resolve-model.sh --review-level "$LEVEL"`）。L1/L2 で runtime current が必要な場合、Pi の `PI_PROVIDER`/`PI_MODEL` または `--current-model` が無いと resolver が失敗し **停止**（別 tier へ silently 切替えない）。
 
 ```text
 供給された patch だけを厳格にコードレビューする。リポジトリ内の別ファイルや秘密ファイルは読まない。
