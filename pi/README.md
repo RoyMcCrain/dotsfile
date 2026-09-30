@@ -122,6 +122,9 @@ caller-vs-fixed dedupe; L3–L5 fixed six rows)
 caller from `PI_PROVIDER`/`PI_MODEL` (optional `PI_REASONING_LEVEL`) or `--current-model`
 /`--current-backend`; explicit flags override Pi env. All tiers include Muse Contributor
 :high with tier timeout budgets (not the standalone 120s).
+Parallel-review Codex slots: L3 uses **GPT-6.1 Sol** (`:xhigh`); L4 and L5 use **GPT-6 Astra**
+(`:max`). Standalone `codex-review` and role `review.codex` stay on Astra (`:high`); `codex.default`
+remains Astra. L1/L2 still review with the runtime caller model, not a fixed Codex tier id.
 Install the Antigravity `patch-reviewer` agent via setup scripts before using the agy runner.
 
 `enabledModels` controls Pi's Ctrl+P cycling choices (configured with

@@ -8,6 +8,8 @@
     "anthropic/claude-opus-5-5:max",
     "openai-codex/gpt-6-astra:xhigh",
     "openai-codex/gpt-6-astra:max",
+    "openai-codex/gpt-6.1-sol:xhigh",
+    "openai-codex/gpt-6.1-sol:max",
     "sakana-ai-console/fugu-max:high",
     "sakana-ai-console/fugu-ultra-v2.0:high",
     "opencode-go/*"
@@ -84,7 +86,7 @@
     ],
     "3": [
       { "pi": "xai/grok-4.7" },
-      { "pi": "openai-codex/gpt-6-astra:xhigh" },
+      { "pi": "openai-codex/gpt-6.1-sol:xhigh" },
       { "pi": "anthropic/claude-opus-5-5:high" },
       { "role": "review.antigravity" },
       { "pi": "sakana-ai-console/fugu-max:high" },

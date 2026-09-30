@@ -1,6 +1,6 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-6-astra",
+  "defaultModel": "gpt-6.1-sol",
   "defaultThinkingLevel": "xhigh",
   "enabledModels": [
     "xai/grok-4.7",
@@ -10,6 +10,8 @@
     "anthropic/claude-opus-5-5:max",
     "openai-codex/gpt-6-astra:xhigh",
     "openai-codex/gpt-6-astra:max",
+    "openai-codex/gpt-6.1-sol:xhigh",
+    "openai-codex/gpt-6.1-sol:max",
     "sakana-ai-console/fugu-max:high",
     "sakana-ai-console/fugu-ultra-v2.0:high",
     "opencode-go/*"
@@ -35,6 +37,6 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.87.1",
+  "lastChangelogVersion": "0.99.1",
   "packages": []
 }
