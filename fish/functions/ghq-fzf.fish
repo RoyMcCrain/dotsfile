@@ -14,7 +14,7 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
     # (fd スキャン ~0.15s。ghq list は使わない)
     set -l marker_file (mktemp)
     fd -H -t d -t f -d 5 '^\.(git|jj)$' $ghq_root 2>/dev/null | string trim -r -c / | sort >$marker_file
-    set -l sig (shasum $marker_file | string split -f1 ' ')
+    set -l sig "2:"(shasum $marker_file | string split -f1 ' ')
     if not test -d "$cache_dir"
         mkdir -p $cache_dir
     end
@@ -58,7 +58,7 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
             printf "%s\t%s\n" $ws_path $parent_path >>$jj_parent_file
         end <$marker_file >$jj_file
 
-        # マーカー由来のリポジトリ + jj workspace をマージし、jj workspace を親の直後にソート
+        # 通常リポジトリを先、linked jj workspace を後にまとめてソート
         begin
             cat $repos_file
             cat $jj_file
@@ -75,17 +75,15 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
             short = path
             sub(ghq_root "/", "", short)
 
-            # jj workspace の場合、親のパスをソートキーにする
             if (path in ws_parent) {
                 parent = ws_parent[path]
                 parent_short = parent
                 sub(ghq_root "/", "", parent_short)
-                # ソートキー: 親のパス + /~ + workspace名で親の直後に来るようにする
                 n = split(short, parts, "/")
                 ws_name = parts[n]
-                print parent_short " " ws_name "\t" path "\t" parent
+                print "1 " parent_short " " ws_name "\t" path "\t" parent
             } else {
-                print short "\t" path "\t"
+                print "0 " short "\t" path "\t"
             }
         }
         ' | sort -t\t -k1,1 | awk -F'\t' '!seen[$2]++ {print $2 "\t" $3}' | awk -F'\t' -v ghq_root="$ghq_root" -v jj_file="$jj_file" '
@@ -102,6 +100,14 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
                 host = parts[1]
                 owner = parts[2]
                 repo = parts[3]
+                is_ws = (line in jj_ws && parent != "")
+                section = (is_ws ? "jj workspaces" : "Repositories")
+                if (section != prev_section) {
+                    printf "\033[3;36m── %s ──────────────────────\033[0m\n", section
+                    prev_section = section
+                    prev_host = ""
+                    prev_owner = ""
+                }
 
                 if (host != prev_host) {
                     printf "\033[3;36m── %s ──────────────────────\033[0m\n", host
@@ -113,8 +119,7 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
                     prev_owner = owner
                 }
 
-                if (line in jj_ws && parent != "") {
-                    # 親リポジトリ名/workspace名 で表示
+                if (is_ws) {
                     parent_short = parent
                     sub(ghq_root "/", "", parent_short)
                     pn = split(parent_short, pp, "/")
@@ -138,7 +143,7 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
         set preview_command "ls -l"
     end
 
-    set -l src (cat $cache_file | fzf --ansi --color=fg:-1 --with-nth=1 --nth=1 --delimiter='\t' --preview "$preview_command $ghq_root/{2}")
+    set -l src (cat $cache_file | fzf --ansi --no-sort --color=fg:-1 --with-nth=1 --nth=1 --delimiter='\t' --preview "$preview_command $ghq_root/{2}")
 
     if test -n "$src"
         set -l path (string split \t $src)[2]
