@@ -5,7 +5,7 @@ description: Pi headless（xAI Grok 4.7）で120秒上限の単体コードレ�
 
 # /grok-review
 
-xAI Grok 4.7 を、再帰起動しない隔離済み Pi headless で実行する。`parallel-review` でも Grok は全レベルに含まれるが、Grok 単体を明示指定された場合はこの skill を使う。
+xAI Grok 4.7 を、再帰起動しない隔離済み Pi headless で実行する。`parallel-review` でも Grok は L3+ に含まれるが、Grok 単体を明示指定された場合はこの skill を使う。
 
 ## 手順
 
@@ -15,13 +15,17 @@ xAI Grok 4.7 を、再帰起動しない隔離済み Pi headless で実行する
 ```bash
 RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
 TIMEOUT=$("$HOME/.pi/agent/resolve-model.sh" --field timeout review.grok 2>/dev/null || echo 120)
+mkdir -p "$REVIEW_DIR/logs"
 "$RUNNER" \
   --role review.grok \
   --prompt "$REVIEW_DIR/prompt.md" \
   --input "$REVIEW_DIR/changes.patch" \
   --cwd "$REVIEW_DIR" \
-  --timeout "$TIMEOUT"
+  --timeout "$TIMEOUT" \
+  --events-log "$REVIEW_DIR/logs/grok.events.jsonl"
 ```
+
+`--events-log` は Grok timeout 診断用の metadata-only JSONL（本文・patch・資格情報は記録しない）。runner 側で `deno` と `jq` が必須。stdout は従来どおり reviewer 最終テキストのみ。
 
 ## 制約
 

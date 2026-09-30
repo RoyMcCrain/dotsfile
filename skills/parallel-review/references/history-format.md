@@ -13,6 +13,7 @@
   logs/
     <execution-id>.stdout.log
     <execution-id>.stderr.log
+    <execution-id>.events.jsonl   # 任意: Pi 診断 sidecar（metadata-only、0600）
   executions/
     <execution-id>.json  # 実行メタデータ（開始前 running → 完了後 exitCode）
   chunks/                # 分割時のみ
@@ -58,6 +59,18 @@ SKILL.md の統合節から `$REVIEW_DIR/assessment.json` を書き、上記 sav
 | `stdoutLog` / `stderrLog` | ✓ | run dir 相対ログパス |
 
 `status=completed` は `endedAt` と `exitCode` の両方が必要。`running`/`pending` は final フィールドを持てない。timeout は `124`。
+
+### logs/<execution-id>.events.jsonl（Pi のみ・診断）
+
+Pi backend が `--events-log` 付き runner で生成する **任意** JSONL。provenance snapshot の入力・ハッシュ対象外（canonical 履歴ではない）。
+
+- 1 execution あたり 1 ファイル。retry attempt は同一ファイルに `attempt` フィールド（1 始まり）で追記。
+- 行の種類:
+  - `attempt_start` / `attempt_exit` — runner が jq で追記。`timestampMs`（Unix ms・数値）と `attempt`（数値）を含む。`attempt_exit` には実際の終了コード（timeout は `124`）も含む。
+  - `pi_event` — Deno helper が Pi JSON 行から抽出。`timestampMs` / `elapsedMs` は数値。`streamCategory` の `assistant_stream_start` は **assistant `message_start` の到達 proxy** であり、生 HTTP の TTFT や provider 内部計測ではない。
+- `pi_event` の allowlist メタデータ: 正規化済み Pi `eventType` / `role` / `assistantMessageEventType`、`deltaChars`、allowlist 数値 `usage`（`input` / `output` / `cacheRead` / `cacheWrite` / `cacheWrite1h` / `reasoning` / `totalTokens` と、ネスト `cost` の `input` / `output` / `cacheRead` / `cacheWrite` / `total` のみ）、正規化済み `stopReason`、`streamCategory`。
+- prompt / patch / delta 本文 / 完全 message / 資格情報 / 環境は **含めない**。
+- ファイル mode `0600`。親 skill が `logs/` を用意し、runner が存在チェック後に新規作成する。
 
 完了済み execution の record とファイル SHA-256 は後続 snapshot で不変。未完了なら `pending` → `running` → `completed`（`pending` → `completed` も可）へ進める。逆戻りは不可。
 

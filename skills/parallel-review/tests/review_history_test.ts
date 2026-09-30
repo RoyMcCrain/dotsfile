@@ -2100,19 +2100,25 @@ Deno.test("SKILL bash loop integration with fake resolver and runner", async () 
     );
 
     const fakeRunner = join(bin, "run_pi_review.sh");
+    const piEventsFlagLog = join(work, "pi-events-args.log");
     await writeFile(
       fakeRunner,
       `#!/usr/bin/env bash
 set -euo pipefail
 model=""
 input=""
+events_log=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --model) model="$2"; shift 2 ;;
     --input) input="$2"; shift 2 ;;
+    --events-log) events_log="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
+if [[ -n "$events_log" ]]; then
+  printf '%s\\n' "$events_log" >>${JSON.stringify(piEventsFlagLog)}
+fi
 case "$model" in
   provider/model-a:high) echo "review-a-$(basename "$input")"; exit 0 ;;
   provider/model-b:high) echo "review-b-$(basename "$input") timed out" >&2; exit 124 ;;
@@ -2123,7 +2129,26 @@ esac
     );
 
     const fakeAgy = join(bin, "run_antigravity_review.sh");
-    await symlink(fakeRunner, fakeAgy);
+    const agyEventsFlagLog = join(work, "agy-events-args.log");
+    await writeFile(
+      fakeAgy,
+      `#!/usr/bin/env bash
+set -euo pipefail
+model=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --model) model="$2"; shift 2 ;;
+    --events-log) echo "$2" >>${JSON.stringify(agyEventsFlagLog)}; shift 2 ;;
+    *) shift ;;
+  esac
+done
+case "$model" in
+  provider/model-b:high) echo "review-b timed out" >&2; exit 124 ;;
+  *) echo "review-agy"; exit 0 ;;
+esac
+`,
+      { mode: 0o755 },
+    );
 
     const initOut = await runCli([
       "init",
@@ -2216,6 +2241,17 @@ ${loopSnippet}
 
     const c002Run = await runChunk("c002", "chunks/chunk-002.patch");
     assert.equal(c002Run.code, 0, c002Run.stderr);
+
+    const piEventsArgs = await readFile(piEventsFlagLog, "utf8").catch(() =>
+      ""
+    );
+    assert.match(piEventsArgs, /whole-r01\.events\.jsonl/);
+    assert.match(piEventsArgs, /c001-r01\.events\.jsonl/);
+    assert.doesNotMatch(piEventsArgs, /whole-r02/);
+    const agyEventsArgs = await readFile(agyEventsFlagLog, "utf8").catch(() =>
+      ""
+    );
+    assert.equal(agyEventsArgs.trim(), "");
 
     for (
       const execId of [
