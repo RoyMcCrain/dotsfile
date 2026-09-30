@@ -10,6 +10,9 @@ import {
 export const SCHEMA_VERSION = 1;
 export const DEFAULT_MIN_CONFIDENCE = 0.7;
 export const CLI_TIMEOUT_MS = 15_000;
+const HTTP_ERROR_MAX_RETRIES = 3;
+const HTTP_ERROR_BACKOFF_MS = [250, 500, 1000] as const;
+const MAX_SET_TIMEOUT_MS = 2 ** 31 - 1;
 export const RESPONSE_MAX_BYTES = 64 * 1024;
 export const JEV_ENDPOINT = "https://openrouter.ai/api/alpha/decisions";
 
@@ -1048,6 +1051,83 @@ const isAbortError = (error: unknown, signal: AbortSignal): boolean => {
   return false;
 };
 
+const RETRY_AFTER_HTTP_DATE_IMF_RE =
+  /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/i;
+const RETRY_AFTER_HTTP_DATE_RFC850_RE =
+  /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \d{2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2} \d{2}:\d{2}:\d{2} GMT$/i;
+const RETRY_AFTER_HTTP_DATE_ASCTIME_RE =
+  /^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (?: [1-9]|\d{2}) \d{2}:\d{2}:\d{2} \d{4}$/i;
+
+const isRetryAfterHttpDate = (value: string): boolean =>
+  RETRY_AFTER_HTTP_DATE_IMF_RE.test(value) ||
+  RETRY_AFTER_HTTP_DATE_RFC850_RE.test(value) ||
+  RETRY_AFTER_HTTP_DATE_ASCTIME_RE.test(value);
+
+const parseRetryAfterDelayMs = (
+  header: string | null,
+  nowMs: number,
+): number | undefined => {
+  if (header === null) return undefined;
+  const trimmed = header.trim();
+  if (trimmed === "") return undefined;
+  if (/^\d+$/.test(trimmed)) {
+    const delayMs = Number(trimmed) * 1000;
+    if (!Number.isFinite(delayMs)) return undefined;
+    return delayMs;
+  }
+  if (!isRetryAfterHttpDate(trimmed)) return undefined;
+  const dateText = RETRY_AFTER_HTTP_DATE_ASCTIME_RE.test(trimmed)
+    ? `${trimmed} GMT`
+    : trimmed;
+  const when = Date.parse(dateText);
+  if (Number.isNaN(when)) return undefined;
+  return Math.max(0, when - nowMs);
+};
+
+const sleepAbortableMs = (
+  ms: number,
+  signal: AbortSignal,
+  deadlineMs: number,
+): Promise<void> => {
+  if (signal.aborted) {
+    return Promise.reject(new DOMException("Aborted", "AbortError"));
+  }
+  const remaining = deadlineMs - Date.now();
+  if (remaining <= 0) {
+    return Promise.reject(new DOMException("Aborted", "AbortError"));
+  }
+  if (ms > remaining) {
+    return Promise.reject(new Error("retry wait exceeds deadline"));
+  }
+  const delay = Math.min(ms, MAX_SET_TIMEOUT_MS);
+  if (delay <= 0) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delay);
+    signal.addEventListener("abort", onAbort);
+  });
+};
+
+const resolveHttpRetryDelayMs = (
+  response: Response,
+  attempt: number,
+): number => {
+  const parsed = parseRetryAfterDelayMs(
+    response.headers.get("Retry-After"),
+    Date.now(),
+  );
+  if (parsed !== undefined) return parsed;
+  return HTTP_ERROR_BACKOFF_MS[attempt] ?? HTTP_ERROR_BACKOFF_MS.at(-1)!;
+};
+
 const classifyTransportError = (
   error: unknown,
   signal: AbortSignal,
@@ -1138,6 +1218,7 @@ export const selectAutoLevel = async (options: {
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? CLI_TIMEOUT_MS;
   const controller = new AbortController();
+  const deadlineMs = Date.now() + timeoutMs;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response | undefined;
   let responseBodyDone = false;
@@ -1149,8 +1230,9 @@ export const selectAutoLevel = async (options: {
   };
 
   try {
+    let requestInit: RequestInit;
     try {
-      response = await fetchImpl(JEV_ENDPOINT, {
+      requestInit = {
         method: "POST",
         redirect: "error",
         signal: controller.signal,
@@ -1159,61 +1241,92 @@ export const selectAutoLevel = async (options: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(
-          buildJevRequestBody(
-            options.model,
-            options.patchText,
-            reviewContext,
-          ),
+          buildJevRequestBody(options.model, options.patchText, reviewContext),
         ),
-      });
+      };
     } catch (error) {
       return fb(classifyTransportError(error, controller.signal));
     }
 
-    if (!response.ok) {
-      await finishResponse();
-      return fb("http_error");
-    }
+    for (let attempt = 0; attempt <= HTTP_ERROR_MAX_RETRIES; attempt++) {
+      if (controller.signal.aborted) {
+        return fb("timeout");
+      }
 
-    let bodyBytes: Uint8Array;
-    try {
-      bodyBytes = await readBodyBounded(
-        response,
-        RESPONSE_MAX_BYTES,
-        controller.signal,
+      response = undefined;
+      responseBodyDone = false;
+
+      try {
+        response = await fetchImpl(JEV_ENDPOINT, requestInit);
+      } catch (error) {
+        return fb(classifyTransportError(error, controller.signal));
+      }
+
+      if (!response.ok) {
+        await finishResponse();
+        if (controller.signal.aborted) {
+          return fb("timeout");
+        }
+        if (attempt < HTTP_ERROR_MAX_RETRIES) {
+          const waitMs = resolveHttpRetryDelayMs(response, attempt);
+          try {
+            await sleepAbortableMs(waitMs, controller.signal, deadlineMs);
+          } catch (error) {
+            if (isAbortError(error, controller.signal)) {
+              return fb("timeout");
+            }
+            return fb("http_error");
+          }
+          if (controller.signal.aborted) {
+            return fb("timeout");
+          }
+          continue;
+        }
+        return fb("http_error");
+      }
+
+      let bodyBytes: Uint8Array;
+      try {
+        bodyBytes = await readBodyBounded(
+          response,
+          RESPONSE_MAX_BYTES,
+          controller.signal,
+        );
+        responseBodyDone = true;
+      } catch (error) {
+        await finishResponse();
+        return fb(classifyTransportError(error, controller.signal));
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(new TextDecoder().decode(bodyBytes));
+      } catch {
+        return fb("invalid_json");
+      }
+
+      const jev = parseJevResponse(parsed, minConfidence);
+      if (jev.kind === "envelope_reject") {
+        return fb(jev.reason);
+      }
+      const depthDecision = withOptionalContextSha256(
+        resolveDepthDecision(jev.depth, {
+          patchSha256,
+          minConfidence,
+          model: jev.model,
+          costUsd: jev.costUsd,
+        }),
+        contextSha256,
       );
-      responseBodyDone = true;
-    } catch (error) {
-      await finishResponse();
-      return fb(classifyTransportError(error, controller.signal));
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(new TextDecoder().decode(bodyBytes));
-    } catch {
-      return fb("invalid_json");
-    }
-
-    const jev = parseJevResponse(parsed, minConfidence);
-    if (jev.kind === "envelope_reject") {
-      return fb(jev.reason);
-    }
-    const depthDecision = withOptionalContextSha256(
-      resolveDepthDecision(jev.depth, {
-        patchSha256,
+      const chunking = resolveChunkDecision(jev.chunk, {
+        patchBytes,
         minConfidence,
         model: jev.model,
-        costUsd: jev.costUsd,
-      }),
-      contextSha256,
-    );
-    const chunking = resolveChunkDecision(jev.chunk, {
-      patchBytes,
-      minConfidence,
-      model: jev.model,
-    });
-    return { ...depthDecision, chunking };
+      });
+      return { ...depthDecision, chunking };
+    }
+
+    return fb("http_error");
   } finally {
     clearTimeout(timer);
     controller.abort();
@@ -1311,8 +1424,11 @@ Flags:
   --context-file    Optional evidence-backed routing context for auto (ignored for explicit 1..5)
 
 Explicit numeric levels hash raw patch bytes offline; no OPEN_ROUTER_API_KEY or network.
-Auto requires --approved-input, one OpenRouter Decisions call (15s total timeout),
-full UTF-8 patch sent (no local request truncation), response body <= 64KiB.
+Auto requires --approved-input, one routing Decisions operation per run (initial
+HTTP attempt plus up to ${HTTP_ERROR_MAX_RETRIES} http_error-only retries with
+250ms/500ms/1s default waits or Retry-After when present; abortable waits share
+the 15s total timeout/deadline across attempts), full UTF-8 patch sent (no local
+request truncation), response body <= 64KiB.
 Optional --context-file adds normalized context to the Jev state only (not reviewers).
 Same request classifies review depth and chunk_size (none|12000|24000|48000 decimal bytes).
 Stdout: JSON level decision with optional chunking and optional contextSha256. Errors on stderr.
