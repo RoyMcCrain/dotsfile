@@ -274,7 +274,12 @@ for entry in "${reviewers[@]}"; do
 
 	stdout_log="logs/${exec_id}.stdout.log"
 	stderr_log="logs/${exec_id}.stderr.log"
+	events_log="logs/${exec_id}.events.jsonl"
 	if [[ -e "$REVIEW_DIR/$stdout_log" || -e "$REVIEW_DIR/$stderr_log" ]]; then
+		echo "output log already exists: $exec_id" >&2
+		exit 1
+	fi
+	if [[ "$backend" == "pi" && (-e "$REVIEW_DIR/$events_log" || -L "$REVIEW_DIR/$events_log") ]]; then
 		echo "output log already exists: $exec_id" >&2
 		exit 1
 	fi
@@ -315,12 +320,14 @@ for entry in "${reviewers[@]}"; do
 		;;
 	esac
 
+	runner_args=(--model "$model" --prompt "$REVIEW_DIR/prompt.md" --input "$REVIEW_DIR/$CHUNK_FILE"
+		--cwd "$REVIEW_DIR" --timeout "$timeout" --retry-timeout "$retry_timeout" --attempts "$attempts")
+	if [[ "$backend" == "pi" ]]; then
+		runner_args+=(--events-log "$REVIEW_DIR/$events_log")
+	fi
 	(
 		status=0
-		"$runner" --model "$model" \
-			--prompt "$REVIEW_DIR/prompt.md" --input "$REVIEW_DIR/$CHUNK_FILE" \
-			--cwd "$REVIEW_DIR" --timeout "$timeout" --retry-timeout "$retry_timeout" \
-			--attempts "$attempts" >"$REVIEW_DIR/$stdout_log" 2>"$REVIEW_DIR/$stderr_log" </dev/null || status=$?
+		"$runner" "${runner_args[@]}" >"$REVIEW_DIR/$stdout_log" 2>"$REVIEW_DIR/$stderr_log" </dev/null || status=$?
 		ended_at=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 		tmp="$REVIEW_DIR/executions/.${exec_id}.json.tmp"
 		jq \
@@ -347,7 +354,13 @@ if ((failures > 0)); then
 fi
 ```
 
-Pi runner は一時設定で retry を止め、CLI で skill / context / extension / tools を無効化した patch-only を強制する。Antigravity runner は prompt + patch を stdin NDJSON で inline 供給し、空の一時 cwd から `agy --agent patch-reviewer` を起動する（`--cwd` はインターフェース互換の検証のみ）。timeout 時はプロセスグループを終了して exit 124。runner 内部の retry は stdout/stderr に混在するため、**実測 attempt 数は記録しない**（`maxAttempts=2` は設定のみ）。
+Pi runner は一時設定で retry を止め、CLI で skill / context / extension / tools を無効化した patch-only を強制する。Pi backend のみ `--events-log logs/<execution-id>.events.jsonl` を渡す（`deno` + `jq` 必須）。
+
+events sidecar は **メタデータのみ**（正規化イベント種別・stream phase・allowlist 数値 usage・attempt 別 `elapsedMs`）。生 JSON・prompt/patch・delta 本文・資格情報は書かない。ファイルは runner が retry 前に `0600` で一度だけ新規作成し、各 attempt の watchdog 実行前に `attempt_start`、終了後に `attempt_exit`（いずれも数値 `timestampMs`）を jq で追記する。timeout 前でも観測済み行は保存される。snapshot / execution schema には含めない（診断用）。
+
+Antigravity runner は prompt + patch を stdin NDJSON で inline 供給し、空の一時 cwd から `agy --agent patch-reviewer` を起動する（`--cwd` はインターフェース互換の検証のみ）。timeout 時はプロセスグループを終了して exit 124。canonical execution metadata には実測 attempt 数を記録しない（`maxAttempts=2` は設定のみ）。
+
+`assistant_stream_start`（`pi_event.streamCategory`）は assistant `message_start` 到達の proxy であり、生 HTTP TTFT ではない。`usage` / ネスト `cost` は SDK allowlist キーのみ記録する。
 
 `endedAt` は各 reviewer 子プロセスが runner から戻った直後の時刻であり、他 reviewer の `wait` 完了時刻ではない。子は runner 失敗でも metadata 更新に成功すれば exit 0、更新失敗時のみ nonzero。親は全 `wait` 後に finalize 失敗を集計して停止する。
 

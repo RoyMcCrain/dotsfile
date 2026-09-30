@@ -19,6 +19,7 @@ setup() {
 	ENV_LOG="$TEST_ROOT/env.json"
 	CHILD_PID="$TEST_ROOT/child.pid"
 	ATTEMPT_LOG="$TEST_ROOT/attempts.log"
+	EVENTS_LOG="$TEST_ROOT/review.events.jsonl"
 
 	printf '%s\n' 'Review this patch' >"$PROMPT"
 	printf '%s\n' 'diff --git a/a b/a' >"$PATCH"
@@ -42,7 +43,15 @@ if [[ -n "${FAKE_PI_ATTEMPT_LOG:-}" ]]; then
 	printf '%s\n' "$attempt" >>"$FAKE_PI_ATTEMPT_LOG"
 fi
 
-printf '%s\n' "$@" | jq -R . | jq -s . >"$FAKE_PI_ARGS"
+	printf '%s\n' "$@" | jq -R . | jq -s . >"$FAKE_PI_ARGS"
+
+json_mode=0
+for ((i = 1; i <= $#; i++)); do
+	next=$((i + 1))
+	if [[ "${!i}" == "--mode" && $next -le $# && "${!next}" == "json" ]]; then
+		json_mode=1
+	fi
+done
 
 config="$PI_CODING_AGENT_DIR"
 retry_enabled=$(jq '.retry.enabled' "$config/settings.json")
@@ -81,6 +90,40 @@ if [[ -n "${FAKE_PI_EXIT_SEQUENCE:-}" ]]; then
 	fi
 fi
 
+flush_json_stdout() {
+	if command -v perl >/dev/null 2>&1; then
+		perl -e 'select((select(STDOUT), $| = 1)[0])' 2>/dev/null || true
+	fi
+}
+
+json_emit() {
+	if command -v perl >/dev/null 2>&1; then
+		perl -e '$|=1; print $ARGV[0], "\n"' "$1"
+	else
+		printf '%s\n' "$1"
+		flush_json_stdout
+	fi
+}
+
+if ((json_mode == 1)); then
+	stop_reason="${FAKE_PI_JSON_STOP_REASON:-stop}"
+	final_text="${FAKE_PI_JSON_TEXT:-review complete}"
+	json_emit '{"type":"message_start","message":{"role":"assistant"}}'
+	json_emit '{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","delta":"SECRET-thought"}}'
+	if [[ -n "${FAKE_PI_JSON_DELAY:-}" ]]; then
+		sleep "$FAKE_PI_JSON_DELAY"
+	fi
+	json_emit '{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"partial "}}'
+	json_emit "{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\",\"stopReason\":\"${stop_reason}\",\"usage\":{\"input\":1,\"output\":2,\"extraLeak\":\"drop\"},\"content\":[{\"type\":\"text\",\"text\":\"${final_text}\"}]}}"
+	if [[ -n "${FAKE_PI_JSON_TAIL_SLEEP:-}" ]]; then
+		sleep "$FAKE_PI_JSON_TAIL_SLEEP" &
+		child=$!
+		printf '%s\n' "$child" >"$FAKE_PI_CHILD_PID"
+		sleep "$FAKE_PI_JSON_TAIL_SLEEP"
+	fi
+	exit "$exit_code"
+fi
+
 printf '%s\n' 'review complete'
 exit "$exit_code"
 EOF
@@ -92,6 +135,7 @@ runner_command() {
 	local retry_timeout=''
 	local model="provider/model:medium"
 	local attempts=1
+	local events_log=''
 	local -a inputs=()
 
 	if (($# >= 2)); then
@@ -108,6 +152,10 @@ runner_command() {
 		--retry-timeout)
 			shift
 			retry_timeout=$1
+			;;
+		--events-log)
+			shift
+			events_log=$1
 			;;
 		*)
 			inputs+=("$1")
@@ -128,6 +176,9 @@ runner_command() {
 	if [[ -n "$retry_timeout" ]]; then
 		cmd+=(--retry-timeout "$retry_timeout")
 	fi
+	if [[ -n "$events_log" ]]; then
+		cmd+=(--events-log "$events_log")
+	fi
 	printf '%s\0' "${cmd[@]}"
 }
 
@@ -137,8 +188,18 @@ apply_runner_env() {
 	export FAKE_PI_ENV="$ENV_LOG"
 	export FAKE_PI_CHILD_PID="$CHILD_PID"
 	export FAKE_PI_ATTEMPT_LOG="$ATTEMPT_LOG"
-	unset FAKE_PI_SLEEP FAKE_PI_SLEEP_ATTEMPTS FAKE_PI_EXIT FAKE_PI_EXIT_SEQUENCE FAKE_PI_SIGNAL_PARENT MODEL_RESOLVER
-	rm -f "$ATTEMPT_LOG"
+	unset FAKE_PI_SLEEP FAKE_PI_SLEEP_ATTEMPTS FAKE_PI_EXIT FAKE_PI_EXIT_SEQUENCE FAKE_PI_SIGNAL_PARENT FAKE_PI_JSON_STOP_REASON FAKE_PI_JSON_TEXT FAKE_PI_JSON_DELAY FAKE_PI_JSON_TAIL_SLEEP MODEL_RESOLVER
+	rm -f "$ATTEMPT_LOG" "$EVENTS_LOG"
+}
+
+file_mode_octal() {
+	local path="$1"
+	local perms
+	if perms=$(stat -f '%OLp' "$path" 2>/dev/null); then
+		printf '%s\n' "$perms"
+		return 0
+	fi
+	stat -c '%a' "$path"
 }
 
 run_runner() {
@@ -688,6 +749,278 @@ EOF
 	run_runner
 	[ "$status" -eq 0 ]
 	[ "$(wc -l <"$ATTEMPT_LOG" | tr -d ' ')" -eq 1 ]
+}
+
+@test "without --events-log keeps text mode and omits --mode json" {
+	run_runner
+	[ "$status" -eq 0 ]
+	jq -e 'index("--mode") | not' "$ARGS_LOG" >/dev/null
+}
+
+@test "--events-log writes metadata-only events and preserves stdout text" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/review events.jsonl"
+	EVENTS_LOG=$(resolve_test_path "$EVENTS_LOG")
+	apply_runner_env
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *review\ complete* ]]
+	jq -e 'index("--mode")' "$ARGS_LOG" >/dev/null
+	jq -e '.[index("--mode") + 1] == "json"' "$ARGS_LOG" >/dev/null
+	[ -f "$EVENTS_LOG" ]
+	rg -q 'thinking_started' "$EVENTS_LOG"
+	rg -q 'attempt_start' "$EVENTS_LOG"
+	rg -q 'attempt_exit' "$EVENTS_LOG"
+	run rg -q 'SECRET-thought' "$EVENTS_LOG"
+	[ "$status" -eq 1 ]
+	run rg -q 'review complete' "$EVENTS_LOG"
+	[ "$status" -eq 1 ]
+}
+
+@test "--events-log creates mode 600 file" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/mode.events.jsonl"
+	apply_runner_env
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	perms=$(file_mode_octal "$EVENTS_LOG")
+	[ "$perms" = "600" ]
+}
+
+@test "--events-log rejects pre-existing output file before fake pi runs" {
+	apply_runner_env
+	EVENTS_LOG="$TEST_ROOT/logs/exists.events.jsonl"
+	mkdir -p "$TEST_ROOT/logs"
+	printf '%s\n' '{}' >"$EVENTS_LOG"
+
+	run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT" --events-log "$EVENTS_LOG"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *already\ exists* ]]
+	[ ! -f "$ARGS_LOG" ]
+}
+
+@test "--events-log rejects dangling symlink output before fake pi runs" {
+	apply_runner_env
+	EVENTS_LOG="$TEST_ROOT/logs/link.events.jsonl"
+	mkdir -p "$TEST_ROOT/logs"
+	ln -s /no/such/events.jsonl "$EVENTS_LOG"
+
+	run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT" --events-log "$EVENTS_LOG"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *already\ exists* ]]
+	[ ! -f "$ARGS_LOG" ]
+}
+
+@test "--events-log rejects secret-shaped output path" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/.env.events.jsonl"
+	apply_runner_env
+
+	run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT" --events-log "$EVENTS_LOG"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *secret\ events\ log* ]]
+	[ ! -f "$ARGS_LOG" ]
+}
+
+@test "--events-log records progress before timeout" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/timeout.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_JSON_DELAY=5
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 2 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -eq 124 ]
+	rg -q 'assistant_stream_start' "$EVENTS_LOG"
+	rg -q '"attempt":1' "$EVENTS_LOG"
+	rg -q 'attempt_start' "$EVENTS_LOG"
+	rg -q '"exitCode":124' "$EVENTS_LOG"
+}
+
+@test "--events-log appends attempt 1 and 2 with attempt_exit records" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/retry.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_EXIT_SEQUENCE="7,0"
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --attempts 2 --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	[ "$(rg -c 'attempt_exit' "$EVENTS_LOG")" -eq 2 ]
+	[ "$(rg -c 'attempt_start' "$EVENTS_LOG")" -eq 2 ]
+	[ "$(rg -c '"attempt":1' "$EVENTS_LOG")" -ge 1 ]
+	[ "$(rg -c '"attempt":2' "$EVENTS_LOG")" -ge 1 ]
+}
+
+@test "--events-log fails on provider error stopReason despite exit 0" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/error.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_JSON_STOP_REASON=error
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *assistant\ response\ failed* ]]
+}
+
+@test "--events-log timeout kills deno helper process group" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/kill.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_JSON_TAIL_SLEEP=60
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 1 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -eq 124 ]
+	[ -f "$CHILD_PID" ]
+	assert_process_gone "$(cat "$CHILD_PID")"
+}
+
+@test "--events-log malformed JSONL fails visibly" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/bad.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_JSON_TEXT='review complete'
+	cat >"$FAKE_PI" <<'EOF'
+#!/usr/bin/env bash
+set -uo pipefail
+json_mode=0
+for ((i = 1; i <= $#; i++)); do
+	next=$((i + 1))
+	if [[ "${!i}" == "--mode" && $next -le $# && "${!next}" == "json" ]]; then
+		json_mode=1
+	fi
+done
+if ((json_mode == 1)); then
+	printf '%s\n' 'not-json'
+	exit 0
+fi
+printf '%s\n' 'review complete'
+exit 0
+EOF
+	chmod +x "$FAKE_PI"
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *malformed\ event\ line* ]]
+}
+
+@test "--events-log rejects explicitly empty path" {
+	apply_runner_env
+	run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT" --events-log ""
+	[ "$status" -ne 0 ]
+	[[ "$output" == *empty\ events\ log* ]]
+	[ ! -f "$ARGS_LOG" ]
+}
+
+@test "--events-log keeps mode 600 when timeout happens before helper emits pi_event" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/immediate-timeout.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_SLEEP=1
+
+	run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 1 --cwd "$TEST_ROOT" --events-log "$EVENTS_LOG"
+	[ "$status" -eq 124 ]
+	[ -f "$EVENTS_LOG" ]
+	perms=$(file_mode_octal "$EVENTS_LOG")
+	[ "$perms" = "600" ]
+	rg -q 'attempt_start' "$EVENTS_LOG"
+	run rg -q 'pi_event' "$EVENTS_LOG"
+	[ "$status" -eq 1 ]
+}
+
+@test "--events-log retry attempts differ in pi_event timestamps" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/differ.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_EXIT_SEQUENCE="7,0"
+	export FAKE_PI_JSON_TEXT='attempt marker'
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --attempts 2 --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	attempt1=$(rg '"attempt":1' "$EVENTS_LOG" | head -n 1)
+	attempt2=$(rg '"attempt":2' "$EVENTS_LOG" | head -n 1)
+	[ "$attempt1" != "$attempt2" ]
+}
+
+@test "--events-log preserves multiple stdout text blocks" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/multi.events.jsonl"
+	apply_runner_env
+	export FAKE_PI_JSON_TEXT='ignored'
+	cat >"$FAKE_PI" <<'EOF'
+#!/usr/bin/env bash
+set -uo pipefail
+json_mode=0
+for ((i = 1; i <= $#; i++)); do
+	next=$((i + 1))
+	if [[ "${!i}" == "--mode" && $next -le $# && "${!next}" == "json" ]]; then
+		json_mode=1
+	fi
+done
+if ((json_mode == 1)); then
+	printf '%s\n' '{"type":"message_start","message":{"role":"assistant"}}'
+	printf '%s\n' '{"type":"message_end","message":{"role":"assistant","stopReason":"stop","usage":{"input":1,"output":1},"content":[{"type":"text","text":"block-a"},{"type":"text","text":"block-b"}]}}'
+	exit 0
+fi
+printf '%s\n' 'review complete'
+exit 0
+EOF
+	chmod +x "$FAKE_PI"
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *block-a* ]]
+	[[ "$output" == *block-b* ]]
 }
 
 @test "invalid retry-timeout is cleanly rejected" {
