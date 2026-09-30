@@ -226,3 +226,5 @@ jq -r '
 これは採用件数の集計であり、accuracy / recall の主張ではない。
 
 HTML / JSON のモデル評価レポートは [`review-model-eval`](../../review-model-eval/SKILL.md)（`/skill:review-model-eval`）で生成できる。
+
+Jev の auto ルーティング深さの週次監査（独立監査・preflight 承認付き）は [`jev-audit`](../../jev-audit/SKILL.md) を参照。

@@ -149,7 +149,7 @@ const PARSE_FAILURE_CODES = new Set([
 const EXPLICIT_REASON = "explicit";
 const JEV_REASON = "jev_ok";
 
-const REVIEW_CRITERIA: Record<string, string> = {
+export const REVIEW_CRITERIA: Record<string, string> = {
   "1":
     "Documentation, formatting, or trivial non-behavior changes only; no meaningful logic or runtime risk.",
   "2":

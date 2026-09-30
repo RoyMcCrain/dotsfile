@@ -266,7 +266,7 @@ const validateRunRelativePath = (value: unknown, label: string): string => {
   return normalized;
 };
 
-const validateMetadata = (value: unknown): Record<string, unknown> => {
+export const validateMetadata = (value: unknown): Record<string, unknown> => {
   if (!isObject(value)) throw new Error("metadata must be an object");
   if (value.schemaVersion !== SCHEMA_VERSION) {
     throw new Error("unsupported metadata schemaVersion");
