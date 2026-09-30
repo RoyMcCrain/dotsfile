@@ -3,6 +3,7 @@ import {
   chmod,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rm,
   stat,
@@ -14,6 +15,7 @@ import {
   buildJevDecision,
   sha256Bytes,
 } from "../../parallel-review/scripts/select_review_level.ts";
+import { isMissingPath } from "../scripts/state_io.ts";
 import { defaultPreviousUtcWeek } from "../scripts/week_period.ts";
 
 const SCRIPT = join(
@@ -39,9 +41,11 @@ type LaunchdPlist = {
 const runPreview = async (
   env: Record<string, string> = {},
 ): Promise<{ stdout: string; success: boolean; stderr: string }> => {
+  const inherited = { ...Deno.env.toObject() };
+  delete inherited.MODEL_RESOLVER;
   const out = await new Deno.Command("bash", {
     args: [SCRIPT],
-    env: { ...Deno.env.toObject(), ...env },
+    env: { ...inherited, ...env },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -71,7 +75,6 @@ const plistToJson = async (xml: string): Promise<LaunchdPlist> => {
 
 const runPlistProgram = async (
   plist: LaunchdPlist,
-  envOverrides: Record<string, string> = {},
 ): Promise<Deno.CommandOutput> => {
   const args = plist.ProgramArguments;
   assert.ok(args.length >= 2, "expected deno + args");
@@ -80,7 +83,8 @@ const runPlistProgram = async (
   const baseEnv = plist.EnvironmentVariables ?? {};
   return await new Deno.Command(deno, {
     args: denoArgs,
-    env: { ...Deno.env.toObject(), ...baseEnv, ...envOverrides },
+    clearEnv: true,
+    env: baseEnv,
     stdin: "null",
     stdout: "piped",
     stderr: "piped",
@@ -169,6 +173,43 @@ const writeRunFixture = async (
   await writeFile(join(runDir, "changes.patch"), PATCH, { mode: 0o600 });
 };
 
+const assertNoSpendArtifacts = async (
+  auditBase: string,
+  weekRoot: string,
+  runId: string,
+): Promise<void> => {
+  const resultsDir = join(weekRoot, "results");
+  let names: string[];
+  try {
+    names = await readdir(resultsDir);
+  } catch (error) {
+    if (!isMissingPath(error)) throw error;
+    names = [];
+  }
+  assert.equal(names.filter((n) => n.endsWith(".attempt.json")).length, 0);
+  assert.equal(names.includes(`${runId}.json`), false);
+  const cacheAttempts = join(auditBase, "cache", "attempts");
+  let globalAttempts: string[];
+  try {
+    globalAttempts = (await readdir(cacheAttempts)).filter((n) =>
+      n.endsWith(".json")
+    );
+  } catch (error) {
+    if (!isMissingPath(error)) throw error;
+    globalAttempts = [];
+  }
+  assert.equal(globalAttempts.length, 0);
+};
+
+const readInvokeCount = async (countFile: string): Promise<number> => {
+  try {
+    return Number(await readFile(countFile, "utf8"));
+  } catch (error) {
+    if (isMissingPath(error)) return 0;
+    throw error;
+  }
+};
+
 const seedAuditCli = async (
   env: Record<string, string>,
   args: string[],
@@ -255,6 +296,111 @@ Deno.test("xml_escape preserves special characters in plist paths", async () => 
   }
 });
 
+Deno.test("launchd preview omits MODEL_RESOLVER when unset", async () => {
+  const home = await mkdtemp(join(tmpdir(), "jev-no-resolver-"));
+  const xdg = join(home, "xdg-isolated");
+  await mkdir(xdg, { recursive: true });
+  try {
+    const { stdout, success, stderr } = await runPreview({
+      HOME: home,
+      XDG_DATA_HOME: xdg,
+    });
+    assert.equal(success, true, stderr);
+    if (isDarwin) {
+      const parsed = await plistToJson(stdout);
+      assert.equal(parsed.EnvironmentVariables?.MODEL_RESOLVER, undefined);
+      assert.doesNotMatch(stdout, /<key>MODEL_RESOLVER<\/key>/);
+    }
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+Deno.test("launchd preview omits MODEL_RESOLVER when empty", async () => {
+  const home = await mkdtemp(join(tmpdir(), "jev-empty-resolver-"));
+  const xdg = join(home, "xdg-isolated");
+  await mkdir(xdg, { recursive: true });
+  try {
+    const { stdout, success, stderr } = await runPreview({
+      HOME: home,
+      XDG_DATA_HOME: xdg,
+      MODEL_RESOLVER: "",
+    });
+    assert.equal(success, true, stderr);
+    if (isDarwin) {
+      const parsed = await plistToJson(stdout);
+      assert.equal(parsed.EnvironmentVariables?.MODEL_RESOLVER, undefined);
+      assert.doesNotMatch(stdout, /<key>MODEL_RESOLVER<\/key>/);
+    }
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+Deno.test("launchd preview rejects relative MODEL_RESOLVER override", async () => {
+  const home = await mkdtemp(join(tmpdir(), "jev-rel-resolver-"));
+  const xdg = join(home, "xdg-isolated");
+  await mkdir(xdg, { recursive: true });
+  try {
+    const { success, stderr } = await runPreview({
+      HOME: home,
+      XDG_DATA_HOME: xdg,
+      MODEL_RESOLVER: "relative/resolve.sh",
+    });
+    assert.equal(success, false);
+    assert.match(stderr, /MODEL_RESOLVER must resolve to an absolute path/);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+Deno.test("launchd preview rejects missing MODEL_RESOLVER override file", async () => {
+  const home = await mkdtemp(join(tmpdir(), "jev-miss-resolver-"));
+  const xdg = join(home, "xdg-isolated");
+  await mkdir(xdg, { recursive: true });
+  const missing = join(home, "no-such-resolver.sh");
+  try {
+    const { success, stderr } = await runPreview({
+      HOME: home,
+      XDG_DATA_HOME: xdg,
+      MODEL_RESOLVER: missing,
+    });
+    assert.equal(success, false);
+    assert.match(stderr, /readable regular file/);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+Deno.test("launchd preview xml-escapes MODEL_RESOLVER path in plist", async () => {
+  const home = await mkdtemp(join(tmpdir(), "jev-resolver-xml-"));
+  const xdg = join(home, "xdg-isolated");
+  const resolverDir = join(home, "resolver&dir");
+  await mkdir(resolverDir, { recursive: true });
+  const resolverPath = join(resolverDir, "resolve.sh");
+  await writeFile(
+    resolverPath,
+    "#!/usr/bin/env bash\necho mock/auditor-model\n",
+    { mode: 0o600 },
+  );
+  try {
+    const { stdout, success, stderr } = await runPreview({
+      HOME: home,
+      XDG_DATA_HOME: xdg,
+      MODEL_RESOLVER: resolverPath,
+    });
+    assert.equal(success, true, stderr);
+    assert.equal(stderr, "");
+    assert.match(stdout, /MODEL_RESOLVER<\/key><string>.*&amp;/);
+    if (isDarwin) {
+      const parsed = await plistToJson(stdout);
+      assert.equal(parsed.EnvironmentVariables?.MODEL_RESOLVER, resolverPath);
+    }
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
 Deno.test("launchd preview rejects comma-containing permission paths", async () => {
   const out = await new Deno.Command("bash", {
     args: [SCRIPT],
@@ -289,6 +435,7 @@ Deno.test({
     try {
       const preview = await runPreview(previewEnv);
       assert.equal(preview.success, true, preview.stderr);
+      assert.equal(preview.stderr, "");
       const parsed = await plistToJson(preview.stdout);
       assert.deepEqual(
         parsed.ProgramArguments.slice(-2),
@@ -296,9 +443,12 @@ Deno.test({
       );
       assert.equal(parsed.ProgramArguments.includes("-A"), false);
 
-      const runOut = await runPlistProgram(parsed, {
-        MODEL_RESOLVER: FIXTURE_RESOLVER,
-      });
+      assert.equal(
+        parsed.EnvironmentVariables?.MODEL_RESOLVER,
+        FIXTURE_RESOLVER,
+      );
+
+      const runOut = await runPlistProgram(parsed);
       assert.equal(
         runOut.success,
         true,
@@ -365,11 +515,15 @@ Deno.test({
         MODEL_RESOLVER: FIXTURE_RESOLVER,
       });
       assert.equal(preview.success, true, preview.stderr);
+      assert.equal(preview.stderr, "");
       const parsed = await plistToJson(preview.stdout);
 
-      const runOut = await runPlistProgram(parsed, {
-        MODEL_RESOLVER: FIXTURE_RESOLVER,
-      });
+      assert.equal(
+        parsed.EnvironmentVariables?.MODEL_RESOLVER,
+        FIXTURE_RESOLVER,
+      );
+
+      const runOut = await runPlistProgram(parsed);
       assert.equal(
         runOut.success,
         true,
@@ -383,17 +537,36 @@ Deno.test({
       assert.equal(body.command, "run");
       assert.equal(body.counts.selectedTotal, 1);
       assert.equal(body.counts.audited, 1);
+      const weekRoot = join(
+        layout.xdg,
+        "parallel-review",
+        "jev-audit",
+        "weeks",
+        period.weekStart,
+      );
       const report = JSON.parse(await readFile(body.reportJson, "utf8")) as {
-        counts: { audited: number };
+        counts: { audited: number; needsPreflight: number };
+        cases: Array<{ status: string; independent?: boolean }>;
       };
       assert.equal(report.counts.audited, 1);
+      assert.equal(report.counts.needsPreflight, 0);
+      assert.equal(report.cases[0]?.status, "audited");
+      assert.equal(report.cases[0]?.independent, true);
+      const result = JSON.parse(
+        await readFile(join(weekRoot, "results", `${runId}.json`), "utf8"),
+      ) as { status: string; independent: boolean };
+      assert.equal(result.status, "success");
+      assert.equal(result.independent, true);
 
       const count = Number(await readFile(countFile, "utf8"));
       assert.equal(count, 1);
 
-      const runAgain = await runPlistProgram(parsed, {
-        MODEL_RESOLVER: FIXTURE_RESOLVER,
-      });
+      const reportBeforeRepeat = JSON.parse(
+        await readFile(body.reportJson, "utf8"),
+      ) as Record<string, unknown>;
+      const { generatedAt: _gen1, ...stableBefore } = reportBeforeRepeat;
+
+      const runAgain = await runPlistProgram(parsed);
       assert.equal(
         runAgain.success,
         true,
@@ -401,10 +574,119 @@ Deno.test({
       );
       const countAgain = Number(await readFile(countFile, "utf8"));
       assert.equal(countAgain, 1);
+      const bodyAgain = JSON.parse(
+        new TextDecoder().decode(runAgain.stdout),
+      ) as {
+        reportJson: string;
+      };
+      const reportAfterRepeat = JSON.parse(
+        await readFile(bodyAgain.reportJson, "utf8"),
+      ) as Record<string, unknown>;
+      const { generatedAt: _gen2, ...stableAfter } = reportAfterRepeat;
+      assert.deepEqual(stableAfter, stableBefore);
     } finally {
       await rm(home, { recursive: true, force: true });
     }
   },
+});
+
+Deno.test({
+  name:
+    "launchd plist ProgramArguments run before approve skips model spend (hermetic env)",
+  ignore: !isDarwin,
+  fn: async () => {
+    const period = defaultPreviousUtcWeek();
+    const createdAt = new Date(
+      Date.parse(period.weekStartIso) + 36 * 60 * 60 * 1000,
+    ).toISOString();
+    const home = await mkdtemp(join(tmpdir(), "jev-plist-unapproved-"));
+    const layout = layoutIsolatedHome(home);
+    await mkdir(layout.runsDir, { recursive: true });
+    await seedLaunchdTmpLayout(layout);
+    const countFile = join(home, "invoke.count");
+    const fakePi = await writeMockPi(home, countFile);
+    const runId = "33333333-3333-4333-8333-333333333333";
+    await writeRunFixture(layout.runsDir, runId, createdAt);
+
+    const seedEnv = {
+      HOME: layout.home,
+      XDG_DATA_HOME: layout.xdg,
+      MODEL_RESOLVER: FIXTURE_RESOLVER,
+      PI_REVIEW_BIN: fakePi,
+      JEV_AUDIT_BASH: "bash",
+    };
+
+    try {
+      await seedAuditCli(seedEnv, ["prepare"]);
+      const preview = await runPreview({
+        HOME: layout.home,
+        XDG_DATA_HOME: layout.xdg,
+        PI_CODING_AGENT_DIR: layout.piDir,
+        PI_REVIEW_BIN: fakePi,
+        MODEL_RESOLVER: FIXTURE_RESOLVER,
+      });
+      assert.equal(preview.success, true, preview.stderr);
+      assert.equal(preview.stderr, "");
+      const parsed = await plistToJson(preview.stdout);
+      const runOut = await runPlistProgram(parsed);
+      assert.equal(
+        runOut.success,
+        true,
+        new TextDecoder().decode(runOut.stderr),
+      );
+      const body = JSON.parse(new TextDecoder().decode(runOut.stdout)) as {
+        reportJson: string;
+        counts: { needsPreflight: number; audited: number };
+      };
+      assert.equal(body.counts.needsPreflight, 1);
+      assert.equal(body.counts.audited, 0);
+      const report = JSON.parse(await readFile(body.reportJson, "utf8")) as {
+        cases: Array<{ status: string }>;
+      };
+      assert.equal(report.cases[0]?.status, "needs_preflight");
+      const weekRoot = join(
+        layout.xdg,
+        "parallel-review",
+        "jev-audit",
+        "weeks",
+        period.weekStart,
+      );
+      await assertNoSpendArtifacts(
+        join(layout.xdg, "parallel-review", "jev-audit"),
+        weekRoot,
+        runId,
+      );
+      assert.equal(await readInvokeCount(countFile), 0);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  },
+});
+
+Deno.test("assertNoSpendArtifacts rejects seeded spend markers", async () => {
+  const root = await mkdtemp(join(tmpdir(), "jev-spend-neg-"));
+  const auditBase = join(root, "audit");
+  const weekRoot = join(auditBase, "weeks", "2020-09-28");
+  const resultsDir = join(weekRoot, "results");
+  const runId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  try {
+    await mkdir(resultsDir, { recursive: true });
+    await writeFile(join(resultsDir, `${runId}.attempt.json`), "{}\n");
+    await assert.rejects(() =>
+      assertNoSpendArtifacts(auditBase, weekRoot, runId)
+    );
+    await rm(join(resultsDir, `${runId}.attempt.json`));
+    await mkdir(join(auditBase, "cache", "attempts"), { recursive: true });
+    await writeFile(
+      join(auditBase, "cache", "attempts", "global.json"),
+      "{}\n",
+    );
+    await assert.rejects(() =>
+      assertNoSpendArtifacts(auditBase, weekRoot, runId)
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 Deno.test("launchd install script references lint and install gate", async () => {

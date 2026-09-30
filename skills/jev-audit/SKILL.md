@@ -33,13 +33,17 @@ Jev の **requestedLevel=auto**
 
 - **UTC の月曜 00:00 半開区間** `[weekStart, weekEnd)`。既定は「直前に完了した
   UTC 週」。
+- **`prepare` で新規に週ディレクトリ／不変 `plan.json` を作るのは、`weekEnd` が
+  UTC で既に過ぎた（完了した）週のみ**。進行中・未来の UTC 週は拒否する（既存
+  完了週の読み取り・承認・実行・レポートは従来どおり）。
 - `--week YYYY-MM-DD` は **UTC
   月曜**である必要があり、日付は厳密に検証される（例: 2026-02-30 は拒否）。
 - macOS スケジュール（月曜 09:00 **ローカル**）と UTC
   週境界は一致しない場合がある。
 - **承認（approval）は週ごとに永続**し、当週の `runId` / `patchSha256` /
-  解決済み監査モデル / **承認時点の `promptHash`** を束ねる。`approve` は `wx`
-  のため **同一 runId の再承認・上書きは不可**。
+  解決済み監査モデル / **承認時点の `promptHash`**
+  を束ねる。書き込み済みの一時ファイルを 原子的に公開し、**同一 runId
+  の再承認・上書きは不可**（途中の承認は公開しない）。
 - 監査人プロンプトを更新した場合、古い承認は `prompt_changed` で **held**
   になる。新プロンプトで送るには **新しい週の計画で別 runId
   が選ばれた場合など、新規 approve
@@ -95,6 +99,11 @@ deno run -A --no-config skills/jev-audit/scripts/audit.ts report \
 skills/jev-audit/scripts/install_weekly_launchd.sh        # plist プレビュー（副作用なし）
 skills/jev-audit/scripts/install_weekly_launchd.sh --install  # 明示時のみ（Darwin、plutil 検証後 load）
 ```
+
+plist
+はインストール時のリポジトリ・実行ファイルの絶対パスを保持するため、実行元の
+workspace を削除・移動する場合は再インストールする。明示した `MODEL_RESOLVER`
+も保存される（絶対パスの読取可能な通常ファイルが必要）。
 
 ### Linux / WSL（cron）
 

@@ -306,9 +306,8 @@ const cmdRun = async (opts: GlobalOpts) => {
       reason?: string;
     }> = [];
     for (const planCase of plan.selected) {
-      let outcome;
       try {
-        outcome = await runSingleCase({
+        const outcome = await runSingleCase({
           auditBase,
           weekRoot,
           weekStart: period.weekStart,
@@ -316,38 +315,46 @@ const cmdRun = async (opts: GlobalOpts) => {
           runsDir: opts.runsDir,
           resolvedAuditorModel: resolvedAuditor,
         });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "run failed";
-        throw new Error(message);
-      }
-      if (outcome.status === "needs_preflight") {
-        states.push({ planCase, status: "needs_preflight" });
-      } else if (outcome.status === "approved_pending") {
-        states.push({ planCase, status: "approved_pending" });
-      } else if (outcome.status === "held") {
-        states.push({ planCase, status: "held", reason: outcome.reason });
-      } else if (outcome.status === "unavailable") {
-        const existing = await readWeekResult(
-          auditBase,
-          period.weekStart,
-          planCase.runId,
-        );
+        if (outcome.status === "needs_preflight") {
+          states.push({ planCase, status: "needs_preflight" });
+        } else if (outcome.status === "approved_pending") {
+          states.push({ planCase, status: "approved_pending" });
+        } else if (outcome.status === "held") {
+          states.push({ planCase, status: "held", reason: outcome.reason });
+        } else if (outcome.status === "unavailable") {
+          let existing: AuditResultRecord | undefined;
+          try {
+            existing = await readWeekResult(
+              auditBase,
+              period.weekStart,
+              planCase.runId,
+            );
+          } catch {
+            existing = undefined;
+          }
+          states.push({
+            planCase,
+            status: "unavailable",
+            reason: outcome.reason,
+            result: existing,
+          });
+        } else {
+          states.push({
+            planCase,
+            status: isUnavailableResult(outcome.result)
+              ? "unavailable"
+              : "audited",
+            result: outcome.result,
+            reason: isUnavailableResult(outcome.result)
+              ? outcome.result.failureReason
+              : undefined,
+          });
+        }
+      } catch {
         states.push({
           planCase,
           status: "unavailable",
-          reason: outcome.reason,
-          result: existing,
-        });
-      } else {
-        states.push({
-          planCase,
-          status: isUnavailableResult(outcome.result)
-            ? "unavailable"
-            : "audited",
-          result: outcome.result,
-          reason: isUnavailableResult(outcome.result)
-            ? outcome.result.failureReason
-            : undefined,
+          reason: "case_processing_failed",
         });
       }
     }

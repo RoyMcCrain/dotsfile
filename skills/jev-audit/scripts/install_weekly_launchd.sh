@@ -58,6 +58,55 @@ require_absolute() {
 	fi
 }
 
+require_executable_regular() {
+	local name=$1
+	local path=$2
+	require_absolute "${name}" "${path}"
+	if [[ ! -f ${path} || ! -x ${path} ]]; then
+		printf '%s\n' "${name} must be an executable regular file (got: ${path})" >&2
+		exit 1
+	fi
+}
+
+require_readable_regular() {
+	local name=$1
+	local path=$2
+	require_absolute "${name}" "${path}"
+	if [[ ! -f ${path} || ! -r ${path} ]]; then
+		printf '%s\n' "${name} must be a readable regular file (got: ${path})" >&2
+		exit 1
+	fi
+}
+
+reject_symlink_ancestors_under() {
+	local root=$1
+	local leaf=$2
+	local label=$3
+	local rel partial part
+	if [[ ${leaf} != "${root}" && ${leaf} != "${root}/"* ]]; then
+		printf '%s\n' "${label} is not under ${root}" >&2
+		exit 1
+	fi
+	if [[ ${leaf} == "${root}" ]]; then
+		return 0
+	fi
+	rel=${leaf#"${root}/"}
+	partial="${root}"
+	while [[ -n ${rel} ]]; do
+		part=${rel%%/*}
+		partial="${partial}/${part}"
+		if [[ -L ${partial} ]]; then
+			printf '%s\n' "refusing ${label} symlink ancestor: ${partial}" >&2
+			exit 1
+		fi
+		if [[ ${rel} == */* ]]; then
+			rel=${rel#*/}
+		else
+			rel=
+		fi
+	done
+}
+
 resolve_physical() {
 	local path=$1
 	local probe=${path}
@@ -166,12 +215,12 @@ resolve_bash5() {
 		printf '%s' "${JEV_AUDIT_BASH}"
 		return 0
 	fi
-	local candidate major
-	for candidate in \
-		"$(command -v bash 2>/dev/null || true)" \
-		/opt/homebrew/bin/bash \
-		/usr/local/bin/bash; do
-		[[ -z ${candidate} || ! -x ${candidate} ]] && continue
+	local dir candidate major
+	IFS=':' read -r -a path_dirs <<<"${PATH}"
+	for dir in "${path_dirs[@]}"; do
+		[[ -z ${dir} ]] && continue
+		candidate="${dir}/bash"
+		[[ -x ${candidate} ]] || continue
 		# shellcheck disable=SC2016
 		major=$("${candidate}" -c 'echo ${BASH_VERSINFO[0]}' 2>/dev/null || echo 0)
 		if ((major >= 5)); then
@@ -212,6 +261,13 @@ PI_DIR="${PI_CODING_AGENT_DIR:-${HOME}/.pi/agent}"
 PI_REVIEW="${PI_REVIEW_BIN:-${PI_BIN:-}}"
 JEV_AUDIT_BASH="${BASH5}"
 
+require_absolute HOME "${HOME}"
+require_absolute XDG_DATA "${XDG_DATA}"
+require_absolute PI_DIR "${PI_DIR}"
+if [[ -n ${PI_REVIEW} ]]; then
+	require_absolute PI_REVIEW "${PI_REVIEW}"
+fi
+
 HOME_P=$(resolve_physical "${HOME}")
 XDG_P=$(resolve_physical "${XDG_DATA}")
 JEV_AUDIT_P=$(resolve_physical "${JEV_AUDIT}")
@@ -229,6 +285,13 @@ perm_bucket_add PERM_READ_PARTS "${JEV_TMP_P}"
 perm_bucket_add PERM_WRITE_PARTS "${XDG_P}"
 perm_bucket_add PERM_WRITE_PARTS "${JEV_AUDIT_P}"
 perm_bucket_add PERM_WRITE_PARTS "${JEV_TMP_P}"
+
+MODEL_RESOLVER_RAW="${MODEL_RESOLVER:-}"
+MODEL_RESOLVER_E=""
+if [[ -n ${MODEL_RESOLVER_RAW} ]]; then
+	require_readable_regular MODEL_RESOLVER "${MODEL_RESOLVER_RAW}"
+	MODEL_RESOLVER_E=$(xml_escape "${MODEL_RESOLVER_RAW}")
+fi
 
 ALLOW_READ=$(join_perm_paths PERM_READ_PARTS)
 ALLOW_WRITE=$(join_perm_paths PERM_WRITE_PARTS)
@@ -255,8 +318,8 @@ ALLOW_RUN=$(
 	echo "${ALLOW_RUN_PARTS[*]}"
 )
 
-deny_comma_paths "scoped permission" "${REPO_ROOT}" "${HOME_P}" "${PI_DIR_P}" "${XDG_P}" "${JEV_AUDIT_P}" \
-	"${JEV_TMP_P}" "${JEV_AUDIT_BASH}" "${PI_REVIEW}" "${DENO}"
+deny_comma_paths "scoped permission" "${REPO_ROOT}" "${HOME_P}" "${CONFIG_P}" "${PI_DIR_P}" "${XDG_P}" \
+	"${JEV_AUDIT_P}" "${JEV_TMP_P}" "${JEV_AUDIT_BASH}" "${PI_REVIEW}" "${DENO}"
 
 DENO_E=$(xml_escape "$DENO")
 AUDIT_E=$(xml_escape "$AUDIT_TS")
@@ -308,7 +371,8 @@ render_plist() {
     <key>PI_CODING_AGENT_DIR</key><string>${PI_DIR_E}</string>
     <key>PI_REVIEW_BIN</key><string>${PI_REVIEW_E}</string>
     <key>JEV_AUDIT_BASH</key><string>${JEV_BASH_E}</string>
-    <key>TMPDIR</key><string>${TMP_E}</string>
+    <key>TMPDIR</key><string>${TMP_E}</string>${MODEL_RESOLVER_E:+
+    <key>MODEL_RESOLVER</key><string>${MODEL_RESOLVER_E}</string>}
   </dict>
 </dict>
 </plist>
@@ -325,15 +389,14 @@ if [[ $(uname -s) != Darwin ]]; then
 	exit 1
 fi
 
-require_absolute deno "${DENO}"
-require_absolute jq "${JQ_BIN}"
-require_absolute pi "${PI_REVIEW}"
-
 if [[ -z ${JEV_AUDIT_BASH} ]]; then
 	echo "bash not found" >&2
 	exit 1
 fi
-require_absolute JEV_AUDIT_BASH "${JEV_AUDIT_BASH}"
+require_executable_regular deno "${DENO}"
+require_executable_regular jq "${JQ_BIN}"
+require_executable_regular PI_REVIEW_BIN "${PI_REVIEW}"
+require_executable_regular JEV_AUDIT_BASH "${JEV_AUDIT_BASH}"
 # shellcheck disable=SC2016
 bash_major=$("${JEV_AUDIT_BASH}" -c 'echo ${BASH_VERSINFO[0]}')
 if ((bash_major < 5)); then
@@ -346,12 +409,19 @@ if [[ -L ${PLIST} ]]; then
 	exit 1
 fi
 log_dir=$(dirname "$LOG")
-if [[ -e ${log_dir} && -L ${log_dir} ]]; then
-	echo "refusing to use symlink log directory: ${log_dir}" >&2
+reject_symlink_ancestors_under "${XDG_DATA}" "${log_dir}" "log directory"
+reject_symlink_ancestors_under "${XDG_DATA}" "${LOG}" "log file"
+reject_symlink_ancestors_under "${XDG_DATA}" "${JEV_TMP}" "tmp directory"
+if [[ -e ${log_dir} && ! -d ${log_dir} ]]; then
+	printf '%s\n' "log directory is not a directory: ${log_dir}" >&2
 	exit 1
 fi
-if [[ -e ${LOG} && -L ${LOG} ]]; then
-	echo "refusing to overwrite symlink log: ${LOG}" >&2
+if [[ -e ${LOG} && ! -f ${LOG} ]]; then
+	printf '%s\n' "log file is not a regular file: ${LOG}" >&2
+	exit 1
+fi
+if [[ -e ${JEV_TMP} && ! -d ${JEV_TMP} ]]; then
+	printf '%s\n' "tmp path is not a directory: ${JEV_TMP}" >&2
 	exit 1
 fi
 
@@ -372,11 +442,25 @@ chmod 600 "${LOG}" || {
 	exit 1
 }
 
-tmp_plist="${PLIST}.new.$$"
+la_dir="${HOME}/Library/LaunchAgents"
+tmp_plist=''
+cleanup_tmp_plist() {
+	if [[ -n ${tmp_plist} && -f ${tmp_plist} ]]; then
+		rm -f "${tmp_plist}"
+	fi
+}
+trap cleanup_tmp_plist EXIT INT TERM
+
+tmp_plist=$(mktemp "${la_dir}/${LABEL}.plist.XXXXXX") || {
+	echo "failed to create temporary plist under ${la_dir}" >&2
+	exit 1
+}
 render_plist >"${tmp_plist}"
 chmod 600 "${tmp_plist}"
 plutil -lint "${tmp_plist}" >/dev/null
 mv -f "${tmp_plist}" "${PLIST}"
+tmp_plist=''
+trap - EXIT INT TERM
 
 launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "${PLIST}"

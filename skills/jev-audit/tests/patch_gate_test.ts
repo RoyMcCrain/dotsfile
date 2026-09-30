@@ -23,13 +23,13 @@ Deno.test("patch hash mismatch rejected", async () => {
 Deno.test("no runner without approval", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-noap-"));
   await mkdir(root, { recursive: true, mode: 0o700 });
-  const weekStart = "2026-09-28";
+  const weekStart = "2020-09-28";
   const weekRoot = join(root, "weeks", weekStart);
   await mkdir(weekRoot, { recursive: true, mode: 0o700 });
   const plan: WeeklyPlan = {
     schemaVersion: 1,
     weekStart,
-    weekEnd: "2026-10-05",
+    weekEnd: "2020-10-05",
     seed: "a".repeat(64),
     createdAt: "2026-01-01T00:00:00.000Z",
     runsDirCanonical: "/tmp/runs",
@@ -48,7 +48,7 @@ Deno.test("no runner without approval", async () => {
       runId: "66666666-6666-4666-8666-666666666666",
       patchSha256: "a".repeat(64),
       stratum: "random",
-      createdAt: "2026-09-29T01:00:00.000Z",
+      createdAt: "2020-09-29T01:00:00.000Z",
       effectiveLevel: 3,
       source: "jev",
       reason: "jev_ok",

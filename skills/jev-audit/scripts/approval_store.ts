@@ -1,10 +1,7 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import {
-  approvalsDir as approvalsDirPath,
-  assertInsideBaseLstat,
-} from "./paths.ts";
-import type { ApprovalRecord } from "./plan_types.ts";
+import { assertAuditRelativePathSafe, assertInsideBaseLstat } from "./paths.ts";
+import type { ApprovalRecord, PlanCase } from "./plan_types.ts";
 import {
   readPatchFromRun,
   sha256Bytes,
@@ -21,9 +18,17 @@ import {
   locateRunDir,
   metadataPatchSha256Matches,
 } from "./locate_run.ts";
-import { assertRegularDir, assertSafeRunId, readJsonFile } from "./state_io.ts";
+import {
+  assertRegularDir,
+  assertSafeRunId,
+  isMissingPath,
+  publishPrivateFileAtomic,
+  readJsonFile,
+} from "./state_io.ts";
 import { validateApprovalRecord } from "./validate_state.ts";
 import { promptHash } from "./result_store.ts";
+import { approvalsDir } from "./paths.ts";
+
 const approvalPath = (dir: string, runId: string): string =>
   join(dir, `${runId}.json`);
 
@@ -34,21 +39,46 @@ export const readApproval = async (
   assertSafeRunId(runId);
   try {
     await assertRegularDir(approvalsRoot);
-  } catch {
-    return undefined;
+  } catch (error) {
+    if (isMissingPath(error)) return undefined;
+    throw error;
   }
   try {
     const raw = await readJsonFile(approvalPath(approvalsRoot, runId));
     return validateApprovalRecord(raw);
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
-    if (
-      typeof error === "object" && error !== null && "code" in error &&
-      (error as { code: string }).code === "ENOENT"
-    ) {
-      return undefined;
-    }
+    if (isMissingPath(error)) return undefined;
     throw error;
+  }
+};
+
+export const approvalMatchesPlan = (
+  approval: ApprovalRecord,
+  planCase: PlanCase,
+  weekStart: string,
+): boolean =>
+  approval.runId === planCase.runId &&
+  approval.weekStart === weekStart &&
+  approval.patchSha256 === planCase.patchSha256 &&
+  approval.approvedInputSha256 === planCase.patchSha256;
+
+export const readPlanCaseApproval = async (
+  auditBase: string,
+  weekStart: string,
+  runId: string,
+): Promise<
+  | { ok: true; approval: ApprovalRecord }
+  | { ok: false; reason: "missing" | "invalid_approval_state" }
+> => {
+  try {
+    const approval = await readApproval(
+      approvalsDir(join(auditBase, "weeks", weekStart)),
+      runId,
+    );
+    if (!approval) return { ok: false, reason: "missing" };
+    return { ok: true, approval };
+  } catch {
+    return { ok: false, reason: "invalid_approval_state" };
   }
 };
 
@@ -62,6 +92,13 @@ export const approveCase = async (options: {
   runsDir?: string;
   jevModel?: string;
 }): Promise<ApprovalRecord> => {
+  assertSafeRunId(options.runId);
+  const baseReal = await assertRegularDir(options.auditBase);
+  const approvalsRoot = await assertAuditRelativePathSafe(
+    baseReal,
+    ["weeks", options.weekStart, "approvals"],
+    "approvals directory",
+  );
   const inputReal = await assertInsideBaseLstat(
     options.auditBase,
     options.approvedInputPath,
@@ -107,12 +144,13 @@ export const approveCase = async (options: {
     promptHash: currentPromptHash,
   };
 
-  const approvalsRoot = approvalsDirPath(options.weekRoot);
   await Deno.mkdir(approvalsRoot, { recursive: true, mode: 0o700 });
+  await Deno.chmod(approvalsRoot, 0o700);
   const path = approvalPath(approvalsRoot, options.runId);
-  await writeFile(path, `${JSON.stringify(record, null, 2)}\n`, {
-    flag: "wx",
-    mode: 0o600,
-  });
+  await publishPrivateFileAtomic(
+    path,
+    `${JSON.stringify(record, null, 2)}\n`,
+    { ifExists: "fail" },
+  );
   return record;
 };

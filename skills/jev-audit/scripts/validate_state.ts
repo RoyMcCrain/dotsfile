@@ -1,4 +1,9 @@
-import { isMondayUtc, parseUtcDate } from "./week_period.ts";
+import {
+  createdAtInPeriod,
+  isMondayUtc,
+  parseUtcDate,
+  periodFromWeekStart,
+} from "./week_period.ts";
 import { assertSafeRunId, boundedString, SHA256_RE } from "./state_io.ts";
 import type {
   ApprovalRecord,
@@ -16,6 +21,12 @@ const reviewLevel = (v: unknown, label: string): number => {
     throw new Error(`invalid ${label}`);
   }
   return v;
+};
+
+const parseableTimestamp = (value: unknown, label: string) => {
+  const s = boundedString(value, 64, label);
+  if (Number.isNaN(Date.parse(s))) throw new Error(`invalid ${label}`);
+  return s;
 };
 
 const planCount = (c: Record<string, unknown>, key: string): number => {
@@ -42,8 +53,7 @@ export const validatePlanCase = (value: unknown): PlanCase => {
   if (stratum !== "random" && stratum !== "risk") {
     throw new Error("invalid stratum");
   }
-  const createdAt = boundedString(value.createdAt, 64, "createdAt");
-  if (Number.isNaN(Date.parse(createdAt))) throw new Error("invalid createdAt");
+  const createdAt = parseableTimestamp(value.createdAt, "createdAt");
   const effectiveLevel = reviewLevel(value.effectiveLevel, "effectiveLevel");
   const suggestedLevel = value.suggestedLevel === undefined
     ? undefined
@@ -99,7 +109,7 @@ export const validateWeeklyPlan = (value: unknown): WeeklyPlan => {
   }
   const seed = boundedString(value.seed, 64, "seed");
   if (!SHA256_RE.test(seed)) throw new Error("invalid seed");
-  boundedString(value.createdAt, 64, "createdAt");
+  const planCreatedAt = parseableTimestamp(value.createdAt, "createdAt");
   const runsDirCanonical = boundedString(
     value.runsDirCanonical,
     4096,
@@ -114,6 +124,12 @@ export const validateWeeklyPlan = (value: unknown): WeeklyPlan => {
     throw new Error("invalid selected");
   }
   const selected = value.selected.map(validatePlanCase);
+  const period = periodFromWeekStart(weekStart);
+  for (const item of selected) {
+    if (!createdAtInPeriod(item.createdAt, period)) {
+      throw new Error("selected case createdAt out of period");
+    }
+  }
   const seenRun = new Set<string>();
   const seenPatch = new Set<string>();
   for (const item of selected) {
@@ -144,17 +160,21 @@ export const validateWeeklyPlan = (value: unknown): WeeklyPlan => {
   if (riskSelected !== selected.filter((s) => s.stratum === "risk").length) {
     throw new Error("invalid riskSelected");
   }
-  const historyWarningCodes = Array.isArray(c.historyWarningCodes)
-    ? c.historyWarningCodes.map((x) =>
+  let historyWarningCodes: string[] | undefined;
+  if (c.historyWarningCodes !== undefined) {
+    if (!Array.isArray(c.historyWarningCodes)) {
+      throw new Error("invalid historyWarningCodes");
+    }
+    historyWarningCodes = c.historyWarningCodes.map((x) =>
       boundedString(x, 64, "historyWarningCodes")
-    )
-    : undefined;
+    );
+  }
   return {
     schemaVersion: 1,
     weekStart,
     weekEnd,
     seed,
-    createdAt: String(value.createdAt),
+    createdAt: planCreatedAt,
     runsDirCanonical,
     promptVersion: AUDITOR_PROMPT_VERSION,
     counts: {
@@ -189,7 +209,7 @@ export const validateApprovalRecord = (value: unknown): ApprovalRecord => {
     256,
     "resolvedAuditorModel",
   );
-  boundedString(value.approvedAt, 64, "approvedAt");
+  const approvedAt = parseableTimestamp(value.approvedAt, "approvedAt");
   const approvedInputSha256 = boundedString(
     value.approvedInputSha256,
     64,
@@ -210,7 +230,7 @@ export const validateApprovalRecord = (value: unknown): ApprovalRecord => {
     runId,
     patchSha256,
     resolvedAuditorModel,
-    approvedAt: String(value.approvedAt),
+    approvedAt,
     approvedInputSha256,
     promptVersion: AUDITOR_PROMPT_VERSION,
     promptHash,
@@ -242,7 +262,7 @@ export const validateAuditResultRecord = (
   if (typeof value.independent !== "boolean") {
     throw new Error("invalid independent flag");
   }
-  boundedString(value.attemptedAt, 64, "attemptedAt");
+  const attemptedAt = parseableTimestamp(value.attemptedAt, "attemptedAt");
   let auditor: AuditResultRecord["auditor"];
   if (value.auditor !== undefined) {
     if (!isRecord(value.auditor)) throw new Error("invalid auditor");
@@ -285,10 +305,16 @@ export const validateAuditResultRecord = (
     if (!value.independent) throw new Error("invalid success independent");
     if (!auditor) throw new Error("success requires auditor");
     if (failureReason) throw new Error("success must not have failureReason");
+    if (cachedFromWeek !== undefined) {
+      throw new Error("success must not have cachedFromWeek");
+    }
   } else if (status === "failure") {
     if (!value.independent) throw new Error("invalid failure independent");
     if (!failureReason) throw new Error("failure requires failureReason");
     if (auditor) throw new Error("failure must not have auditor");
+    if (cachedFromWeek !== undefined) {
+      throw new Error("failure must not have cachedFromWeek");
+    }
   } else {
     if (value.independent) throw new Error("cached must not be independent");
     if (!cachedFromWeek || !isMondayUtc(cachedFromWeek)) {
@@ -314,6 +340,6 @@ export const validateAuditResultRecord = (
     auditor,
     failureReason,
     cachedFromWeek,
-    attemptedAt: String(value.attemptedAt),
+    attemptedAt,
   };
 };

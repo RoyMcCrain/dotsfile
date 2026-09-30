@@ -10,6 +10,11 @@ import {
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
 const PATCH = "diff --git a/x b/x\n+2\n";
 
+const LOCK_ERRORS = [
+  "audit operation already in progress",
+  "audit run already in progress",
+];
+
 const writeRun = async (
   runsDir: string,
   runId: string,
@@ -47,6 +52,32 @@ const writeRun = async (
   await writeFile(join(runDir, "changes.patch"), PATCH);
 };
 
+const runAuditRun = async (
+  env: Record<string, string>,
+  runsDir: string,
+  auditDir: string,
+  week: string,
+) => {
+  return await new Deno.Command(Deno.execPath(), {
+    args: [
+      "run",
+      "-A",
+      "--no-config",
+      AUDIT_SCRIPT,
+      "run",
+      "--runs-dir",
+      runsDir,
+      "--audit-dir",
+      auditDir,
+      "--week",
+      week,
+    ],
+    env: { ...Deno.env.toObject(), ...env },
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+};
+
 Deno.test("parallel run across weeks performs at most one Pi invocation", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-conc-"));
   const runsDir = join(root, "runs");
@@ -71,14 +102,16 @@ Deno.test("parallel run across weeks performs at most one Pi invocation", async 
   const hash = sha256Bytes(new TextEncoder().encode(PATCH));
   const runA = "44444444-4444-4444-8444-444444444444";
   const runB = "55555555-5555-4555-8555-555555555555";
-  await writeRun(runsDir, runA, "2026-09-16T10:00:00.000Z", hash);
-  await writeRun(runsDir, runB, "2026-09-23T10:00:00.000Z", hash);
+  const weekA = "2020-09-14";
+  const weekB = "2020-09-21";
+  await writeRun(runsDir, runA, "2020-09-16T10:00:00.000Z", hash);
+  await writeRun(runsDir, runB, "2020-09-23T10:00:00.000Z", hash);
   const env = {
     HOME: root,
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: resolver,
     PI_REVIEW_BIN: pi,
-    JEV_AUDIT_BASH: "bash",
+    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
   };
   const approveWeek = async (week: string, runId: string) => {
     await new Deno.Command(Deno.execPath(), {
@@ -150,42 +183,83 @@ Deno.test("parallel run across weeks performs at most one Pi invocation", async 
       new TextDecoder().decode(approved.stderr),
     );
   };
-  await approveWeek("2026-09-14", runA);
-  await approveWeek("2026-09-21", runB);
-  const p1 = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "-A",
-      "--no-config",
-      AUDIT_SCRIPT,
-      "run",
-      "--runs-dir",
-      runsDir,
-      "--audit-dir",
-      auditDir,
-      "--week",
-      "2026-09-14",
-    ],
-    env: { ...Deno.env.toObject(), ...env },
-  }).spawn();
-  const p2 = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "-A",
-      "--no-config",
-      AUDIT_SCRIPT,
-      "run",
-      "--runs-dir",
-      runsDir,
-      "--audit-dir",
-      auditDir,
-      "--week",
-      "2026-09-21",
-    ],
-    env: { ...Deno.env.toObject(), ...env },
-  }).spawn();
-  await Promise.all([p1.status, p2.status]);
+  await approveWeek(weekA, runA);
+  await approveWeek(weekB, runB);
+  const p1 = runAuditRun(env, runsDir, auditDir, weekA);
+  const p2 = runAuditRun(env, runsDir, auditDir, weekB);
+  const [outA, outB] = await Promise.all([p1, p2]);
+  const outcomes = [
+    {
+      success: outA.success,
+      stderr: new TextDecoder().decode(outA.stderr),
+      stdout: new TextDecoder().decode(outA.stdout),
+    },
+    {
+      success: outB.success,
+      stderr: new TextDecoder().decode(outB.stderr),
+      stdout: new TextDecoder().decode(outB.stdout),
+    },
+  ];
+  const successes = outcomes.filter((o) => o.success);
+  assert.ok(
+    successes.length >= 1,
+    "expected at least one concurrent run success",
+  );
+  for (const o of outcomes.filter((o) => !o.success)) {
+    assert.ok(
+      LOCK_ERRORS.some((msg) => o.stderr.includes(msg)),
+      `expected lock contention, got: ${o.stderr}`,
+    );
+  }
+
+  const recoverA = await runAuditRun(env, runsDir, auditDir, weekA);
+  assert.equal(
+    recoverA.success,
+    true,
+    new TextDecoder().decode(recoverA.stderr),
+  );
+  const recoverB = await runAuditRun(env, runsDir, auditDir, weekB);
+  assert.equal(
+    recoverB.success,
+    true,
+    new TextDecoder().decode(recoverB.stderr),
+  );
+
   const count = Number(await readFile(countFile, "utf8"));
   assert.equal(count, 1);
+
+  const resultA = JSON.parse(
+    await readFile(
+      join(auditDir, "weeks", weekA, "results", `${runA}.json`),
+      "utf8",
+    ),
+  ) as { status: string; independent: boolean; cachedFromWeek?: string };
+  const resultB = JSON.parse(
+    await readFile(
+      join(auditDir, "weeks", weekB, "results", `${runB}.json`),
+      "utf8",
+    ),
+  ) as { status: string; independent: boolean; cachedFromWeek?: string };
+
+  const statuses = new Set([resultA.status, resultB.status]);
+  assert.ok(statuses.has("success"));
+  assert.ok(statuses.has("cached"));
+  const fresh = resultA.status === "success" ? resultA : resultB;
+  const cached = resultA.status === "cached" ? resultA : resultB;
+  const freshWeek = resultA.status === "success" ? weekA : weekB;
+  assert.equal(fresh.independent, true);
+  assert.equal(fresh.cachedFromWeek, undefined);
+  assert.equal(cached.status, "cached");
+  assert.equal(cached.independent, false);
+  assert.equal(cached.cachedFromWeek, freshWeek);
+
+  for (const week of [weekA, weekB]) {
+    const report = JSON.parse(
+      await readFile(join(auditDir, "weeks", week, "report.json"), "utf8"),
+    ) as { counts: { audited: number }; cases: Array<{ status: string }> };
+    assert.equal(report.counts.audited, 1);
+    assert.equal(report.cases[0]?.status, "audited");
+  }
+
   await rm(root, { recursive: true, force: true });
 });

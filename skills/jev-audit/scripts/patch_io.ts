@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { readFile, realpath, writeFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { assertAuditRelativePathSafe } from "./paths.ts";
-import { assertRegularDir } from "./state_io.ts";
+import { assertRegularDir, replacePrivateFileAtomic } from "./state_io.ts";
 
 const PATCH_REL = "changes.patch";
 const GENERIC_PATCH_NAME = "input.patch";
@@ -49,7 +49,7 @@ export const stagePrivatePatch = async (
   await Deno.mkdir(dir, { recursive: true, mode: 0o700 });
   await Deno.chmod(dir, 0o700);
   const path = join(dir, GENERIC_PATCH_NAME);
-  await writeFile(path, content, { mode: 0o600 });
+  await replacePrivateFileAtomic(path, content);
   return path;
 };
 
@@ -84,7 +84,16 @@ export const conservativeTokenScan = (content: Uint8Array): void => {
   if (/\bsk-[A-Za-z0-9]{20,}\b/.test(text)) {
     throw new Error("credential-like token in patch");
   }
+  if (/\bsk-proj-[A-Za-z0-9_-]{20,}\b/.test(text)) {
+    throw new Error("credential-like token in patch");
+  }
+  if (/\bsk-ant-api03-[A-Za-z0-9_-]{20,}\b/.test(text)) {
+    throw new Error("credential-like token in patch");
+  }
   if (/\bghp_[A-Za-z0-9]{20,}\b/.test(text)) {
+    throw new Error("credential-like token in patch");
+  }
+  if (/\bgithub_pat_[A-Za-z0-9_]{20,}\b/.test(text)) {
     throw new Error("credential-like token in patch");
   }
 };

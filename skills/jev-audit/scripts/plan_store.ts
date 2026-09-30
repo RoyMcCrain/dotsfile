@@ -1,8 +1,11 @@
-import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { WeeklyPlan } from "./plan_types.ts";
 import { assertAuditRelativePathSafe } from "./paths.ts";
-import { assertRegularDir, readJsonFile } from "./state_io.ts";
+import {
+  assertRegularDir,
+  publishPrivateFileAtomic,
+  readJsonFile,
+} from "./state_io.ts";
 import { validateWeeklyPlan } from "./validate_state.ts";
 
 export const readPlan = async (
@@ -60,9 +63,8 @@ export const writePlanImmutable = async (
   await Deno.mkdir(weekRoot, { recursive: true, mode: 0o700 });
   await Deno.chmod(weekRoot, 0o700);
   const path = join(weekRoot, "plan.json");
-  await writeFile(path, `${JSON.stringify(plan, null, 2)}\n`, {
-    flag: "wx",
-    mode: 0o600,
+  await publishPrivateFileAtomic(path, `${JSON.stringify(plan, null, 2)}\n`, {
+    ifExists: "fail",
   });
 };
 

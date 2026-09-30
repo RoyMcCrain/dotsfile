@@ -14,9 +14,9 @@ import {
   writePlanImmutable,
 } from "./plan_store.ts";
 import {
+  assertAuditRelativePathSafe,
   ensurePrivateDir,
   resolveEffectiveRunsCanonical,
-  weekDir,
 } from "./paths.ts";
 import { AUDITOR_PROMPT_VERSION } from "./auditor_prompt.ts";
 const planCaseFromEligible = (
@@ -37,6 +37,17 @@ const planCaseFromEligible = (
 
 export const weeklySeed = (weekStart: string): string =>
   createHash("sha256").update(`jev-audit-week:${weekStart}`).digest("hex");
+
+export const assertWeekPeriodCompleted = (
+  period: UtcWeekPeriod,
+  now = new Date(),
+): void => {
+  const endMs = Date.parse(period.weekEndIso);
+  if (Number.isNaN(endMs)) throw new Error("invalid week period");
+  if (now.getTime() < endMs) {
+    throw new Error("week period not yet completed");
+  }
+};
 
 const summarizeHistoryWarnings = (
   warnings: Array<{ runDir: string; reason: string }>,
@@ -117,11 +128,19 @@ export const ensureWeeklyPlan = async (options: {
   period: UtcWeekPeriod;
   runsDir?: string;
 }): Promise<{ weekRoot: string; plan: WeeklyPlan; created: boolean }> => {
+  assertWeekPeriodCompleted(options.period);
   const runsDirCanonical = await resolveEffectiveRunsCanonical(options.runsDir);
   const base = await ensurePrivateDir(options.auditBase, options.runsDir);
-  const root = weekDir(base, options.period.weekStart);
-  await mkdir(root, { recursive: true, mode: 0o700 });
-  await Deno.chmod(root, 0o700);
+  const root = await assertAuditRelativePathSafe(
+    base,
+    ["weeks", options.period.weekStart],
+    "week directory",
+  );
+  await assertAuditRelativePathSafe(
+    base,
+    ["weeks", options.period.weekStart, "plan.json"],
+    "plan",
+  );
   const existing = await readPlan(base, options.period.weekStart);
   if (existing) {
     if (
@@ -136,6 +155,8 @@ export const ensureWeeklyPlan = async (options: {
     }
     return { weekRoot: root, plan: existing, created: false };
   }
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  await Deno.chmod(root, 0o700);
   const plan = await buildPlanFromHistory({
     period: options.period,
     runsDir: options.runsDir,

@@ -36,14 +36,14 @@ Deno.test("repeated prepare preserves unavailable failure state", async () => {
   const auditDir = join(root, "audit");
   const runId = "22222222-2222-4222-8222-222222222222";
   const hash = sha256Bytes(new TextEncoder().encode(PATCH));
-  const runDir = join(runsDir, `2026-09-29-${runId}`);
+  const runDir = join(runsDir, `2020-09-29-${runId}`);
   await mkdir(runDir, { recursive: true });
   await writeFile(
     join(runDir, "metadata.json"),
     JSON.stringify({
       schemaVersion: 1,
       runId,
-      createdAt: "2026-09-29T12:00:00.000Z",
+      createdAt: "2020-09-29T12:00:00.000Z",
       repository: "/r",
       revision: "abc",
       level: 2,
@@ -63,7 +63,7 @@ Deno.test("repeated prepare preserves unavailable failure state", async () => {
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: join(import.meta.dirname!, "fixtures/resolve_mock.sh"),
   };
-  const week = "2026-09-28";
+  const week = "2020-09-28";
   await runCli(env, [
     "prepare",
     "--runs-dir",
@@ -85,7 +85,7 @@ Deno.test("repeated prepare preserves unavailable failure state", async () => {
         runId,
         patchSha256: hash,
         resolvedAuditorModel: "mock/auditor",
-        approvedAt: "2026-09-29T00:00:00.000Z",
+        approvedAt: "2020-09-29T00:00:00.000Z",
         approvedInputSha256: hash,
         promptVersion: 1,
         promptHash: promptHash(),
@@ -105,7 +105,7 @@ Deno.test("repeated prepare preserves unavailable failure state", async () => {
         status: "failure",
         independent: true,
         failureReason: "runner_failed",
-        attemptedAt: "2026-09-29T00:00:00.000Z",
+        attemptedAt: "2020-09-29T00:00:00.000Z",
       })
     }\n`,
   );

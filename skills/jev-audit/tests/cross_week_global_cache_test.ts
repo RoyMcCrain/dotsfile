@@ -8,6 +8,7 @@ import {
 } from "../../parallel-review/scripts/select_review_level.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+
 const PATCH =
   "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n+shared\n";
 
@@ -38,7 +39,7 @@ const writeRun = async (
   createdAt: string,
 ) => {
   const patchSha256 = sha256Bytes(new TextEncoder().encode(PATCH));
-  const runDir = join(runsDir, `2026-run-${runId.slice(0, 8)}`);
+  const runDir = join(runsDir, `2020-run-${runId.slice(0, 8)}`);
   await mkdir(runDir, { mode: 0o700 });
   await writeFile(
     join(runDir, "metadata.json"),
@@ -153,8 +154,8 @@ Deno.test("cross-week success cache reuses global result despite attempt marker"
   await mkdir(runsDir, { recursive: true });
   const runId1 = "11111111-1111-4111-8111-111111111111";
   const runId2 = "22222222-2222-4222-8222-222222222222";
-  await writeRun(runsDir, runId1, "2026-09-22T10:00:00.000Z");
-  await writeRun(runsDir, runId2, "2026-09-29T10:00:00.000Z");
+  await writeRun(runsDir, runId1, "2020-09-22T10:00:00.000Z");
+  await writeRun(runsDir, runId2, "2020-09-29T10:00:00.000Z");
   const mocks = await writeMockScripts(
     root,
     'echo \'{"minLevel":2,"maxLevel":4,"reason":"mock","concerns":[]}\'\n',
@@ -164,20 +165,20 @@ Deno.test("cross-week success cache reuses global result despite attempt marker"
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
-    JEV_AUDIT_BASH: "bash",
+    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
   };
-  await approveAndRunWeek(env, runsDir, auditDir, "2026-09-21", runId1);
+  await approveAndRunWeek(env, runsDir, auditDir, "2020-09-21", runId1);
   assert.equal(Number(await readFile(mocks.countFile, "utf8")), 1);
-  await approveAndRunWeek(env, runsDir, auditDir, "2026-09-28", runId2);
+  await approveAndRunWeek(env, runsDir, auditDir, "2020-09-28", runId2);
   assert.equal(Number(await readFile(mocks.countFile, "utf8")), 1);
   const week2Result = JSON.parse(
     await readFile(
-      join(auditDir, "weeks", "2026-09-28", "results", `${runId2}.json`),
+      join(auditDir, "weeks", "2020-09-28", "results", `${runId2}.json`),
       "utf8",
     ),
   ) as { status: string; cachedFromWeek?: string };
   assert.equal(week2Result.status, "cached");
-  assert.equal(week2Result.cachedFromWeek, "2026-09-21");
+  assert.equal(week2Result.cachedFromWeek, "2020-09-21");
   await rm(root, { recursive: true, force: true });
 });
 
@@ -188,19 +189,19 @@ Deno.test("cross-week failure cache stays unavailable without second invoke", as
   await mkdir(runsDir, { recursive: true });
   const runId1 = "33333333-3333-4333-8333-333333333333";
   const runId2 = "44444444-4444-4444-8444-444444444444";
-  await writeRun(runsDir, runId1, "2026-09-22T10:00:00.000Z");
-  await writeRun(runsDir, runId2, "2026-09-29T10:00:00.000Z");
+  await writeRun(runsDir, runId1, "2020-09-22T10:00:00.000Z");
+  await writeRun(runsDir, runId2, "2020-09-29T10:00:00.000Z");
   const mocks = await writeMockScripts(root, "exit 3\n");
   const env = {
     HOME: root,
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
-    JEV_AUDIT_BASH: "bash",
+    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
   };
-  await approveAndRunWeek(env, runsDir, auditDir, "2026-09-21", runId1);
+  await approveAndRunWeek(env, runsDir, auditDir, "2020-09-21", runId1);
   assert.equal(Number(await readFile(mocks.countFile, "utf8")), 1);
-  await approveAndRunWeek(env, runsDir, auditDir, "2026-09-28", runId2);
+  await approveAndRunWeek(env, runsDir, auditDir, "2020-09-28", runId2);
   assert.equal(Number(await readFile(mocks.countFile, "utf8")), 1);
   await runAuditCli(env, [
     "report",
@@ -209,11 +210,11 @@ Deno.test("cross-week failure cache stays unavailable without second invoke", as
     "--audit-dir",
     auditDir,
     "--week",
-    "2026-09-28",
+    "2020-09-28",
   ]);
   const report = JSON.parse(
     await readFile(
-      join(auditDir, "weeks", "2026-09-28", "report.json"),
+      join(auditDir, "weeks", "2020-09-28", "report.json"),
       "utf8",
     ),
   ) as { cases: Array<{ status: string }> };

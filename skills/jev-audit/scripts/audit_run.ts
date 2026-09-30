@@ -7,7 +7,7 @@ import {
   metadataPatchSha256Matches,
 } from "./locate_run.ts";
 import type { AuditResultRecord, PlanCase } from "./plan_types.ts";
-import { readApproval } from "./approval_store.ts";
+import { approvalMatchesPlan, readPlanCaseApproval } from "./approval_store.ts";
 import {
   assertCachedResultIdentity,
   assertResultIdentity,
@@ -34,7 +34,6 @@ import {
   invokeRunner,
   prepareIsolatedRun,
 } from "./runner_invoke.ts";
-import { approvalsDir } from "./paths.ts";
 
 export type CaseRunState =
   | { status: "needs_preflight" }
@@ -46,7 +45,10 @@ export type CaseRunState =
 const identityExpected = (
   planCase: PlanCase,
   weekStart: string,
-  approval: NonNullable<Awaited<ReturnType<typeof readApproval>>>,
+  approval: {
+    resolvedAuditorModel: string;
+    promptHash: string;
+  },
 ) => ({
   runId: planCase.runId,
   weekStart,
@@ -54,6 +56,66 @@ const identityExpected = (
   resolvedAuditorModel: approval.resolvedAuditorModel,
   promptHash: approval.promptHash,
 });
+
+const auditorPayloadEqual = (
+  a: AuditResultRecord["auditor"],
+  b: AuditResultRecord["auditor"],
+): boolean => {
+  if (a === undefined && b === undefined) return true;
+  if (a === undefined || b === undefined) return false;
+  return (
+    a.minLevel === b.minLevel &&
+    a.maxLevel === b.maxLevel &&
+    a.reason === b.reason &&
+    JSON.stringify(a.concerns) === JSON.stringify(b.concerns)
+  );
+};
+
+const globalCacheMatchesRecord = (
+  cached: AuditResultRecord,
+  record: AuditResultRecord,
+): boolean =>
+  cached.patchSha256 === record.patchSha256 &&
+  cached.resolvedAuditorModel === record.resolvedAuditorModel &&
+  cached.promptHash === record.promptHash &&
+  cached.status === record.status &&
+  cached.runId === record.runId &&
+  cached.weekStart === record.weekStart &&
+  cached.attemptedAt === record.attemptedAt &&
+  cached.independent === record.independent &&
+  (cached.status !== "failure" ||
+    cached.failureReason === record.failureReason) &&
+  (cached.status !== "success" ||
+    auditorPayloadEqual(cached.auditor, record.auditor));
+
+const reconstructGlobalCacheIfMissing = async (
+  auditBase: string,
+  key: string,
+  record: AuditResultRecord,
+): Promise<{ ok: true } | { ok: false; reason: string }> => {
+  if (record.independent !== true) return { ok: true };
+  if (record.status !== "success" && record.status !== "failure") {
+    return { ok: true };
+  }
+  let existing: AuditResultRecord | undefined;
+  try {
+    existing = await readGlobalCache(auditBase, key);
+  } catch {
+    return { ok: false, reason: "global_cache_unreadable" };
+  }
+  if (existing) {
+    if (!globalCacheMatchesRecord(existing, record)) {
+      return { ok: false, reason: "global_cache_conflict" };
+    }
+    return { ok: true };
+  }
+  try {
+    await writeGlobalCache(auditBase, key, record);
+  } catch {
+    return { ok: false, reason: "global_cache_write_failed" };
+  }
+  return { ok: true };
+};
 
 export const runSingleCase = async (options: {
   auditBase: string;
@@ -63,28 +125,37 @@ export const runSingleCase = async (options: {
   runsDir?: string;
   resolvedAuditorModel?: string;
 }): Promise<CaseRunState> => {
-  const approval = await readApproval(
-    approvalsDir(options.weekRoot),
+  const approvalRead = await readPlanCaseApproval(
+    options.auditBase,
+    options.weekStart,
     options.planCase.runId,
   );
+  if (
+    approvalRead.ok === false &&
+    approvalRead.reason === "invalid_approval_state"
+  ) {
+    return { status: "unavailable", reason: "invalid_approval_state" };
+  }
+  const approval = approvalRead.ok ? approvalRead.approval : undefined;
 
   if (!approval) return { status: "needs_preflight" };
-  if (
-    approval.patchSha256 !== options.planCase.patchSha256 ||
-    approval.weekStart !== options.weekStart ||
-    approval.runId !== options.planCase.runId
-  ) {
+  if (!approvalMatchesPlan(approval, options.planCase, options.weekStart)) {
     return { status: "held", reason: "approval_mismatch" };
   }
   if (approval.promptHash !== promptHash()) {
     return { status: "held", reason: "prompt_changed" };
   }
 
-  const existingWeek = await readWeekResult(
-    options.auditBase,
-    options.weekStart,
-    options.planCase.runId,
-  );
+  let existingWeek: AuditResultRecord | undefined;
+  try {
+    existingWeek = await readWeekResult(
+      options.auditBase,
+      options.weekStart,
+      options.planCase.runId,
+    );
+  } catch {
+    return { status: "unavailable", reason: "invalid_stored_result" };
+  }
   if (existingWeek) {
     try {
       if (existingWeek.status === "cached") {
@@ -101,7 +172,19 @@ export const runSingleCase = async (options: {
         );
       }
     } catch {
-      throw new Error("stored result failed identity validation");
+      return { status: "unavailable", reason: "invalid_stored_result" };
+    }
+    const key = cacheKey(
+      options.planCase.patchSha256,
+      approval.resolvedAuditorModel,
+    );
+    const cacheRepair = await reconstructGlobalCacheIfMissing(
+      options.auditBase,
+      key,
+      existingWeek,
+    );
+    if (!cacheRepair.ok) {
+      return { status: "unavailable", reason: cacheRepair.reason };
     }
     if (isUnavailableResult(existingWeek)) {
       return {
@@ -128,14 +211,6 @@ export const runSingleCase = async (options: {
     } catch {
       return { status: "held", reason: "model_resolution_failed" };
     }
-  }
-  try {
-    await assertAuditorIndependent(
-      resolvedNow,
-      options.planCase.jevModel,
-    );
-  } catch {
-    return { status: "held", reason: "auditor_not_independent" };
   }
   if (approval.resolvedAuditorModel !== resolvedNow) {
     return { status: "held", reason: "auditor_model_changed" };
@@ -210,29 +285,48 @@ export const runSingleCase = async (options: {
     return { status: "unavailable", reason: "patch_validation_failed" };
   }
 
-  const globalAttempt = await writeGlobalAttemptMarker(
-    options.auditBase,
-    key,
-    { runId: options.planCase.runId, weekStart: options.weekStart },
-  );
-  if (globalAttempt === "exists") {
-    return { status: "unavailable", reason: "global_attempt_in_progress" };
-  }
-
-  const weekAttempt = await writeAttemptMarker(
-    options.auditBase,
-    options.weekStart,
-    options.planCase.runId,
-  );
-  if (weekAttempt === "exists") {
-    return { status: "unavailable", reason: "prior_attempt_incomplete" };
-  }
-
-  const { cwd, promptPath, cleanup } = await prepareIsolatedRun();
   try {
-    const inputInCwd = join(cwd, genericPatchFileName());
+    await assertAuditorIndependent(
+      resolvedNow,
+      options.planCase.jevModel,
+    );
+  } catch {
+    return { status: "held", reason: "auditor_not_independent" };
+  }
+
+  let cwd: string;
+  let promptPath: string;
+  let inputInCwd: string;
+  let cleanup: (() => Promise<void>) | undefined;
+  try {
+    ({ cwd, promptPath, cleanup } = await prepareIsolatedRun());
+    inputInCwd = join(cwd, genericPatchFileName());
     await copyFile(stagedPath, inputInCwd);
     await Deno.chmod(inputInCwd, 0o600);
+  } catch {
+    if (cleanup) await cleanup();
+    return { status: "unavailable", reason: "run_preparation_failed" };
+  }
+
+  try {
+    const globalAttempt = await writeGlobalAttemptMarker(
+      options.auditBase,
+      key,
+      { runId: options.planCase.runId, weekStart: options.weekStart },
+    );
+    if (globalAttempt === "exists") {
+      return { status: "unavailable", reason: "global_attempt_in_progress" };
+    }
+
+    const weekAttempt = await writeAttemptMarker(
+      options.auditBase,
+      options.weekStart,
+      options.planCase.runId,
+    );
+    if (weekAttempt === "exists") {
+      return { status: "unavailable", reason: "prior_attempt_incomplete" };
+    }
+
     const outcome = await invokeRunner({
       model: resolvedNow,
       promptPath,
@@ -293,7 +387,7 @@ export const runSingleCase = async (options: {
     await writeGlobalCache(options.auditBase, key, success);
     return { status: "audited", result: success };
   } finally {
-    await cleanup();
+    if (cleanup) await cleanup();
   }
 };
 

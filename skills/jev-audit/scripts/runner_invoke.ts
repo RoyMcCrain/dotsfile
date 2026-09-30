@@ -58,26 +58,28 @@ export const prepareIsolatedRun = async (): Promise<{
   cleanup: () => Promise<void>;
 }> => {
   const cwd = await Deno.makeTempDir({ prefix: "jev-audit-cwd-" });
-  await Deno.chmod(cwd, 0o700);
-  const promptPath = join(cwd, "prompt.md");
-  const system = buildAuditorSystemPrompt();
-  const user = buildAuditorUserPrompt();
-  await writeFile(
-    promptPath,
-    `${system}\n\n${user}\n`,
-    { mode: 0o600 },
-  );
-  return {
-    cwd,
-    promptPath,
-    cleanup: async () => {
-      try {
-        await Deno.remove(cwd, { recursive: true });
-      } catch {
-        // ignore
-      }
-    },
+  const removeCwd = async (): Promise<void> => {
+    try {
+      await Deno.remove(cwd, { recursive: true });
+    } catch {
+      // ignore
+    }
   };
+  try {
+    await Deno.chmod(cwd, 0o700);
+    const promptPath = join(cwd, "prompt.md");
+    const system = buildAuditorSystemPrompt();
+    const user = buildAuditorUserPrompt();
+    await writeFile(
+      promptPath,
+      `${system}\n\n${user}\n`,
+      { mode: 0o600 },
+    );
+    return { cwd, promptPath, cleanup: removeCwd };
+  } catch (error) {
+    await removeCwd();
+    throw error;
+  }
 };
 
 export const AUDITOR_TIMEOUT_SECONDS = 120;

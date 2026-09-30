@@ -10,6 +10,8 @@ export type AuditorResponse = {
 const MAX_REASON = 2_000;
 const MAX_CONCERN = 500;
 const MAX_CONCERNS = 20;
+/** Cap raw auditor response input passed to this parser (UTF-8 bytes before JSON.parse). */
+const MAX_AUDITOR_RAW_UTF8_BYTES = 64 * 1024;
 
 const isLevel = (value: unknown): value is ReviewLevel =>
   value === 1 || value === 2 || value === 3 || value === 4 || value === 5;
@@ -23,7 +25,17 @@ const extractJsonBlock = (text: string): string => {
   return text.trim();
 };
 
+const assertAuditorRawWithinLimit = (raw: string) => {
+  if (raw.length > MAX_AUDITOR_RAW_UTF8_BYTES) {
+    throw new Error("auditor output too large");
+  }
+  if (new TextEncoder().encode(raw).byteLength > MAX_AUDITOR_RAW_UTF8_BYTES) {
+    throw new Error("auditor output too large");
+  }
+};
+
 export const parseAuditorResponse = (raw: string): AuditorResponse => {
+  assertAuditorRawWithinLimit(raw);
   let parsed: unknown;
   try {
     parsed = JSON.parse(extractJsonBlock(raw));

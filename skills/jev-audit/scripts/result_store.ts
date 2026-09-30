@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { auditorPromptFingerprint } from "./auditor_prompt.ts";
 import type {
@@ -7,7 +7,12 @@ import type {
   AuditResultRecord,
   PlanCase,
 } from "./plan_types.ts";
-import { assertRegularDir, assertSafeRunId, readJsonFile } from "./state_io.ts";
+import {
+  assertRegularDir,
+  assertSafeRunId,
+  publishPrivateFileAtomic,
+  readJsonFile,
+} from "./state_io.ts";
 import { validateAuditResultRecord } from "./validate_state.ts";
 import { assertAuditRelativePathSafe } from "./paths.ts";
 
@@ -72,17 +77,8 @@ export const writeGlobalCache = async (
   await mkdir(cacheRoot, { recursive: true, mode: 0o700 });
   await Deno.chmod(cacheRoot, 0o700);
   const path = join(cacheRoot, `${key}.json`);
-  await writeFile(path, `${JSON.stringify(record, null, 2)}\n`, {
-    flag: "wx",
-    mode: 0o600,
-  }).catch((error) => {
-    if (
-      typeof error === "object" && error !== null && "code" in error &&
-      (error as { code: string }).code === "EEXIST"
-    ) {
-      return;
-    }
-    throw error;
+  await publishPrivateFileAtomic(path, `${JSON.stringify(record, null, 2)}\n`, {
+    ifExists: "ignore",
   });
 };
 
@@ -102,29 +98,19 @@ export const writeGlobalAttemptMarker = async (
   await mkdir(attemptsRoot, { recursive: true, mode: 0o700 });
   await Deno.chmod(attemptsRoot, 0o700);
   const path = join(attemptsRoot, `${key}.json`);
-  try {
-    await writeFile(
-      path,
-      `${
-        JSON.stringify({
-          key,
-          runId: meta.runId,
-          weekStart: meta.weekStart,
-          at: new Date().toISOString(),
-        })
-      }\n`,
-      { flag: "wx", mode: 0o600 },
-    );
-    return "created";
-  } catch (error) {
-    if (
-      typeof error === "object" && error !== null && "code" in error &&
-      (error as { code: string }).code === "EEXIST"
-    ) {
-      return "exists";
-    }
-    throw error;
-  }
+  const outcome = await publishPrivateFileAtomic(
+    path,
+    `${
+      JSON.stringify({
+        key,
+        runId: meta.runId,
+        weekStart: meta.weekStart,
+        at: new Date().toISOString(),
+      })
+    }\n`,
+    { ifExists: "ignore" },
+  );
+  return outcome;
 };
 
 export const readGlobalAttemptMarker = async (
@@ -200,9 +186,8 @@ export const writeWeekResult = async (
   await mkdir(resultsPath, { recursive: true, mode: 0o700 });
   await Deno.chmod(resultsPath, 0o700);
   const path = join(resultsPath, `${record.runId}.json`);
-  await writeFile(path, `${JSON.stringify(record, null, 2)}\n`, {
-    flag: "wx",
-    mode: 0o600,
+  await publishPrivateFileAtomic(path, `${JSON.stringify(record, null, 2)}\n`, {
+    ifExists: "fail",
   });
 };
 
@@ -221,22 +206,12 @@ export const writeAttemptMarker = async (
   const resultsPath = join(baseReal, "weeks", weekStart, "results");
   await mkdir(resultsPath, { recursive: true, mode: 0o700 });
   const path = join(resultsPath, `${runId}.attempt.json`);
-  try {
-    await writeFile(
-      path,
-      `${JSON.stringify({ runId, at: new Date().toISOString() })}\n`,
-      { flag: "wx", mode: 0o600 },
-    );
-    return "created";
-  } catch (error) {
-    if (
-      typeof error === "object" && error !== null && "code" in error &&
-      (error as { code: string }).code === "EEXIST"
-    ) {
-      return "exists";
-    }
-    throw error;
-  }
+  const outcome = await publishPrivateFileAtomic(
+    path,
+    `${JSON.stringify({ runId, at: new Date().toISOString() })}\n`,
+    { ifExists: "ignore" },
+  );
+  return outcome;
 };
 
 export const hasAttemptMarker = async (

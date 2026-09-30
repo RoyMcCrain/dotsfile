@@ -28,7 +28,7 @@ const writeMetaRun = async (
       JSON.stringify({
         schemaVersion: 1,
         runId,
-        createdAt: "2026-09-29T10:00:00.000Z",
+        createdAt: "2020-09-29T10:00:00.000Z",
         repository: "/tmp/r",
         revision: "abc",
         level: 2,
@@ -50,8 +50,8 @@ const writeMetaRun = async (
 Deno.test("duplicate runId excludes all dirs from index", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "jev-locate-dup-"));
   const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-  await writeMetaRun(runsDir, "2026-09-29-a", id);
-  await writeMetaRun(runsDir, "2026-09-29-b", id);
+  await writeMetaRun(runsDir, "2020-09-29-a", id);
+  await writeMetaRun(runsDir, "2020-09-29-b", id);
   const index = await indexRunDirs(runsDir);
   assert.equal(index.byRunId.has(id), false);
   assert.ok(
@@ -63,7 +63,7 @@ Deno.test("duplicate runId excludes all dirs from index", async () => {
 Deno.test("symlink metadata.json is rejected", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "jev-locate-sym-"));
   const id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-  const runDir = join(runsDir, "2026-09-29-c");
+  const runDir = join(runsDir, "2020-09-29-c");
   await mkdir(runDir);
   const realMeta = join(runsDir, "outside-meta.json");
   await writeFile(realMeta, '{"schemaVersion":1}\n');
@@ -78,12 +78,12 @@ Deno.test("run rejects metadata patchSha256 mismatch with plan", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-run-meta-"));
   const runsDir = join(root, "runs");
   const auditBase = join(root, "audit");
-  const week = "2026-09-28";
+  const week = "2020-09-28";
   const weekRoot = join(auditBase, "weeks", week);
   await ensurePrivateDir(auditBase);
   await mkdir(join(weekRoot, "approvals"), { recursive: true });
   const id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
-  await writeMetaRun(runsDir, "2026-09-29-d", id, "d".repeat(64));
+  await writeMetaRun(runsDir, "2020-09-29-d", id, "d".repeat(64));
   const ph = promptHash();
   await writeFile(
     join(weekRoot, "approvals", `${id}.json`),
@@ -109,7 +109,7 @@ Deno.test("run rejects metadata patchSha256 mismatch with plan", async () => {
       runId: id,
       patchSha256: patchSha,
       stratum: "random",
-      createdAt: "2026-09-29T01:00:00.000Z",
+      createdAt: "2020-09-29T01:00:00.000Z",
       effectiveLevel: 2,
       source: "jev",
       reason: "r",
@@ -126,7 +126,7 @@ Deno.test("run rejects metadata patchSha256 mismatch with plan", async () => {
 
 Deno.test("invalid metadata.json is not indexed", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "jev-locate-bad-"));
-  const runDir = join(runsDir, "2026-09-29-bad");
+  const runDir = join(runsDir, "2020-09-29-bad");
   await mkdir(runDir);
   await writeFile(join(runDir, "metadata.json"), '{"schemaVersion":99}\n');
   const index = await indexRunDirs(runsDir);

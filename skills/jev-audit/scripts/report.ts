@@ -20,9 +20,8 @@ import {
   reportHtmlPath,
   reportJsonPath,
 } from "./paths.ts";
-import { readApproval } from "./approval_store.ts";
-import { approvalsDir } from "./paths.ts";
-import { assertRegularDir, readJsonFile } from "./state_io.ts";
+import { approvalMatchesPlan, readPlanCaseApproval } from "./approval_store.ts";
+import { assertRegularDir, isMissingPath, readJsonFile } from "./state_io.ts";
 import { defaultAuditorRole } from "./model_resolve.ts";
 
 export type StratumSummary = {
@@ -216,12 +215,34 @@ export const deriveCaseState = async (
   result?: AuditResultRecord;
   reason?: string;
 }> => {
-  const approval = await readApproval(
-    approvalsDir(join(auditBase, "weeks", weekStart)),
+  const approvalRead = await readPlanCaseApproval(
+    auditBase,
+    weekStart,
     planCase.runId,
   );
+  if (
+    approvalRead.ok === false &&
+    approvalRead.reason === "invalid_approval_state"
+  ) {
+    return {
+      planCase,
+      status: "unavailable",
+      reason: "invalid_approval_state",
+    };
+  }
+  const approval = approvalRead.ok ? approvalRead.approval : undefined;
 
-  const result = await readWeekResult(auditBase, weekStart, planCase.runId);
+  let result: AuditResultRecord | undefined;
+  try {
+    result = await readWeekResult(auditBase, weekStart, planCase.runId);
+  } catch {
+    return {
+      planCase,
+      status: "unavailable",
+      reason: "invalid_stored_result",
+    };
+  }
+
   if (result) {
     if (!approval) {
       return {
@@ -229,6 +250,9 @@ export const deriveCaseState = async (
         status: "unavailable",
         reason: "missing_approval",
       };
+    }
+    if (!approvalMatchesPlan(approval, planCase, weekStart)) {
+      return { planCase, status: "held", reason: "approval_mismatch" };
     }
     try {
       if (result.status === "cached") {
@@ -269,11 +293,7 @@ export const deriveCaseState = async (
   if (!approval) {
     return { planCase, status: "needs_preflight" };
   }
-  if (
-    approval.patchSha256 !== planCase.patchSha256 ||
-    approval.weekStart !== weekStart ||
-    approval.runId !== planCase.runId
-  ) {
+  if (!approvalMatchesPlan(approval, planCase, weekStart)) {
     return { planCase, status: "held", reason: "approval_mismatch" };
   }
   if (approval.promptHash !== promptHash()) {
@@ -579,8 +599,11 @@ export const buildReport = async (options: {
         report.weekOverWeek = wow;
       }
     }
-  } catch {
-    report.weekOverWeek = { available: false, reason: "no_prior_week" };
+  } catch (error) {
+    report.weekOverWeek = {
+      available: false,
+      reason: isMissingPath(error) ? "no_prior_week" : "invalid_prior_report",
+    };
   }
 
   return report;
@@ -632,9 +655,17 @@ export const collectCaseStates = (
   }>
 > =>
   Promise.all(
-    plan.selected.map((planCase) =>
-      deriveCaseState(auditBase, weekStart, planCase)
-    ),
+    plan.selected.map(async (planCase) => {
+      try {
+        return await deriveCaseState(auditBase, weekStart, planCase);
+      } catch {
+        return {
+          planCase,
+          status: "unavailable",
+          reason: "case_state_unreadable",
+        };
+      }
+    }),
   );
 
 export const refreshReportFromDisk = async (

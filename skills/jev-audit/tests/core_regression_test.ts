@@ -39,8 +39,8 @@ Deno.test("rejects audit-dir when symlink ancestor aliases into runs", async () 
 Deno.test("validateWeeklyPlan preserves historyWarningCodes under counts", () => {
   const plan = validateWeeklyPlan({
     schemaVersion: 1,
-    weekStart: "2026-09-28",
-    weekEnd: "2026-10-05",
+    weekStart: "2020-09-28",
+    weekEnd: "2020-10-05",
     seed: "a".repeat(64),
     createdAt: "2026-01-01T00:00:00.000Z",
     runsDirCanonical: "/tmp/runs",
@@ -67,8 +67,8 @@ Deno.test("buildReport week-over-week uses recorded models not live resolver", a
   const ph = promptHash();
   const basePlan = (): WeeklyPlan => ({
     schemaVersion: 1,
-    weekStart: "2026-09-14",
-    weekEnd: "2026-09-21",
+    weekStart: "2020-09-14",
+    weekEnd: "2020-09-21",
     seed: "a".repeat(64),
     createdAt: "2026-01-01T00:00:00.000Z",
     runsDirCanonical: "/tmp/runs",
@@ -87,7 +87,7 @@ Deno.test("buildReport week-over-week uses recorded models not live resolver", a
       runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       patchSha256: "a".repeat(64),
       stratum: "random",
-      createdAt: "2026-09-15T01:00:00.000Z",
+      createdAt: "2020-09-15T01:00:00.000Z",
       effectiveLevel: 3,
       source: "jev",
       reason: "r",
@@ -152,12 +152,12 @@ Deno.test("buildReport week-over-week uses recorded models not live resolver", a
     }],
     caveats: [],
   });
-  const priorRoot = join(auditBase, "weeks", "2026-09-14");
+  const priorRoot = join(auditBase, "weeks", "2020-09-14");
   await mkdir(priorRoot, { recursive: true });
   const priorPlanBody = {
     ...basePlan(),
-    weekStart: "2026-09-14",
-    weekEnd: "2026-09-21",
+    weekStart: "2020-09-14",
+    weekEnd: "2020-09-21",
   };
   await writeFile(
     join(priorRoot, "plan.json"),
@@ -165,16 +165,20 @@ Deno.test("buildReport week-over-week uses recorded models not live resolver", a
   );
   await writeFile(
     join(priorRoot, "report.json"),
-    `${JSON.stringify(mkReport("2026-09-14", "2026-09-21", 0))}\n`,
+    `${JSON.stringify(mkReport("2020-09-14", "2020-09-21", 0))}\n`,
   );
   const plan = {
     ...basePlan(),
-    weekStart: "2026-09-21",
-    weekEnd: "2026-09-28",
+    weekStart: "2020-09-21",
+    weekEnd: "2020-09-28",
+    selected: [{
+      ...basePlan().selected[0],
+      createdAt: "2020-09-22T01:00:00.000Z",
+    }],
   };
   const report = await buildReport({
     auditBase,
-    weekRoot: join(auditBase, "weeks", "2026-09-21"),
+    weekRoot: join(auditBase, "weeks", "2020-09-21"),
     plan,
     caseStates: [{
       planCase: plan.selected[0],
@@ -230,8 +234,8 @@ Deno.test("buildReport auditor promptHash uses recorded result not live prompt",
   const storedPrompt = "f".repeat(64);
   const plan: WeeklyPlan = {
     schemaVersion: 1,
-    weekStart: "2026-09-28",
-    weekEnd: "2026-10-05",
+    weekStart: "2020-09-28",
+    weekEnd: "2020-10-05",
     seed: "a".repeat(64),
     createdAt: "2026-01-01T00:00:00.000Z",
     runsDirCanonical: "/tmp/runs",
@@ -250,7 +254,7 @@ Deno.test("buildReport auditor promptHash uses recorded result not live prompt",
       runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       patchSha256: "a".repeat(64),
       stratum: "random",
-      createdAt: "2026-09-29T01:00:00.000Z",
+      createdAt: "2020-09-29T01:00:00.000Z",
       effectiveLevel: 3,
       source: "jev",
       reason: "r",
@@ -294,14 +298,14 @@ Deno.test("cached failure stays unavailable on repeated run", async () => {
   const PATCH = "diff --git a/a b\n+1\n";
   const hash = sha256Bytes(new TextEncoder().encode(PATCH));
   const runId = "33333333-3333-4333-8333-333333333333";
-  const runDir = join(runsDir, `2026-09-29-${runId}`);
+  const runDir = join(runsDir, `2020-09-29-${runId}`);
   await mkdir(runDir, { recursive: true });
   await writeFile(
     join(runDir, "metadata.json"),
     JSON.stringify({
       schemaVersion: 1,
       runId,
-      createdAt: "2026-09-29T12:00:00.000Z",
+      createdAt: "2020-09-29T12:00:00.000Z",
       repository: "/r",
       revision: "abc",
       level: 2,
@@ -322,7 +326,7 @@ Deno.test("cached failure stays unavailable on repeated run", async () => {
     MODEL_RESOLVER: join(import.meta.dirname!, "fixtures/resolve_mock.sh"),
     PI_REVIEW_BIN: join(root, "missing-pi"),
   };
-  const week = "2026-09-28";
+  const week = "2020-09-28";
   const prep = async () => {
     await new Deno.Command(Deno.execPath(), {
       args: [
@@ -356,7 +360,7 @@ Deno.test("cached failure stays unavailable on repeated run", async () => {
         promptHash: promptHash(),
         status: "cached",
         independent: false,
-        cachedFromWeek: "2026-09-14",
+        cachedFromWeek: "2020-09-14",
         failureReason: "runner_failed",
         attemptedAt: "2026-01-01T00:00:00.000Z",
       })

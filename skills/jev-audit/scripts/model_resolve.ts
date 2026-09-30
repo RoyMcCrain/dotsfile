@@ -48,6 +48,9 @@ export const assertAuditorIndependent = async (
   if (jevModel) blocked.add(jevModel);
   const routeId = await resolveRouteReviewId();
   if (routeId) blocked.add(routeId);
+  if (blocked.size === 0) {
+    throw new Error("auditor independence cannot be verified");
+  }
   if (blocked.has(auditorModel)) {
     throw new Error("auditor model must differ from Jev routing model");
   }
