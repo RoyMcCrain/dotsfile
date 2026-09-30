@@ -1204,7 +1204,8 @@ Deno.test("common HTTP failure falls back depth and chunk", async () => {
     model: "typesafe/jev-1.13",
     apiKey: "k",
     minConfidence: 0.7,
-    fetchImpl: () => Promise.resolve(new Response("secret", { status: 500 })),
+    fetchImpl: () =>
+      Promise.resolve(httpErrorResponse("secret", 500, { "Retry-After": "0" })),
   });
   assert.equal(decision.source, "fallback");
   assert.equal(decision.reason, "http_error");
@@ -1212,6 +1213,615 @@ Deno.test("common HTTP failure falls back depth and chunk", async () => {
   assert.equal(decision.chunking?.reason, "http_error");
   assert.doesNotMatch(JSON.stringify(decision), /secret/);
   validateLevelDecision(decision);
+});
+
+const autoHttpRetryOpts = () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  return {
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+  };
+};
+
+const httpErrorResponse = (
+  body = "",
+  status = 502,
+  headers?: Record<string, string>,
+) =>
+  new Response(body, {
+    status,
+    headers: headers ? new Headers(headers) : undefined,
+  });
+
+const totalHttpAttempts = 4;
+
+Deno.test("auto http_error retries: success and exhaustion", async () => {
+  const opts = autoHttpRetryOpts();
+
+  let successCalls = 0;
+  const firstOk = await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      successCalls++;
+      return Promise.resolve(
+        new Response(validJevBody("2", 0.9, "24000", 0.88)),
+      );
+    },
+  });
+  assert.equal(successCalls, 1);
+  assert.equal(firstOk.source, "jev");
+  assert.equal(firstOk.level, 2);
+  assert.equal(firstOk.chunking?.source, "jev");
+  assert.equal(firstOk.chunking?.choice, "24000");
+
+  let errThenOkCalls = 0;
+  const recovered = await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      errThenOkCalls++;
+      if (errThenOkCalls === 1) {
+        return Promise.resolve(httpErrorResponse("secret-body", 502, {
+          "Retry-After": "0",
+        }));
+      }
+      return Promise.resolve(
+        new Response(validJevBody("4", 0.85, "12000", 0.9)),
+      );
+    },
+  });
+  assert.equal(errThenOkCalls, 2);
+  assert.equal(recovered.source, "jev");
+  assert.equal(recovered.level, 4);
+  assert.equal(recovered.chunking?.choice, "12000");
+  assert.doesNotMatch(JSON.stringify(recovered), /secret-body/);
+
+  let lateCalls = 0;
+  const lateOk = await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      lateCalls++;
+      if (lateCalls < totalHttpAttempts) {
+        return Promise.resolve(
+          httpErrorResponse("", 429, { "Retry-After": "0" }),
+        );
+      }
+      return Promise.resolve(new Response(validJevBody("3", 0.9)));
+    },
+  });
+  assert.equal(lateCalls, totalHttpAttempts);
+  assert.equal(lateOk.source, "jev");
+  assert.equal(lateOk.level, 3);
+
+  let exhaustedCalls = 0;
+  const exhausted = await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      exhaustedCalls++;
+      return Promise.resolve(httpErrorResponse("leak-502", 502, {
+        "Retry-After": "0",
+      }));
+    },
+  });
+  assert.equal(exhaustedCalls, totalHttpAttempts);
+  assert.equal(exhausted.source, "fallback");
+  assert.equal(exhausted.reason, "http_error");
+  assert.equal(exhausted.level, 3);
+  assert.equal(exhausted.chunking?.source, "fallback");
+  assert.equal(exhausted.chunking?.reason, "http_error");
+  assert.doesNotMatch(JSON.stringify(exhausted), /leak-502/);
+  validateLevelDecision(exhausted);
+});
+
+Deno.test("auto http_error retries: cancel failed bodies before next fetch", async () => {
+  const opts = autoHttpRetryOpts();
+  const cancelLog: number[] = [];
+  let fetchCalls = 0;
+
+  await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      assert.equal(cancelLog.length, fetchCalls);
+      fetchCalls++;
+      const id = fetchCalls;
+      const stream = new ReadableStream({
+        cancel() {
+          cancelLog.push(id);
+        },
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`err-${id}`));
+        },
+      });
+      return Promise.resolve(
+        new Response(stream, {
+          status: 500,
+          headers: { "Retry-After": "0" },
+        }),
+      );
+    },
+  });
+
+  assert.equal(fetchCalls, totalHttpAttempts);
+  assert.deepEqual(cancelLog, [1, 2, 3, 4]);
+});
+
+Deno.test("auto http_error retries: preserve request; non-http stays single-attempt", async () => {
+  const patch = "\uFEFFdiff --git a/x b/x\n+\u3042\n";
+  const ctx = validateReviewContext({
+    schemaVersion: REVIEW_CONTEXT_SCHEMA_VERSION,
+    intent: {
+      summary: "Retry preserves routing context in shared payload",
+      evidence: [
+        "skills/parallel-review/tests/select_review_level_test.ts:retry",
+      ],
+    },
+    runtime: "unknown",
+    impact: "unknown",
+    dataAndPermissions: "unknown",
+    rollback: "unknown",
+    tests: "unknown",
+  });
+  const patchSha256 = sha256Bytes(new TextEncoder().encode(patch));
+  const contextSha256 = hashReviewContext(ctx);
+  const expectedBody = buildJevRequestBody("typesafe/jev-1.13", patch, ctx);
+  let retryCalls = 0;
+  const bodies: unknown[] = [];
+  let seenAuth = "";
+  let seenRedirect: RequestRedirect | undefined;
+
+  const retried = await selectAutoLevel({
+    patchText: patch,
+    patchSha256,
+    model: "typesafe/jev-1.13",
+    apiKey: "retry-key",
+    minConfidence: 0.7,
+    reviewContext: ctx,
+    fetchImpl: (input, init) => {
+      retryCalls++;
+      seenRedirect = init?.redirect;
+      const req = new Request(input, init);
+      seenAuth = req.headers.get("Authorization") ?? "";
+      return req.text().then((text) => {
+        bodies.push(JSON.parse(text));
+        if (retryCalls === 1) {
+          return httpErrorResponse("", 503, { "Retry-After": "0" });
+        }
+        return new Response(validJevBody("2", 0.9));
+      });
+    },
+  });
+
+  assert.equal(retried.source, "jev");
+  assert.equal(retried.patchSha256, patchSha256);
+  assert.equal(retried.contextSha256, contextSha256);
+  assert.equal(retryCalls, 2);
+  assert.equal(seenAuth, "Bearer retry-key");
+  assert.equal(seenRedirect, "error");
+  assert.equal(bodies.length, 2);
+  assert.deepEqual(bodies[0], expectedBody);
+  assert.deepEqual(bodies[1], expectedBody);
+
+  const single = autoHttpRetryOpts();
+  let netCalls = 0;
+  await selectAutoLevel({
+    ...single,
+    fetchImpl: () => {
+      netCalls++;
+      return Promise.reject(new Error("ECONNRESET"));
+    },
+  });
+  assert.equal(netCalls, 1);
+
+  let httpThenJson = 0;
+  const badJson = await selectAutoLevel({
+    ...single,
+    fetchImpl: () => {
+      httpThenJson++;
+      if (httpThenJson === 1) {
+        return Promise.resolve(
+          httpErrorResponse("", 500, { "Retry-After": "0" }),
+        );
+      }
+      return Promise.resolve(new Response("{bad"));
+    },
+  });
+  assert.equal(httpThenJson, 2);
+  assert.equal(badJson.reason, "invalid_json");
+
+  let httpThenLow = 0;
+  const lowConf = await selectAutoLevel({
+    ...single,
+    fetchImpl: () => {
+      httpThenLow++;
+      if (httpThenLow === 1) {
+        return Promise.resolve(
+          httpErrorResponse("", 401, { "Retry-After": "0" }),
+        );
+      }
+      return Promise.resolve(new Response(validJevBody("5", 0.2)));
+    },
+  });
+  assert.equal(httpThenLow, 2);
+  assert.equal(lowConf.reason, "low_confidence");
+});
+
+Deno.test("auto http_error retries: shared deadline stops further attempts", async () => {
+  const opts = autoHttpRetryOpts();
+  let fetchCalls = 0;
+  const decision = await selectAutoLevel({
+    ...opts,
+    timeoutMs: 25,
+    fetchImpl: (_input, init) => {
+      fetchCalls++;
+      const stream = new ReadableStream({
+        cancel() {
+          return new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          });
+        },
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("err"));
+        },
+      });
+      return Promise.resolve(
+        new Response(stream, {
+          status: 500,
+          headers: { "Retry-After": "0" },
+        }),
+      );
+    },
+  });
+  assert.equal(decision.reason, "timeout");
+  assert.equal(fetchCalls, 1);
+});
+
+Deno.test("auto http_error retries: timeout on second attempt shares AbortSignal", async () => {
+  const opts = autoHttpRetryOpts();
+  let fetchCalls = 0;
+  let firstSignal: AbortSignal | undefined;
+  let secondSignal: AbortSignal | undefined;
+
+  const decision = await selectAutoLevel({
+    ...opts,
+    timeoutMs: 15,
+    fetchImpl: (_input, init) => {
+      fetchCalls++;
+      const signal = init?.signal ?? undefined;
+      if (fetchCalls === 1) {
+        firstSignal = signal;
+        return Promise.resolve(
+          httpErrorResponse("", 502, { "Retry-After": "0" }),
+        );
+      }
+      secondSignal = signal;
+      if (signal?.aborted) {
+        return Promise.reject(new DOMException("Aborted", "AbortError"));
+      }
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    },
+  });
+
+  assert.equal(decision.reason, "timeout");
+  assert.equal(fetchCalls, 2);
+  assert.ok(firstSignal);
+  assert.strictEqual(firstSignal, secondSignal);
+});
+
+Deno.test("auto http_error: request build failure uses network_error and clears timer", async () => {
+  const opts = autoHttpRetryOpts();
+  const stringify = JSON.stringify;
+  const clear = globalThis.clearTimeout;
+  let clears = 0;
+  let fetchCalls = 0;
+  JSON.stringify = ((value: unknown) => {
+    if (typeof value === "object" && value !== null && "questions" in value) {
+      throw new Error("synthetic payload serialization failure");
+    }
+    return stringify(value);
+  }) as typeof JSON.stringify;
+  globalThis.clearTimeout = ((id?: number) => {
+    clears++;
+    clear(id);
+  }) as typeof clearTimeout;
+
+  try {
+    const decision = await selectAutoLevel({
+      ...opts,
+      timeoutMs: 50,
+      fetchImpl: () => {
+        fetchCalls++;
+        throw new Error("fetch must not be called");
+      },
+    });
+    assert.equal(decision.source, "fallback");
+    assert.equal(decision.reason, "network_error");
+    assert.equal(clears, 1);
+    assert.equal(fetchCalls, 0);
+  } finally {
+    JSON.stringify = stringify;
+    globalThis.clearTimeout = clear;
+  }
+});
+
+Deno.test("auto http_error retries: default backoff delays between attempts", async () => {
+  const opts = autoHttpRetryOpts();
+  const delays: number[] = [];
+  let lastAt = Date.now();
+  let fetchCalls = 0;
+
+  const decision = await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      const at = Date.now();
+      if (fetchCalls > 0) delays.push(at - lastAt);
+      lastAt = at;
+      fetchCalls++;
+      return Promise.resolve(httpErrorResponse("", 503));
+    },
+  });
+  assert.equal(decision.reason, "http_error");
+  assert.equal(fetchCalls, totalHttpAttempts);
+  assert.equal(delays.length, 3);
+  const expected = [250, 500, 1000];
+  for (let i = 0; i < expected.length; i++) {
+    assert.ok(
+      delays[i] >= expected[i] - 40,
+      `delay ${i}: ${delays[i]} vs min ${expected[i]}`,
+    );
+  }
+});
+
+Deno.test("auto http_error retries: Retry-After delta, date, invalid, and budget", async () => {
+  const opts = autoHttpRetryOpts();
+
+  {
+    let deltaCalls = 0;
+    let deltaAt = Date.now();
+    const deltaOk = await selectAutoLevel({
+      ...opts,
+      fetchImpl: () => {
+        deltaCalls++;
+        if (deltaCalls === 1) {
+          deltaAt = Date.now();
+          return Promise.resolve(
+            httpErrorResponse("", 429, { "Retry-After": "2" }),
+          );
+        }
+        const gap = Date.now() - deltaAt;
+        assert.ok(gap >= 1900, `delta gap ${gap}`);
+        return Promise.resolve(new Response(validJevBody("2", 0.9)));
+      },
+    });
+    assert.equal(deltaOk.source, "jev");
+    assert.equal(deltaCalls, 2);
+  }
+
+  {
+    const past = new Date(Date.now() - 60_000).toUTCString();
+    let pastCalls = 0;
+    const pastOk = await selectAutoLevel({
+      ...opts,
+      fetchImpl: () => {
+        pastCalls++;
+        if (pastCalls === 1) {
+          return Promise.resolve(
+            httpErrorResponse("", 429, { "Retry-After": past }),
+          );
+        }
+        return Promise.resolve(new Response(validJevBody("3", 0.9)));
+      },
+    });
+    assert.equal(pastOk.source, "jev");
+    assert.equal(pastCalls, 2);
+  }
+
+  for (const kind of ["imf", "asctime"] as const) {
+    const canonical = new Date(Date.now() + 2000).toUTCString();
+    const expectedDelay = Math.max(0, Date.parse(canonical) - Date.now());
+    const [weekday, day, month, year, time] = canonical.split(" ");
+    const retryHeader = kind === "imf"
+      ? canonical
+      : `${weekday.slice(0, 3)} ${month} ${
+        String(Number(day)).padStart(2, " ")
+      } ${time} ${year}`;
+    let futureCalls = 0;
+    let waitStartedAt = Date.now();
+    const futureOk = await selectAutoLevel({
+      ...opts,
+      timeoutMs: 15_000,
+      fetchImpl: () => {
+        futureCalls++;
+        if (futureCalls === 1) {
+          waitStartedAt = Date.now();
+          return Promise.resolve(
+            httpErrorResponse("", 429, { "Retry-After": retryHeader }),
+          );
+        }
+        const gap = Date.now() - waitStartedAt;
+        assert.ok(
+          gap >= expectedDelay - 100,
+          `future HTTP-date ${retryHeader} gap ${gap} vs min ${expectedDelay}`,
+        );
+        return Promise.resolve(new Response(validJevBody("2", 0.9)));
+      },
+    });
+    assert.equal(futureOk.source, "jev");
+    assert.equal(futureCalls, 2);
+  }
+
+  for (
+    const malformed of [
+      "+1",
+      "2001-01-01",
+      "9".repeat(307),
+      "9".repeat(400),
+    ]
+  ) {
+    let malformedCalls = 0;
+    let lastAt = Date.now();
+    const malformedOk = await selectAutoLevel({
+      ...opts,
+      fetchImpl: () => {
+        malformedCalls++;
+        if (malformedCalls === 1) {
+          lastAt = Date.now();
+          return Promise.resolve(
+            httpErrorResponse("", 429, { "Retry-After": malformed }),
+          );
+        }
+        const gap = Date.now() - lastAt;
+        assert.ok(
+          gap >= 200,
+          `malformed Retry-After ${malformed} gap ${gap}`,
+        );
+        return Promise.resolve(new Response(validJevBody("2", 0.9)));
+      },
+    });
+    assert.equal(malformedOk.source, "jev");
+    assert.equal(malformedCalls, 2);
+  }
+
+  {
+    let invalidCalls = 0;
+    let lastAt = Date.now();
+    const invalidOk = await selectAutoLevel({
+      ...opts,
+      fetchImpl: () => {
+        invalidCalls++;
+        if (invalidCalls === 1) {
+          lastAt = Date.now();
+          return Promise.resolve(
+            httpErrorResponse("", 429, { "Retry-After": "-1" }),
+          );
+        }
+        const gap = Date.now() - lastAt;
+        assert.ok(gap >= 200, `invalid Retry-After gap ${gap}`);
+        return Promise.resolve(new Response(validJevBody("2", 0.9)));
+      },
+    });
+    assert.equal(invalidOk.source, "jev");
+    assert.equal(invalidCalls, 2);
+  }
+
+  {
+    let decimalCalls = 0;
+    let lastAt = Date.now();
+    await selectAutoLevel({
+      ...opts,
+      fetchImpl: () => {
+        decimalCalls++;
+        if (decimalCalls === 1) {
+          lastAt = Date.now();
+          return Promise.resolve(
+            httpErrorResponse("", 429, { "Retry-After": "1.5" }),
+          );
+        }
+        const gap = Date.now() - lastAt;
+        assert.ok(gap >= 200, `decimal Retry-After gap ${gap}`);
+        return Promise.resolve(new Response(validJevBody("2", 0.9)));
+      },
+    });
+  }
+
+  let hugeCalls = 0;
+  const huge = await selectAutoLevel({
+    ...opts,
+    timeoutMs: 500,
+    fetchImpl: () => {
+      hugeCalls++;
+      return Promise.resolve(
+        httpErrorResponse("", 429, { "Retry-After": "999999" }),
+      );
+    },
+  });
+  assert.equal(huge.reason, "http_error");
+  assert.equal(hugeCalls, 1);
+});
+
+Deno.test("auto http_error retries: abort during wait skips further fetch", async () => {
+  const opts = autoHttpRetryOpts();
+  let fetchCalls = 0;
+  let captured: AbortController | undefined;
+  const RealAbortController = globalThis.AbortController;
+  class CapturingAbortController extends RealAbortController {
+    constructor() {
+      super();
+      captured = this;
+    }
+  }
+  const realClearTimeout = globalThis.clearTimeout;
+  let clearCount = 0;
+  globalThis.clearTimeout = ((id?: number) => {
+    clearCount++;
+    return realClearTimeout(id);
+  }) as typeof clearTimeout;
+
+  try {
+    globalThis.AbortController =
+      CapturingAbortController as typeof AbortController;
+    const promise = selectAutoLevel({
+      ...opts,
+      timeoutMs: 15_000,
+      fetchImpl: () => {
+        fetchCalls++;
+        return Promise.resolve(
+          httpErrorResponse("", 429, { "Retry-After": "1" }),
+        );
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.ok(captured);
+    captured!.abort();
+    const decision = await promise;
+    assert.equal(decision.reason, "timeout");
+    assert.equal(fetchCalls, 1);
+    assert.ok(clearCount >= 2, `expected wait and main timers cleared`);
+  } finally {
+    globalThis.AbortController = RealAbortController;
+    globalThis.clearTimeout = realClearTimeout;
+  }
+});
+
+Deno.test("auto http_error retries: shared deadline not reset across waits", async () => {
+  const opts = autoHttpRetryOpts();
+  let fetchCalls = 0;
+  let firstSignal: AbortSignal | undefined;
+  let secondSignal: AbortSignal | undefined;
+
+  const decision = await selectAutoLevel({
+    ...opts,
+    timeoutMs: 400,
+    fetchImpl: (_input, init) => {
+      fetchCalls++;
+      const signal = init?.signal ?? undefined;
+      if (fetchCalls === 1) {
+        firstSignal = signal;
+        return Promise.resolve(httpErrorResponse("", 503));
+      }
+      secondSignal = signal;
+      if (signal?.aborted) {
+        return Promise.reject(new DOMException("Aborted", "AbortError"));
+      }
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    },
+  });
+
+  assert.equal(decision.reason, "timeout");
+  assert.equal(fetchCalls, 2);
+  assert.ok(firstSignal);
+  assert.strictEqual(firstSignal, secondSignal);
 });
 
 Deno.test("validateChunkDecision rejects unknown nested keys", () => {
@@ -1638,7 +2248,8 @@ Deno.test("transport and explicit fallbacks omit depth probabilities", async () 
     model: "typesafe/jev-1.13-20260917",
     apiKey: "k",
     minConfidence: 0.7,
-    fetchImpl: () => Promise.resolve(new Response("{}", { status: 500 })),
+    fetchImpl: () =>
+      Promise.resolve(httpErrorResponse("{}", 500, { "Retry-After": "0" })),
   });
   assert.equal(missingKey.probabilities, undefined);
 

@@ -69,7 +69,7 @@ const routingContextWithCanary = (canary: string) =>
     },
   });
 
-Deno.test("runCli auto end-to-end: temp files, mocked global fetch, context in Jev state", async () => {
+Deno.test("runCli auto end-to-end with http_error retry: temp files, mocked global fetch, context in Jev state", async () => {
   const CONTEXT_CANARY = "pr-cli-context-canary-sent-not-echoed-k3";
   const patch = "\uFEFFdiff --git a/x b/x\n+\u3042line\n";
   const ctx = routingContextWithCanary(CONTEXT_CANARY);
@@ -108,6 +108,12 @@ Deno.test("runCli auto end-to-end: temp files, mocked global fetch, context in J
     const req = new Request(input, init);
     return req.text().then((text) => {
       seenBody = JSON.parse(text);
+      if (fetchCalls === 1) {
+        return new Response("synthetic-gateway-error", {
+          status: 502,
+          headers: { "Retry-After": "0" },
+        });
+      }
       return new Response(
         synthJevResponseBody("4", 0.88, "12000", 0.91),
         { status: 200 },
@@ -132,7 +138,7 @@ Deno.test("runCli auto end-to-end: temp files, mocked global fetch, context in J
     });
 
     assert.equal(out.code, 0, out.stderr);
-    assert.equal(fetchCalls, 1);
+    assert.equal(fetchCalls, 2);
     assert.equal(keyCalls, 1);
 
     assert.deepEqual(
@@ -217,7 +223,7 @@ Deno.test("selectReviewLevel context hash matrix (mocked fetch)", async () => {
       reviewContext: ctx,
       fetchStatus: 502,
       expectedReason: "http_error",
-      expectedFetchCalls: 1,
+      expectedFetchCalls: 4,
       expectContextSha256: true,
     },
     {
@@ -276,7 +282,10 @@ Deno.test("selectReviewLevel context hash matrix (mocked fetch)", async () => {
         calls++;
         if (row.fetchStatus !== undefined) {
           return Promise.resolve(
-            new Response("err", { status: row.fetchStatus }),
+            new Response("err", {
+              status: row.fetchStatus,
+              headers: { "Retry-After": "0" },
+            }),
           );
         }
         const jev = row.jev ??
