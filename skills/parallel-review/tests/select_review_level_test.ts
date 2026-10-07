@@ -16,6 +16,7 @@ import {
   JEV_ENDPOINT,
   JEV_NONE_MAX_PATCH_BYTES,
   RESPONSE_MAX_BYTES,
+  REVIEW_CRITERIA,
   runCli,
   selectAutoLevel,
   selectReviewLevel,
@@ -47,6 +48,10 @@ const SCRIPT_PATH = join(
   "../scripts/select_review_level.ts",
 );
 const SKILL_PATH = join(import.meta.dirname!, "../SKILL.md");
+const ROUTING_CONTEXT_GUIDE_PATH = join(
+  import.meta.dirname!,
+  "../references/routing-context.md",
+);
 const REPO_ROOT = join(import.meta.dirname!, "../../..");
 const APPEND_SYSTEM_PATH = join(REPO_ROOT, "pi/agent/APPEND_SYSTEM.md");
 const INJECTION_DEFENSE_PATH = join(
@@ -2255,6 +2260,218 @@ Deno.test("transport and explicit fallbacks omit depth probabilities", async () 
 
   const explicit = buildExplicitDecision({ level: 2, patchSha256: hash });
   assert.equal(explicit.probabilities, undefined);
+});
+
+Deno.test("DEFAULT_MIN_CONFIDENCE default is 0.5", () => {
+  assert.equal(DEFAULT_MIN_CONFIDENCE, 0.5);
+});
+
+Deno.test("CLI help documents default min-confidence 0.5", async () => {
+  const out = await runCli(["--help"]);
+  assert.equal(out.code, 0);
+  assert.match(out.stdout, /default 0\.5/);
+});
+
+Deno.test("auto with default threshold: 0.49 falls back, 0.5 and 0.65 accepted raw", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  const base = {
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: DEFAULT_MIN_CONFIDENCE,
+  };
+
+  const atThreshold = await selectAutoLevel({
+    ...base,
+    fetchImpl: () => Promise.resolve(new Response(validJevBody("2", 0.5))),
+  });
+  assert.equal(atThreshold.source, "jev");
+  assert.equal(atThreshold.confidence, 0.5);
+
+  const mid = await selectAutoLevel({
+    ...base,
+    fetchImpl: () => Promise.resolve(new Response(validJevBody("3", 0.65))),
+  });
+  assert.equal(mid.source, "jev");
+  assert.equal(mid.level, 3);
+  assert.equal(mid.confidence, 0.65);
+
+  const below = await selectAutoLevel({
+    ...base,
+    fetchImpl: () => Promise.resolve(new Response(validJevBody("4", 0.49))),
+  });
+  assert.equal(below.source, "fallback");
+  assert.equal(below.reason, "low_confidence");
+  assert.equal(below.level, 3);
+  assert.equal(below.confidence, 0.49);
+  assert.equal(below.suggestedLevel, 4);
+});
+
+Deno.test("explicit min-confidence 0.7 still rejects 0.65", async () => {
+  const patchBytes = new TextEncoder().encode("d\n");
+  const decision = await selectAutoLevel({
+    patchText: "d\n",
+    patchSha256: sha256Bytes(patchBytes),
+    model: "typesafe/jev-1.13",
+    apiKey: "k",
+    minConfidence: 0.7,
+    fetchImpl: () => Promise.resolve(new Response(validJevBody("2", 0.65))),
+  });
+  assert.equal(decision.source, "fallback");
+  assert.equal(decision.reason, "low_confidence");
+  assert.equal(decision.confidence, 0.65);
+  assert.equal(decision.minConfidence, 0.7);
+});
+
+Deno.test("runCli auto omits min-confidence and uses default threshold with mock fetch", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pr-default-min-"));
+  const patchPath = join(dir, "p.patch");
+  await writeFile(patchPath, "+line\n");
+  const baseArgs = [
+    "--input",
+    patchPath,
+    "--approved-input",
+    "--model",
+    "typesafe/jev-1.13",
+  ];
+  const cases = [
+    {
+      name: "0.49 below default -> L3 fallback",
+      extraArgs: [] as string[],
+      jevLevel: "4",
+      jevConfidence: 0.49,
+      expect: {
+        source: "fallback" as const,
+        reason: "low_confidence",
+        level: 3,
+        minConfidence: 0.5,
+        confidence: 0.49,
+      },
+    },
+    {
+      name: "0.5 at default threshold accepted",
+      extraArgs: [],
+      jevLevel: "2",
+      jevConfidence: 0.5,
+      expect: {
+        source: "jev" as const,
+        reason: undefined,
+        level: 2,
+        minConfidence: 0.5,
+        confidence: 0.5,
+      },
+    },
+    {
+      name: "0.65 above default accepted raw",
+      extraArgs: [],
+      jevLevel: "3",
+      jevConfidence: 0.65,
+      expect: {
+        source: "jev" as const,
+        reason: undefined,
+        level: 3,
+        minConfidence: 0.5,
+        confidence: 0.65,
+      },
+    },
+    {
+      name: "CLI --min-confidence 0.7 rejects 0.65",
+      extraArgs: ["--min-confidence", "0.7"],
+      jevLevel: "2",
+      jevConfidence: 0.65,
+      expect: {
+        source: "fallback" as const,
+        reason: "low_confidence",
+        level: 3,
+        minConfidence: 0.7,
+        confidence: 0.65,
+      },
+    },
+  ] as const;
+  try {
+    for (const c of cases) {
+      const out = await runCli([...baseArgs, ...c.extraArgs], {
+        getOpenRouterApiKey: () => "k",
+        fetchImpl: () =>
+          Promise.resolve(
+            new Response(validJevBody(c.jevLevel, c.jevConfidence)),
+          ),
+      });
+      assert.equal(out.code, 0, `${c.name}: ${out.stderr}`);
+      const decision = JSON.parse(out.stdout);
+      assert.equal(decision.source, c.expect.source, c.name);
+      if (c.expect.reason !== undefined) {
+        assert.equal(decision.reason, c.expect.reason, c.name);
+      }
+      assert.equal(decision.level, c.expect.level, c.name);
+      assert.equal(decision.minConfidence, c.expect.minConfidence, c.name);
+      assert.equal(decision.confidence, c.expect.confidence, c.name);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+Deno.test("Jev request rubric includes level examples and evidence guidance", () => {
+  const reviewLevel = (buildJevRequestBody("m", "p").questions as {
+    review_level: { instructions: string; criteria: Record<string, string> };
+  }).review_level;
+  for (const key of ["1", "2", "3", "4", "5"] as const) {
+    assert.match(REVIEW_CRITERIA[key], /[Ee]xample:/);
+    assert.equal(reviewLevel.criteria[key], REVIEW_CRITERIA[key]);
+  }
+  const instr = reviewLevel.instructions;
+  assert.match(instr, /evidence-backed runtime/i);
+  assert.match(instr, /caller scope/i);
+  assert.match(instr, /data\/permission\/money/i);
+  assert.match(instr, /reversib/i);
+  assert.match(instr, /observed validation/i);
+  assert.match(instr, /unknown means missing information/i);
+  assert.match(instr, /not absence of risk/i);
+  assert.match(instr, /Passing tests do not remove/i);
+  assert.match(instr, /Markdown|policy|agent instructions/i);
+  assert.doesNotMatch(instr, /0\.7|0\.8|target confidence/i);
+  const body = buildJevRequestBody("m", "patch");
+  assert.deepEqual(Object.keys(body.questions as object).sort(), [
+    "chunk_size",
+    "review_level",
+  ]);
+  assert.equal((body.state as { patch: string }).patch, "patch");
+});
+
+Deno.test("SKILL and routing-context guide document evidence-backed context", async () => {
+  const skill = await Deno.readTextFile(SKILL_PATH);
+  assert.match(skill, /references\/routing-context\.md/);
+  assert.match(skill, /--min-confidence`（既定[\s\S]{0,40}\*\*0\.5\*\*/);
+  assert.match(skill, /0\.7.*0\.8|0\.7–0\.8/);
+  assert.match(skill, /評価.*目標|未検証/);
+
+  const guide = await Deno.readTextFile(ROUTING_CONTEXT_GUIDE_PATH);
+  for (
+    const key of [
+      "intent",
+      "runtime",
+      "impact",
+      "dataAndPermissions",
+      "rollback",
+      "tests",
+    ] as const
+  ) {
+    assert.match(guide, new RegExp(`\\*\\*${key}\\*\\*`));
+  }
+  assert.match(guide, /Unknown is valid/i);
+  assert.match(guide, /not.*no risk|unconfirmed/i);
+  assert.match(guide, /executed command.*observed|observed outcome/i);
+  assert.match(guide, /test file.*not a passing test|not a passing test/i);
+  assert.match(guide, /not downgraded by tests/i);
+  assert.match(guide, /size caps|validation|no extra fields/i);
+  assert.match(guide, /not.*opened automatically|not automatically/i);
+  assert.match(guide, /recommended levels|risk scores|confidence targets/i);
+  assert.match(guide, /invent.*no external send|invent “no external send”/s);
+  assert.match(guide, /"tests": "unknown"/);
+  assert.match(guide, /"dataAndPermissions": "unknown"/);
+  assert.match(guide, /paste private review history/i);
 });
 
 Deno.test("buildJevRequestBody includes context when provided and preserves patch", () => {
