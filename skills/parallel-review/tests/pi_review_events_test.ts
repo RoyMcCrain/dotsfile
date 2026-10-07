@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
+  classifyProviderFailure,
+  classifyWrapperError,
   createStreamTracker,
   extractNumericUsage,
   finalizeStreamOutcome,
@@ -22,6 +24,7 @@ function lineCtx(attempt = 1, tracker = createStreamTracker()) {
 function assistantEnd(
   text: string | string[],
   stopReason?: string,
+  errorMessage?: string,
 ): string {
   const content = (Array.isArray(text) ? text : [text]).map((t) => ({
     type: "text",
@@ -38,8 +41,12 @@ function assistantEnd(
     content,
   };
   if (stopReason !== undefined) message.stopReason = stopReason;
+  if (errorMessage !== undefined) message.errorMessage = errorMessage;
   return JSON.stringify({ type: "message_end", message });
 }
+
+const CANARY_TOKEN = "CANARY-SECRET-TOKEN-9f3e2a1b";
+const CANARY_URL = "https://evil.example/leak?key=CANARY-URL";
 
 async function touchEventsLog(path: string): Promise<void> {
   await writeFile(path, "", { mode: 0o600 });
@@ -202,10 +209,371 @@ Deno.test("finalizeStreamOutcome rejects provider error stopReason", () => {
   const tracker = createStreamTracker();
   processPiJsonLine(assistantEnd("ignored", "error"), lineCtx(1, tracker));
   const outcome = finalizeStreamOutcome(tracker);
-  assert.equal(
-    outcome.streamError,
-    "pi review stream: assistant response failed",
+  assert.match(
+    outcome.streamError ?? "",
+    /assistant response failed \(provider_error\)/,
   );
+});
+
+Deno.test("classifyProviderFailure maps auth and rate limit without leaking hints", () => {
+  const auth = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: `401 Unauthorized ${CANARY_TOKEN} ${CANARY_URL}`,
+  });
+  assert.equal(auth.category, "authentication");
+  assert.equal(auth.httpStatus, 401);
+
+  const rate = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: `429 rate limit ${CANARY_TOKEN}`,
+  });
+  assert.equal(rate.category, "rate_limit");
+  assert.equal(rate.httpStatus, 429);
+
+  const rateTextOnly = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: `Rate limit exceeded ${CANARY_TOKEN}`,
+  });
+  assert.equal(rateTextOnly.category, "rate_limit");
+  assert.equal(rateTextOnly.httpStatus, undefined);
+
+  const auth403 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "403 forbidden",
+  });
+  assert.equal(auth403.category, "authentication");
+  assert.equal(auth403.httpStatus, 403);
+
+  const unknown = classifyProviderFailure({
+    stopReason: "aborted",
+    errorMessage: `something odd ${CANARY_TOKEN}`,
+  });
+  assert.equal(unknown.category, "unknown");
+});
+
+Deno.test("classifyProviderFailure ignores incidental digits without HTTP status context", () => {
+  const requestId429 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "HTTP 500 internal server error; request id: 429",
+  });
+  assert.equal(requestId429.category, "provider_error");
+  assert.equal(requestId429.httpStatus, undefined);
+
+  const ms401 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "network timeout after 401 milliseconds",
+  });
+  assert.equal(ms401.category, "network");
+  assert.equal(ms401.httpStatus, undefined);
+
+  const ms401Prefix = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "401 milliseconds elapsed before network timeout",
+  });
+  assert.equal(ms401Prefix.category, "network");
+  assert.equal(ms401Prefix.httpStatus, undefined);
+
+  const url401 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: `fetch failed https://api.example/401/items ${CANARY_TOKEN}`,
+  });
+  assert.equal(url401.category, "network");
+  assert.equal(url401.httpStatus, undefined);
+
+  const urlStatus401 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "fetch failed https://api.example/status401/items",
+  });
+  assert.equal(urlStatus401.category, "network");
+  assert.equal(urlStatus401.httpStatus, undefined);
+
+  const incidentalReason = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "request id: 401 Unauthorized",
+  });
+  assert.equal(incidentalReason.httpStatus, undefined);
+});
+
+Deno.test("classifyProviderFailure regression: request id JSON must not override auth or network", () => {
+  const networkTimeout429 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: 'network timeout; request id: 429 {"trace":"id"}',
+  });
+  assert.equal(networkTimeout429.category, "network");
+  assert.equal(networkTimeout429.httpStatus, undefined);
+
+  const authOverRequestId429 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: '401 Unauthorized; request id: 429 {"trace":"id"}',
+  });
+  assert.equal(authOverRequestId429.category, "authentication");
+  assert.equal(authOverRequestId429.httpStatus, 401);
+});
+
+Deno.test("classifyProviderFailure prefers real HTTP status over incidental numbers", () => {
+  const authOver429 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: `401 Unauthorized ${CANARY_TOKEN}; request id: 429`,
+  });
+  assert.equal(authOver429.category, "authentication");
+  assert.equal(authOver429.httpStatus, 401);
+
+  const sdk429 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: '429 {"error":{"message":"rate limit"}}',
+  });
+  assert.equal(sdk429.category, "rate_limit");
+  assert.equal(sdk429.httpStatus, 429);
+
+  const httpStatusMarker = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "status 403 access denied",
+  });
+  assert.equal(httpStatusMarker.category, "authentication");
+  assert.equal(httpStatusMarker.httpStatus, 403);
+
+  const statusCode429 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "status code: 429",
+  });
+  assert.equal(statusCode429.category, "rate_limit");
+  assert.equal(statusCode429.httpStatus, 429);
+
+  const httpVersion401 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "HTTP/1.1 401",
+  });
+  assert.equal(httpVersion401.category, "authentication");
+  assert.equal(httpVersion401.httpStatus, 401);
+});
+
+Deno.test("classifyProviderFailure text-only auth and rate limit stay without httpStatus", () => {
+  const oauthOnly = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: `OAuth token refresh failed ${CANARY_TOKEN}`,
+  });
+  assert.equal(oauthOnly.category, "authentication");
+  assert.equal(oauthOnly.httpStatus, undefined);
+
+  const badToken401 = classifyProviderFailure({
+    stopReason: "error",
+    errorMessage: "401 bad token expired",
+  });
+  assert.equal(badToken401.category, "authentication");
+  assert.equal(badToken401.httpStatus, 401);
+});
+
+Deno.test("sanitizePiRecord adds safe errorCategory on failed assistant message_end", () => {
+  const tracker = createStreamTracker();
+  const event = sanitizePiRecord(
+    JSON.parse(
+      assistantEnd("x", "error", `403 forbidden oauth refresh ${CANARY_TOKEN}`),
+    ),
+    lineCtx(1, tracker),
+  )!;
+  assert.equal(event.errorCategory, "authentication");
+  assert.equal(event.httpStatus, 403);
+  assert.equal(JSON.stringify(event).includes(CANARY_TOKEN), false);
+  assert.equal(JSON.stringify(event).includes(CANARY_URL), false);
+});
+
+Deno.test("runPiReviewEventsHelper logs rate_limit without canaries or partial final text", async () => {
+  const work = await mkdtemp(join(tmpdir(), "pi-events-"));
+  const eventsLog = join(work, "rate.events.jsonl");
+  await touchEventsLog(eventsLog);
+  const CANARY_BODY = "CANARY-BODY-SNIPPET-leak";
+  const CANARY_PROMPT = "CANARY-PROMPT-leak";
+  const fakePi = join(work, "rate_pi.sh");
+  await writeFile(
+    fakePi,
+    `#!/usr/bin/env bash
+printf '%s\\n' '${
+      assistantEnd(
+        `partial review ${CANARY_BODY}`,
+        "error",
+        `Rate limit exceeded token=${CANARY_TOKEN} url=${CANARY_URL} prompt=${CANARY_PROMPT}`,
+      )
+    }'
+`,
+    { mode: 0o755 },
+  );
+
+  const proc = await new Deno.Command(Deno.execPath(), {
+    args: [
+      "run",
+      "--no-config",
+      "--no-prompt",
+      `--allow-write=${eventsLog}`,
+      `--allow-run=${fakePi}`,
+      fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
+      "--events-log",
+      eventsLog,
+      "--attempt",
+      "1",
+      "--",
+      fakePi,
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  assert.notEqual(proc.code, 0);
+  const stdout = new TextDecoder().decode(proc.stdout);
+  const stderr = new TextDecoder().decode(proc.stderr);
+  assert.match(stderr, /assistant response failed \(rate_limit\)/);
+  assert.equal(stdout.includes(CANARY_TOKEN), false);
+  assert.equal(stdout.includes(CANARY_URL), false);
+  assert.equal(stdout.includes(CANARY_BODY), false);
+  assert.equal(stdout.includes(CANARY_PROMPT), false);
+  assert.equal(stdout.includes("partial review"), false);
+  assert.equal(stderr.includes(CANARY_TOKEN), false);
+  assert.equal(stderr.includes(CANARY_URL), false);
+  assert.equal(stderr.includes(CANARY_PROMPT), false);
+  assert.equal(stderr.includes(CANARY_BODY), false);
+  const log = await readFile(eventsLog, "utf8");
+  assert.match(log, /"errorCategory":"rate_limit"/);
+  assert.equal(log.includes('"httpStatus"'), false);
+  assert.equal(log.includes(CANARY_TOKEN), false);
+  assert.equal(log.includes(CANARY_URL), false);
+  assert.equal(log.includes(CANARY_BODY), false);
+  assert.equal(log.includes(CANARY_PROMPT), false);
+  assert.equal(log.includes("partial review"), false);
+});
+
+Deno.test("runPiReviewEventsHelper logs auth category and stderr without canaries", async () => {
+  const work = await mkdtemp(join(tmpdir(), "pi-events-"));
+  const eventsLog = join(work, "auth.events.jsonl");
+  await touchEventsLog(eventsLog);
+  const fakePi = join(work, "auth_pi.sh");
+  await writeFile(
+    fakePi,
+    `#!/usr/bin/env bash
+printf '%s\\n' '${
+      assistantEnd(
+        "nope",
+        "error",
+        `401 bad token ${CANARY_TOKEN} ${CANARY_URL}`,
+      )
+    }'
+`,
+    { mode: 0o755 },
+  );
+
+  const proc = await new Deno.Command(Deno.execPath(), {
+    args: [
+      "run",
+      "--no-config",
+      "--no-prompt",
+      `--allow-write=${eventsLog}`,
+      `--allow-run=${fakePi}`,
+      fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
+      "--events-log",
+      eventsLog,
+      "--attempt",
+      "1",
+      "--",
+      fakePi,
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  assert.notEqual(proc.code, 0);
+  const stderr = new TextDecoder().decode(proc.stderr);
+  assert.match(stderr, /assistant response failed \(authentication\)/);
+  assert.equal(stderr.includes(CANARY_TOKEN), false);
+  assert.equal(stderr.includes(CANARY_URL), false);
+  const log = await readFile(eventsLog, "utf8");
+  assert.match(log, /"errorCategory":"authentication"/);
+  assert.equal(log.includes(CANARY_TOKEN), false);
+});
+
+Deno.test("classifyWrapperError maps permission and missing executable", () => {
+  const perm = classifyWrapperError(
+    new Deno.errors.NotCapable("Requires --allow-run permissions"),
+  );
+  assert.equal(perm.category, "permission_denied");
+
+  const missing = classifyWrapperError(new Deno.errors.NotFound("missing"));
+  assert.equal(missing.category, "executable_not_found");
+
+  const internal = classifyWrapperError(new Error(`fail ${CANARY_TOKEN}`));
+  assert.equal(internal.category, "internal_error");
+  assert.equal(JSON.stringify(internal).includes(CANARY_TOKEN), false);
+});
+
+Deno.test("runPiReviewEventsHelper spawn denial logs wrapper_error without path canary", async () => {
+  const work = await mkdtemp(join(tmpdir(), "pi-events-"));
+  const eventsLog = join(work, "spawn.events.jsonl");
+  await touchEventsLog(eventsLog);
+  const secretDir = join(work, "CANARY-PATH-LEAK");
+  await Deno.mkdir(secretDir, { recursive: true });
+  const secretPath = join(secretDir, "pi.sh");
+  await writeFile(secretPath, "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
+
+  const proc = await new Deno.Command(Deno.execPath(), {
+    args: [
+      "run",
+      "--no-config",
+      "--no-prompt",
+      `--allow-write=${eventsLog}`,
+      `--allow-run=${join(work, "allowed-only.sh")}`,
+      fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
+      "--events-log",
+      eventsLog,
+      "--attempt",
+      "2",
+      "--",
+      secretPath,
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  assert.notEqual(proc.code, 0);
+  const stderr = new TextDecoder().decode(proc.stderr);
+  assert.match(stderr, /permission_denied/);
+  assert.equal(stderr.includes("CANARY-PATH-LEAK"), false);
+  const log = await readFile(eventsLog, "utf8");
+  assert.match(log, /"kind":"wrapper_error"/);
+  assert.match(log, /"errorCategory":"permission_denied"/);
+  assert.match(log, /"phase":"spawn"/);
+  assert.match(log, /"attempt":2/);
+  assert.equal(log.includes("CANARY-PATH-LEAK"), false);
+});
+
+Deno.test("runPiReviewEventsHelper missing executable logs executable_not_found", async () => {
+  const work = await mkdtemp(join(tmpdir(), "pi-events-"));
+  const eventsLog = join(work, "missing.events.jsonl");
+  await touchEventsLog(eventsLog);
+  const missing = join(work, "no-such-pi-CANARY-NAME");
+
+  const proc = await new Deno.Command(Deno.execPath(), {
+    args: [
+      "run",
+      "--no-config",
+      "--no-prompt",
+      `--allow-write=${eventsLog}`,
+      `--allow-run=${missing}`,
+      fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
+      "--events-log",
+      eventsLog,
+      "--attempt",
+      "1",
+      "--",
+      missing,
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  assert.notEqual(proc.code, 0);
+  const stderr = new TextDecoder().decode(proc.stderr);
+  assert.match(stderr, /executable_not_found/);
+  assert.equal(stderr.includes("CANARY-NAME"), false);
+  const log = await readFile(eventsLog, "utf8");
+  assert.match(log, /"errorCategory":"executable_not_found"/);
+  assert.equal(log.includes("CANARY-NAME"), false);
 });
 
 Deno.test("finalizeStreamOutcome rejects aborted pending and toolUse", () => {
@@ -268,6 +636,69 @@ Deno.test("new assistant message_start clears stale completed text", () => {
   );
   const outcome = finalizeStreamOutcome(tracker);
   assert.equal(outcome.streamError?.includes("incomplete"), true);
+});
+
+Deno.test("message_start clears stale error metadata from prior failed message_end", () => {
+  const tracker = createStreamTracker();
+  const ctx = lineCtx(1, tracker);
+  processPiJsonLine(
+    assistantEnd("fail", "error", "401 unauthorized"),
+    ctx,
+  );
+  assert.equal(tracker.lastErrorCategory, "authentication");
+  processPiJsonLine(
+    '{"type":"message_start","message":{"role":"assistant"}}',
+    ctx,
+  );
+  assert.equal(tracker.lastErrorCategory, undefined);
+  assert.equal(tracker.lastHttpStatus, undefined);
+});
+
+Deno.test("successful assistant message_end after failed message_end clears error metadata", () => {
+  const tracker = createStreamTracker();
+  const ctx = lineCtx(1, tracker);
+  const failEvent = sanitizePiRecord(
+    JSON.parse(assistantEnd("partial leak", "error", "rate limit hit")),
+    ctx,
+  )!;
+  assert.equal(failEvent.errorCategory, "rate_limit");
+  assert.equal(failEvent.httpStatus, undefined);
+
+  const okEvent = sanitizePiRecord(
+    JSON.parse(assistantEnd("recovered", "stop")),
+    ctx,
+  )!;
+  assert.equal(okEvent.errorCategory, undefined);
+  assert.equal(okEvent.httpStatus, undefined);
+  assert.equal("errorCategory" in okEvent, false);
+  assert.equal("httpStatus" in okEvent, false);
+
+  const outcome = finalizeStreamOutcome(tracker);
+  assert.equal(outcome.streamError, undefined);
+  assert.equal(outcome.finalTextBlocks[0], "recovered");
+});
+
+Deno.test("agent_end does not override authoritative assistant message_end state", () => {
+  const tracker = createStreamTracker();
+  const ctx = lineCtx(1, tracker);
+  processPiJsonLine(assistantEnd("good", "stop"), ctx);
+  sanitizePiRecord(
+    {
+      type: "agent_end",
+      usage: { input: 999 },
+      message: {
+        role: "assistant",
+        stopReason: "error",
+        errorMessage: "401 hijack",
+        content: [{ type: "text", text: "bad override" }],
+      },
+    },
+    ctx,
+  );
+  assert.equal(tracker.lastErrorCategory, undefined);
+  const outcome = finalizeStreamOutcome(tracker);
+  assert.equal(outcome.streamError, undefined);
+  assert.equal(outcome.finalTextBlocks[0], "good");
 });
 
 Deno.test("malformed JSON line fails visibly", () => {

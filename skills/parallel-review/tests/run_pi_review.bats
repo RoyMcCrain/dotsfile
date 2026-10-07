@@ -60,7 +60,7 @@ jq -n \
 	--arg skip_update "${PI_SKIP_VERSION_CHECK:-}" \
 	--argjson retry_enabled "$retry_enabled" \
 	--argjson attempt "$attempt" \
-	'{config:$config, skip_update:$skip_update, retry_enabled:$retry_enabled, attempt:$attempt}' \
+	'{config:$config, skip_update:$skip_update, retry_enabled:$retry_enabled, attempt:$attempt, ld_dyld_present:(env | has("LD_DYLD_PATH")), ld_library_path_present:(env | has("LD_LIBRARY_PATH")), dyld_disable_dock_present:(env | has("DYLD_DISABLE_DOCK")), unrelated_canary_present:(env | has("PARALLEL_REVIEW_UNRELATED_CANARY"))}' \
 	>"$FAKE_PI_ENV"
 
 should_sleep=0
@@ -1034,4 +1034,45 @@ EOF
 		[[ "$output" == *retry\ timeout\ must\ be\ greater\ than\ zero* ]]
 		[ ! -f "$ARGS_LOG" ]
 	done
+}
+
+@test "--events-log succeeds with LD_DYLD_PATH in parent and omits it from Pi child env" {
+	mkdir -p "$TEST_ROOT/logs"
+	EVENTS_LOG="$TEST_ROOT/logs/ld.events.jsonl"
+	apply_runner_env
+	export LD_DYLD_PATH="/tmp/parallel-review-ld-dyld-canary-not-in-output"
+	export LD_LIBRARY_PATH="/tmp/parallel-review-ld-library-canary-not-in-output"
+	export DYLD_DISABLE_DOCK=1
+	export PARALLEL_REVIEW_UNRELATED_CANARY="keep-me-in-child"
+
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 provider/model:medium --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	local runner_output="$output"
+	[ "$status" -eq 0 ]
+	[[ -n "${LD_DYLD_PATH:-}" ]]
+	[[ -n "${LD_LIBRARY_PATH:-}" ]]
+	[[ "${DYLD_DISABLE_DOCK:-}" == "1" ]]
+	jq -e '.ld_dyld_present == false and .ld_library_path_present == false and .dyld_disable_dock_present == false and .unrelated_canary_present == true' "$ENV_LOG" >/dev/null
+	unset LD_DYLD_PATH LD_LIBRARY_PATH DYLD_DISABLE_DOCK
+	run rg -q 'parallel-review-ld-dyld-canary' "$EVENTS_LOG"
+	[ "$status" -eq 1 ]
+	run rg -q 'parallel-review-ld-dyld-canary' <<<"$runner_output"
+	[ "$status" -eq 1 ]
+	run rg -q 'parallel-review-ld-library-canary' <<<"$runner_output"
+	[ "$status" -eq 1 ]
+}
+
+@test "non-events runner does not strip LD_DYLD_PATH from Pi child env" {
+	apply_runner_env
+	export LD_DYLD_PATH="/tmp/parallel-review-ld-dyld-non-events-canary"
+	export LD_LIBRARY_PATH="/tmp/parallel-review-ld-library-non-events-canary"
+
+	run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" \
+		--timeout 5 --cwd "$TEST_ROOT"
+	[ "$status" -eq 0 ]
+	jq -e '.ld_dyld_present == true and .ld_library_path_present == true' "$ENV_LOG" >/dev/null
 }

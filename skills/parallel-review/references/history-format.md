@@ -68,7 +68,8 @@ Pi backend が `--events-log` 付き runner で生成する **任意** JSONL。p
 - 行の種類:
   - `attempt_start` / `attempt_exit` — runner が jq で追記。`timestampMs`（Unix ms・数値）と `attempt`（数値）を含む。`attempt_exit` には実際の終了コード（timeout は `124`）も含む。
   - `pi_event` — Deno helper が Pi JSON 行から抽出。`timestampMs` / `elapsedMs` は数値。`streamCategory` の `assistant_stream_start` は **assistant `message_start` の到達 proxy** であり、生 HTTP の TTFT や provider 内部計測ではない。
-- `pi_event` の allowlist メタデータ: 正規化済み Pi `eventType` / `role` / `assistantMessageEventType`、`deltaChars`、allowlist 数値 `usage`（`input` / `output` / `cacheRead` / `cacheWrite` / `cacheWrite1h` / `reasoning` / `totalTokens` と、ネスト `cost` の `input` / `output` / `cacheRead` / `cacheWrite` / `total` のみ）、正規化済み `stopReason`、`streamCategory`。
+  - `wrapper_error` — Deno helper が Pi 子プロセスの **spawn に失敗したときのみ** sidecar に追記（現状 `read` / runtime トレース行は出さない）。`attempt` / 数値 `timestampMs` / allowlist `errorCategory` / `phase: "spawn"` のみ。raw 例外・コマンド・パスは含めない。読み取り中の失敗は stderr の固定メッセージに留め、sidecar には書かない。
+- `pi_event` の allowlist メタデータ: 正規化済み Pi `eventType` / `role` / `assistantMessageEventType`、`deltaChars`、allowlist 数値 `usage`（`input` / `output` / `cacheRead` / `cacheWrite` / `cacheWrite1h` / `reasoning` / `totalTokens` と、ネスト `cost` の `input` / `output` / `cacheRead` / `cacheWrite` / `total` のみ）、正規化済み `stopReason`、`streamCategory`、失敗時のみ任意 `errorCategory`（`authentication` / `rate_limit` / `network` / `provider_error` / `unknown` 等の固定コード）と allowlist 数値 `httpStatus`（401 / 403 / 429 のみ。生エラー文字列中の任意数字（request id・経過 ms・URL 断片など）からは推定しない。明示的 HTTP/status マーカーまたは SDK エラー形式など、HTTP ステータスと認識できる文脈がある場合のみ付与）。
 - prompt / patch / delta 本文 / 完全 message / 資格情報 / 環境は **含めない**。
 - ファイル mode `0600`。親 skill が `logs/` を用意し、runner が存在チェック後に新規作成する。
 
