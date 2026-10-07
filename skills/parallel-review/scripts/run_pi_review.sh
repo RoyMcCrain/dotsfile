@@ -272,7 +272,14 @@ events_log_must_not_alias_inputs() {
 build_events_wrapper_cmd() {
 	local attempt="$1"
 	local -a pi_cmd=("${@:2}")
-	local pi_bin helper events_allow pi_allow
+	local pi_bin helper events_allow pi_allow name
+	local -a events_env_cmd=(env)
+
+	while IFS= read -r name; do
+		if [[ "$name" == LD_* || "$name" == DYLD_* ]]; then
+			events_env_cmd+=(-u "$name")
+		fi
+	done < <(compgen -e)
 
 	pi_bin="${pi_cmd[0]}"
 	if [[ "$pi_bin" != /* ]]; then
@@ -283,6 +290,7 @@ build_events_wrapper_cmd() {
 	events_allow="$events_log_resolved"
 	pi_allow="$pi_bin"
 	review_attempt_cmd=(
+		"${events_env_cmd[@]}"
 		deno run --no-config --no-prompt
 		--allow-run="$pi_allow"
 		--allow-write="$events_allow"

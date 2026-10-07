@@ -76,6 +76,21 @@ export type StreamCategory =
   | "text_started"
   | "completion";
 
+export type ErrorCategory =
+  | "authentication"
+  | "rate_limit"
+  | "network"
+  | "permission_denied"
+  | "executable_not_found"
+  | "provider_error"
+  | "internal_error"
+  | "unknown";
+
+export type SafeErrorDiagnostic = {
+  category: ErrorCategory;
+  httpStatus?: number;
+};
+
 export type SanitizedPiEvent = {
   kind: "pi_event";
   attempt: number;
@@ -87,7 +102,17 @@ export type SanitizedPiEvent = {
   assistantMessageEventType?: string;
   deltaChars?: number;
   stopReason?: string;
+  errorCategory?: ErrorCategory;
+  httpStatus?: number;
   usage?: Record<string, number | Record<string, number>>;
+};
+
+export type WrapperErrorRecord = {
+  kind: "wrapper_error";
+  attempt: number;
+  timestampMs: number;
+  errorCategory: ErrorCategory;
+  phase: "spawn";
 };
 
 export type ParseOutcome = {
@@ -99,6 +124,8 @@ export type StreamTracker = {
   category: StreamCategory;
   lastAuthoritativeTextBlocks: string[] | undefined;
   lastAuthoritativeStopReason: string | undefined;
+  lastErrorCategory: ErrorCategory | undefined;
+  lastHttpStatus: number | undefined;
   assistantMessageEnded: boolean;
 };
 
@@ -113,9 +140,93 @@ export function createStreamTracker(): StreamTracker {
     category: "no_assistant_start",
     lastAuthoritativeTextBlocks: undefined,
     lastAuthoritativeStopReason: undefined,
+    lastErrorCategory: undefined,
+    lastHttpStatus: undefined,
     assistantMessageEnded: false,
   };
 }
+
+const allowlistedHttpStatus = (code: number) =>
+  code === 401 || code === 403 || code === 429 ? code : undefined;
+
+const httpStatusFromContext = (hint: string) => {
+  const httpMarker = hint.match(/\bHTTP(?:\/[\d.]+)?\s+(\d{3})\b/i);
+  if (httpMarker !== null) {
+    return allowlistedHttpStatus(Number(httpMarker[1]));
+  }
+
+  const statusMarker = hint.match(
+    /(?:^|\s)status(?:\s+code)?(?:\s*[:=]\s*|\s+)(\d{3})\b/i,
+  );
+  if (statusMarker !== null) {
+    return allowlistedHttpStatus(Number(statusMarker[1]));
+  }
+
+  const sdkPrefix = hint.match(/^\s*(401|403|429)\s+\{/);
+  if (sdkPrefix !== null) {
+    return allowlistedHttpStatus(Number(sdkPrefix[1]));
+  }
+
+  if (/^\s*401\s+(?:Unauthorized|bad\s+token)\b/i.test(hint)) return 401;
+  if (/^\s*403\s+forbidden\b/i.test(hint)) return 403;
+  if (/^\s*429\s+rate\s*limit\b/i.test(hint)) return 429;
+
+  return undefined;
+};
+
+const classifyHint = (hint: string): SafeErrorDiagnostic => {
+  if (hint.length === 0) return { category: "unknown" };
+
+  const status = httpStatusFromContext(hint);
+  if (status === 401 || status === 403) {
+    return { category: "authentication", httpStatus: status };
+  }
+  if (status === 429) {
+    return { category: "rate_limit", httpStatus: 429 };
+  }
+
+  if (/rate\s*limit/i.test(hint)) {
+    return { category: "rate_limit" };
+  }
+  if (/oauth|unauthorized|forbidden|authentication/i.test(hint)) {
+    return { category: "authentication" };
+  }
+  if (
+    /network|econnrefused|etimedout|enotfound|fetch failed|socket hang up/i
+      .test(hint)
+  ) {
+    return { category: "network" };
+  }
+  return { category: "unknown" };
+};
+
+export const classifyProviderFailure = (
+  message: Record<string, unknown>,
+): SafeErrorDiagnostic => {
+  const parts: string[] = [];
+  const errorMessage = readString(message.errorMessage);
+  if (errorMessage !== undefined) parts.push(errorMessage);
+  const error = readString(message.error);
+  if (error !== undefined) parts.push(error);
+  const fromHint = classifyHint(parts.join(" "));
+  if (fromHint.category !== "unknown") return fromHint;
+  const stopReason = readString(message.stopReason);
+  if (stopReason === "error") return { category: "provider_error" };
+  return { category: "unknown" };
+};
+
+export const classifyWrapperError = (err: unknown): SafeErrorDiagnostic => {
+  if (err instanceof Deno.errors.NotCapable) {
+    return { category: "permission_denied" };
+  }
+  if (err instanceof Deno.errors.PermissionDenied) {
+    return { category: "permission_denied" };
+  }
+  if (err instanceof Deno.errors.NotFound) {
+    return { category: "executable_not_found" };
+  }
+  return { category: "internal_error" };
+};
 
 const readFiniteNonNeg = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0
@@ -170,6 +281,8 @@ const resetAuthoritativeFinal = (tracker: StreamTracker) => {
   tracker.assistantMessageEnded = false;
   tracker.lastAuthoritativeTextBlocks = undefined;
   tracker.lastAuthoritativeStopReason = undefined;
+  tracker.lastErrorCategory = undefined;
+  tracker.lastHttpStatus = undefined;
 };
 
 function extractFinalTextBlocks(message: Record<string, unknown>): string[] {
@@ -256,6 +369,8 @@ export function sanitizePiRecord(
     const rawStop = readString(message.stopReason);
     stopReason = mapStopReason(rawStop);
     if (rawEventType === "message_end" && rawRole === "assistant") {
+      ctx.tracker.lastErrorCategory = undefined;
+      ctx.tracker.lastHttpStatus = undefined;
       ctx.tracker.assistantMessageEnded = true;
       ctx.tracker.lastAuthoritativeStopReason = rawStop;
       const blocks = extractFinalTextBlocks(message);
@@ -264,6 +379,11 @@ export function sanitizePiRecord(
         : undefined;
       usage = extractNumericUsage(message.usage) ??
         extractNumericUsage(record.usage);
+      if (rawStop !== undefined && !SUCCESS_STOP_REASONS.has(rawStop)) {
+        const diag = classifyProviderFailure(message);
+        ctx.tracker.lastErrorCategory = diag.category;
+        ctx.tracker.lastHttpStatus = diag.httpStatus;
+      }
     }
   }
 
@@ -289,6 +409,15 @@ export function sanitizePiRecord(
   if (deltaChars !== undefined) base.deltaChars = deltaChars;
   if (stopReason !== undefined) base.stopReason = stopReason;
   if (usage !== undefined) base.usage = usage;
+  if (
+    rawEventType === "message_end" && rawRole === "assistant" &&
+    message && ctx.tracker.lastErrorCategory !== undefined
+  ) {
+    base.errorCategory = ctx.tracker.lastErrorCategory;
+    if (ctx.tracker.lastHttpStatus !== undefined) {
+      base.httpStatus = ctx.tracker.lastHttpStatus;
+    }
+  }
   return base;
 }
 
@@ -339,11 +468,16 @@ export function finalizeStreamOutcome(tracker: StreamTracker): ParseOutcome {
   if (stopReason === undefined || !SUCCESS_STOP_REASONS.has(stopReason)) {
     const failed = stopReason !== undefined &&
       !SUCCESS_STOP_REASONS.has(stopReason);
+    if (!failed) {
+      return {
+        finalTextBlocks: [],
+        streamError: "pi review stream: incomplete assistant response",
+      };
+    }
+    const category = tracker.lastErrorCategory ?? "unknown";
     return {
       finalTextBlocks: [],
-      streamError: failed
-        ? "pi review stream: assistant response failed"
-        : "pi review stream: incomplete assistant response",
+      streamError: `pi review stream: assistant response failed (${category})`,
     };
   }
   const blocks = tracker.lastAuthoritativeTextBlocks;
@@ -386,9 +520,15 @@ async function writeAll(
   return true;
 }
 
+const appendWrapperError = (
+  file: Deno.FsFile,
+  record: Omit<WrapperErrorRecord, "kind">,
+): Promise<boolean> =>
+  appendLogLine(file, { kind: "wrapper_error", ...record });
+
 async function appendLogLine(
   file: Deno.FsFile,
-  event: SanitizedPiEvent | Record<string, unknown>,
+  event: SanitizedPiEvent | WrapperErrorRecord | Record<string, unknown>,
 ): Promise<boolean> {
   const bytes = new TextEncoder().encode(`${JSON.stringify(event)}\n`);
   try {
@@ -459,12 +599,26 @@ export async function runPiReviewEventsHelper(options: {
   };
 
   const [bin, ...piArgs] = options.command;
-  const proc = new Deno.Command(bin, {
-    args: piArgs,
-    stdin: "null",
-    stdout: "piped",
-    stderr: "inherit",
-  }).spawn();
+  let proc: Deno.ChildProcess;
+  try {
+    proc = new Deno.Command(bin, {
+      args: piArgs,
+      stdin: "null",
+      stdout: "piped",
+      stderr: "inherit",
+    }).spawn();
+  } catch (err) {
+    const diag = classifyWrapperError(err);
+    await appendWrapperError(file, {
+      attempt: options.attempt,
+      timestampMs: Date.now(),
+      errorCategory: diag.category,
+      phase: "spawn",
+    });
+    file.close();
+    console.error(`pi review events: ${diag.category}`);
+    return 1;
+  }
 
   const decoder = new TextDecoder();
   let carry = "";
@@ -550,8 +704,9 @@ async function main(): Promise<void> {
 }
 
 if (import.meta.main) {
-  await main().catch(() => {
-    console.error("pi review events: internal failure");
+  await main().catch((err) => {
+    const { category } = classifyWrapperError(err);
+    console.error(`pi review events: ${category}`);
     Deno.exit(1);
   });
 }

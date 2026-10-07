@@ -358,7 +358,7 @@ fi
 
 Pi runner は一時設定で retry を止め、CLI で skill / context / extension / tools を無効化した patch-only を強制する。Pi backend のみ `--events-log logs/<execution-id>.events.jsonl` を渡す（`deno` + `jq` 必須）。
 
-events sidecar は **メタデータのみ**（正規化イベント種別・stream phase・allowlist 数値 usage・attempt 別 `elapsedMs`）。生 JSON・prompt/patch・delta 本文・資格情報は書かない。ファイルは runner が retry 前に `0600` で一度だけ新規作成し、各 attempt の watchdog 実行前に `attempt_start`、終了後に `attempt_exit`（いずれも数値 `timestampMs`）を jq で追記する。timeout 前でも観測済み行は保存される。snapshot / execution schema には含めない（診断用）。
+events sidecar は **メタデータのみ**（正規化イベント種別・stream phase・allowlist 数値 usage・attempt 別 `elapsedMs`、失敗時の固定 `errorCategory` / allowlist `httpStatus`、`wrapper_error` 行）。生 JSON・prompt/patch・delta 本文・資格情報は書かない。events モードでは runner が Deno events helper を起動する直前のコマンド環境だけ、export 済みの `LD_*` / `DYLD_*` 変数名を `-u` で除去する（親シェル環境と scoped `--allow-run` / `--allow-write` はそのまま）。ファイルは runner が retry 前に `0600` で一度だけ新規作成し、各 attempt の watchdog 実行前に `attempt_start`、終了後に `attempt_exit`（いずれも数値 `timestampMs`）を jq で追記する。timeout 前でも観測済み行は保存される。snapshot / execution schema には含めない（診断用）。
 
 Antigravity runner は prompt + patch を stdin NDJSON で inline 供給し、空の一時 cwd から `agy --agent patch-reviewer` を起動する（`--cwd` はインターフェース互換の検証のみ）。timeout 時はプロセスグループを終了して exit 124。canonical execution metadata には実測 attempt 数を記録しない（`maxAttempts=2` は設定のみ）。
 
