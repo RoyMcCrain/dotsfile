@@ -546,6 +546,56 @@ TS
 	[[ "$output" != *"ERROR"* ]]
 }
 
+@test "legacy wrapper forwards measured success for path with spaces" {
+	local legacy="$BATS_TEST_DIRNAME/../../cursor-impl/scripts/check_complexity.sh"
+	local f="$TEST_ROOT/legacy spaces/ok.ts"
+	make_file "$f" "export {}"
+	export BATS_CCCC_JSON
+	BATS_CCCC_JSON="$(json_report "$f" 3 2)"
+	run bash "$legacy" -- "$f"
+	local legacy_status=$status
+	local legacy_output=$output
+	: >"$CCCC_LOG"
+	run bash "$SCRIPT" -- "$f"
+	[ "$legacy_status" -eq 0 ]
+	[ "$status" -eq 0 ]
+	[ "$legacy_output" = "$output" ]
+	[[ "$output" == *"MEASURED"* ]]
+	rg -F -- '--no-config' "$CCCC_LOG"
+}
+
+@test "legacy wrapper forwards hard violation exit 1 for path with spaces" {
+	local legacy="$BATS_TEST_DIRNAME/../../cursor-impl/scripts/check_complexity.sh"
+	local f="$TEST_ROOT/legacy spaces/hard.ts"
+	make_file "$f" "export {}"
+	export BATS_CCCC_JSON
+	BATS_CCCC_JSON="$(json_report "$f" 16 8)"
+	run bash "$legacy" -- "$f"
+	local legacy_status=$status
+	local legacy_output=$output
+	: >"$CCCC_LOG"
+	run bash "$SCRIPT" -- "$f"
+	[ "$legacy_status" -eq 1 ]
+	[ "$status" -eq 1 ]
+	[ "$legacy_output" = "$output" ]
+	[[ "$output" == *"ERROR:"* ]]
+}
+
+@test "legacy wrapper forwards unverified exit 2 for path with spaces" {
+	local legacy="$BATS_TEST_DIRNAME/../../cursor-impl/scripts/check_complexity.sh"
+	local f="$TEST_ROOT/legacy spaces/nope.fish"
+	make_file "$f" "echo"
+	run bash "$legacy" -- "$f"
+	local legacy_status=$status
+	local legacy_output=$output
+	: >"$CCCC_LOG"
+	run bash "$SCRIPT" -- "$f"
+	[ "$legacy_status" -eq 2 ]
+	[ "$status" -eq 2 ]
+	[ "$legacy_output" = "$output" ]
+	[[ "$output" == *"UNVERIFIED:"* ]]
+}
+
 @test "integration: real cccc hard violation fixture exits 1" {
 	[[ -n "${REAL_CCCC:-}" && -x "$REAL_CCCC" ]] || skip "real cccc not available"
 	local f="$TEST_ROOT/integration/hard.ts"

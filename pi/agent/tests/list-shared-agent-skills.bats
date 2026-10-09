@@ -60,6 +60,31 @@ make_shared_skills() {
 	done <<<"$output"
 }
 
+@test "production repo lists impl shared skill when present" {
+	local repo_root
+	repo_root=$(cd "$BATS_TEST_DIRNAME/../../.." && pwd -P)
+	run bash "$SCRIPT" "$repo_root"
+	[ "$status" -eq 0 ]
+	printf '%s\n' "$output" | rg -Fx -- "$repo_root/skills/impl"
+}
+
+@test "production claude impl symlink points at canonical skills/impl" {
+	local repo_root target
+	repo_root=$(cd "$BATS_TEST_DIRNAME/../../.." && pwd -P)
+	[[ -L "$repo_root/claude/skills/impl" ]]
+	target=$(readlink "$repo_root/claude/skills/impl")
+	[[ "$target" == "../../skills/impl" ]]
+	[[ -f "$repo_root/skills/impl/SKILL.md" ]]
+}
+
+@test "production repo lists cursor-impl alias skill when present" {
+	local repo_root
+	repo_root=$(cd "$BATS_TEST_DIRNAME/../../.." && pwd -P)
+	run bash "$SCRIPT" "$repo_root"
+	[ "$status" -eq 0 ]
+	printf '%s\n' "$output" | rg -Fx -- "$repo_root/skills/cursor-impl"
+}
+
 @test "does not emit claude-only crm-postmortem" {
 	make_shared_skills
 	make_skill "claude/skills/crm-postmortem"

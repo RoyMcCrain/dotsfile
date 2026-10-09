@@ -82,7 +82,8 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ```bash
 ~/.pi/agent/resolve-model.sh --list                      # role -> model id -> label
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
-~/.pi/agent/resolve-model.sh --field cursor impl.cursor   # -> Cursor Agent model id
+~/.pi/agent/resolve-model.sh impl.default                 # -> Pi implementation model id
+~/.pi/agent/resolve-model.sh --field cursor ROLE          # -> Cursor Agent model id (compatibility)
 ~/.pi/agent/resolve-model.sh --field agy review.antigravity # -> Antigravity model id
 ~/.pi/agent/resolve-model.sh --field id route.review       # -> Jev OpenRouter model id (parallel-review auto)
 ~/.pi/agent/resolve-model.sh --review-level 3              # -> backend/model/timeouts TSV (L3 / auto fallback tier)
@@ -108,7 +109,7 @@ accuracy; repeated decisions for the same patch are not independent samples.
 Thresholds are not automatically adjusted and old records are not rewritten.
 
 Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
-`review.fugu`, `review.muse`, `route.review`, `route.fugu.base`, `route.fugu.ultra`, `impl.cursor`,
+`review.fugu`, `review.muse`, `route.review`, `route.fugu.base`, `route.fugu.ultra`, `impl.default`,
 `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
@@ -242,9 +243,9 @@ Built-in subscription providers (via `/login`):
 
 - `anthropic/*` — Claude Pro/Max OAuth (built into Pi; no extra package)
 
-`enabledModels` lists only models consumed by Pi itself. The Cursor implementation
-role (`impl.cursor`) is resolved with `--field cursor` and consumed by the local
-`cursor-agent` CLI, not Pi.
+`enabledModels` lists models consumed by Pi itself (including implementation role
+`impl.default`, default GPT-6 Luna High). Implementation runs via isolated headless
+Pi (`skills/impl/scripts/run_impl.sh`), not the main session model.
 
 Environment variables:
 
@@ -347,27 +348,38 @@ Check readiness:
 pi auth check --provider anthropic --json
 ```
 
-### Cursor Agent delegation (`cursor-agent`)
+### Implementation delegation (`impl` skill)
 
-Implementation work delegates to the official/local `cursor-agent`
-CLI directly — not through Pi or a Pi extension package.
+Non-trivial implementation delegates to an **isolated headless Pi child** (no parent
+settings/skills/context). The caller prepares the prompt and validates afterward.
 
 ```bash
-cursor-agent status
-cursor-agent login
-cursor-agent --list-models
-~/.pi/agent/resolve-model.sh --field cursor impl.cursor
+~/.pi/agent/resolve-model.sh impl.default
+pi auth check --provider openai-codex --json
+bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" --prompt /tmp/impl-prompt.md --cwd "$PWD"
 ```
 
-- `impl.cursor` → `composer-2.5-fast` (implementation via `cursor-impl` skill)
+- `impl.default` → GPT-6 Luna High; comparison roles `impl.deepseek`, `impl.haiku` (same catalog, `--role` per run)
+- Change models by editing `model-roles.json` roles only (not skills/runners)
+- Run metrics persist under `~/.local/share/impl/runs` (or `IMPL_RUNS_DIR` / `run_impl.sh --runs-dir`); offline report:
 
-Auth is independent from Pi. Use `cursor-agent status` / `cursor-agent login`.
-Model IDs live in `model-roles.json`; resolve the implementation role with `--field cursor`.
+```bash
+deno run --no-config --allow-read --allow-env --allow-write="$TMPDIR/impl-report-out" \
+  "$HOME/.agents/skills/impl/scripts/impl_history.ts" report \
+  --out "$TMPDIR/impl-report-out"
+```
 
-**Chat persistence:** Each `cursor-agent` invocation writes local chat state under
-`~/.cursor/chats/`, even when the process is fresh. Pi's former `--no-session`
-isolation is not available in the current Cursor CLI help; do not assume
-non-persistent delegation.
+- Offline reports show per-metric slice denominators (known/expected) and honest partial cost subtotals; JSON `caseKey` is the full grouping identity (HTML uses a short label). CLI rejects duplicate flags and extra positional args. `running` runs must omit elapsed/exit/finished in stored metadata.
+- `executionStatus: completed` ≠ tests passed; record parent validation:
+
+```bash
+deno run --no-config --allow-read --allow-write="$RUN_DIR" \
+  "$HOME/.agents/skills/impl/scripts/impl_history.ts" set-validation \
+  --run "$RUN_DIR" --status passed
+```
+- Deprecated alias skill: `cursor-impl` (`/skill:cursor-impl`) — follow `impl` canonical docs
+
+Isolation is **not** a filesystem sandbox; scope work via the prompt.
 
 ## Extensions
 
@@ -604,7 +616,8 @@ exposure is controlled by which runtime directory links the skill.
 
 | Skill | Trigger |
 | ----- | ------- |
-| `cursor-impl` | 実装委譲（`/skill:cursor-impl`） |
+| `impl` | 実装委譲（`/skill:impl`、隔離 Pi + `impl.default`） |
+| `cursor-impl` | 非推奨 alias（`/skill:cursor-impl` → `impl` と同方針） |
 | `cheap-pr` | 「PR 作って」等 |
 
 **Workflow**:
