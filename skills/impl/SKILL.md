@@ -77,7 +77,13 @@ deno run --no-config --allow-read --allow-write="$RUN_DIR" \
 ## 複雑度チェック（cccc）— 受け入れ必須
 
 ```bash
+# 既定で判定が自動記録される
 bash "$HOME/.agents/skills/impl/scripts/check_complexity.sh" path/to/changed.ts
+# 比較する場合は実装前後で同じ --case を指定
+bash "$HOME/.agents/skills/impl/scripts/check_complexity.sh" --phase before --case issue-123 path/to/changed.ts
+bash "$HOME/.agents/skills/impl/scripts/check_complexity.sh" --phase after --case issue-123 path/to/changed.ts
+# 履歴のオフライン集計
+bash "$HOME/.agents/skills/impl/scripts/report_complexity.sh"
 ```
 
 - 変更した **cccc 対応の通常ソースのみ**明示列挙（リポジトリ全体・自動 diff 列挙は使わない）
@@ -86,10 +92,11 @@ bash "$HOME/.agents/skills/impl/scripts/check_complexity.sh" path/to/changed.ts
 - **exit 1**: hard 違反（認知 **> 15**、循環 **> 10**）— **受け入れ不可**
 - **exit 2 / `UNVERIFIED`**: 未検証 — **合格にしない**（`UNVERIFIED` を pass 扱いしない）
 - 複数ファイルの集約優先度: **exit 2 > exit 1 > exit 0**
-- **baseline**: 既存ファイルは実装前後で比較するが **免除にならない**（悪化・新規 hard は不可）
+- **baseline**: 既存ファイルは実装前後で比較するが **免除にならない**（悪化・新規 hard は不可）。上記の `--phase before|after` と同じ任意の `--case` を付けるとレポートで比較できる。通常チェックは `check` として自動記録される。
 - **hard 違反時**: 事前合意した変更スコープ内で挙動を保ちつつリファクタして再計測。触ってはいけない箇所（forbidden scope）が優先 — 衝突時は範囲を広げず未達として報告しユーザーに確認（既存違反の事前存在を免除理由にしない）
 - **WARNING のみ**残す場合: 可読性のための簡素化に限定し、理由を記録（メトリクス回避の過度な分割はしない）
 - Bash / Fish 等 cccc 非対応は ShellCheck・shfmt・Bats
+- cccc 履歴は既定で `${XDG_DATA_HOME:-$HOME/.local/share}/impl/complexity` に保存（`CCCC_LOG_DIR` または `--log-dir` で変更）。評価は `report_complexity.sh [--log-dir DIR]` で行う。比較キーは同一 case・リポジトリ・入力ファイル（cwd 基準の物理的・正規化済みパス。未存在入力も `.` / `..` 等を正規化）。既存シンボリックリンクは解決する。ログルートとその祖先は信頼可能な所有者・書込み権限である必要があり、root 自体の symlink は拒否する。最新の before / after を使い、後の未検証記録を古い成功で置き換えない。閾値が異なる記録は比較しない。保存に失敗した場合も exit 2 で合格にしない。レポートの check 件数は実行回数であり、独立したタスク数・品質の証拠ではない。比較は数値メトリクスのみで、品質やバグ防止の証明ではない。
 
 ## モデル
 

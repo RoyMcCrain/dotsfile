@@ -10,6 +10,8 @@ setup() {
 	TEST_ROOT="$BATS_TEST_TMPDIR/check-complexity"
 	STUB_BIN="$TEST_ROOT/stub-bin"
 	CCCC_LOG="$TEST_ROOT/cccc-args.log"
+	CCCC_LOG_DIR="$TEST_ROOT/history"
+	export CCCC_LOG_DIR
 	mkdir -p "$STUB_BIN"
 	SCRIPT="$BATS_TEST_DIRNAME/../scripts/check_complexity.sh"
 	unset BATS_CCCC_EXIT BATS_CCCC_JSON
@@ -126,6 +128,7 @@ json_report_functions() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"MEASURED"* ]]
 	[[ "$output" != *"WARNING"* ]]
+	[ "$(jq -r '.verdict' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = pass ]
 }
 
 @test "check_complexity: cognitive 11 triggers WARNING and still exits 0" {
@@ -178,6 +181,8 @@ json_report_functions() {
 	[[ "$output" == *"cognitive=16"* ]]
 	[[ "$output" == *"15"* ]]
 	[[ "$output" == *"MEASURED"* ]]
+	[ "$(jq -r '.verdict' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = error ]
+	[ "$(jq -r '.exitCode' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = 1 ]
 }
 
 @test "check_complexity: cyclomatic 11 triggers ERROR and exit 1" {
@@ -260,6 +265,8 @@ json_report_functions() {
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"ERROR: ${bad}"* ]]
 	[[ "$output" == *"UNVERIFIED: ${fish}"* ]]
+	[ "$(jq -r '[.files[].verdict] | join(",")' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = error,unverified ]
+	[ "$(jq -r '.exitCode' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = 2 ]
 }
 
 @test "check_complexity: unverified then hard violation exits 2" {
@@ -327,6 +334,8 @@ json_report_functions() {
 	run bash "$SCRIPT" "$f"
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"UNVERIFIED: ${f}: parse errors (count=1)"* ]]
+	[ "$(jq -r '.files[0].reason' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = parse_errors ]
+	[ "$(jq -r '.verdict' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = unverified ]
 }
 
 @test "check_complexity: zero measured files are UNVERIFIED with exit 2" {
@@ -488,6 +497,7 @@ json_report_functions() {
 	mkdir -p "$priv_bin"
 	ln -sf "$(command -v bash)" "$priv_bin/bash"
 	ln -sf "$(command -v jq)" "$priv_bin/jq"
+	for cmd in mktemp mkdir chmod mv stat dirname realpath; do ln -sf "$(command -v "$cmd")" "$priv_bin/$cmd"; done
 	run env PATH="$priv_bin" bash "$SCRIPT" "$f"
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"cccc"* ]]
@@ -498,7 +508,9 @@ real_cccc_path() {
 	mkdir -p "$priv_bin"
 	ln -sf "$(command -v bash)" "$priv_bin/bash"
 	ln -sf "$(command -v jq)" "$priv_bin/jq"
+	for cmd in mktemp mkdir chmod mv stat dirname realpath; do ln -sf "$(command -v "$cmd")" "$priv_bin/$cmd"; done
 	ln -sf "$REAL_CCCC" "$priv_bin/cccc"
+	if command -v jj >/dev/null 2>&1; then ln -sf "$(command -v jj)" "$priv_bin/jj"; fi
 	printf '%s' "$priv_bin"
 }
 
@@ -513,6 +525,16 @@ real_cccc_path() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"MEASURED"* ]]
 	[[ "$output" != *"ERROR"* ]]
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$CCCC_LOG_DIR"
+	[ "$status" -eq 0 ]
+	[ "$(jq -r '.summary.checks' <<<"$output")" = 1 ]
+	[ "$(jq -r '.summary.measuredFiles' <<<"$output")" = 1 ]
+	local repo
+	if repo=$(jj root 2>/dev/null); then
+		[ "$(jq -r '.revisionKind' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = jj ]
+		[ "$(jq -r '.revision' "$CCCC_LOG_DIR"/check.*/result.jsonl)" != unknown ]
+		[ "$(jq -r '.repository' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = "$repo" ]
+	fi
 }
 
 @test "integration: real cccc reports warning-only fixture with exit 0" {
@@ -594,6 +616,214 @@ TS
 	[ "$status" -eq 2 ]
 	[ "$legacy_output" = "$output" ]
 	[[ "$output" == *"UNVERIFIED:"* ]]
+}
+
+@test "check_complexity persists private, whitelisted verdict records" {
+	local f="$TEST_ROOT/logged.ts"
+	make_file "$f" "export {}"
+	BATS_CCCC_JSON="$(json_report "$f" 11 9 | jq '.raw = "PRIVATE_SENTINEL" | .source = "PRIVATE_SENTINEL" | .diagnostic = "PRIVATE_SENTINEL" | .files[0].raw = "PRIVATE_SENTINEL" | .files[0].source = "PRIVATE_SENTINEL" | .files[0].diagnostic = "PRIVATE_SENTINEL" | .files[0].functions[0].raw = "PRIVATE_SENTINEL" | .files[0].functions[0].source = "PRIVATE_SENTINEL" | .files[0].functions[0].diagnostic = "PRIVATE_SENTINEL"')"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase before --case sample "$f"
+	[ "$status" -eq 0 ]
+	local record
+	record=$(<"$CCCC_LOG_DIR"/check.*/result.jsonl)
+	[ "$(jq -r '.verdict' <<<"$record")" = warning ]
+	[ "$(jq -r '.files[0].functions[0].cognitive' <<<"$record")" = 11 ]
+	[ "$(jq -r '.caseId' <<<"$record")" = sample ]
+	[ "$(jq -r '[keys, (.files[0] | keys), (.files[0].functions[0] | keys)] | @json' <<<"$record")" = '[["caseId","exitCode","files","phase","repository","revision","revisionKind","runId","schemaVersion","thresholds","timestamp","verdict"],["functions","path","verdict"],["cognitive","cyclomatic","line","name"]]' ]
+	[[ "$record" != *"PRIVATE_SENTINEL"* ]]
+	[ "$(stat -c '%a' "$CCCC_LOG_DIR" 2>/dev/null || stat -f '%Lp' "$CCCC_LOG_DIR")" = 700 ]
+	[ "$(stat -c '%a' "$CCCC_LOG_DIR"/check.*/result.jsonl 2>/dev/null || stat -f '%Lp' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = 600 ]
+}
+
+@test "check_complexity reports a logging failure without accepting the check" {
+	local f="$TEST_ROOT/no-log.ts"
+	local blocked="$TEST_ROOT/not-a-directory"
+	make_file "$f" "export {}"
+	make_file "$blocked" "file"
+	BATS_CCCC_JSON="$(json_report "$f" 2 2)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --log-dir "$blocked/history" "$f"
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"cannot create cccc log root"* ]]
+}
+
+@test "report_complexity reports corrupt history without counting it" {
+	mkdir -p "$CCCC_LOG_DIR/corrupt" "$TEST_ROOT/unrelated"
+	printf '%s\n' '{bad json}' >"$CCCC_LOG_DIR/corrupt/result.jsonl"
+	local f="$TEST_ROOT/unrelated/copied.ts"
+	make_file "$f" "export {}"
+	BATS_CCCC_JSON="$(json_report "$f" 2 2)"
+	export BATS_CCCC_JSON
+	(
+		cd "$TEST_ROOT/unrelated"
+		bash "$SCRIPT" "$f"
+	)
+	mkdir -p "$TEST_ROOT/unrelated/extra/check-copy" "$TEST_ROOT/other-history/check-copy"
+	cp "$CCCC_LOG_DIR"/check.*/result.jsonl "$TEST_ROOT/unrelated/extra/check-copy/result.jsonl"
+	cp "$CCCC_LOG_DIR"/check.*/result.jsonl "$TEST_ROOT/other-history/check-copy/result.jsonl"
+	local diagnostics="$TEST_ROOT/report.stderr"
+	run bash -c 'cd "$4" && bash "$1" --log-dir "$2" 2>"$3"' _ "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" "$CCCC_LOG_DIR" "$diagnostics" "$TEST_ROOT/unrelated"
+	[ "$status" -eq 0 ]
+	[ "$(jq -r '.invalidRecords' <<<"$output")" = 1 ]
+	[ "$(jq -r '.summary.checks' <<<"$output")" = 1 ]
+	[ "$(jq -r '.summary.verdicts.pass' <<<"$output")" = 1 ]
+	[[ "$(<"$diagnostics")" == *"skipped invalid cccc record"* ]]
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$TEST_ROOT/empty-history"
+	[ "$status" -eq 0 ]
+	[ "$(jq -r '.summary.checks' <<<"$output")" = 0 ]
+	[ "$(jq '[.summary.verdicts[] | select(. != 0)] | length' <<<"$output")" = 0 ]
+}
+
+@test "report_complexity pairs latest records per file and rejects stale after results" {
+	local a="$TEST_ROOT/compare/a.ts"
+	local b="$TEST_ROOT/compare/b.ts"
+	make_file "$a" "export {}"
+	make_file "$b" "export {}"
+	BATS_CCCC_JSON="$(json_report "$a" 12 9)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase before --case files "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$a" 4 3)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase after --case files "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$b" 12 9)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase before --case files "$b"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$a" 3 2)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase after --case files "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$a" 12 9)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase before --case stale-order "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$a" 3 2)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase after --case stale-order "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$a" 12 9)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase before --case stale-order "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$a" 12 9)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase before --case unverified-latest "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_JSON="$(json_report "$a" 4 3)"
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase after --case unverified-latest "$a"
+	[ "$status" -eq 0 ]
+	BATS_CCCC_EXIT=1
+	export BATS_CCCC_EXIT
+	run bash "$SCRIPT" --phase after --case unverified-latest "$a"
+	[ "$status" -eq 2 ]
+	unset BATS_CCCC_EXIT
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$CCCC_LOG_DIR"
+	[ "$status" -eq 0 ]
+	[ "$(jq -r '.summary.checks' <<<"$output")" = 10 ]
+	[ "$(jq '[.comparisons[] | select(.caseId == "files")] | length' <<<"$output")" = 1 ]
+	[ "$(jq -r '.comparisons[] | select(.caseId == "files") | .before.cognitive' <<<"$output")" = 12 ]
+	[ "$(jq -r '.comparisons[] | select(.caseId == "files") | .after.cognitive' <<<"$output")" = 3 ]
+	[ "$(jq -r '.comparisons[] | select(.caseId == "files") | .cognitiveMaximumChange' <<<"$output")" = -9 ]
+	[ "$(jq -r '.comparisons[] | select(.caseId == "files") | .warningFunctionChange' <<<"$output")" = -1 ]
+	[ "$(jq '[.comparisons[] | select(.caseId == "stale-order")] | length' <<<"$output")" = 0 ]
+	[ "$(jq '[.comparisons[] | select(.caseId == "unverified-latest")] | length' <<<"$output")" = 0 ]
+}
+
+@test "complexity history normalizes input aliases and keeps latest unverified record" {
+	local f="$TEST_ROOT/a.ts"
+	make_file "$f" "export {}"
+	mkdir -p "$TEST_ROOT/sub"
+	export BATS_CCCC_JSON
+	BATS_CCCC_JSON="$(json_report "$f" 12 8)"
+	(cd "$TEST_ROOT" && bash "$SCRIPT" --phase before --case aliases a.ts)
+	(cd "$TEST_ROOT" && bash "$SCRIPT" --phase after --case aliases sub/.././a.ts)
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$CCCC_LOG_DIR"
+	[ "$status" -eq 0 ]
+	[ "$(jq '[.comparisons[] | select(.caseId == "aliases")] | length' <<<"$output")" = 1 ]
+	BATS_CCCC_JSON="$(json_report "$f" 1 1 | jq '.summary.parse_error_count = 1')"
+	run bash -c 'cd "$1" && bash "$2" --phase after --case aliases ././a.ts' _ "$TEST_ROOT" "$SCRIPT"
+	[ "$status" -eq 2 ]
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$CCCC_LOG_DIR"
+	[ "$status" -eq 0 ]
+	[ "$(jq '[.comparisons[] | select(.caseId == "aliases")] | length' <<<"$output")" = 0 ]
+}
+
+@test "complexity logging refuses writable roots and trailing-slash root symlinks" {
+	local f="$TEST_ROOT/security.ts"
+	make_file "$f" "export {}"
+	export BATS_CCCC_JSON
+	BATS_CCCC_JSON="$(json_report "$f" 2 2)"
+	local unsafe="$TEST_ROOT/unsafe-root"
+	mkdir -m 777 "$unsafe"
+	run bash "$SCRIPT" --log-dir "$unsafe" "$f"
+	[ "$status" -eq 2 ]
+	local runs=("$unsafe"/check.*)
+	[ ! -d "${runs[0]}" ]
+	local target="$TEST_ROOT/real-root"
+	mkdir -m 700 "$target"
+	ln -s "$target" "$TEST_ROOT/root-link"
+	run bash "$SCRIPT" --log-dir "$TEST_ROOT/root-link//" "$f"
+	[ "$status" -eq 2 ]
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$TEST_ROOT/root-link/"
+	[ "$status" -eq 2 ]
+	run bash -c 'umask 000; bash "$1" --log-dir "$2" "$3"' _ "$SCRIPT" "$TEST_ROOT/new-parent/nested/history" "$f"
+	[ "$status" -eq 0 ]
+	[ "$(stat -c '%a' "$TEST_ROOT/new-parent" 2>/dev/null || stat -f '%Lp' "$TEST_ROOT/new-parent")" = 700 ]
+}
+
+@test "complexity tools support relative leading-dash history roots" {
+	local f="$TEST_ROOT/dash.ts"
+	make_file "$f" "export {}"
+	export BATS_CCCC_JSON
+	BATS_CCCC_JSON="$(json_report "$f" 2 2)"
+	run bash -c 'cd "$1" && bash "$2" --log-dir -history "$3"' _ "$TEST_ROOT" "$SCRIPT" "$f"
+	[ "$status" -eq 0 ]
+	run bash -c 'cd "$1" && bash "$2" --log-dir -history' _ "$TEST_ROOT" "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh"
+	[ "$status" -eq 0 ]
+	[ "$(jq -r '.summary.checks' <<<"$output")" = 1 ]
+}
+
+@test "report_complexity preserves null maxima for measured zero-function files" {
+	local f="$TEST_ROOT/empty-functions.ts"
+	make_file "$f" "export type Example = { id: string };"
+	BATS_CCCC_JSON='{"files":[{"functions":[]}],"summary":{"file_count":1,"parse_error_count":0}}'
+	export BATS_CCCC_JSON
+	run bash "$SCRIPT" --phase before --case empty "$f"
+	[ "$status" -eq 0 ]
+	run bash "$SCRIPT" --phase after --case empty "$f"
+	[ "$status" -eq 0 ]
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$CCCC_LOG_DIR"
+	[ "$status" -eq 0 ]
+	[ "$(jq -r '.comparisons[0].before.cognitive' <<<"$output")" = null ]
+	[ "$(jq -r '.comparisons[0].after.cyclomatic' <<<"$output")" = null ]
+	[ "$(jq -r '.comparisons[0].cognitiveMaximumChange' <<<"$output")" = null ]
+	[ "$(jq -r '.comparisons[0].cyclomaticMaximumChange' <<<"$output")" = null ]
+}
+
+@test "integration: real cccc logs and reports 20000 measured TypeScript functions" {
+	[[ -n "${REAL_CCCC:-}" && -x "$REAL_CCCC" ]] || skip "real cccc not available"
+	local f="$TEST_ROOT/integration/large.ts"
+	mkdir -p "$(dirname "$f")"
+	for ((i = 0; i < 20000; i++)); do
+		printf 'export const function%d = () => %d;\n' "$i" "$i" >>"$f"
+	done
+	local priv_bin stdout="$TEST_ROOT/large.stdout"
+	priv_bin="$(real_cccc_path)"
+	unset BATS_CCCC_JSON BATS_CCCC_EXIT
+	run env PATH="$priv_bin" bash "$SCRIPT" "$f" >"$stdout"
+	[ "$status" -eq 0 ]
+	run bash "$BATS_TEST_DIRNAME/../scripts/report_complexity.sh" --log-dir "$CCCC_LOG_DIR"
+	[ "$status" -eq 0 ]
+	[ "$(jq -r '.summary.checks' <<<"$output")" = 1 ]
+	[ "$(jq -r '.summary.measuredFiles' <<<"$output")" = 1 ]
+	[ "$(jq -r '.summary.unverifiedFiles' <<<"$output")" = 0 ]
+	[ "$(jq -r '.summary.maxima.cognitive' <<<"$output")" != null ]
+	[ "$(jq -r '. as $report | [$report.comparisons | length, $report.summary.verdicts.pass] | @json' <<<"$output")" = '[0,1]' ]
+	[ "$(jq -r '.files[0].functions | length' "$CCCC_LOG_DIR"/check.*/result.jsonl)" = 20000 ]
 }
 
 @test "integration: real cccc hard violation fixture exits 1" {
