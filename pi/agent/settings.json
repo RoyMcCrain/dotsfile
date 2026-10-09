@@ -12,6 +12,7 @@
     "openai-codex/gpt-6-astra:max",
     "openai-codex/gpt-6.1-sol:xhigh",
     "openai-codex/gpt-6.1-sol:max",
+    "openai-codex/gpt-6-luna:high",
     "sakana-ai-console/fugu-max:high",
     "sakana-ai-console/fugu-ultra-v2.0:high",
     "opencode-go/*"

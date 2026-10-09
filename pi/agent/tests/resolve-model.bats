@@ -1459,6 +1459,29 @@ EOF
 	[ "${lines[0]}" = "$(printf 'pi\topenai-codex/gpt-6-astra:high\t300\t300')" ]
 }
 
+@test "production catalog resolves impl.default to Luna high for Pi" {
+	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
+	run "$RESOLVER" impl.default
+	[ "$status" -eq 0 ]
+	[ "$output" = "openai-codex/gpt-6-luna:high" ]
+}
+
+@test "production catalog has no impl.cursor role" {
+	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
+	run "$RESOLVER" --field cursor impl.cursor
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown model role"* ]]
+}
+
+@test "production enabledModels includes Luna high and matches settings.json" {
+	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
+	export PI_SETTINGS_FILE="$BATS_TEST_DIRNAME/../settings.json"
+	export CODEX_CONFIG_FILE="$BATS_TEST_TMPDIR/no-codex-config.toml"
+	run "$RESOLVER" --check
+	[ "$status" -eq 0 ]
+	jq -e '.enabledModels | index("openai-codex/gpt-6-luna:high") != null' "$MODEL_ROLES_FILE" >/dev/null
+}
+
 @test "auth.json.example wires opencode-go command auth without enabling opencode Zen" {
 	# Arrange — tracked auth example only (no live auth or Keychain)
 	local auth_example="$BATS_TEST_DIRNAME/../auth.json.example"

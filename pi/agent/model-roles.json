@@ -10,6 +10,7 @@
     "openai-codex/gpt-6-astra:max",
     "openai-codex/gpt-6.1-sol:xhigh",
     "openai-codex/gpt-6.1-sol:max",
+    "openai-codex/gpt-6-luna:high",
     "sakana-ai-console/fugu-max:high",
     "sakana-ai-console/fugu-ultra-v2.0:high",
     "opencode-go/*"
@@ -54,9 +55,9 @@
       "id": "fugu-ultra-v2.0",
       "label": "Sakana Fugu Ultra v2"
     },
-    "impl.cursor": {
-      "cursor": "composer-2.5-fast",
-      "label": "Composer 2.5 Fast"
+    "impl.default": {
+      "pi": "openai-codex/gpt-6-luna:high",
+      "label": "GPT-6 Luna High"
     },
     "research.xai": {
       "pi": "xai/grok-4.7",

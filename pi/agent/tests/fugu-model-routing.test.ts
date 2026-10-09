@@ -336,6 +336,10 @@ Deno.test("literal skill invocation does not escalate from skill-name alone", ()
     undefined,
   );
   assertEquals(
+    classifyFuguPrompt("/skill:impl implement the login form").target,
+    undefined,
+  );
+  assertEquals(
     classifyFuguPrompt("/skill:foo routine request").target,
     undefined,
   );
