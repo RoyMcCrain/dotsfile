@@ -24,4 +24,4 @@ Cursor Agent は実装委譲専用。**実装は積極的に Composer Fast（rol
 ## 実装委譲の原則
 
 - Composer が一番こけるのは「どこを直すべきか自力で全部見つける」部分。Claude が先に touchpoint を地図化し、確定仕様・触る箇所・完了条件を明記してから渡す
-- 実装後は必ず Claude が検証する（投げっぱなしにしない）
+- 実装後は必ず Claude が検証する（投げっぱなしにしない）。検証項目に **cccc 複雑度**（変更した cccc 対応ファイル明示・baseline 比較・`UNVERIFIED` / exit 2 非合格・hard ERROR 非受け入れ・必要なら事前合意した変更スコープ内の挙動保持リファクタ）を含める — 詳細は `claude/rules/testing.md` と `cursor-impl` スキル

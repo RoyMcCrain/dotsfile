@@ -68,7 +68,7 @@ run "deno test (report skills)" deno test --allow-read --allow-write --allow-run
 	skills/implementation-report/tests/
 
 # bats tests
-mapfile -d '' -t bats_files < <(fd -H -e bats -0 . pi/agent/tests skills fish/tests)
+mapfile -d '' -t bats_files < <(fd -H -e bats -0 . pi/agent/tests skills fish/tests scripts/tests)
 if [[ ${#bats_files[@]} -eq 0 ]]; then
 	echo "no bats tests found" >&2
 	exit 1
