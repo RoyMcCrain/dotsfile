@@ -1466,6 +1466,20 @@ EOF
 	[ "$output" = "openai-codex/gpt-6-luna:high" ]
 }
 
+@test "production catalog resolves impl.deepseek for Pi" {
+	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
+	run "$RESOLVER" impl.deepseek
+	[ "$status" -eq 0 ]
+	[ "$output" = "opencode-go/deepseek-v4.1-flash:high" ]
+}
+
+@test "production catalog resolves impl.haiku for Pi" {
+	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
+	run "$RESOLVER" impl.haiku
+	[ "$status" -eq 0 ]
+	[ "$output" = "opencode-go/claude-haiku-5-5:high" ]
+}
+
 @test "production catalog has no impl.cursor role" {
 	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
 	run "$RESOLVER" --field cursor impl.cursor

@@ -59,6 +59,14 @@
       "pi": "openai-codex/gpt-6-luna:high",
       "label": "GPT-6 Luna High"
     },
+    "impl.deepseek": {
+      "pi": "opencode-go/deepseek-v4.1-flash:high",
+      "label": "DeepSeek V4.1 Flash High"
+    },
+    "impl.haiku": {
+      "pi": "opencode-go/claude-haiku-5-5:high",
+      "label": "Claude Haiku 5.5 High"
+    },
     "research.xai": {
       "pi": "xai/grok-4.7",
       "label": "Grok 4.7 (X Search research)"

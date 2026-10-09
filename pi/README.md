@@ -359,10 +359,24 @@ pi auth check --provider openai-codex --json
 bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" --prompt /tmp/impl-prompt.md --cwd "$PWD"
 ```
 
-- `impl.default` → `openai-codex/gpt-6-luna:high` (GPT-6 Luna High) by default
-- Change implementation model by editing `roles["impl.default"].pi` in `model-roles.json` only
-- Override per run with `run_impl.sh --role OTHER` (must resolve a `.pi` field)
-- Logs typically under `/tmp` (caller redirects stdout/stderr)
+- `impl.default` → GPT-6 Luna High; comparison roles `impl.deepseek`, `impl.haiku` (same catalog, `--role` per run)
+- Change models by editing `model-roles.json` roles only (not skills/runners)
+- Run metrics persist under `~/.local/share/impl/runs` (or `IMPL_RUNS_DIR` / `run_impl.sh --runs-dir`); offline report:
+
+```bash
+deno run --no-config --allow-read --allow-env --allow-write="$TMPDIR/impl-report-out" \
+  "$HOME/.agents/skills/impl/scripts/impl_history.ts" report \
+  --out "$TMPDIR/impl-report-out"
+```
+
+- Offline reports show per-metric slice denominators (known/expected) and honest partial cost subtotals; JSON `caseKey` is the full grouping identity (HTML uses a short label). CLI rejects duplicate flags and extra positional args. `running` runs must omit elapsed/exit/finished in stored metadata.
+- `executionStatus: completed` ≠ tests passed; record parent validation:
+
+```bash
+deno run --no-config --allow-read --allow-write="$RUN_DIR" \
+  "$HOME/.agents/skills/impl/scripts/impl_history.ts" set-validation \
+  --run "$RUN_DIR" --status passed
+```
 - Deprecated alias skill: `cursor-impl` (`/skill:cursor-impl`) — follow `impl` canonical docs
 
 Isolation is **not** a filesystem sandbox; scope work via the prompt.

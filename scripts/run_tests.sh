@@ -67,6 +67,35 @@ run "deno test (report skills)" deno test --allow-read --allow-write --allow-run
 	skills/review-report/tests/ \
 	skills/implementation-report/tests/
 
+impl_deno_tmp=$(mktemp -d "${TMPDIR:-/tmp}/impl-deno.XXXXXX")
+impl_deno_tmp=$(cd "$impl_deno_tmp" && pwd -P)
+run "deno test (impl history)" env \
+	IMPL_TEST_SYMLINK=0 \
+	TMPDIR="$impl_deno_tmp" \
+	IMPL_TEST_ROOT="$impl_deno_tmp" \
+	IMPL_RUNS_DIR="$impl_deno_tmp/impl-runs" \
+	HOME="$impl_deno_tmp/home" \
+	deno test --no-prompt --allow-read --allow-write="$impl_deno_tmp" --allow-env --quiet \
+	skills/impl/tests/impl_history_test.ts
+
+# Deno.symlink requires unscoped grants; only these fixture-only cases use them.
+run "deno test (impl history symlink fixtures)" env \
+	TMPDIR="$impl_deno_tmp" \
+	IMPL_TEST_ROOT="$impl_deno_tmp" \
+	IMPL_TEST_SYMLINK=1 \
+	HOME="$impl_deno_tmp/home" \
+	deno test --no-prompt --allow-read --allow-write --allow-env --quiet --filter symlink \
+	skills/impl/tests/impl_history_test.ts
+
+run "deno test (impl stream/events)" env \
+	TMPDIR="$impl_deno_tmp" \
+	IMPL_TEST_ROOT="$impl_deno_tmp" \
+	IMPL_RUNS_DIR="$impl_deno_tmp/impl-runs" \
+	HOME="$impl_deno_tmp/home" \
+	deno test --no-prompt --allow-read --allow-write="$impl_deno_tmp" --allow-run --allow-env --quiet \
+	skills/impl/tests/impl_stream_test.ts \
+	skills/impl/tests/run_impl_events_test.ts
+
 # bats tests
 mapfile -d '' -t bats_files < <(fd -H -e bats -0 . pi/agent/tests skills fish/tests scripts/tests)
 if [[ ${#bats_files[@]} -eq 0 ]]; then

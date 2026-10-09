@@ -14,8 +14,11 @@ resolve_test_path() {
 
 setup() {
 	TEST_ROOT="$BATS_TEST_TMPDIR/run-impl"
-	mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/agent" "$TEST_ROOT/work" "$TEST_ROOT/tmp"
+	mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/agent" "$TEST_ROOT/work" "$TEST_ROOT/tmp" "$TEST_ROOT/impl-runs"
 	export TMPDIR="$TEST_ROOT/tmp"
+	export IMPL_RUNS_DIR="$TEST_ROOT/impl-runs"
+	export HOME="$TEST_ROOT/home"
+	mkdir -p "$HOME"
 	PROMPT="$TEST_ROOT/work/impl prompt.md"
 	printf '%s\n' 'Implement the feature.' >"$PROMPT"
 	PROMPT=$(resolve_test_path "$PROMPT")
@@ -71,6 +74,15 @@ set -uo pipefail
 printf '%s\n' "$@" | jq -R . | jq -s . >"${FAKE_PI_ARGS:?}"
 config="${PI_CODING_AGENT_DIR:?}"
 printf '%s\n' '{}' >"$config/models-store.json"
+json_mode=false
+for ((i = 1; i < $#; i++)); do
+	if [[ "${!i}" == "--mode" ]]; then
+		j=$((i + 1))
+		if [[ "${!j}" == "json" ]]; then
+			json_mode=true
+		fi
+	fi
+done
 auth_link=false
 models_link=false
 auth_present=false
@@ -121,9 +133,25 @@ fi
 if [[ -n "${FAKE_PI_DROP_FILE:-}" ]]; then
 	printf 'extra\n' >"$config/$FAKE_PI_DROP_FILE"
 fi
+if [[ "$json_mode" == true ]]; then
+	if [[ -n "${FAKE_PI_STREAM_FILE:-}" && -f "$FAKE_PI_STREAM_FILE" ]]; then
+		cat "$FAKE_PI_STREAM_FILE"
+	else
+		text="${FAKE_PI_STDOUT_TEXT:-done}"
+		printf '%s\n' \
+			'{"type":"message_start","message":{"role":"assistant"}}' \
+			"{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\",\"stopReason\":\"stop\",\"content\":[{\"type\":\"text\",\"text\":\"$text\"}],\"usage\":{\"input\":3,\"output\":2,\"cacheRead\":0,\"cacheWrite\":0,\"cost\":{\"total\":0.001}}}}" \
+			'{"type":"agent_settled","aborted":false}'
+	fi
+fi
 exit "${FAKE_PI_EXIT:-0}"
 EOF
 	chmod +x "$FAKE_PI"
+}
+
+latest_run_dir() {
+	local root=${1:-$IMPL_RUNS_DIR}
+	fd -t d -d 1 . "$root" | head -n 1
 }
 
 write_echo_resolver() {
@@ -220,7 +248,7 @@ args_at_prompt() {
 @test "run_impl: passes Pi isolation flags and implementation tools" {
 	run "$RUNNER" --prompt "$PROMPT"
 	[ "$status" -eq 0 ]
-	for flag in -p --no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp --no-approve; do
+	for flag in -p --mode json --no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp --no-approve; do
 		args_contains "$flag"
 	done
 	args_has_prefix_pair --tools "read,bash,edit,write"
@@ -229,6 +257,55 @@ args_at_prompt() {
 	if args_contains "--no-tools"; then
 		false
 	fi
+}
+
+@test "run_impl: persists private run log under IMPL_RUNS_DIR" {
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"run log directory:"* ]]
+	local run_dir meta
+	run_dir=$(latest_run_dir)
+	[[ -n "$run_dir" ]]
+	meta="$run_dir/metadata.json"
+	[[ -f "$meta" ]]
+	jq -e '.schemaVersion == 1 and .executionStatus == "completed" and .role == "impl.default"' "$meta" >/dev/null
+	[[ -f "$run_dir/events.jsonl" ]]
+}
+
+@test "run_impl: forwards final assistant text to stdout" {
+	export FAKE_PI_STDOUT_TEXT='hello-impl'
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"hello-impl"* ]]
+}
+
+@test "run_impl: rejects missing deno without calling Pi" {
+	local filtered_path=""
+	local part
+	IFS=':' read -r -a path_parts <<<"$PATH"
+	for part in "${path_parts[@]}"; do
+		[[ -n "$part" && -x "$part/deno" ]] && continue
+		filtered_path+="${part}:"
+	done
+	run env PATH="${filtered_path%:}" "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -ne 0 ]
+	[[ ! -f "$ARGS_LOG" ]]
+}
+
+@test "run_impl: rejects invalid runs dir without calling Pi" {
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$TEST_ROOT/not-a-dir/file"
+	[ "$status" -ne 0 ]
+	[[ ! -f "$ARGS_LOG" ]]
+}
+
+@test "run_impl: relative spaced runs-dir resolves before cwd change" {
+	local spaced="$TEST_ROOT/run logs"
+	mkdir -p "$TEST_ROOT/work"
+	cd "$TEST_ROOT/work" || exit 1
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir "../run logs"
+	[ "$status" -eq 0 ]
+	[[ -d "$spaced" ]]
+	jq -e '.executionStatus == "completed"' "$(latest_run_dir "$spaced")/metadata.json" >/dev/null
 }
 
 @test "run_impl: child PI_CODING_AGENT_DIR is private temp with minimal settings" {
@@ -290,9 +367,37 @@ args_at_prompt() {
 	export FAKE_PI_EXIT=17
 	run "$RUNNER" --prompt "$PROMPT"
 	[ "$status" -eq 17 ]
-	local cfg
+	local cfg meta
 	cfg=$(jq -r '.config' "$ENV_LOG")
 	[[ ! -d "$cfg" ]]
+	meta="$(latest_run_dir)/metadata.json"
+	jq -e '.executionStatus == "failed" and .exitCode == 17' "$meta" >/dev/null
+}
+
+@test "run_impl: rejects explicit empty --runs-dir without calling Pi" {
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir ""
+	[ "$status" -ne 0 ]
+	[[ ! -f "$ARGS_LOG" ]]
+}
+
+@test "run_impl: does not chmod pre-existing runs directory" {
+	local shared="$TEST_ROOT/shared-runs"
+	mkdir -p "$shared"
+	chmod 0755 "$shared"
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$shared"
+	[ "$status" -eq 0 ]
+	[[ "$(stat -f '%Lp' "$shared" 2>/dev/null || stat -c '%a' "$shared")" == "755" ]]
+}
+
+@test "run_impl: relative IMPL_RUNS_DIR resolves from invocation cwd" {
+	local rel="$TEST_ROOT/from-invocation"
+	mkdir -p "$TEST_ROOT/work"
+	cd "$TEST_ROOT/work" || exit 1
+	export IMPL_RUNS_DIR="../from-invocation"
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	[[ -d "$rel" ]]
+	jq -e '.executionStatus == "completed"' "$(latest_run_dir "$rel")/metadata.json" >/dev/null
 }
 
 @test "run_impl: warns and keeps temp dir when unexpected files remain" {

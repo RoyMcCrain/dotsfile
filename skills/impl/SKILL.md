@@ -26,22 +26,42 @@ Pi の `impl.default` ロール（人間向けラベルはカタログの `label
 1. **要件整理 + 確定仕様の確認**
 2. **触る箇所の調査**: 参照テンプレ・ exhaustive map / switch 漏れを列挙。**既存 cccc 対応ファイルは委譲前に** `check_complexity.sh` **で baseline**（新規は baseline なし）
 3. **実装プロンプト作成**（確定仕様、触る箇所 file:行、参照テンプレ、完了条件 lint/test/型、触ってはいけない箇所、**プロジェクト規約** — 子 Pi は `--no-context-files` のため親プロンプトに明記）
-4. **実行**（バックグラウンド推奨、ログは `/tmp` 等に分離）:
+4. **実行**（バックグラウンド推奨。stdout は最終 assistant テキスト、stderr に run ログディレクトリ）:
 
 ```bash
 bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" \
   --prompt "$TMPDIR/impl-prompt.md" \
-  --cwd "$PWD" \
-  > "$TMPDIR/impl.log" 2>&1
+  --cwd "$PWD"
 ```
 
+- **実行メトリクス**はリポジトリ外に自動永続化（既定 `~/.local/share/impl/runs` または `IMPL_RUNS_DIR` / `--runs-dir`）。生プロンプト・assistant 全文・ツール引数は保存しない（`references/history-format.md`）
+- モデル比較候補: `--role impl.deepseek` / `--role impl.haiku`（既定は `impl.default` の Luna のまま）
+- オフライン比較レポート（`--runs-dir` 省略時は `IMPL_RUNS_DIR` または XDG/HOME 既定）:
+
+```bash
+deno run --no-config \
+  --allow-read --allow-env --allow-write="$TMPDIR/impl-report-out" \
+  "$HOME/.agents/skills/impl/scripts/impl_history.ts" report \
+  --out "$TMPDIR/impl-report-out"
+```
+
+- 親検証の記録（自動ではない）:
+
+```bash
+deno run --no-config --allow-read --allow-write="$RUN_DIR" \
+  "$HOME/.agents/skills/impl/scripts/impl_history.ts" set-validation \
+  --run "$RUN_DIR" --status passed
+```
+
+（`passed|failed|not-run` のみ。`completed` かつ exit 0 以外を `passed` にしない）
+- レポート JSON/HTML はトークン・コストの **known/expected スライス分母**と run 既知数を表示。`caseKey` は完全な同一性（HTML は短い `displayLabel` + title）。CLI は未知 positional / 重複フラグを拒否。`running` メタデータに elapsed/exit/finished を含めない
 - 既定 role は `impl.default`（`model-roles.json` の `roles["impl.default"].pi`）。別ロールは `--role ROLE`（Pi 向け `.pi` フィールド必須。Cursor 専用 role は不可）
 - モデル ID は skill / runner に書かない。変更はカタログの `.pi` のみ（`resolve-model.sh --list` / `resolve-model.sh impl.default` で確認）
 - 毎回 **新規** 非対話 Pi（`--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp`）。親の settings / packages / SYSTEM.md / 拡張は読まない
 - **隔離はサンドボックスではない**（`--cwd` は作業ルートの指定）。プロンプトで触るファイルを絞る
 - OpenAI Codex 系 provider の認証: `pi auth check --provider openai-codex --json`（**資格情報の内容は出力しない**）
 
-5. **呼び出し元による検証**（必須）: diff 目視、lint、test、型（プロジェクトで型がある場合）、仕様充足、**cccc**（下記）。子の cccc 結果を鵜呑みにせず、呼び出し元が同じ対象ファイルで **独立に再実行** する
+5. **呼び出し元による検証**（必須）: diff 目視、lint、test、型（プロジェクトで型がある場合）、仕様充足、**cccc**（下記）。Pi の `executionStatus: completed` はストリーム完了でありタスク正しさやテスト成功を意味しない。検証後に `set-validation` で親結果を記録する
 6. 問題があれば軽微は呼び出し元が修正、大きければ追加プロンプトで再委譲（同一未達事項は **最大 2 回** まで再試行し、それでも未達なら報告してユーザーに確認）
 7. 一時プロンプトは push 前に削除
 
