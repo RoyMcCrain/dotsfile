@@ -25,5 +25,5 @@
 ## 原則
 
 - touchpoint を先に地図化し、確定仕様・触る箇所・完了条件を明記してから渡す
-- 実装後は必ず呼び出し元が検証（cccc 含む — `claude/rules/testing.md` と `impl` スキル）
+- 実装後は必ず呼び出し元が検証（テスト方針は `~/.pi/agent/APPEND_SYSTEM.md`、cccc 手順・受け入れ基準は `~/.agents/skills/impl/SKILL.md`）
 - 非推奨 `/cursor-impl` は `impl` と同じ正本（`skills/impl/SKILL.md`）に従う

@@ -25,7 +25,8 @@ Pi の `impl.default` ロール（人間向けラベルはカタログの `label
 
 1. **要件整理 + 確定仕様の確認**
 2. **触る箇所の調査**: 参照テンプレ・ exhaustive map / switch 漏れを列挙。**既存 cccc 対応ファイルは委譲前に** `check_complexity.sh` **で baseline**（新規は baseline なし）
-3. **実装プロンプト作成**（確定仕様、触る箇所 file:行、参照テンプレ、完了条件 lint/test/型、触ってはいけない箇所、**プロジェクト規約** — 子 Pi は `--no-context-files` のため親プロンプトに明記）
+3. **実装プロンプト作成**（確定仕様、触る箇所 file:行、参照テンプレ、完了条件 lint/test/型、触ってはいけない箇所、**プロジェクト規約とテスト方針** — 子 Pi は `--no-context-files` のため親プロンプトに明記）
+   - `~/.pi/agent/APPEND_SYSTEM.md` の `Testing Principles` を読み、適用する原則を既存のプロジェクト規約とともに子プロンプトへ明記する。パス参照だけで済ませず、APPEND_SYSTEM 全文ではなく該当する原則を選ぶ。
 4. **実行**（バックグラウンド推奨。stdout は最終 assistant テキスト、stderr に run ログディレクトリ）:
 
 ```bash
@@ -61,7 +62,7 @@ deno run --no-config --allow-read --allow-write="$RUN_DIR" \
 - **隔離はサンドボックスではない**（`--cwd` は作業ルートの指定）。プロンプトで触るファイルを絞る
 - OpenAI Codex 系 provider の認証: `pi auth check --provider openai-codex --json`（**資格情報の内容は出力しない**）
 
-5. **呼び出し元による検証**（必須）: diff 目視、lint、test、型（プロジェクトで型がある場合）、仕様充足、**cccc**（下記）。Pi の `executionStatus: completed` はストリーム完了でありタスク正しさやテスト成功を意味しない。検証後に `set-validation` で親結果を記録する
+5. **呼び出し元による検証**（必須）: diff 目視、lint、関連する test、型（プロジェクトで型がある場合）、仕様充足、テストの必要性・既存テストとの非重複、**cccc**（下記）。Pi の `executionStatus: completed` はストリーム完了でありタスク正しさやテスト成功を意味しない。検証後に `set-validation` で親結果を記録する
 6. 問題があれば軽微は呼び出し元が修正、大きければ追加プロンプトで再委譲（同一未達事項は **最大 2 回** まで再試行し、それでも未達なら報告してユーザーに確認）
 7. 一時プロンプトは push 前に削除
 
@@ -88,7 +89,7 @@ bash "$HOME/.agents/skills/impl/scripts/check_complexity.sh" path/to/changed.ts
 - **baseline**: 既存ファイルは実装前後で比較するが **免除にならない**（悪化・新規 hard は不可）
 - **hard 違反時**: 事前合意した変更スコープ内で挙動を保ちつつリファクタして再計測。触ってはいけない箇所（forbidden scope）が優先 — 衝突時は範囲を広げず未達として報告しユーザーに確認（既存違反の事前存在を免除理由にしない）
 - **WARNING のみ**残す場合: 可読性のための簡素化に限定し、理由を記録（メトリクス回避の過度な分割はしない）
-- Bash / Fish 等 cccc 非対応は ShellCheck・shfmt・Bats（`claude/rules/testing.md`）
+- Bash / Fish 等 cccc 非対応は ShellCheck・shfmt・Bats
 
 ## モデル
 
