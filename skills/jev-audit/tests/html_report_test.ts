@@ -76,7 +76,7 @@ const baseReport = (): AuditReport => ({
     tooDeepEffective: 0,
     cacheExcluded: 0,
   }],
-  caveats: ["note"],
+  caveats: ["note", "<script>alert(1)</script>"],
 });
 
 Deno.test("HTML includes structured reasons and escapes hostile text", () => {
@@ -88,4 +88,5 @@ Deno.test("HTML includes structured reasons and escapes hostile text", () => {
   assert.match(html, /ok&amp;bad/);
   assert.match(html, /c&lt;1&gt;/);
   assert.match(html, /test&lt;script&gt;/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });

@@ -655,17 +655,6 @@ run_add_key() {
 	[ "$status" -eq 0 ]
 }
 
-@test "add-key fails when api_key_items declaration missing" {
-	local target="$TEST_ROOT/cfg-nodecl.fish"
-	echo '# no list' >"$target"
-	link_config_target "$target"
-
-	run run_add_key orphan-key 'paste-value'
-
-	[[ "$output" == *marker:status:1* ]]
-	[[ "$output" != *追記しました* ]]
-}
-
 @test "add-key fails when config.fish is missing" {
 	rm -f "$HOME/.config/fish/config.fish"
 
@@ -1055,6 +1044,7 @@ run_add_key() {
 	run run_add_key preflight-nodecl 'paste-value'
 
 	[[ "$output" == *marker:status:1* ]]
+	[[ "$output" != *追記しました* ]]
 	[ ! -e "$BW_CALL_LOG" ]
 }
 
