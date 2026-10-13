@@ -1216,6 +1216,7 @@ Deno.test("common HTTP failure falls back depth and chunk", async () => {
   assert.equal(decision.reason, "http_error");
   assert.equal(decision.chunking?.source, "fallback");
   assert.equal(decision.chunking?.reason, "http_error");
+  assert.deepEqual(decision.httpStatuses, [500, 500, 500, 500]);
   assert.doesNotMatch(JSON.stringify(decision), /secret/);
   validateLevelDecision(decision);
 });
@@ -1243,6 +1244,51 @@ const httpErrorResponse = (
 
 const totalHttpAttempts = 4;
 
+Deno.test("auto http_error: permanent 4xx fails fast without retries", async () => {
+  const opts = autoHttpRetryOpts();
+  let fetchCalls = 0;
+  const decision = await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      fetchCalls++;
+      return Promise.resolve(
+        httpErrorResponse("permanent-400-canary", 400, { "Retry-After": "0" }),
+      );
+    },
+  });
+  assert.equal(fetchCalls, 1);
+  assert.equal(decision.source, "fallback");
+  assert.equal(decision.reason, "http_error");
+  assert.equal(decision.chunking?.reason, "http_error");
+  assert.deepEqual(decision.httpStatuses, [400]);
+  assert.doesNotMatch(JSON.stringify(decision), /permanent-400-canary/);
+  validateLevelDecision(decision);
+});
+
+Deno.test("auto http_error: HTTP 408 retries and recovers", async () => {
+  const opts = autoHttpRetryOpts();
+  let fetchCalls = 0;
+  const decision = await selectAutoLevel({
+    ...opts,
+    fetchImpl: () => {
+      fetchCalls++;
+      if (fetchCalls === 1) {
+        return Promise.resolve(
+          httpErrorResponse("", 408, { "Retry-After": "0" }),
+        );
+      }
+      return Promise.resolve(
+        new Response(validJevBody("2", 0.9, "24000", 0.88)),
+      );
+    },
+  });
+  assert.equal(fetchCalls, 2);
+  assert.equal(decision.source, "jev");
+  assert.equal(decision.level, 2);
+  assert.deepEqual(decision.httpStatuses, [408, 200]);
+  validateLevelDecision(decision);
+});
+
 Deno.test("auto http_error retries: success and exhaustion", async () => {
   const opts = autoHttpRetryOpts();
 
@@ -1261,6 +1307,7 @@ Deno.test("auto http_error retries: success and exhaustion", async () => {
   assert.equal(firstOk.level, 2);
   assert.equal(firstOk.chunking?.source, "jev");
   assert.equal(firstOk.chunking?.choice, "24000");
+  assert.deepEqual(firstOk.httpStatuses, [200]);
 
   let errThenOkCalls = 0;
   const recovered = await selectAutoLevel({
@@ -1281,6 +1328,7 @@ Deno.test("auto http_error retries: success and exhaustion", async () => {
   assert.equal(recovered.source, "jev");
   assert.equal(recovered.level, 4);
   assert.equal(recovered.chunking?.choice, "12000");
+  assert.deepEqual(recovered.httpStatuses, [502, 200]);
   assert.doesNotMatch(JSON.stringify(recovered), /secret-body/);
 
   let lateCalls = 0;
@@ -1299,6 +1347,7 @@ Deno.test("auto http_error retries: success and exhaustion", async () => {
   assert.equal(lateCalls, totalHttpAttempts);
   assert.equal(lateOk.source, "jev");
   assert.equal(lateOk.level, 3);
+  assert.deepEqual(lateOk.httpStatuses, [429, 429, 429, 200]);
 
   let exhaustedCalls = 0;
   const exhausted = await selectAutoLevel({
@@ -1316,6 +1365,7 @@ Deno.test("auto http_error retries: success and exhaustion", async () => {
   assert.equal(exhausted.level, 3);
   assert.equal(exhausted.chunking?.source, "fallback");
   assert.equal(exhausted.chunking?.reason, "http_error");
+  assert.deepEqual(exhausted.httpStatuses, [502, 502, 502, 502]);
   assert.doesNotMatch(JSON.stringify(exhausted), /leak-502/);
   validateLevelDecision(exhausted);
 });
@@ -1404,6 +1454,8 @@ Deno.test("auto http_error retries: preserve request; non-http stays single-atte
   assert.equal(retryCalls, 2);
   assert.equal(seenAuth, "Bearer retry-key");
   assert.equal(seenRedirect, "error");
+  assert.deepEqual(retried.httpStatuses, [503, 200]);
+  assert.doesNotMatch(JSON.stringify(retried), /retry-key/);
   assert.equal(bodies.length, 2);
   assert.deepEqual(bodies[0], expectedBody);
   assert.deepEqual(bodies[1], expectedBody);
@@ -1442,7 +1494,7 @@ Deno.test("auto http_error retries: preserve request; non-http stays single-atte
       httpThenLow++;
       if (httpThenLow === 1) {
         return Promise.resolve(
-          httpErrorResponse("", 401, { "Retry-After": "0" }),
+          httpErrorResponse("", 503, { "Retry-After": "0" }),
         );
       }
       return Promise.resolve(new Response(validJevBody("5", 0.2)));
@@ -1450,6 +1502,22 @@ Deno.test("auto http_error retries: preserve request; non-http stays single-atte
   });
   assert.equal(httpThenLow, 2);
   assert.equal(lowConf.reason, "low_confidence");
+  assert.deepEqual(lowConf.httpStatuses, [503, 200]);
+
+  let permanentAuth = 0;
+  const authFailure = await selectAutoLevel({
+    ...single,
+    fetchImpl: () => {
+      permanentAuth++;
+      return Promise.resolve(
+        httpErrorResponse("", 401, { "Retry-After": "0" }),
+      );
+    },
+  });
+  assert.equal(permanentAuth, 1);
+  assert.equal(authFailure.source, "fallback");
+  assert.equal(authFailure.reason, "http_error");
+  assert.deepEqual(authFailure.httpStatuses, [401]);
 });
 
 Deno.test("auto http_error retries: shared deadline stops further attempts", async () => {
@@ -2741,6 +2809,59 @@ Deno.test("validateLevelDecision contextSha256 rules", () => {
         contextSha256: null,
       }),
     /contextSha256 is invalid/,
+  );
+});
+
+Deno.test("validateLevelDecision httpStatuses rules", () => {
+  const hash = "a".repeat(64);
+  const jev = {
+    ...buildJevDecision({
+      level: 3,
+      patchSha256: hash,
+      minConfidence: 0.7,
+      model: "typesafe/jev-1.13",
+      confidence: 0.9,
+    }),
+    httpStatuses: [503, 200],
+  };
+  assert.deepEqual(validateLevelDecision(jev).httpStatuses, [503, 200]);
+
+  const legacy = buildJevDecision({
+    level: 3,
+    patchSha256: hash,
+    minConfidence: 0.7,
+    model: "typesafe/jev-1.13",
+    confidence: 0.9,
+  });
+  const validatedLegacy = validateLevelDecision(legacy);
+  assert.equal(validatedLegacy.httpStatuses, undefined);
+
+  for (
+    const httpStatuses of [
+      null,
+      Array(1),
+      [],
+      [200, 201, 202, 203, 204],
+      [199],
+      [600],
+      [200.5],
+      ["200"],
+      [200, "oops"],
+    ]
+  ) {
+    assert.throws(
+      () => validateLevelDecision({ ...jev, httpStatuses }),
+      /httpStatuses is invalid/,
+    );
+  }
+
+  assert.throws(
+    () =>
+      validateLevelDecision({
+        ...buildExplicitDecision({ level: 2, patchSha256: hash }),
+        httpStatuses: [200],
+      }),
+    /explicit decision must not include httpStatuses/,
   );
 });
 

@@ -94,6 +94,8 @@ Pi backend が `--events-log` 付き runner で生成する **任意** JSONL。p
 
 `levelDecision` は **採用した実レベル**（Jev 推奨・明示・L3 フォールバック後の数値）を `level` と共に記録する。`source` は `explicit` / `jev` / `fallback`、`requestedLevel` は明示数値または `auto`。`reason` は固定コード、`patchSha256` は判定対象の生 patch バイト SHA-256。auto で `--context-file` を渡した run のみ任意 **`contextSha256`**（`select_review_level.ts` が正規化・検証済み context を `JSON.stringify` した UTF-8 の SHA-256、小文字 64 hex）。**raw context 本文は metadata に保存しない**（hash は同一 context の識別用。hash だけでは context を復元できない）。legacy レコードは `contextSha256` なしのまま有効。explicit 1..5 では `contextSha256` を付けない。auto は `minConfidence` も必須。Jev 採用時と `low_confidence` fallback 時は検証済み `model` / `suggestedLevel` / `confidence` と任意 `costUsd` を保持する（raw 応答・秘密値は保存しない）。
 
+任意 **`httpStatuses`**（auto 診断のみ）: 当該 routing 1 操作で実際に受信した HTTP ステータスの順序付き配列。各要素は 200..599 の整数、長さ 1..4（初回＋最大 3 リトライの 4 fetch 試行の範囲）。一過性（408 / 429 / 500..599）の再試行は同一 payload を再利用し、配列には**応答が返った試行のみ**を記録する（応答の無い失敗 fetch は記録しない）。応答本文・ヘッダ・request id・資格情報・patch/context 本文は保存しない。有効な応答が無ければフィールドごと省略。`source: explicit` は付与不可（検証で拒否）。legacy レコードはフィールドなしのまま有効。
+
 任意 **`probabilities`**（深さ診断のみ）: キー `"1"`…`"5"` のみ、各値は JSON number で 0..1 の有限値。**5 キーすべて必須**（欠損・未知キー・NaN/文字列は metadata 検証で拒否）。API 側で optional block が malformed のときは **省略**（選択・`confidence` は従来どおり）。`source: jev` または `fallback` かつ `reason: low_confidence` のときだけ保存しうる。`explicit`、HTTP/JSON/schema 等の共通 fallback、`low_confidence` 以外の fallback では **含めない**。`confidence` は分布の集中度、`probabilities` は選択肢ごとの予測値であり、履歴から実測した正答率ではない。legacy レコードはフィールドなしのまま。
 
 **read-only 一覧**（snapshot 不要・未完了 run 含む）:
