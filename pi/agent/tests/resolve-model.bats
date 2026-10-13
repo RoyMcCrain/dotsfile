@@ -664,6 +664,27 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
+@test "Sonnet 5.5 high/max in catalog and settings; legacy Sonnet 5 scopes are gone" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
+	local sonnet_high="anthropic/claude-sonnet-5-5:high"
+	local sonnet_max="anthropic/claude-sonnet-5-5:max"
+
+	jq -e --arg high "$sonnet_high" --arg max "$sonnet_max" \
+		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
+		"$real_catalog" >/dev/null
+	jq -e --arg high "$sonnet_high" --arg max "$sonnet_max" \
+		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
+		"$real_settings" >/dev/null
+
+	run jq -e '[.enabledModels[] | select(test("anthropic/claude-sonnet-5:"))] | length == 0' \
+		"$real_catalog"
+	[ "$status" -eq 0 ]
+	run jq -e '[.enabledModels[] | select(test("anthropic/claude-sonnet-5:"))] | length == 0' \
+		"$real_settings"
+	[ "$status" -eq 0 ]
+}
+
 @test "Astra default, review.codex, and parallel-review Codex tier split (L3 Sol xhigh, L4/L5 Astra max)" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
@@ -671,9 +692,9 @@ EOF
 	local codex_id astra_pi astra_max sol_xhigh
 
 	codex_id=$(jq -r '.roles["codex.default"].id' "$real_catalog")
-	astra_pi="openai-codex/gpt-6-astra"
+	astra_pi="openai/gpt-6-astra"
 	astra_max="${astra_pi}:max"
-	sol_xhigh="openai-codex/gpt-6.1-sol:xhigh"
+	sol_xhigh="openai/gpt-6.1-sol:xhigh"
 
 	# Assert — codex.default remains Astra; enabledModels keeps Astra xhigh/max scopes
 	[ "$codex_id" = "gpt-6-astra" ]
@@ -692,13 +713,13 @@ EOF
 
 	# Assert — catalog pins L3 to Sol 6.1 xhigh and L4/L5 to Astra max
 	jq -e --arg model "$sol_xhigh" \
-		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi | startswith("openai-codex/")) | .pi] == [$model]' \
+		'[.reviewLevels["3"][] | select(has("pi")) | select(.pi | startswith("openai/")) | .pi] == [$model]' \
 		"$real_catalog" >/dev/null
 	jq -e --arg model "$astra_max" \
-		'[.reviewLevels["4"][] | select(has("pi")) | select(.pi | startswith("openai-codex/")) | .pi] == [$model]' \
+		'[.reviewLevels["4"][] | select(has("pi")) | select(.pi | startswith("openai/")) | .pi] == [$model]' \
 		"$real_catalog" >/dev/null
 	jq -e --arg model "$astra_max" \
-		'[.reviewLevels["5"][] | select(has("pi")) | select(.pi | startswith("openai-codex/")) | .pi] == [$model]' \
+		'[.reviewLevels["5"][] | select(has("pi")) | select(.pi | startswith("openai/")) | .pi] == [$model]' \
 		"$real_catalog" >/dev/null
 
 	# Assert — --review-level emits exactly one Codex row per static tier with tier budgets
@@ -724,13 +745,18 @@ EOF
 
 	# Assert — active Codex overrides carry the current 500K context window (Astra + Sol)
 	jq -e --arg model "$codex_id" --arg sol "gpt-6.1-sol" \
-		'(.providers["openai-codex"].modelOverrides // {}) as $overrides |
+		'(.providers.openai.modelOverrides // {}) as $overrides |
 		 ($overrides | has($model)) and
 		 ($overrides[$model].contextWindow == 500000) and
 		 ($overrides | has($sol)) and
 		 ($overrides[$sol].contextWindow == 500000) and
 		 (($overrides | keys | sort) == ([$model, $sol] | sort))' \
 		"$real_models" >/dev/null
+
+	# Assert — production Pi GPT choices use the active OpenAI provider, not the legacy Codex provider
+	run jq -e '[.. | strings | select(startswith("openai-codex/"))] | length == 0' "$real_catalog"
+	[ "$status" -eq 0 ]
+	jq -e '[.enabledModels[] | select(startswith("openai/"))] | length == 5' "$real_catalog" >/dev/null
 
 	# Assert — no legacy GPT-5 model ids remain in the role catalog
 	run jq -e '[.. | strings | select(test("gpt-5"))] | length == 0' "$real_catalog"
@@ -741,8 +767,8 @@ EOF
 	# Arrange — integration against tracked repo catalog and settings
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
-	local sol_xhigh="openai-codex/gpt-6.1-sol:xhigh"
-	local sol_max="openai-codex/gpt-6.1-sol:max"
+	local sol_xhigh="openai/gpt-6.1-sol:xhigh"
+	local sol_max="openai/gpt-6.1-sol:max"
 
 	# Assert — catalog and settings expose each Sol scope entry exactly once
 	jq -e --arg x "$sol_xhigh" --arg m "$sol_max" \
@@ -1016,7 +1042,7 @@ EOF
 		'.enabledModels[] | select(startswith("sakana-ai-console/" + $slug + ":"))' \
 		"$real_catalog")"
 	opus_max="anthropic/claude-opus-5-5:max"
-	codex_max="openai-codex/gpt-6-astra:max"
+	codex_max="openai/gpt-6-astra:max"
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 4
 	[ "$status" -eq 0 ]
@@ -1553,7 +1579,7 @@ EOF
 	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
 	run "$RESOLVER" impl.default
 	[ "$status" -eq 0 ]
-	[ "$output" = "openai-codex/gpt-6-luna:high" ]
+	[ "$output" = "openai/gpt-6-luna:high" ]
 }
 
 @test "production catalog resolves impl.deepseek for Pi" {
@@ -1583,7 +1609,7 @@ EOF
 	export CODEX_CONFIG_FILE="$BATS_TEST_TMPDIR/no-codex-config.toml"
 	run "$RESOLVER" --check
 	[ "$status" -eq 0 ]
-	jq -e '.enabledModels | index("openai-codex/gpt-6-luna:high") != null' "$MODEL_ROLES_FILE" >/dev/null
+	jq -e '.enabledModels | index("openai/gpt-6-luna:high") != null' "$MODEL_ROLES_FILE" >/dev/null
 }
 
 @test "auth.json.example wires opencode-go command auth without enabling opencode Zen" {

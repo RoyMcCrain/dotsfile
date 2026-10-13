@@ -7,8 +7,13 @@ import { formatCodexUsageStatus, queryCodexUsage } from "../lib/codex-usage.ts";
 const CODEX_PROVIDER = "openai-codex";
 const STATUS_KEY = "codex-usage";
 
-const isCodexProvider = (ctx: ExtensionContext) =>
-  ctx.model?.provider === CODEX_PROVIDER;
+const isCodexUsageSupported = (ctx: ExtensionContext) => {
+  const model = ctx.model;
+  return !!model && (
+    model.provider === CODEX_PROVIDER ||
+    (model.provider === "openai" && ctx.modelRegistry.isUsingOAuth(model))
+  );
+};
 
 export default function codexUsage(pi: ExtensionAPI) {
   let refreshId = 0;
@@ -33,7 +38,7 @@ export default function codexUsage(pi: ExtensionAPI) {
       clearStatus(ctx);
       return;
     }
-    if (!isCodexProvider(ctx)) {
+    if (!isCodexUsageSupported(ctx)) {
       clearStatus(ctx);
       return;
     }
@@ -89,11 +94,11 @@ export default function codexUsage(pi: ExtensionAPI) {
   pi.registerCommand("codex-usage", {
     description: "Refresh ChatGPT Codex plan usage shown in the footer",
     handler: async (_args, ctx) => {
-      if (!isCodexProvider(ctx)) {
+      if (!isCodexUsageSupported(ctx)) {
         clearStatus(ctx);
         if (ctx.hasUI) {
           ctx.ui.notify(
-            "Codex usage is shown only for openai-codex models",
+            "Codex usage is shown only for ChatGPT OAuth models",
             "warning",
           );
         }
