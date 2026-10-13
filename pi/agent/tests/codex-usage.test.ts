@@ -1,4 +1,5 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1.0";
+import { test } from "bun:test";
+import { assertEquals, assertRejects } from "./assert.ts";
 import {
   createJsonLineParser,
   formatCodexUsageStatus,
@@ -18,7 +19,7 @@ const sampleSnapshot = {
   },
 };
 
-Deno.test("parseRateLimitsReadResponse prefers the codex bucket", () => {
+test("parseRateLimitsReadResponse prefers the codex bucket", () => {
   assertEquals(
     parseRateLimitsReadResponse({
       id: 2,
@@ -34,7 +35,7 @@ Deno.test("parseRateLimitsReadResponse prefers the codex bucket", () => {
   );
 });
 
-Deno.test("parseRateLimitsReadResponse falls back to rateLimits", () => {
+test("parseRateLimitsReadResponse falls back to rateLimits", () => {
   assertEquals(
     parseRateLimitsReadResponse({
       id: 2,
@@ -44,7 +45,7 @@ Deno.test("parseRateLimitsReadResponse falls back to rateLimits", () => {
   );
 });
 
-Deno.test(
+test(
   "parseRateLimitsReadResponse falls back when codex bucket is missing",
   () => {
     assertEquals(
@@ -60,7 +61,7 @@ Deno.test(
   },
 );
 
-Deno.test("parseRateLimitsReadResponse rejects malformed payloads", () => {
+test("parseRateLimitsReadResponse rejects malformed payloads", () => {
   assertEquals(parseRateLimitsReadResponse(undefined), undefined);
   assertEquals(
     parseRateLimitsReadResponse({ id: 2, error: { message: "nope" } }),
@@ -72,14 +73,14 @@ Deno.test("parseRateLimitsReadResponse rejects malformed payloads", () => {
   );
 });
 
-Deno.test("formatCodexUsageStatus formats one window and reset", () => {
+test("formatCodexUsageStatus formats one window and reset", () => {
   assertEquals(
     formatCodexUsageStatus(sampleSnapshot, UTC),
     "Codex Pro 7d 0% ↻01/25 00:00",
   );
 });
 
-Deno.test("formatCodexUsageStatus formats two windows compactly", () => {
+test("formatCodexUsageStatus formats two windows compactly", () => {
   assertEquals(
     formatCodexUsageStatus(
       {
@@ -92,7 +93,7 @@ Deno.test("formatCodexUsageStatus formats two windows compactly", () => {
   );
 });
 
-Deno.test("formatCodexUsageStatus shows each window reset time", () => {
+test("formatCodexUsageStatus shows each window reset time", () => {
   assertEquals(
     formatCodexUsageStatus(
       {
@@ -109,7 +110,7 @@ Deno.test("formatCodexUsageStatus shows each window reset time", () => {
   );
 });
 
-Deno.test("formatCodexUsageStatus handles missing duration and reset", () => {
+test("formatCodexUsageStatus handles missing duration and reset", () => {
   assertEquals(
     formatCodexUsageStatus({
       planType: "pro",
@@ -119,7 +120,7 @@ Deno.test("formatCodexUsageStatus handles missing duration and reset", () => {
   );
 });
 
-Deno.test("createJsonLineParser handles split chunks and malformed lines", () => {
+test("createJsonLineParser handles split chunks and malformed lines", () => {
   const messages: unknown[] = [];
   const parser = createJsonLineParser((message) => messages.push(message));
 
@@ -131,7 +132,7 @@ Deno.test("createJsonLineParser handles split chunks and malformed lines", () =>
   assertEquals(messages, [{ id: 1 }, { id: 2 }, { id: 3 }]);
 });
 
-Deno.test("queryCodexUsage performs the app-server handshake", async () => {
+test("queryCodexUsage performs the app-server handshake", async () => {
   const events: string[] = [];
 
   const snapshot = await queryCodexUsage({
@@ -169,7 +170,7 @@ Deno.test("queryCodexUsage performs the app-server handshake", async () => {
   ]);
 });
 
-Deno.test("queryCodexUsage rejects when Codex CLI is unavailable", async () => {
+test("queryCodexUsage rejects when Codex CLI is unavailable", async () => {
   await assertRejects(
     () =>
       queryCodexUsage({
@@ -180,7 +181,7 @@ Deno.test("queryCodexUsage rejects when Codex CLI is unavailable", async () => {
   );
 });
 
-Deno.test("queryCodexUsage closes after initialize rejection", async () => {
+test("queryCodexUsage closes after initialize rejection", async () => {
   const events: string[] = [];
 
   await assertRejects(
@@ -210,7 +211,7 @@ Deno.test("queryCodexUsage closes after initialize rejection", async () => {
   assertEquals(events, ["request:initialize", "close"]);
 });
 
-Deno.test("queryCodexUsage closes after malformed responses", async () => {
+test("queryCodexUsage closes after malformed responses", async () => {
   let closed = false;
 
   await assertRejects(

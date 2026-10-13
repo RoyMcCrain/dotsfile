@@ -1,4 +1,6 @@
-import { assertMatch, assertStringIncludes } from "jsr:@std/assert@1.0";
+import { test } from "bun:test";
+import { readdir, readFile } from "node:fs/promises";
+import { assertMatch, assertStringIncludes } from "./assert.ts";
 
 const SKILLS_ROOT = new URL("../../../skills/", import.meta.url);
 const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -52,13 +54,13 @@ const collectSkillFiles = async (root: string) => {
       continue;
     }
 
-    for await (const entry of Deno.readDir(dir)) {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
       const path = `${dir}/${entry.name}`;
-      if (entry.isDirectory) {
+      if (entry.isDirectory()) {
         dirs.push(path);
         continue;
       }
-      if (entry.isFile && entry.name === "SKILL.md") {
+      if (entry.isFile() && entry.name === "SKILL.md") {
         files.push(path);
       }
     }
@@ -90,11 +92,11 @@ const relativeSkillPath = (absolutePath: string) => {
   return absolutePath.slice(rootPath.length);
 };
 
-Deno.test("shared skill frontmatter names use Agent Skills syntax", async () => {
+test("shared skill frontmatter names use Agent Skills syntax", async () => {
   const rootPath = decodeURIComponent(SKILLS_ROOT.pathname);
 
   for (const skillPath of await collectSkillFiles(rootPath)) {
-    const content = await Deno.readTextFile(skillPath);
+    const content = await readFile(skillPath, "utf8");
     const frontmatter = extractFrontmatter(content);
     const name = extractName(frontmatter);
     const relativePath = relativeSkillPath(skillPath);
@@ -111,7 +113,7 @@ Deno.test("shared skill frontmatter names use Agent Skills syntax", async () => 
   }
 });
 
-Deno.test("restored shared skills retain exact allowed-tools blocks", async () => {
+test("restored shared skills retain exact allowed-tools blocks", async () => {
   const rootPath = decodeURIComponent(SKILLS_ROOT.pathname);
 
   for (
@@ -120,7 +122,7 @@ Deno.test("restored shared skills retain exact allowed-tools blocks", async () =
     )
   ) {
     const absolutePath = `${rootPath}${relativePath}`;
-    const content = await Deno.readTextFile(absolutePath);
+    const content = await readFile(absolutePath, "utf8");
     const frontmatter = extractFrontmatter(content);
 
     assertStringIncludes(

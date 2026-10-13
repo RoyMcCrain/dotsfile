@@ -559,11 +559,12 @@ Focused regression tests (Node 24):
 node --experimental-vm-modules --test pi/agent/tests/repo-memory-local.node.test.mjs
 ```
 
-`scripts/run_tests.sh` runs `*.node.test.mjs` with this Node flag and excludes them
-from Deno test discovery. Pi Deno tests run with `--allow-env`, `--allow-sys=homedir`,
-and `--allow-write` scoped to a dedicated temp directory (`TMPDIR` and
-`PI_CODING_AGENT_DIR` overrides for that invocation only): no writes to real
-`~/.pi` session state, and no `--allow-run` / `--allow-net` for the Pi suite.
+`scripts/run_tests.sh` runs `*.node.test.mjs` with this Node flag. Pi `*.test.ts`
+files run with `bun --no-install test` and are not passed to that Node runner.
+That Bun command uses a clean environment and points `HOME`, `TMPDIR`,
+`PI_CODING_AGENT_DIR`, and `XDG_*` at a temporary directory. This does not
+restore Deno's `--allow-net`, `--allow-run`, or path-scoped `--allow-write`
+boundaries. Other skill suites still use scoped Deno permissions.
 
 ## Skills
 

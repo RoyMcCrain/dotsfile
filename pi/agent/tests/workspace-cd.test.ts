@@ -1,4 +1,5 @@
-import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert@1.0";
+import { test } from "bun:test";
+import { assertEquals, assertRejects, assertThrows } from "./assert.ts";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
@@ -166,7 +167,7 @@ function createFakePi(cwd: string) {
   };
 }
 
-Deno.test("resolveWorkspacePath resolves relative paths from cwd", () => {
+test("resolveWorkspacePath resolves relative paths from cwd", () => {
   const root = makeTempDir();
   const nested = join(root, "nested");
   mkdirSync(nested);
@@ -176,7 +177,7 @@ Deno.test("resolveWorkspacePath resolves relative paths from cwd", () => {
   );
 });
 
-Deno.test("resolveWorkspacePath rejects missing paths", () => {
+test("resolveWorkspacePath rejects missing paths", () => {
   const root = makeTempDir();
   assertThrows(
     () => resolveWorkspacePath(join(root, "missing"), root),
@@ -185,7 +186,7 @@ Deno.test("resolveWorkspacePath rejects missing paths", () => {
   );
 });
 
-Deno.test("resolveWorkspacePath rejects files", () => {
+test("resolveWorkspacePath rejects files", () => {
   const root = makeTempDir();
   const filePath = join(root, "file.txt");
   writeFileSync(filePath, "x");
@@ -196,7 +197,7 @@ Deno.test("resolveWorkspacePath rejects files", () => {
   );
 });
 
-Deno.test("resolveWorkspacePath rejects empty input", () => {
+test("resolveWorkspacePath rejects empty input", () => {
   const root = makeTempDir();
   assertThrows(
     () => resolveWorkspacePath("  ", root),
@@ -205,7 +206,7 @@ Deno.test("resolveWorkspacePath rejects empty input", () => {
   );
 });
 
-Deno.test("switchWorkspaceSession no-ops when target equals current cwd", async () => {
+test("switchWorkspaceSession no-ops when target equals current cwd", async () => {
   const root = makeTempDir();
   let forkCalled = false;
   const outcome = await switchWorkspaceSession(
@@ -225,7 +226,7 @@ Deno.test("switchWorkspaceSession no-ops when target equals current cwd", async 
   assertEquals(forkCalled, false);
 });
 
-Deno.test("switchWorkspaceSession requires a persisted source session", async () => {
+test("switchWorkspaceSession requires a persisted source session", async () => {
   const source = makeTempDir();
   const target = makeTempDir();
   await assertRejects(
@@ -244,7 +245,7 @@ Deno.test("switchWorkspaceSession requires a persisted source session", async ()
   );
 });
 
-Deno.test("switchWorkspaceSession forks into target cwd and preserves history", async () => {
+test("switchWorkspaceSession forks into target cwd and preserves history", async () => {
   const sourceCwd = makeTempDir();
   const targetCwd = makeTempDir();
   const sessionDir = join(sourceCwd, "sessions");
@@ -301,7 +302,7 @@ Deno.test("switchWorkspaceSession forks into target cwd and preserves history", 
   assertEquals(forked.getEntries().length, source.getEntries().length);
 });
 
-Deno.test("switchWorkspaceSession uses forkFrom with source session file and target cwd", async () => {
+test("switchWorkspaceSession uses forkFrom with source session file and target cwd", async () => {
   const sourceCwd = await mkdtemp(join(tmpdir(), "pi-ws-source-"));
   const targetCwd = await mkdtemp(join(tmpdir(), "pi-ws-target-"));
   const sessionDir = join(sourceCwd, "sessions");
@@ -332,7 +333,7 @@ Deno.test("switchWorkspaceSession uses forkFrom with source session file and tar
   assertEquals(forkArgs.targetCwd, resolveWorkspacePath(targetCwd, sourceCwd));
 });
 
-Deno.test("switchWorkspaceSession removes fork file when switch is cancelled", async () => {
+test("switchWorkspaceSession removes fork file when switch is cancelled", async () => {
   const sourceCwd = await mkdtemp(join(tmpdir(), "pi-ws-cancel-"));
   const targetCwd = await mkdtemp(join(tmpdir(), "pi-ws-cancel-target-"));
   const sessionDir = join(sourceCwd, "sessions");
@@ -370,7 +371,7 @@ Deno.test("switchWorkspaceSession removes fork file when switch is cancelled", a
   assertEquals(existsSync(forkSessionFile), false);
 });
 
-Deno.test("switch_workspace_cwd stores pending target and terminates without sendUserMessage", async () => {
+test("switch_workspace_cwd stores pending target and terminates without sendUserMessage", async () => {
   const root = makeTempDir();
   const target = join(root, "dest");
   mkdirSync(target);
@@ -396,7 +397,7 @@ Deno.test("switch_workspace_cwd stores pending target and terminates without sen
   assertEquals(result.terminate, true);
 });
 
-Deno.test("switch_workspace_cwd dispatches continue command after agent_settled when idle", async () => {
+test("switch_workspace_cwd dispatches continue command after agent_settled when idle", async () => {
   const root = makeTempDir();
   const target = join(root, "dest");
   mkdirSync(target);
@@ -429,7 +430,7 @@ Deno.test("switch_workspace_cwd dispatches continue command after agent_settled 
   }]);
 });
 
-Deno.test("switch_workspace_cwd rejects non-persisted session before scheduling", () => {
+test("switch_workspace_cwd rejects non-persisted session before scheduling", () => {
   const root = makeTempDir();
   const target = join(root, "dest");
   mkdirSync(target);
@@ -458,7 +459,7 @@ Deno.test("switch_workspace_cwd rejects non-persisted session before scheduling"
   fake.emit("agent_settled", {}, fake.makeCtx());
 });
 
-Deno.test("session_shutdown clears pending workspace-cd dispatch", async () => {
+test("session_shutdown clears pending workspace-cd dispatch", async () => {
   const root = makeTempDir();
   const target = join(root, "dest");
   mkdirSync(target);
@@ -485,7 +486,7 @@ Deno.test("session_shutdown clears pending workspace-cd dispatch", async () => {
   assertEquals(fake.sendCalls.length, 0);
 });
 
-Deno.test("switch_workspace_cwd throws WorkspacePathError for invalid path", () => {
+test("switch_workspace_cwd throws WorkspacePathError for invalid path", () => {
   const root = makeTempDir();
   const fake = createFakePi(root);
   const execute = fake.tools.get("switch_workspace_cwd");
@@ -505,7 +506,7 @@ Deno.test("switch_workspace_cwd throws WorkspacePathError for invalid path", () 
   assertEquals(fake.sendCalls.length, 0);
 });
 
-Deno.test("switch_workspace_cwd skips queue when already in target cwd", async () => {
+test("switch_workspace_cwd skips queue when already in target cwd", async () => {
   const root = makeTempDir();
   const fake = createFakePi(root);
   const execute = fake.tools.get("switch_workspace_cwd");
@@ -520,7 +521,7 @@ Deno.test("switch_workspace_cwd skips queue when already in target cwd", async (
   assertEquals(result.terminate, undefined);
 });
 
-Deno.test("/workspace-cd-continue throws on cancelled switch without continuation", async () => {
+test("/workspace-cd-continue throws on cancelled switch without continuation", async () => {
   const source = makeTempDir();
   const target = makeTempDir();
   const sessionDir = join(source, "sessions");
@@ -549,7 +550,7 @@ Deno.test("/workspace-cd-continue throws on cancelled switch without continuatio
   assertEquals(freshSendCalls.length, 0);
 });
 
-Deno.test("/workspace-cd-continue switches and sends continuation in fresh context", async () => {
+test("/workspace-cd-continue switches and sends continuation in fresh context", async () => {
   const source = makeTempDir();
   const target = makeTempDir();
   const sessionDir = join(source, "sessions");
@@ -579,7 +580,7 @@ Deno.test("/workspace-cd-continue switches and sends continuation in fresh conte
   );
 });
 
-Deno.test("/workspace-cd manual switch does not send continuation", async () => {
+test("/workspace-cd manual switch does not send continuation", async () => {
   const source = makeTempDir();
   const target = makeTempDir();
   const sessionDir = join(source, "sessions");
@@ -609,7 +610,7 @@ Deno.test("/workspace-cd manual switch does not send continuation", async () => 
   );
 });
 
-Deno.test("/workspace-cd-continue without path fails clearly", async () => {
+test("/workspace-cd-continue without path fails clearly", async () => {
   const root = makeTempDir();
   const fake = createFakePi(root);
   const handler = fake.commands.get(WORKSPACE_CD_CONTINUE_COMMAND);
@@ -622,7 +623,7 @@ Deno.test("/workspace-cd-continue without path fails clearly", async () => {
   assertEquals(fake.notifications.some((n) => n.level === "error"), true);
 });
 
-Deno.test("/workspace-cd rejects missing args with usage notification", async () => {
+test("/workspace-cd rejects missing args with usage notification", async () => {
   const root = makeTempDir();
   const fake = createFakePi(root);
   const handler = fake.commands.get(WORKSPACE_CD_COMMAND);

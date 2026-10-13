@@ -1,4 +1,5 @@
-import { assertEquals } from "jsr:@std/assert@1.0";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import cmuxSessionName, {
   drainCmuxSessionNameSyncsForTest,
   syncCmuxSessionName,
@@ -36,14 +37,14 @@ function listJsonForTitle(title: string): string {
   });
 }
 
-Deno.test("parseWorkspaceCustomTitle selects caller workspace by exact id", () => {
+test("parseWorkspaceCustomTitle selects caller workspace by exact id", () => {
   assertEquals(
     parseWorkspaceCustomTitle(sampleListJson, CALLER_ID),
     "jj workspace fix",
   );
 });
 
-Deno.test("parseWorkspaceCustomTitle returns trimmed custom_title", () => {
+test("parseWorkspaceCustomTitle returns trimmed custom_title", () => {
   assertEquals(
     parseWorkspaceCustomTitle(
       JSON.stringify({
@@ -59,7 +60,7 @@ Deno.test("parseWorkspaceCustomTitle returns trimmed custom_title", () => {
   );
 });
 
-Deno.test("parseWorkspaceCustomTitle rejects generated title without custom_title", () => {
+test("parseWorkspaceCustomTitle rejects generated title without custom_title", () => {
   assertEquals(
     parseWorkspaceCustomTitle(
       JSON.stringify({
@@ -75,7 +76,7 @@ Deno.test("parseWorkspaceCustomTitle rejects generated title without custom_titl
   );
 });
 
-Deno.test("parseWorkspaceCustomTitle rejects malformed or missing data", () => {
+test("parseWorkspaceCustomTitle rejects malformed or missing data", () => {
   assertEquals(parseWorkspaceCustomTitle("{bad json", CALLER_ID), undefined);
   assertEquals(parseWorkspaceCustomTitle("[]", CALLER_ID), undefined);
   assertEquals(
@@ -93,7 +94,7 @@ Deno.test("parseWorkspaceCustomTitle rejects malformed or missing data", () => {
   );
 });
 
-Deno.test("normalizeCustomTitle replaces control characters and collapses whitespace", () => {
+test("normalizeCustomTitle replaces control characters and collapses whitespace", () => {
   assertEquals(
     normalizeCustomTitle("fix\tbug\nnow"),
     "fix bug now",
@@ -108,14 +109,14 @@ Deno.test("normalizeCustomTitle replaces control characters and collapses whites
   );
 });
 
-Deno.test("normalizeCustomTitle limits to 120 Unicode code points", () => {
+test("normalizeCustomTitle limits to 120 Unicode code points", () => {
   const longTitle = "あ".repeat(150);
   const normalized = normalizeCustomTitle(longTitle);
   assertEquals(normalized, "あ".repeat(120));
   assertEquals(Array.from(normalized ?? "").length, 120);
 });
 
-Deno.test("parseWorkspaceCustomTitle normalizes control characters and length", () => {
+test("parseWorkspaceCustomTitle normalizes control characters and length", () => {
   assertEquals(
     parseWorkspaceCustomTitle(
       listJsonForTitle("task\u0001name\nwith\tspaces"),
@@ -131,7 +132,7 @@ Deno.test("parseWorkspaceCustomTitle normalizes control characters and length", 
   );
 });
 
-Deno.test("resolveCmuxCliPath prefers CMUX_BUNDLED_CLI_PATH", () => {
+test("resolveCmuxCliPath prefers CMUX_BUNDLED_CLI_PATH", () => {
   assertEquals(
     resolveCmuxCliPath({ CMUX_BUNDLED_CLI_PATH: "/tmp/cmux" }),
     "/tmp/cmux",
@@ -205,23 +206,23 @@ function withCmuxEnv<T>(
 ): Promise<T> | T {
   const keys = ["CMUX_WORKSPACE_ID", "CMUX_BUNDLED_CLI_PATH"] as const;
   const previous = Object.fromEntries(
-    keys.map((key) => [key, Deno.env.get(key)]),
+    keys.map((key) => [key, process.env[key]]),
   ) as Record<(typeof keys)[number], string | undefined>;
 
   const restore = () => {
     for (const key of keys) {
       const value = previous[key];
-      if (value === undefined) Deno.env.delete(key);
-      else Deno.env.set(key, value);
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
   };
 
-  if (env.workspaceId === undefined) Deno.env.delete("CMUX_WORKSPACE_ID");
-  else Deno.env.set("CMUX_WORKSPACE_ID", env.workspaceId);
+  if (env.workspaceId === undefined) delete process.env.CMUX_WORKSPACE_ID;
+  else process.env.CMUX_WORKSPACE_ID = env.workspaceId;
 
-  if (env.bundledCliPath === null) Deno.env.delete("CMUX_BUNDLED_CLI_PATH");
+  if (env.bundledCliPath === null) delete process.env.CMUX_BUNDLED_CLI_PATH;
   else if (env.bundledCliPath !== undefined) {
-    Deno.env.set("CMUX_BUNDLED_CLI_PATH", env.bundledCliPath);
+    process.env.CMUX_BUNDLED_CLI_PATH = env.bundledCliPath;
   }
 
   try {
@@ -244,7 +245,7 @@ function withCmuxWorkspaceId<T>(
   return withCmuxEnv({ workspaceId, bundledCliPath: null }, fn);
 }
 
-Deno.test("extension sets unnamed session on session_start", async () => {
+test("extension sets unnamed session on session_start", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     const fake = createFakePi();
     cmuxSessionName(fake.pi as never);
@@ -260,7 +261,7 @@ Deno.test("extension sets unnamed session on session_start", async () => {
   });
 });
 
-Deno.test("extension updates auto name on first agent_settled only", async () => {
+test("extension updates auto name on first agent_settled only", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     let callCount = 0;
     const fake = createFakePi({
@@ -295,7 +296,7 @@ Deno.test("extension updates auto name on first agent_settled only", async () =>
   });
 });
 
-Deno.test("extension preserves manual name set before first agent_settled", async () => {
+test("extension preserves manual name set before first agent_settled", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     const fake = createFakePi();
     cmuxSessionName(fake.pi as never);
@@ -314,7 +315,7 @@ Deno.test("extension preserves manual name set before first agent_settled", asyn
   });
 });
 
-Deno.test("extension preserves manual name set during first-settled lookup", async () => {
+test("extension preserves manual name set during first-settled lookup", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     let resolveStartup: (value: {
       stdout: string;
@@ -374,7 +375,7 @@ Deno.test("extension preserves manual name set during first-settled lookup", asy
   });
 });
 
-Deno.test("extension performs at most two lookups across lifecycle", async () => {
+test("extension performs at most two lookups across lifecycle", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     const fake = createFakePi({
       exec: () =>
@@ -397,7 +398,7 @@ Deno.test("extension performs at most two lookups across lifecycle", async () =>
   });
 });
 
-Deno.test("extension serializes startup and first-settled lookups", async () => {
+test("extension serializes startup and first-settled lookups", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     let concurrent = 0;
     let maxConcurrent = 0;
@@ -446,7 +447,7 @@ Deno.test("extension serializes startup and first-settled lookups", async () => 
   });
 });
 
-Deno.test("extension preserves existing manual Pi session name", async () => {
+test("extension preserves existing manual Pi session name", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     const fake = createFakePi();
     fake.setSessionName("manual name");
@@ -460,7 +461,7 @@ Deno.test("extension preserves existing manual Pi session name", async () => {
   });
 });
 
-Deno.test("extension re-checks session name after async lookup", async () => {
+test("extension re-checks session name after async lookup", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     let resolveExec: (value: {
       stdout: string;
@@ -499,7 +500,7 @@ Deno.test("extension re-checks session name after async lookup", async () => {
   });
 });
 
-Deno.test("no CMUX_WORKSPACE_ID means no lookup or rename", async () => {
+test("no CMUX_WORKSPACE_ID means no lookup or rename", async () => {
   await withCmuxWorkspaceId(undefined, async () => {
     const fake = createFakePi();
     cmuxSessionName(fake.pi as never);
@@ -512,7 +513,7 @@ Deno.test("no CMUX_WORKSPACE_ID means no lookup or rename", async () => {
   });
 });
 
-Deno.test("cmux execution failure is silent and does not rename", async () => {
+test("cmux execution failure is silent and does not rename", async () => {
   await withCmuxWorkspaceId(CALLER_ID, async () => {
     const fake = createFakePi({
       exec: () =>
@@ -532,7 +533,7 @@ Deno.test("cmux execution failure is silent and does not rename", async () => {
   });
 });
 
-Deno.test("fetchCmuxWorkspaceCustomTitle uses bundled cmux path", async () => {
+test("fetchCmuxWorkspaceCustomTitle uses bundled cmux path", async () => {
   const execCalls: Array<{ command: string; args: string[] }> = [];
   const name = await fetchCmuxWorkspaceCustomTitle({
     workspaceId: CALLER_ID,
@@ -555,7 +556,7 @@ Deno.test("fetchCmuxWorkspaceCustomTitle uses bundled cmux path", async () => {
   }]);
 });
 
-Deno.test("syncCmuxSessionName skips lookup when session already named manually", async () => {
+test("syncCmuxSessionName skips lookup when session already named manually", async () => {
   let execCalled = false;
   await syncCmuxSessionName({
     getSessionName: () => "existing",
@@ -575,7 +576,7 @@ Deno.test("syncCmuxSessionName skips lookup when session already named manually"
   assertEquals(execCalled, false);
 });
 
-Deno.test("syncCmuxSessionName updates when current name equals autoName", async () => {
+test("syncCmuxSessionName updates when current name equals autoName", async () => {
   let setCalls = 0;
   const result = await syncCmuxSessionName({
     getSessionName: () => "old-task",
@@ -598,7 +599,7 @@ Deno.test("syncCmuxSessionName updates when current name equals autoName", async
   assertEquals(setCalls, 1);
 });
 
-Deno.test("syncCmuxSessionName avoids duplicate setSessionName for unchanged name", async () => {
+test("syncCmuxSessionName avoids duplicate setSessionName for unchanged name", async () => {
   let setCalls = 0;
   const result = await syncCmuxSessionName({
     getSessionName: () => "same-task",
@@ -620,7 +621,7 @@ Deno.test("syncCmuxSessionName avoids duplicate setSessionName for unchanged nam
   assertEquals(setCalls, 0);
 });
 
-Deno.test("syncCmuxSessionName preserves manual name after async lookup", async () => {
+test("syncCmuxSessionName preserves manual name after async lookup", async () => {
   let resolveExec: (value: {
     stdout: string;
     stderr: string;
