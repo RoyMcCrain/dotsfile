@@ -41,6 +41,6 @@
   "extensions": [
     "extensions/*.ts"
   ],
-  "lastChangelogVersion": "0.99.1",
+  "lastChangelogVersion": "1.2.0",
   "packages": []
 }
