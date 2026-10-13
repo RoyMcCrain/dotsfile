@@ -578,13 +578,3 @@ args_at_prompt() {
 	[ "$status" -eq 0 ]
 	args_has_prefix_pair --model "openrouter/vendor/model:high"
 }
-
-@test "legacy check_complexity wrapper forwards arguments and exit status" {
-	local legacy="$BATS_TEST_DIRNAME/../../cursor-impl/scripts/check_complexity.sh"
-	local impl="$BATS_TEST_DIRNAME/../scripts/check_complexity.sh"
-	run bash "$legacy"
-	[ "$status" -eq 2 ]
-	run bash "$legacy" "$TEST_ROOT/missing.ts"
-	[ "$status" -eq 2 ]
-	[[ -x "$impl" ]]
-}

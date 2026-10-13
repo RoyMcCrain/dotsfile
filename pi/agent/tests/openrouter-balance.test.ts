@@ -422,25 +422,6 @@ Deno.test("extension skips network without management key", async () => {
   });
 });
 
-Deno.test("extension skips network outside TUI even with UI", async () => {
-  await withEnv(ENV_KEY, "secret-key", async () => {
-    const fake = createFakePi();
-    let fetchCalled = false;
-    stubFetch(() => {
-      fetchCalled = true;
-      return Promise.resolve(new Response("{}", { status: 200 }));
-    });
-    try {
-      openRouterBalance(fake.pi as never);
-      const ctx = fake.createCtx({ mode: "rpc" });
-      await fake.dispatch("session_start", ctx);
-      assertEquals(fetchCalled, false);
-    } finally {
-      restoreFetch();
-    }
-  });
-});
-
 Deno.test("extension skips network in all non-TUI modes and without UI", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     for (const mode of ["print", "json", "rpc"] as const) {

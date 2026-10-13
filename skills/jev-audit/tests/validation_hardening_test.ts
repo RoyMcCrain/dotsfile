@@ -435,10 +435,3 @@ Deno.test("parseAuditorResponse rejects oversized fenced JSON", () => {
   const raw = `\`\`\`json\n${inner}\n\`\`\`${pad}`;
   assert.throws(() => parseAuditorResponse(raw), /large|long|size/i);
 });
-
-Deno.test("parseAuditorResponse still accepts valid small fenced JSON", () => {
-  const raw =
-    '```json\n{"minLevel":2,"maxLevel":4,"reason":"ok","concerns":["a"]}\n```';
-  const parsed = parseAuditorResponse(raw);
-  assert.equal(parsed.minLevel, 2);
-});

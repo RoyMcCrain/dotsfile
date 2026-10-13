@@ -207,28 +207,6 @@ Deno.test("buildReport week-over-week uses recorded models not live resolver", a
   await rm(auditBase, { recursive: true, force: true });
 });
 
-Deno.test("CLI rejects unknown prepare flags", async () => {
-  const home = await mkdtemp(join(tmpdir(), "jev-cli-flag-"));
-  const out = await new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "-A",
-      "--no-config",
-      AUDIT_SCRIPT,
-      "prepare",
-      "--unknown-flag",
-    ],
-    env: {
-      ...Deno.env.toObject(),
-      HOME: home,
-      XDG_DATA_HOME: join(home, "xdg"),
-    },
-    stderr: "piped",
-  }).output();
-  assert.equal(out.success, false);
-  await rm(home, { recursive: true, force: true });
-});
-
 Deno.test("buildReport auditor promptHash uses recorded result not live prompt", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-recorded-ph-"));
   const storedPrompt = "f".repeat(64);

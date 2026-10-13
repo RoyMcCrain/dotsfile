@@ -29,8 +29,9 @@ Deno.test("CLI rejects invalid week and impossible dates", async () => {
   assert.equal(badDay.ok, false);
   const missingPath = await runCli(["prepare", "--audit-dir"], home);
   assert.equal(missingPath.ok, false);
-  const unknown = await runCli(["prepare", "--nope", "x"], home);
+  const unknown = await runCli(["prepare", "--nope"], home);
   assert.equal(unknown.ok, false);
+  assert.match(unknown.stderr, /unexpected argument for prepare/);
   await rm(home, { recursive: true, force: true });
 });
 

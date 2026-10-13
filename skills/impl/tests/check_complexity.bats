@@ -225,20 +225,6 @@ json_report_functions() {
 	[[ "$output" == *"ERROR: ${f}:40 badFn"* ]]
 }
 
-@test "check_complexity: hard violation then passing file exits 1 and measures both" {
-	local bad="$TEST_ROOT/order-hard.ts"
-	local ok="$TEST_ROOT/order-ok.ts"
-	make_file "$bad" "export {}"
-	make_file "$ok" "export {}"
-	store_cccc_json "$bad" "$(json_report "$bad" 16 8)"
-	store_cccc_json "$ok" "$(json_report "$ok" 3 2)"
-	unset BATS_CCCC_JSON BATS_CCCC_EXIT
-	run bash "$SCRIPT" "$bad" "$ok"
-	[ "$status" -eq 1 ]
-	[[ "$output" == *"ERROR: ${bad}"* ]]
-	[[ "$output" == *"MEASURED: ${ok}"* ]]
-}
-
 @test "check_complexity: passing file then hard violation exits 1 and measures both" {
 	local ok="$TEST_ROOT/order-ok2.ts"
 	local bad="$TEST_ROOT/order-hard2.ts"

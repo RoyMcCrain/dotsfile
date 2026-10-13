@@ -64,7 +64,8 @@ commit_file() {
 
 	# Assert
 	[ "$status" -eq 0 ]
-	! rg -q -- "SUPER_SECRET_VALUE" "$OUT"
+	run rg -q -- "SUPER_SECRET_VALUE" "$OUT"
+	[ "$status" -eq 1 ]
 	[ "$(fd -e patch . "$OUT" "$REPO" | wc -l)" -eq 1 ]
 	[ -f "$OUT/sanitized.patch" ]
 }

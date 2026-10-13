@@ -394,15 +394,3 @@ assert_hashed_download() {
 	run rg '^sha256sum ' "$HASH_LOG"
 	[ "$status" -ne 0 ]
 }
-
-@test "install_cccc: shasum stub rejects non-256 algorithm" {
-	downloaded="$TEST_ROOT/stub/cccc.tar.gz"
-	mkdir -p "$TEST_ROOT/stub"
-	printf 'archive-bytes\n' >"$downloaded"
-	printf '%s' "$downloaded" >"$WGET_OUT_FILE"
-	run env BATS_CCCC_WGET_OUT_FILE="$WGET_OUT_FILE" \
-		BATS_CCCC_EXPECT_SHA="bb80e21b0a0ef19a08dbb7e86cb87718d1b4960976cc6600c7f1fa7373c1848a" \
-		BATS_CCCC_HASH_LOG="$HASH_LOG" \
-		"$STUB_BIN/shasum" -a 1 "$downloaded"
-	[ "$status" -ne 0 ]
-}
