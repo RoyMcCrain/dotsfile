@@ -12,10 +12,16 @@ Jev の **requestedLevel=auto**
 
 ## 安全（必読）
 
-- 履歴にレビュー済みパッチがあっても **外部送信の自動許可にはならない**。
-  **認証情報・顧客データ・雇用先機密が含まれないことを各パッチで目視確認した後**に、当週
-  `approve` する。
-  疑わしい情報があれば承認・送信せず停止し、ユーザーに確認する。
+- 過去のレビュー履歴だけでは **外部送信への同意にならない**。既定の `run`
+  は未承認ケースを `needs_preflight` として扱い、送信しない。手動 `approve`
+  はパッチを目視確認してから行う。
+- 週次ジョブの `--auto-approve` はユーザーが明示的に有効化した場合だけ、Codex
+  (`openai-codex/`)
+  に対する継続的な承認となる。自動モードでもローカルのパッチ検証と追加の保守的な認証情報・個人情報ヒューリスティック検査を通らないケースは保留し、承認記録も実行試行も作らない。疑わしいケースは人が検査して手動承認する。
+- このローカル検査は秘密情報や個人情報の不存在を証明しない。誤検知・見逃しの可能性があるため、`--auto-approve`
+  を有効にする判断自体が信頼境界となる。誤検知を人が確認する場合は
+  `--auto-approve`
+  ではなく通常の手動実行フローを使う。認証情報・顧客データ・雇用先機密は送信しない。
 - `approve` は `--approved-input` の **実バイト列の SHA-256** が計画の
   `patchSha256` と一致すること、run の
   `metadata.json`（`levelDecision.patchSha256`）が計画と一致すること、および
@@ -48,6 +54,9 @@ Jev の **requestedLevel=auto**
   になる。新プロンプトで送るには **新しい週の計画で別 runId
   が選ばれた場合など、新規 approve
   が必要**（既存承認ファイルの差し替えはサポートしない）。
+- `run` は既定で手動承認済みケースだけを処理する。明示的に `run --auto-approve`
+  とした場合のみ、Codex に対してローカル preflight
+  から不変の自動承認を作成する。フラグは他のコマンドでは拒否される。
 - `run` はモデル解決・パッチ検証などを **その場で再チェック**する。`prepare` /
   `report` は disk 上の承認・結果・attempt から状態を **再構成**する（held
   理由のうち、再構成時に永続化されないもの — 例: その時点のモデル解決失敗 — は
@@ -98,6 +107,8 @@ deno run -A --no-config skills/jev-audit/scripts/audit.ts report \
 ```bash
 skills/jev-audit/scripts/install_weekly_launchd.sh        # plist プレビュー（副作用なし）
 skills/jev-audit/scripts/install_weekly_launchd.sh --install  # 明示時のみ（Darwin、plutil 検証後 load）
+skills/jev-audit/scripts/install_weekly_launchd.sh --auto-approve # preview に Codex 自動承認フラグを含める
+# standing approval job は --install --auto-approve の両方を明示した場合のみ有効
 ```
 
 plist

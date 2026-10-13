@@ -195,6 +195,12 @@ export const validateWeeklyPlan = (value: unknown): WeeklyPlan => {
   };
 };
 
+const validateApprovalMode = (value: unknown) => {
+  if (value === undefined) return {};
+  if (value !== "automatic") throw new Error("invalid approvalMode");
+  return { approvalMode: "automatic" as const };
+};
+
 export const validateApprovalRecord = (value: unknown): ApprovalRecord => {
   if (!isRecord(value)) throw new Error("invalid approval");
   if (value.schemaVersion !== 1) throw new Error("invalid approval schema");
@@ -234,6 +240,7 @@ export const validateApprovalRecord = (value: unknown): ApprovalRecord => {
     approvedInputSha256,
     promptVersion: AUDITOR_PROMPT_VERSION,
     promptHash,
+    ...validateApprovalMode(value.approvalMode),
   };
 };
 

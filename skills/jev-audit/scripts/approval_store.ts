@@ -91,6 +91,7 @@ export const approveCase = async (options: {
   approvedInputPath: string;
   runsDir?: string;
   jevModel?: string;
+  approvalMode?: "automatic";
 }): Promise<ApprovalRecord> => {
   assertSafeRunId(options.runId);
   const baseReal = await assertRegularDir(options.auditBase);
@@ -126,6 +127,12 @@ export const approveCase = async (options: {
   await readPatchFromRun(runDir, options.patchSha256);
 
   const resolvedAuditorModel = await resolveModelRole(defaultAuditorRole());
+  if (
+    options.approvalMode === "automatic" &&
+    !resolvedAuditorModel.startsWith("openai-codex/")
+  ) {
+    throw new Error("automatic approval requires Codex provider");
+  }
   await assertAuditorIndependent(
     resolvedAuditorModel,
     options.jevModel,
@@ -142,6 +149,9 @@ export const approveCase = async (options: {
     approvedInputSha256,
     promptVersion: AUDITOR_PROMPT_VERSION,
     promptHash: currentPromptHash,
+    ...(options.approvalMode === "automatic"
+      ? { approvalMode: "automatic" as const }
+      : {}),
   };
 
   await Deno.mkdir(approvalsRoot, { recursive: true, mode: 0o700 });

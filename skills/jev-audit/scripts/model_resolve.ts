@@ -11,7 +11,8 @@ export const resolveModelRole = async (
   if (!isNonEmptyString(home)) throw new Error("HOME is required");
   const resolver = override ??
     join(home, ".pi", "agent", "resolve-model.sh");
-  const cmd = new Deno.Command("bash", {
+  const bash = Deno.env.get("JEV_AUDIT_BASH") ?? "bash";
+  const cmd = new Deno.Command(bash, {
     args: [resolver, role],
     stdout: "piped",
     stderr: "null",
@@ -29,7 +30,8 @@ export const resolveRouteReviewId = async (): Promise<string | undefined> => {
   if (!isNonEmptyString(home)) return undefined;
   const resolver = override ??
     join(home, ".pi", "agent", "resolve-model.sh");
-  const cmd = new Deno.Command("bash", {
+  const bash = Deno.env.get("JEV_AUDIT_BASH") ?? "bash";
+  const cmd = new Deno.Command(bash, {
     args: [resolver, "--field", "id", "route.review"],
     stdout: "piped",
     stderr: "null",

@@ -35,6 +35,21 @@ Deno.test("CLI rejects invalid week and impossible dates", async () => {
   await rm(home, { recursive: true, force: true });
 });
 
+Deno.test("run auto-approval flag is explicit and command-scoped", async () => {
+  const home = await mkdtemp(join(tmpdir(), "jev-cli-auto-"));
+  for (
+    const args of [
+      ["run", "--auto-approve", "--auto-approve"],
+      ["run", "--unknown"],
+      ["prepare", "--auto-approve"],
+      ["report", "--auto-approve"],
+    ]
+  ) {
+    assert.equal((await runCli(args, home)).ok, false);
+  }
+  await rm(home, { recursive: true, force: true });
+});
+
 Deno.test("rejected prepare performs no audit writes", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-cli-nowrite-"));
   const auditDir = join(home, "audit");
