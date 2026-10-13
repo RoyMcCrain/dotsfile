@@ -5,13 +5,13 @@ description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=�
 
 # /parallel-review
 
-同じ patch を `model-roles.json` の `reviewLevels` で定義された reviewer に同時に渡し、結果を統合する。L1/L2 は **現在の caller モデル**（Pi が bash ごとに export する `PI_PROVIDER` / `PI_MODEL` / 任意 `PI_REASONING_LEVEL`）+ 固定 reviewer。L3 以降は固定 7 reviewer（Grok・Codex・Opus・Antigravity Gemini・Fugu・DeepSeek V4.1 Flash・native Meta Muse）。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
+同じ patch を `model-roles.json` の `reviewLevels` で定義された reviewer に同時に渡し、結果を統合する。L1/L2 は **現在の caller モデル**（Pi が bash ごとに export する `PI_PROVIDER` / `PI_MODEL` / 任意 `PI_REASONING_LEVEL`）+ 固定 reviewer。L3 以降は固定 7 reviewer（Grok・Codex・Opus・Antigravity Gemini・Fugu・DeepSeek V4.1 Flash・native Meta Muse）。Muse は L1–L3 が Spark 1.3 :high、L4/L5 が Wonder 1.0 :high。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## レビュー外部送信の常時許可
 
 **対象**: 当該ターンでユーザーが実際にレビューを依頼した run のみ（「レビューして」の引用・議論だけでは依頼にならない）。単体 reviewer や `review-report` 等を明示された場合は本節の即時 `parallel-review` ルールよりその skill を優先する。
 
-**常時許可（個人設定）**: 秘密除外・検査済み patch について、(a) **Jev**（TypeSafe / OpenRouter Decisions API、auto 時 **routing 操作 1 回/run**＝同一 payload の Decisions 呼び出し。`http_error` のみ最大 **3 回**リトライ（対象は **408 / 429 / 5xx の一過性 HTTP 応答のみ**。400 等の恒久 4xx は待機せず即フォールバック）＝初回＋3 で HTTP 最大 4 回、**15 秒総タイムアウト共有**）には **検査済み patch** と（同一 Decisions リクエストで）**検査済み・schema 検証済みの最小 routing context**（`schemaVersion: 1`、下記スキーマ）を送信してよい、(b) 採用 tier の **全 reviewer**（**Muse Contributor** の prompts/completions 学習利用を含む。非 ZDR）には **検査済み patch のみ**を送信してよい、および patch/chunk/設定どおりの **リトライ**。Muse/Jev 利用の都度同意や skill 採用の確認は求めない。短い告知は可だが承認ゲートにせず返答待ちしない。
+**常時許可（個人設定）**: 秘密除外・検査済み patch について、(a) **Jev**（TypeSafe / OpenRouter Decisions API、auto 時 **routing 操作 1 回/run**＝同一 payload の Decisions 呼び出し。`http_error` のみ最大 **3 回**リトライ（対象は **408 / 429 / 5xx の一過性 HTTP 応答のみ**。400 等の恒久 4xx は待機せず即フォールバック）＝初回＋3 で HTTP 最大 4 回、**15 秒総タイムアウト共有**）には **検査済み patch** と（同一 Decisions リクエストで）**検査済み・schema 検証済みの最小 routing context**（`schemaVersion: 1`、下記スキーマ）を送信してよい、(b) 採用 tier の **全 reviewer**（Muse Spark 1.3 / Muse Wonder 1.0 を含む）には **検査済み patch のみ**を送信してよい、および patch/chunk/設定どおりの **リトライ**。Muse/Jev 利用の都度同意や skill 採用の確認は求めない。短い告知は可だが承認ゲートにせず返答待ちしない。
 
 **`--approved-input`（auto CLI 必須）**: preflight 成功後、**検査済み patch** と（auto で `--context-file` を渡す場合）**同じく検査済み routing context** を Jev 送信してよいと呼び出し側が宣言するフラグ。上記常時許可に基づく。**run ごとの人間同意要求ではない**。schema 検証は秘密スキャンではない; preflight の目視・除外は毎回必須。
 
@@ -51,11 +51,11 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 レビューは5段階から選ぶ。**指定なしは auto**（Jev が OpenRouter Decisions API で routing 操作 1 回/run として深さを推定。`http_error` のうち一過性 408/429/5xx のみ最大 3 回リトライ、15 秒総期限）。ユーザーが **1..5 を明示**した場合はその数値が常に優先され、Jev / `OPEN_ROUTER_API_KEY` は使わない。auto が失敗・低信頼・patch 空のときは **L3 にフォールバック**（7 reviewer 標準）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
-- **1（最軽量）**: **現在の caller モデル** + Muse Contributor :high（通常 **2 reviewer**。caller が Muse と同一 ID のとき dedupe して **1**）。
-- **2（軽量）**: **caller** + Antigravity（`review.antigravity`）+ Muse（通常 **3**。caller が Muse または Antigravity と解決される Gemini と同一 ID のとき **2**）。
-- **3（標準 / auto フォールバック）**: Grok / Codex xhigh / Opus 5.5 :high / Antigravity / Fugu Max :high / DeepSeek V4.1 Flash :high / native Meta Muse（**7 reviewer**）。**Jev 失敗・低信頼時の採用 tier**。
-- **4（deep）**: L3 と同構成だが Codex max・Opus 5.5 :max（Fugu Max :high のまま）（**7 reviewer**）。
-- **5（最深）**: Grok / Codex max / Opus 5.5 :max / Antigravity / Fugu Ultra v2 :high / DeepSeek V4.1 Flash :high / native Meta Muse（**7 reviewer**）。
+- **1（最軽量）**: **現在の caller モデル** + Muse Spark 1.3 :high（通常 **2 reviewer**。caller が Muse と同一 ID のとき dedupe して **1**）。
+- **2（軽量）**: **caller** + Antigravity（`review.antigravity`）+ Muse Spark 1.3 :high（通常 **3**。caller が Muse または Antigravity と解決される Gemini と同一 ID のとき **2**）。
+- **3（標準 / auto フォールバック）**: Grok / Codex xhigh / Opus 5.5 :high / Antigravity / Fugu Max :high / DeepSeek V4.1 Flash :high / Muse Spark 1.3 :high（**7 reviewer**）。**Jev 失敗・低信頼時の採用 tier**。
+- **4（deep）**: L3 と同構成だが Codex max・Opus 5.5 :max（Fugu Max :high のまま）で、Muse は Wonder 1.0 :high（**7 reviewer**）。
+- **5（最深）**: Grok / Codex max / Opus 5.5 :max / Antigravity / Fugu Ultra v2 :high / DeepSeek V4.1 Flash :high / Muse Wonder 1.0 :high（**7 reviewer**）。
 
 **旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。**指定なしは auto**（フォールバック L3）。
 
@@ -83,7 +83,7 @@ Grok は L3+ で同じ Pi model id を使い、reasoning effort は明示指定�
 
 どのレベルでも解決後の reviewer をすべて実行し、**現在セッションと同じ provider も除外しない**（L1/L2 では caller 自身が current として含まれる）。
 
-Muse Contributor は prompts/completions を学習に利用する（zero-data-retention ではない）。`parallel-review` では tier の固定 timeout 予算と `attempts=2` を使う。単体 `muse-review` の 120s / `attempts=1` とは別経路。
+L1–L3 は Muse Spark 1.3 :high、L4/L5 は Muse Wonder 1.0 :high を使う。Contributor variant は採用しない。`parallel-review` では tier の固定 timeout 予算と `attempts=2` を使う。単体 `muse-review` の 120s / `attempts=1` とは別経路。
 
 ## 実行記録（provenance）
 
@@ -192,7 +192,7 @@ install -m 600 "$STAGING/changes.patch" "$REVIEW_DIR/changes.patch" || exit 1
 ```
 
 8. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
-9. **外部 reviewer 送信**: 全 tier に Muse Contributor が含まれる。**「レビュー外部送信の常時許可」節**（Muse 学習利用・Jev・その他採用 reviewer）に従う。再確認不要。停止条件は同節。
+9. **外部 reviewer 送信**: L1–L3 は Muse Spark 1.3 :high、L4/L5 は Muse Wonder 1.0 :high を含む。**「レビュー外部送信の常時許可」節**（Jev・その他採用 reviewer）に従う。再確認不要。停止条件は同節。
 10. 解決済み reviewer 一覧を **1 run 1 回だけ** `$REVIEW_DIR/reviewers.tsv` に保存する（`resolve-model.sh --review-level "$LEVEL"`）。L1/L2 で runtime current が必要な場合、Pi の `PI_PROVIDER`/`PI_MODEL` または `--current-model` が無いと resolver が失敗し **停止**（別 tier へ silently 切替えない）。
 
 ```text

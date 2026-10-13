@@ -800,7 +800,14 @@ EOF
 @test "review.muse resolves native Meta with timeout 120 and appears once per parallel-review tier with tier budgets" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local muse_model deepseek_model skill_path claude_link level line
+	local muse_model deepseek_model skill_path claude_link level line tier_model
+	local -a expected_tiers=(
+		$'1\tmeta/muse-spark-1.3:high'
+		$'2\tmeta/muse-spark-1.3:high'
+		$'3\tmeta/muse-spark-1.3:high'
+		$'4\tmeta/muse-wonder-1.0:high'
+		$'5\tmeta/muse-wonder-1.0:high'
+	)
 	local -a expected_budgets=(
 		$'3\t600\t600'
 		$'4\t600\t900'
@@ -809,25 +816,26 @@ EOF
 	skill_path="$BATS_TEST_DIRNAME/../../../skills/muse-review/SKILL.md"
 	claude_link="$BATS_TEST_DIRNAME/../../../claude/skills/muse-review"
 
-	# Assert — review.muse resolves to native Meta Muse Contributor High with timeout 120 (standalone)
+	# Assert — review.muse resolves to native Meta Muse Spark High with timeout 120 (standalone)
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse
 	[ "$status" -eq 0 ]
 	muse_model="$output"
-	[ "$muse_model" = "meta/muse-spark-1.3-contributor:high" ]
+	[ "$muse_model" = "meta/muse-spark-1.3:high" ]
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.muse
 	[ "$status" -eq 0 ]
 	[ "$output" = "120" ]
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.muse
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Muse Spark 1.3 Contributor High"* ]]
+	[[ "$output" == *"Muse Spark 1.3 High"* ]]
 
-	# Assert — every tier carries exactly one native Meta Muse entry equal to roles.review.muse.pi
-	for level in 1 2 3 4 5; do
-		jq -e --arg model "$muse_model" --arg lvl "$level" '
+	# Assert — each tier carries exactly one native Meta Muse of the configured tier-specific type
+	for line in "${expected_tiers[@]}"; do
+		IFS=$'\t' read -r level tier_model <<<"$line"
+		jq -e --arg model "$tier_model" --arg lvl "$level" '
 			([.reviewLevels[$lvl][] | (.pi // empty) | select(. == $model)] | length == 1)
 		' "$real_catalog" >/dev/null
 		jq -e --arg lvl "$level" '
-			([.reviewLevels[$lvl][] | (.pi // empty) | select(startswith("opencode-go/muse"))] | length == 0)
+			([.reviewLevels[$lvl][] | (.pi // empty) | select(startswith("meta/muse-"))] | length == 1)
 		' "$real_catalog" >/dev/null
 		jq -e --arg lvl "$level" \
 			'[.reviewLevels[$lvl][] | select(.role? == "review.muse")] | length == 0' \
@@ -848,14 +856,20 @@ EOF
 		' "$real_catalog" >/dev/null
 	done
 
-	# Assert — resolve-model --review-level emits DeepSeek then Muse last with tier budgets on static tiers
+	# Assert — static L3/L4/L5 resolution preserves row counts, DeepSeek ordering, Muse selection and budgets
 	for line in "${expected_budgets[@]}"; do
-		local lvl initial retry
+		local lvl initial retry expected_muse
 		IFS=$'\t' read -r lvl initial retry <<<"$line"
+		if [ "$lvl" = 3 ]; then
+			expected_muse="meta/muse-spark-1.3:high"
+		else
+			expected_muse="meta/muse-wonder-1.0:high"
+		fi
 		run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level "$lvl"
 		[ "$status" -eq 0 ]
+		[ "${#lines[@]}" -eq 7 ]
 		[ "${lines[-2]}" = "$(printf 'pi\t%s\t%s\t%s' "$deepseek_model" "$initial" "$retry")" ]
-		[ "${lines[-1]}" = "$(printf 'pi\t%s\t%s\t%s' "$muse_model" "$initial" "$retry")" ]
+		[ "${lines[-1]}" = "$(printf 'pi\t%s\t%s\t%s' "$expected_muse" "$initial" "$retry")" ]
 	done
 
 	# Assert — dynamic L1/L2 include Muse with 300/300 when caller differs
@@ -892,12 +906,12 @@ EOF
 @test "production Go Muse caller dedupes to fixed native Meta Muse across providers" {
 	# Arrange — fixed reviewer is native Meta while the runtime caller is OpenCode Go
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local meta_muse="meta/muse-spark-1.3-contributor:high"
+	local meta_muse="meta/muse-spark-1.3:high"
 
 	# Assert — L1 collapses the opencode-go caller into the single fixed Meta Muse row
 	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
 		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
-		--current-model "opencode-go/muse-spark-1.3-contributor:high"
+		--current-model "opencode-go/muse-spark-1.3:high"
 	[ "$status" -eq 0 ]
 	[ "${#lines[@]}" -eq 1 ]
 	[ "${lines[0]}" = "$(printf 'pi\t%s\t300\t300' "$meta_muse")" ]
@@ -905,31 +919,31 @@ EOF
 	# Assert — L2 keeps Antigravity plus the fixed Meta Muse row, normalizing caller effort
 	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
 		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2 \
-		--current-model "opencode-go/muse-spark-1.3-contributor:xhigh"
+		--current-model "opencode-go/muse-spark-1.3:xhigh"
 	[ "$status" -eq 0 ]
 	[ "${#lines[@]}" -eq 2 ]
 	[ "${lines[-1]}" = "$(printf 'pi\t%s\t300\t300' "$meta_muse")" ]
 }
 
-@test "models.json registers three native Meta Muse models and one Go DeepSeek with caps and compat" {
+@test "models.json registers two native Meta Muse models and one Go DeepSeek with caps and compat" {
 	# Arrange — integration against tracked models.json, catalog, and synced settings
 	local real_models="$BATS_TEST_DIRNAME/../models.json"
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 
-	# Assert — Meta provider transport and exactly the three native Muse models
+	# Assert — Meta provider transport, exactly two native Muse models, and normal Spark capabilities
 	jq -e '
 		.providers["meta"] as $p |
 		($p.api == "openai-responses") and
 		($p.baseUrl == "https://api.meta.ai/v1") and
-		(($p.models | map(.id) | sort) == (["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-wonder-1.0"] | sort)) and
-		($p.models[] | select(.id == "muse-spark-1.3-contributor") |
+		(($p.models | map(.id) | sort) == (["muse-spark-1.3", "muse-wonder-1.0"] | sort)) and
+		($p.models[] | select(.id == "muse-spark-1.3") |
 			.reasoning == true and
 			(.input | sort) == (["image", "text"] | sort) and
 			.contextWindow == 1048576 and
 			.maxTokens == 131072 and
 			.thinkingLevelMap.high == "high" and
-			.thinkingLevelMap.max == null)
+			.thinkingLevelMap.max == "max")
 	' "$real_models" >/dev/null
 
 	# Assert — Go provider transport, single DeepSeek model, caps and compat preserved
@@ -951,7 +965,7 @@ EOF
 	# Assert — exact scopes keep older built-in Meta models out of cycling
 	jq -e --slurpfile catalog "$real_catalog" '
 		([.enabledModels[] | select(startswith("meta/"))] | sort) ==
-		["meta/muse-spark-1.3", "meta/muse-spark-1.3-contributor", "meta/muse-wonder-1.0"] and
+		["meta/muse-spark-1.3", "meta/muse-wonder-1.0"] and
 		(.enabledModels == $catalog[0].enabledModels)
 	' "$real_settings" >/dev/null
 }
