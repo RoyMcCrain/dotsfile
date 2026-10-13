@@ -3309,6 +3309,72 @@ Deno.test("levelDecision probabilities init and snapshot roundtrip", async () =>
   });
 });
 
+Deno.test("levelDecision httpStatuses init, snapshot, and decisions roundtrip", async () => {
+  await withTempHome(async (home, xdg) => {
+    const patchBytes = new TextEncoder().encode("diff for status trace\n");
+    const decision = {
+      ...buildJevDecision({
+        level: 3,
+        patchSha256: sha256Bytes(patchBytes),
+        minConfidence: 0.7,
+        model: "typesafe/jev-1.13-20260917",
+        confidence: 0.91,
+      }),
+      httpStatuses: [503, 200],
+    };
+    validateLevelDecision(decision);
+    const decisionPath = join(home, "decision.json");
+    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
+    const initOut = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "rev-http-statuses",
+      "--level",
+      "3",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.equal(initOut.code, 0, initOut.stderr);
+    const runDir = initOut.stdout.trim();
+    const metadata = JSON.parse(
+      await readFile(join(runDir, "metadata.json"), "utf8"),
+    );
+    assert.deepEqual(metadata.levelDecision.httpStatuses, [503, 200]);
+
+    await prepareRunForSave(runDir);
+    await writeFile(join(runDir, "changes.patch"), patchBytes, {
+      mode: 0o600,
+    });
+    const snapshotPath = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      minimalAssessment("whole-r01", "no_findings"),
+    );
+    const snapshot = validateSnapshot(
+      JSON.parse(await readFile(snapshotPath, "utf8")),
+    );
+    assert.deepEqual(
+      (snapshot.metadata.levelDecision as { httpStatuses?: number[] })
+        .httpStatuses,
+      [503, 200],
+    );
+
+    const out = await runDecisionsCli([], childEnv(home, xdg));
+    assert.equal(out.code, 0, out.stderr);
+    const parsed = JSON.parse(out.stdout) as {
+      decisions: Array<{ levelDecision: { httpStatuses?: number[] } }>;
+    };
+    assert.equal(parsed.decisions.length, 1);
+    assert.deepEqual(parsed.decisions[0].levelDecision.httpStatuses, [
+      503,
+      200,
+    ]);
+  });
+});
+
 Deno.test("low_confidence probabilities preserved in metadata without snapshot", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");

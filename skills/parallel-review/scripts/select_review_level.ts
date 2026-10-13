@@ -71,6 +71,7 @@ export type LevelDecision = {
   probabilities?: ReviewLevelProbabilities;
   chunking?: ChunkDecision;
   contextSha256?: string;
+  httpStatuses?: number[];
 };
 
 const DECISION_KEYS = new Set([
@@ -88,6 +89,7 @@ const DECISION_KEYS = new Set([
   "probabilities",
   "chunking",
   "contextSha256",
+  "httpStatuses",
 ]);
 
 const CHUNK_DECISION_KEYS = new Set([
@@ -641,6 +643,42 @@ const rejectExtraFields = (
   }
 };
 
+const validateOptionalContextSha256 = (
+  value: unknown,
+): string | undefined => {
+  if (value === undefined) return undefined;
+  if (
+    value === null ||
+    typeof value !== "string" ||
+    !SHA256_RE.test(value)
+  ) {
+    throw new Error("decision.contextSha256 is invalid");
+  }
+  return value;
+};
+
+const isValidHttpStatus = (status: unknown): boolean =>
+  typeof status === "number" &&
+  Number.isInteger(status) &&
+  status >= 200 &&
+  status <= 599;
+
+const validateOptionalHttpStatuses = (
+  value: unknown,
+): number[] | undefined => {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("decision.httpStatuses is invalid");
+  }
+  if (value.length > HTTP_ERROR_MAX_RETRIES + 1) {
+    throw new Error("decision.httpStatuses is invalid");
+  }
+  if (!Array.from(value).every(isValidHttpStatus)) {
+    throw new Error("decision.httpStatuses is invalid");
+  }
+  return value;
+};
+
 export const validateLevelDecision = (value: unknown): LevelDecision => {
   if (!isObject(value)) throw new Error("level decision must be an object");
   for (const key of Object.keys(value)) {
@@ -668,17 +706,8 @@ export const validateLevelDecision = (value: unknown): LevelDecision => {
     throw new Error("decision.patchSha256 is invalid");
   }
 
-  let contextSha256: string | undefined;
-  if (value.contextSha256 !== undefined) {
-    if (
-      value.contextSha256 === null ||
-      typeof value.contextSha256 !== "string" ||
-      !SHA256_RE.test(value.contextSha256)
-    ) {
-      throw new Error("decision.contextSha256 is invalid");
-    }
-    contextSha256 = value.contextSha256;
-  }
+  const contextSha256 = validateOptionalContextSha256(value.contextSha256);
+  const httpStatuses = validateOptionalHttpStatuses(value.httpStatuses);
 
   let minConfidence: number | undefined;
   if (value.minConfidence !== undefined) {
@@ -711,6 +740,7 @@ export const validateLevelDecision = (value: unknown): LevelDecision => {
       { value: costUsd, label: "costUsd" },
       { value: probabilities, label: "probabilities" },
       { value: contextSha256, label: "contextSha256" },
+      { value: httpStatuses, label: "httpStatuses" },
     ], "explicit decision");
   } else if (source === "fallback") {
     if (requestedLevel !== "auto") {
@@ -780,6 +810,7 @@ export const validateLevelDecision = (value: unknown): LevelDecision => {
   if (costUsd !== undefined) decision.costUsd = costUsd;
   if (probabilities !== undefined) decision.probabilities = probabilities;
   if (contextSha256 !== undefined) decision.contextSha256 = contextSha256;
+  if (httpStatuses !== undefined) decision.httpStatuses = httpStatuses;
   if (value.chunking !== undefined) {
     const chunking = validateChunkDecision(value.chunking);
     if (source === "explicit") {
@@ -1044,6 +1075,26 @@ const buildAutoFallbackDecision = (options: {
 const parseFailureReason = (code: string): string =>
   PARSE_FAILURE_CODES.has(code) ? code : "invalid_schema";
 
+const isTransientHttpStatus = (status: number): boolean =>
+  status === 408 || status === 429 || (status >= 500 && status <= 599);
+
+const shouldRetryHttpResponse = (status: number, attempt: number): boolean =>
+  isTransientHttpStatus(status) && attempt < HTTP_ERROR_MAX_RETRIES;
+
+const pushValidHttpStatus = (statuses: number[], status: number): void => {
+  if (isValidHttpStatus(status)) {
+    statuses.push(status);
+  }
+};
+
+const withOptionalHttpStatuses = (
+  decision: LevelDecision,
+  httpStatuses: number[],
+): LevelDecision =>
+  httpStatuses.length === 0
+    ? decision
+    : { ...decision, httpStatuses: [...httpStatuses] };
+
 const cancelResponseBody = async (response: Response): Promise<void> => {
   try {
     await response.body?.cancel();
@@ -1207,15 +1258,19 @@ export const selectAutoLevel = async (options: {
 
   const { patchSha256, minConfidence } = options;
   const patchBytes = new TextEncoder().encode(options.patchText);
+  const httpStatuses: number[] = [];
   const fb = (reason: string) =>
-    withOptionalContextSha256(
-      buildAutoFallbackDecision({
-        reason,
-        patchSha256,
-        minConfidence,
-        patchBytes,
-      }),
-      contextSha256,
+    withOptionalHttpStatuses(
+      withOptionalContextSha256(
+        buildAutoFallbackDecision({
+          reason,
+          patchSha256,
+          minConfidence,
+          patchBytes,
+        }),
+        contextSha256,
+      ),
+      httpStatuses,
     );
 
   if (options.patchText.length === 0) return fb("empty_patch");
@@ -1268,13 +1323,14 @@ export const selectAutoLevel = async (options: {
       } catch (error) {
         return fb(classifyTransportError(error, controller.signal));
       }
+      pushValidHttpStatus(httpStatuses, response.status);
 
       if (!response.ok) {
         await finishResponse();
         if (controller.signal.aborted) {
           return fb("timeout");
         }
-        if (attempt < HTTP_ERROR_MAX_RETRIES) {
+        if (shouldRetryHttpResponse(response.status, attempt)) {
           const waitMs = resolveHttpRetryDelayMs(response, attempt);
           try {
             await sleepAbortableMs(waitMs, controller.signal, deadlineMs);
@@ -1330,7 +1386,10 @@ export const selectAutoLevel = async (options: {
         minConfidence,
         model: jev.model,
       });
-      return { ...depthDecision, chunking };
+      return withOptionalHttpStatuses(
+        { ...depthDecision, chunking },
+        httpStatuses,
+      );
     }
 
     return fb("http_error");
@@ -1432,13 +1491,16 @@ Flags:
 
 Explicit numeric levels hash raw patch bytes offline; no OPEN_ROUTER_API_KEY or network.
 Auto requires --approved-input, one routing Decisions operation per run (initial
-HTTP attempt plus up to ${HTTP_ERROR_MAX_RETRIES} http_error-only retries with
-250ms/500ms/1s default waits or Retry-After when present; abortable waits share
-the 15s total timeout/deadline across attempts), full UTF-8 patch sent (no local
-request truncation), response body <= 64KiB.
+HTTP attempt plus up to ${HTTP_ERROR_MAX_RETRIES} retries only for transient
+408/429/5xx responses; other non-2xx fail fast with no wait; 250ms/500ms/1s
+default waits or Retry-After when present; abortable waits share the 15s total
+timeout/deadline across attempts), full UTF-8 patch sent (no local request
+truncation), response body <= 64KiB.
 Optional --context-file adds normalized context to the Jev state only (not reviewers).
 Same request classifies review depth and chunk_size (none|12000|24000|48000 decimal bytes).
-Stdout: JSON level decision with optional chunking and optional contextSha256. Errors on stderr.
+Stdout: JSON level decision with optional chunking, contextSha256, and
+httpStatuses (ordered 200..599 response trace, max 4; omitted when no valid response).
+Errors on stderr.
 `;
 
 export type RunCliEnv = {
