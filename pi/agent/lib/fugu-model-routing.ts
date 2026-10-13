@@ -297,7 +297,7 @@ export const isValidationBashCommand = (command: string) => {
 
   const validation =
     "(?:npm|pnpm|yarn|bun|deno|cargo|go|make|swift|xcodebuild)\\s+" +
-    "(?:(?:run|task)\\s+)?(?:test|lint|typecheck|check|build)\\b";
+    "(?:--[\\w.-]+\\s+)*(?:(?:run|task)\\s+)?(?:test|lint|typecheck|check|build)\\b";
   const direct =
     "(?:lint|typecheck|check|build|pytest|vitest|jest|tsc|mypy)\\b";
   const afterSeparator = new RegExp(

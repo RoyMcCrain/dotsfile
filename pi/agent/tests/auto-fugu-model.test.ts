@@ -1,4 +1,5 @@
-import { assertEquals } from "jsr:@std/assert@1.0";
+import { test } from "bun:test";
+import { assertEquals } from "./assert.ts";
 import autoFuguModel from "../extensions/auto-fugu-model.ts";
 
 const PROVIDER = "sakana-ai-console";
@@ -150,7 +151,7 @@ async function flushMicrotasks() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-Deno.test("escalate → settle → restore returns to fugu-max", async () => {
+test("escalate → settle → restore returns to fugu-max", async () => {
   const { pi, dispatch, tools, withCtx } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -172,7 +173,7 @@ Deno.test("escalate → settle → restore returns to fugu-max", async () => {
   assertEquals(ctx.model.id, BASE_MODEL_ID);
 });
 
-Deno.test("manual model_select suppresses automatic routing", async () => {
+test("manual model_select suppresses automatic routing", async () => {
   const { pi, dispatch } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -200,7 +201,7 @@ Deno.test("manual model_select suppresses automatic routing", async () => {
   assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
-Deno.test("struggle escalation after consecutive validation failures", async () => {
+test("struggle escalation after consecutive validation failures", async () => {
   const { pi, dispatch } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -228,7 +229,7 @@ Deno.test("struggle escalation after consecutive validation failures", async () 
   assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
-Deno.test("scopedModels rejects ultra escalation", async () => {
+test("scopedModels rejects ultra escalation", async () => {
   const { pi, tools, withCtx } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -247,7 +248,7 @@ Deno.test("scopedModels rejects ultra escalation", async () => {
   assertEquals(ctx.model.id, BASE_MODEL_ID);
 });
 
-Deno.test("enabled=false suppresses high-stakes routing", async () => {
+test("enabled=false suppresses high-stakes routing", async () => {
   const { pi, dispatch, commands } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -275,7 +276,7 @@ Deno.test("enabled=false suppresses high-stakes routing", async () => {
   assertEquals(ctx.model.id, BASE_MODEL_ID);
 });
 
-Deno.test("manual override is cleared by session_start", async () => {
+test("manual override is cleared by session_start", async () => {
   const { pi, dispatch } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -305,7 +306,7 @@ Deno.test("manual override is cleared by session_start", async () => {
   assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
-Deno.test("manual override is cleared by /auto-fugu on", async () => {
+test("manual override is cleared by /auto-fugu on", async () => {
   const { pi, dispatch, commands } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -334,7 +335,7 @@ Deno.test("manual override is cleared by /auto-fugu on", async () => {
   assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
-Deno.test("model_select source=restore does not trigger manual override", async () => {
+test("model_select source=restore does not trigger manual override", async () => {
   const { pi, dispatch } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -361,7 +362,7 @@ Deno.test("model_select source=restore does not trigger manual override", async 
   assertEquals(ctx.model.id, ULTRA_MODEL_ID);
 });
 
-Deno.test("manual override suppresses struggle escalation", async () => {
+test("manual override suppresses struggle escalation", async () => {
   const { pi, dispatch } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -390,7 +391,7 @@ Deno.test("manual override suppresses struggle escalation", async () => {
   assertEquals(ctx.model.id, BASE_MODEL_ID);
 });
 
-Deno.test("legacy fugu model ids are untouched by automatic routing", async () => {
+test("legacy fugu model ids are untouched by automatic routing", async () => {
   const { pi, dispatch } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();
@@ -418,7 +419,7 @@ Deno.test("legacy fugu model ids are untouched by automatic routing", async () =
   }
 });
 
-Deno.test("non-Fugu model is untouched by automatic routing", async () => {
+test("non-Fugu model is untouched by automatic routing", async () => {
   const { pi, dispatch } = createFakePi();
   autoFuguModel(pi as never);
   await flushMicrotasks();

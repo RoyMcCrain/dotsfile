@@ -1,4 +1,5 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1.0";
+import { test } from "bun:test";
+import { assertEquals, assertRejects } from "./assert.ts";
 import openRouterBalance from "../extensions/openrouter-balance.ts";
 import {
   formatOpenRouterBalanceStatus,
@@ -16,13 +17,13 @@ const withEnv = <T>(
   value: string | undefined,
   fn: () => Promise<T> | T,
 ): Promise<T> | T => {
-  const previous = Deno.env.get(key);
-  if (value === undefined) Deno.env.delete(key);
-  else Deno.env.set(key, value);
+  const previous = process.env[key];
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
 
   const restore = () => {
-    if (previous === undefined) Deno.env.delete(key);
-    else Deno.env.set(key, previous);
+    if (previous === undefined) delete process.env[key];
+    else process.env[key] = previous;
   };
 
   try {
@@ -40,7 +41,7 @@ const samplePayload = (totalCredits: number, totalUsage: number) => ({
   data: { total_credits: totalCredits, total_usage: totalUsage },
 });
 
-Deno.test("parseOpenRouterCreditsResponse accepts normal balance", () => {
+test("parseOpenRouterCreditsResponse accepts normal balance", () => {
   assertEquals(parseOpenRouterCreditsResponse(samplePayload(20, 7.66)), {
     totalCredits: 20,
     totalUsage: 7.66,
@@ -48,7 +49,7 @@ Deno.test("parseOpenRouterCreditsResponse accepts normal balance", () => {
   });
 });
 
-Deno.test("parseOpenRouterCreditsResponse accepts zero remaining", () => {
+test("parseOpenRouterCreditsResponse accepts zero remaining", () => {
   assertEquals(parseOpenRouterCreditsResponse(samplePayload(10, 10)), {
     totalCredits: 10,
     totalUsage: 10,
@@ -56,7 +57,7 @@ Deno.test("parseOpenRouterCreditsResponse accepts zero remaining", () => {
   });
 });
 
-Deno.test("parseOpenRouterCreditsResponse preserves negative remaining", () => {
+test("parseOpenRouterCreditsResponse preserves negative remaining", () => {
   assertEquals(parseOpenRouterCreditsResponse(samplePayload(5, 8.5)), {
     totalCredits: 5,
     totalUsage: 8.5,
@@ -64,7 +65,7 @@ Deno.test("parseOpenRouterCreditsResponse preserves negative remaining", () => {
   });
 });
 
-Deno.test("parseOpenRouterCreditsResponse rejects malformed payloads", () => {
+test("parseOpenRouterCreditsResponse rejects malformed payloads", () => {
   assertEquals(parseOpenRouterCreditsResponse(undefined), undefined);
   assertEquals(parseOpenRouterCreditsResponse(null), undefined);
   assertEquals(parseOpenRouterCreditsResponse({}), undefined);
@@ -99,7 +100,7 @@ Deno.test("parseOpenRouterCreditsResponse rejects malformed payloads", () => {
   );
 });
 
-Deno.test("formatOpenRouterBalanceStatus formats USD with two decimals", () => {
+test("formatOpenRouterBalanceStatus formats USD with two decimals", () => {
   assertEquals(
     formatOpenRouterBalanceStatus({
       totalCredits: 20,
@@ -154,7 +155,7 @@ const deferred = <T>() => {
   return { promise, resolve, reject };
 };
 
-Deno.test("queryOpenRouterBalance uses GET credits endpoint and headers", async () => {
+test("queryOpenRouterBalance uses GET credits endpoint and headers", async () => {
   const calls: JsonRecord[] = [];
   await queryOpenRouterBalance({
     managementKey: "mgmt-test-key",
@@ -181,7 +182,7 @@ Deno.test("queryOpenRouterBalance uses GET credits endpoint and headers", async 
   }]);
 });
 
-Deno.test("queryOpenRouterBalance rejects HTTP errors and malformed JSON", async () => {
+test("queryOpenRouterBalance rejects HTTP errors and malformed JSON", async () => {
   await assertRejects(
     () =>
       queryOpenRouterBalance({
@@ -217,7 +218,7 @@ Deno.test("queryOpenRouterBalance rejects HTTP errors and malformed JSON", async
   );
 });
 
-Deno.test("queryOpenRouterBalance propagates abort without leaking details", async () => {
+test("queryOpenRouterBalance propagates abort without leaking details", async () => {
   const controller = new AbortController();
 
   const pending = queryOpenRouterBalance({
@@ -231,7 +232,7 @@ Deno.test("queryOpenRouterBalance propagates abort without leaking details", asy
   await assertRejects(() => pending, DOMException);
 });
 
-Deno.test("queryOpenRouterBalance times out", async () => {
+test("queryOpenRouterBalance times out", async () => {
   await assertRejects(
     () =>
       queryOpenRouterBalance({
@@ -243,7 +244,7 @@ Deno.test("queryOpenRouterBalance times out", async () => {
   );
 });
 
-Deno.test("queryOpenRouterBalance requires management key", async () => {
+test("queryOpenRouterBalance requires management key", async () => {
   await withEnv(ENV_KEY, undefined, async () => {
     await assertRejects(
       () => queryOpenRouterBalance({ managementKey: "" }),
@@ -253,7 +254,7 @@ Deno.test("queryOpenRouterBalance requires management key", async () => {
   });
 });
 
-Deno.test("queryOpenRouterBalance reads management key from environment", async () => {
+test("queryOpenRouterBalance reads management key from environment", async () => {
   await withEnv(ENV_KEY, " env-key ", async () => {
     let authorization: string | undefined;
     await queryOpenRouterBalance({
@@ -268,7 +269,7 @@ Deno.test("queryOpenRouterBalance reads management key from environment", async 
   });
 });
 
-Deno.test("queryOpenRouterBalance cancels body on HTTP error", async () => {
+test("queryOpenRouterBalance cancels body on HTTP error", async () => {
   let cancelCalls = 0;
   await assertRejects(
     () =>
@@ -291,7 +292,7 @@ Deno.test("queryOpenRouterBalance cancels body on HTTP error", async () => {
   assertEquals(cancelCalls, 1);
 });
 
-Deno.test("queryOpenRouterBalance times out while reading response body", async () => {
+test("queryOpenRouterBalance times out while reading response body", async () => {
   await assertRejects(
     () =>
       queryOpenRouterBalance({
@@ -402,7 +403,7 @@ function restoreFetch() {
   if (originalFetch) globalThis.fetch = originalFetch;
 }
 
-Deno.test("extension skips network without management key", async () => {
+test("extension skips network without management key", async () => {
   await withEnv(ENV_KEY, undefined, async () => {
     const fake = createFakePi();
     let fetchCalled = false;
@@ -422,7 +423,7 @@ Deno.test("extension skips network without management key", async () => {
   });
 });
 
-Deno.test("extension skips network in all non-TUI modes and without UI", async () => {
+test("extension skips network in all non-TUI modes and without UI", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     for (const mode of ["print", "json", "rpc"] as const) {
       const fake = createFakePi();
@@ -459,7 +460,7 @@ Deno.test("extension skips network in all non-TUI modes and without UI", async (
   });
 });
 
-Deno.test("extension shows balance independent of provider on startup", async () => {
+test("extension shows balance independent of provider on startup", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     const fake = createFakePi();
     stubFetch(() =>
@@ -484,7 +485,7 @@ Deno.test("extension shows balance independent of provider on startup", async ()
   });
 });
 
-Deno.test("extension refreshes on agent_settled", async () => {
+test("extension refreshes on agent_settled", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     const fake = createFakePi();
     let calls = 0;
@@ -513,7 +514,7 @@ Deno.test("extension refreshes on agent_settled", async () => {
   });
 });
 
-Deno.test("extension manual refresh notifies missing key in Japanese", async () => {
+test("extension manual refresh notifies missing key in Japanese", async () => {
   await withEnv(ENV_KEY, undefined, async () => {
     const fake = createFakePi();
     openRouterBalance(fake.pi as never);
@@ -529,7 +530,7 @@ Deno.test("extension manual refresh notifies missing key in Japanese", async () 
   });
 });
 
-Deno.test("extension manual refresh notifies sanitized failure", async () => {
+test("extension manual refresh notifies sanitized failure", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     const fake = createFakePi();
     stubFetch(() => Promise.resolve(new Response("denied", { status: 403 })));
@@ -550,7 +551,7 @@ Deno.test("extension manual refresh notifies sanitized failure", async () => {
   });
 });
 
-Deno.test("extension manual refresh notifies success", async () => {
+test("extension manual refresh notifies success", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     const fake = createFakePi();
     stubFetch(() =>
@@ -576,7 +577,7 @@ Deno.test("extension manual refresh notifies success", async () => {
   });
 });
 
-Deno.test("extension automatic failure clears stale status quietly", async () => {
+test("extension automatic failure clears stale status quietly", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     const fake = createFakePi();
     let calls = 0;
@@ -605,7 +606,7 @@ Deno.test("extension automatic failure clears stale status quietly", async () =>
   });
 });
 
-Deno.test("extension ignores superseded late responses", async () => {
+test("extension ignores superseded late responses", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     const fake = createFakePi();
     const first = deferred<Response>();
@@ -642,7 +643,7 @@ Deno.test("extension ignores superseded late responses", async () => {
   });
 });
 
-Deno.test("extension session_shutdown aborts and blocks late UI updates", async () => {
+test("extension session_shutdown aborts and blocks late UI updates", async () => {
   await withEnv(ENV_KEY, "secret-key", async () => {
     const fake = createFakePi();
     const pending = deferred<Response>();

@@ -55,7 +55,7 @@ chmod +x ./scripts/build_env/create_symlink.sh
 - claude/, codex/, antigravity/ のAI Tools設定
 
 あわせて `create_symlink.sh` が git の `core.hooksPath` を `.githooks` に設定し、
-push 前に `scripts/run_tests.sh`（Deno + bats）が走る pre-push hook が有効になる。
+push 前に `scripts/run_tests.sh`（Bun + Deno + bats）が走る pre-push hook が有効になる。
 
 > **注意**: git hooks は `git push` でのみ発火する。`jj git push` は git hooks を実行しないため、
 > jj で push する場合は事前に `./scripts/run_tests.sh` を手動で実行すること。
@@ -76,6 +76,12 @@ devbox global run setup-npm
 ```
 
 これにより`neovim`, `typescript`, `@typescript/native-preview`がインストールされる。
+
+Pi の TypeScript テストは Bun で実行する。依存は初回と `pi/agent/package.json` 更新時に入れる：
+
+```bash
+bun install --cwd pi/agent
+```
 
 ## Antigravity CLI (agy)
 

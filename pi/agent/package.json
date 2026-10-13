@@ -1,0 +1,13 @@
+{
+  "name": "pi-agent-local",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.83.0",
+    "typebox": "1.3.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.0",
+    "typescript": "5.9.3"
+  }
+}
