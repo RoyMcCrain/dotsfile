@@ -259,12 +259,12 @@ EOF
 		'[.reviewLevels["5"][] | .pi? // empty | select(startswith("sakana-ai-console/"))] == [$ultra]' \
 		"$real_catalog" >/dev/null
 
-	# Assert — catalog entry counts (L1/L2 include current marker)
+	# Assert — catalog entry counts (L1/L2 include current marker; L3-L5 have seven reviewers)
 	jq -e '.reviewLevels["1"] | length == 2' "$real_catalog" >/dev/null
 	jq -e '.reviewLevels["2"] | length == 3' "$real_catalog" >/dev/null
-	jq -e '.reviewLevels["3"] | length == 6' "$real_catalog" >/dev/null
-	jq -e '.reviewLevels["4"] | length == 6' "$real_catalog" >/dev/null
-	jq -e '.reviewLevels["5"] | length == 6' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["3"] | length == 7' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["4"] | length == 7' "$real_catalog" >/dev/null
+	jq -e '.reviewLevels["5"] | length == 7' "$real_catalog" >/dev/null
 
 	# Assert — sakana provider transport and caps in models.json
 	jq -e '
@@ -314,17 +314,19 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "--review-level 3 emits six rows with Fugu Max fifth and Muse sixth (legacy L2)" {
+@test "--review-level 3 emits seven rows with Fugu Max fifth, DeepSeek sixth and Muse seventh" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local base_slug max_model muse_model
+	local base_slug max_model deepseek_model muse_model
 
 	base_slug="$(jq -r '.roles["route.fugu.base"].id' "$real_catalog")"
 	max_model="$(jq -r --arg slug "$base_slug" \
 		'.enabledModels[] | select(startswith("sakana-ai-console/" + $slug + ":"))' \
 		"$real_catalog")"
+	deepseek_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.deepseek)"
 	muse_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse)"
 	[ -n "$max_model" ]
+	[ -n "$deepseek_model" ]
 	[ -n "$muse_model" ]
 
 	# Act
@@ -332,9 +334,10 @@ EOF
 
 	# Assert
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 	[ "${lines[4]}" = "$(printf 'pi\t%s\t600\t600' "$max_model")" ]
-	[ "${lines[5]}" = "$(printf 'pi\t%s\t600\t600' "$muse_model")" ]
+	[ "${lines[5]}" = "$(printf 'pi\t%s\t600\t600' "$deepseek_model")" ]
+	[ "${lines[6]}" = "$(printf 'pi\t%s\t600\t600' "$muse_model")" ]
 }
 
 @test "review.grok resolves and appears exactly once in parallel-review L3 through L5" {
@@ -701,17 +704,17 @@ EOF
 	# Assert — --review-level emits exactly one Codex row per static tier with tier budgets
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 	[ "${lines[1]}" = "$(printf 'pi\t%s\t600\t600' "$sol_xhigh")" ]
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 4
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 	[ "${lines[1]}" = "$(printf 'pi\t%s\t600\t900' "$astra_max")" ]
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 5
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 	[ "${lines[1]}" = "$(printf 'pi\t%s\t600\t900' "$astra_max")" ]
 
 	# Assert — codex.default resolves to the catalog id (no provider/thinking suffix)
@@ -719,12 +722,14 @@ EOF
 	[ "$status" -eq 0 ]
 	[ "$output" = "$codex_id" ]
 
-	# Assert — active codex.default model override carries 372K context window
-	jq -e --arg model "$codex_id" \
+	# Assert — active Codex overrides carry the current 500K context window (Astra + Sol)
+	jq -e --arg model "$codex_id" --arg sol "gpt-6.1-sol" \
 		'(.providers["openai-codex"].modelOverrides // {}) as $overrides |
 		 ($overrides | has($model)) and
-		 ($overrides[$model].contextWindow == 372000) and
-		 (($overrides | keys) | all(. == $model))' \
+		 ($overrides[$model].contextWindow == 500000) and
+		 ($overrides | has($sol)) and
+		 ($overrides[$sol].contextWindow == 500000) and
+		 (($overrides | keys | sort) == ([$model, $sol] | sort))' \
 		"$real_models" >/dev/null
 
 	# Assert — no legacy GPT-5 model ids remain in the role catalog
@@ -766,10 +771,10 @@ EOF
 		"$real_settings" >/dev/null
 }
 
-@test "review.muse resolves with timeout 120 and appears once per parallel-review tier with tier budgets" {
+@test "review.muse resolves native Meta with timeout 120 and appears once per parallel-review tier with tier budgets" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local muse_model skill_path claude_link level line
+	local muse_model deepseek_model skill_path claude_link level line
 	local -a expected_budgets=(
 		$'3\t600\t600'
 		$'4\t600\t900'
@@ -778,11 +783,11 @@ EOF
 	skill_path="$BATS_TEST_DIRNAME/../../../skills/muse-review/SKILL.md"
 	claude_link="$BATS_TEST_DIRNAME/../../../claude/skills/muse-review"
 
-	# Assert — review.muse resolves to Muse Contributor High with timeout 120 (standalone)
+	# Assert — review.muse resolves to native Meta Muse Contributor High with timeout 120 (standalone)
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse
 	[ "$status" -eq 0 ]
 	muse_model="$output"
-	[ "$muse_model" = "opencode-go/muse-spark-1.3-contributor:high" ]
+	[ "$muse_model" = "meta/muse-spark-1.3-contributor:high" ]
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.muse
 	[ "$status" -eq 0 ]
 	[ "$output" = "120" ]
@@ -790,22 +795,40 @@ EOF
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Muse Spark 1.3 Contributor High"* ]]
 
-	# Assert — each tier has exactly one opencode-go entry equal to roles.review.muse.pi
+	# Assert — every tier carries exactly one native Meta Muse entry equal to roles.review.muse.pi
 	for level in 1 2 3 4 5; do
 		jq -e --arg model "$muse_model" --arg lvl "$level" '
-			(.reviewLevels[$lvl] | map(select(has("pi")) | select(.pi | startswith("opencode-go/")) | .pi)) == [$model]
+			([.reviewLevels[$lvl][] | (.pi // empty) | select(. == $model)] | length == 1)
+		' "$real_catalog" >/dev/null
+		jq -e --arg lvl "$level" '
+			([.reviewLevels[$lvl][] | (.pi // empty) | select(startswith("opencode-go/muse"))] | length == 0)
 		' "$real_catalog" >/dev/null
 		jq -e --arg lvl "$level" \
 			'[.reviewLevels[$lvl][] | select(.role? == "review.muse")] | length == 0' \
 			"$real_catalog" >/dev/null
 	done
 
-	# Assert — resolve-model --review-level emits Muse last with tier budgets on static tiers
+	# Assert — DeepSeek appears exactly once in L3/L4/L5 and not in L1/L2
+	deepseek_model="$(env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.deepseek)"
+	[ "$deepseek_model" = "opencode-go/deepseek-v4.1-flash:high" ]
+	for level in 3 4 5; do
+		jq -e --arg model "$deepseek_model" --arg lvl "$level" '
+			([.reviewLevels[$lvl][] | (.pi // empty) | select(. == $model)] | length == 1)
+		' "$real_catalog" >/dev/null
+	done
+	for level in 1 2; do
+		jq -e --arg model "$deepseek_model" --arg lvl "$level" '
+			([.reviewLevels[$lvl][] | (.pi // empty) | select(. == $model)] | length == 0)
+		' "$real_catalog" >/dev/null
+	done
+
+	# Assert — resolve-model --review-level emits DeepSeek then Muse last with tier budgets on static tiers
 	for line in "${expected_budgets[@]}"; do
 		local lvl initial retry
 		IFS=$'\t' read -r lvl initial retry <<<"$line"
 		run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level "$lvl"
 		[ "$status" -eq 0 ]
+		[ "${lines[-2]}" = "$(printf 'pi\t%s\t%s\t%s' "$deepseek_model" "$initial" "$retry")" ]
 		[ "${lines[-1]}" = "$(printf 'pi\t%s\t%s\t%s' "$muse_model" "$initial" "$retry")" ]
 	done
 
@@ -838,6 +861,73 @@ EOF
 	# Assert — Claude symlink follows shared skill convention
 	[ -L "$claude_link" ]
 	[ "$(readlink "$claude_link")" = "../../skills/muse-review" ]
+}
+
+@test "production Go Muse caller dedupes to fixed native Meta Muse across providers" {
+	# Arrange — fixed reviewer is native Meta while the runtime caller is OpenCode Go
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local meta_muse="meta/muse-spark-1.3-contributor:high"
+
+	# Assert — L1 collapses the opencode-go caller into the single fixed Meta Muse row
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 1 \
+		--current-model "opencode-go/muse-spark-1.3-contributor:high"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 1 ]
+	[ "${lines[0]}" = "$(printf 'pi\t%s\t300\t300' "$meta_muse")" ]
+
+	# Assert — L2 keeps Antigravity plus the fixed Meta Muse row, normalizing caller effort
+	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 2 \
+		--current-model "opencode-go/muse-spark-1.3-contributor:xhigh"
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[-1]}" = "$(printf 'pi\t%s\t300\t300' "$meta_muse")" ]
+}
+
+@test "models.json registers three native Meta Muse models and one Go DeepSeek with caps and compat" {
+	# Arrange — integration against tracked models.json, catalog, and synced settings
+	local real_models="$BATS_TEST_DIRNAME/../models.json"
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
+
+	# Assert — Meta provider transport and exactly the three native Muse models
+	jq -e '
+		.providers["meta"] as $p |
+		($p.api == "openai-responses") and
+		($p.baseUrl == "https://api.meta.ai/v1") and
+		(($p.models | map(.id) | sort) == (["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-wonder-1.0"] | sort)) and
+		($p.models[] | select(.id == "muse-spark-1.3-contributor") |
+			.reasoning == true and
+			(.input | sort) == (["image", "text"] | sort) and
+			.contextWindow == 1048576 and
+			.maxTokens == 131072 and
+			.thinkingLevelMap.high == "high" and
+			.thinkingLevelMap.max == null)
+	' "$real_models" >/dev/null
+
+	# Assert — Go provider transport, single DeepSeek model, caps and compat preserved
+	jq -e '
+		.providers["opencode-go"] as $p |
+		($p.api == "openai-completions") and
+		($p.baseUrl == "https://opencode.ai/zen/go/v1") and
+		($p.models | map(.id)) == ["deepseek-v4.1-flash"] and
+		($p.models[0] |
+			.reasoning == true and
+			(.input | sort) == (["image", "text"] | sort) and
+			.contextWindow == 1000000 and
+			.maxTokens == 384000 and
+			.compat.maxTokensField == "max_tokens" and
+			.compat.requiresReasoningContentOnAssistantMessages == true and
+			.compat.thinkingFormat == "deepseek")
+	' "$real_models" >/dev/null
+
+	# Assert — exact scopes keep older built-in Meta models out of cycling
+	jq -e --slurpfile catalog "$real_catalog" '
+		([.enabledModels[] | select(startswith("meta/"))] | sort) ==
+		["meta/muse-spark-1.3", "meta/muse-spark-1.3-contributor", "meta/muse-wonder-1.0"] and
+		(.enabledModels == $catalog[0].enabledModels)
+	' "$real_settings" >/dev/null
 }
 
 @test "--review-level 1 fails without current model context" {
@@ -930,7 +1020,7 @@ EOF
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 4
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 	[ "${lines[1]}" = "$(printf 'pi\t%s\t600\t900' "$codex_max")" ]
 	[ "${lines[2]}" = "$(printf 'pi\t%s\t600\t900' "$opus_max")" ]
 	[ "${lines[4]}" = "$(printf 'pi\t%s\t600\t900' "$max_model")" ]
@@ -1310,7 +1400,7 @@ EOF
 	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
 		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 }
 
 @test "--review-level rejects empty reviewLevels list" {
@@ -1387,18 +1477,18 @@ EOF
 	[ "$exit_code" -ne 0 ]
 	[ ! -s "$stdout_file" ]
 
-	# Assert — valid explicit current on L3 leaves static six-row roster unchanged
+	# Assert — valid explicit current on L3 leaves static seven-row roster unchanged
 	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
 		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3 \
 		--current-model "openai-codex/gpt-6-astra:high"
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 
 	run env PI_PROVIDER=$'bad\tprovider' PI_MODEL=$'bad\tmodel' PI_REASONING_LEVEL=bogus \
 		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3 \
 		--current-model "openai-codex/gpt-6-astra:high"
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 6 ]
+	[ "${#lines[@]}" -eq 7 ]
 }
 
 @test "PI_PROVIDER must not contain slash; PI_MODEL may use namespaces and colon tags" {

@@ -92,7 +92,7 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). One auto routing Decisions operation (same payload; up to 3 `http_error`-only HTTP retries with abortable 250ms/500ms/1s default waits or `Retry-After`, 4 attempts max, one shared 15s total deadline including waits) classifies **review depth** and **chunk plan** (`chunking.choice`: `none` or decimal-byte targets `12000` / `24000` / `48000`; independent confidence) from the sanitized patch and optional secret-screened routing context (`review-context.json`; reviewers still receive patch only). Explicit levels use offline fixed chunk thresholds (15KB or 400 newlines → `12000`, else `none`) and ignore context. Auto uses `route.review` plus scoped Deno permissions in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto; depth failures fall back to **L3** (six fixed reviewers). Main Pi session model is unchanged.
+Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). One auto routing Decisions operation (same payload; up to 3 `http_error`-only HTTP retries with abortable 250ms/500ms/1s default waits or `Retry-After`, 4 attempts max, one shared 15s total deadline including waits) classifies **review depth** and **chunk plan** (`chunking.choice`: `none` or decimal-byte targets `12000` / `24000` / `48000`; independent confidence) from the sanitized patch and optional secret-screened routing context (`review-context.json`; reviewers still receive patch only). Explicit levels use offline fixed chunk thresholds (15KB or 400 newlines → `12000`, else `none`) and ignore context. Auto uses `route.review` plus scoped Deno permissions in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto; depth failures fall back to **L3** (seven fixed reviewers). Main Pi session model is unchanged.
 
 Each run retains the suggested depth, confidence, threshold, applied level and
 fallback reason in `metadata.json`; valid five-level probabilities are also saved
@@ -109,8 +109,8 @@ accuracy; repeated decisions for the same patch are not independent samples.
 Thresholds are not automatically adjusted and old records are not rewritten.
 
 Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
-`review.fugu`, `review.muse`, `route.review`, `route.fugu.base`, `route.fugu.ultra`, `impl.default`,
-`research.xai`, `codex.default`.
+`review.fugu`, `review.muse`, `review.deepseek`, `route.review`, `route.fugu.base`,
+`route.fugu.ultra`, `impl.default`, `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
 `reviewLevels` tier models, role labels, and the `enabledModels` cycling list),
@@ -118,11 +118,12 @@ then run `--apply` and `--check`. Skills pick it up immediately because
 `run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
 `run_antigravity_review.sh --role review.antigravity` resolves via `--field agy`.
 Parallel-review tiers resolve from `--review-level N` (L1 **1–2** rows, L2 **2–3** after
-caller-vs-fixed dedupe; L3–L5 fixed six rows)
+caller-vs-fixed dedupe; L3–L5 fixed seven rows)
 (`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`). L1/L2 take the runtime
 caller from `PI_PROVIDER`/`PI_MODEL` (optional `PI_REASONING_LEVEL`) or `--current-model`
 /`--current-backend`; explicit flags override Pi env. All tiers include Muse Contributor
-:high with tier timeout budgets (not the standalone 120s).
+:high (native Meta `review.muse`) with tier timeout budgets (not the standalone 120s);
+L3–L5 additionally include `review.deepseek` (OpenCode Go DeepSeek V4.1 Flash :high).
 Parallel-review Codex slots: L3 uses **GPT-6.1 Sol** (`:xhigh`); L4 and L5 use **GPT-6 Astra**
 (`:max`). Standalone `codex-review` and role `review.codex` stay on Astra (`:high`); `codex.default`
 remains Astra. L1/L2 still review with the runtime caller model, not a fixed Codex tier id.
@@ -134,11 +135,11 @@ models live in `roles` and `reviewLevels`.
 
 `modelOverrides` in `models.json` are keyed by the exact model ID from
 `codex.default`. When migrating, update the override key to match the new
-catalog model and keep an intentional 372K context preference only after
+catalog model and keep an intentional 500K context preference only after
 confirming the target supports it; `--apply` does not sync `modelOverrides`.
 Regression tests in `resolve-model.bats` guard against losing the override.
 Pi auto-compacts when `contextTokens > contextWindow - reserveTokens`; with
-372K and the current 50K reserve that threshold is above 322K (1M would be
+500K and the current 50K reserve that threshold is above 450K (1M would be
 above 950K, not a fixed 200K).
 
 `--apply` / `--check` cover the config files that cannot expand variables:

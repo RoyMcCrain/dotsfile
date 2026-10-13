@@ -13,6 +13,9 @@
     "openai-codex/gpt-6-luna:high",
     "sakana-ai-console/fugu-max:high",
     "sakana-ai-console/fugu-ultra-v2.0:high",
+    "meta/muse-spark-1.3",
+    "meta/muse-spark-1.3-contributor",
+    "meta/muse-wonder-1.0",
     "opencode-go/*"
   ],
   "roles": {
@@ -39,9 +42,13 @@
       "timeout": 240
     },
     "review.muse": {
-      "pi": "opencode-go/muse-spark-1.3-contributor:high",
+      "pi": "meta/muse-spark-1.3-contributor:high",
       "label": "Muse Spark 1.3 Contributor High",
       "timeout": 120
+    },
+    "review.deepseek": {
+      "pi": "opencode-go/deepseek-v4.1-flash:high",
+      "label": "DeepSeek V4.1 Flash High"
     },
     "route.review": {
       "id": "typesafe/jev-1.13",
@@ -86,12 +93,12 @@
   "reviewLevels": {
     "1": [
       { "current": true },
-      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
+      { "pi": "meta/muse-spark-1.3-contributor:high" }
     ],
     "2": [
       { "current": true },
       { "role": "review.antigravity" },
-      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
+      { "pi": "meta/muse-spark-1.3-contributor:high" }
     ],
     "3": [
       { "pi": "xai/grok-4.7" },
@@ -99,7 +106,8 @@
       { "pi": "anthropic/claude-opus-5-5:high" },
       { "role": "review.antigravity" },
       { "pi": "sakana-ai-console/fugu-max:high" },
-      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
+      { "pi": "opencode-go/deepseek-v4.1-flash:high" },
+      { "pi": "meta/muse-spark-1.3-contributor:high" }
     ],
     "4": [
       { "pi": "xai/grok-4.7" },
@@ -107,7 +115,8 @@
       { "pi": "anthropic/claude-opus-5-5:max" },
       { "role": "review.antigravity" },
       { "pi": "sakana-ai-console/fugu-max:high" },
-      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
+      { "pi": "opencode-go/deepseek-v4.1-flash:high" },
+      { "pi": "meta/muse-spark-1.3-contributor:high" }
     ],
     "5": [
       { "pi": "xai/grok-4.7" },
@@ -115,7 +124,8 @@
       { "pi": "anthropic/claude-opus-5-5:max" },
       { "role": "review.antigravity" },
       { "pi": "sakana-ai-console/fugu-ultra-v2.0:high" },
-      { "pi": "opencode-go/muse-spark-1.3-contributor:high" }
+      { "pi": "opencode-go/deepseek-v4.1-flash:high" },
+      { "pi": "meta/muse-spark-1.3-contributor:high" }
     ]
   }
 }
