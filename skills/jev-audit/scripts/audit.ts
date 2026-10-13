@@ -15,8 +15,10 @@ import {
 } from "./week_period.ts";
 import { ensureWeeklyPlan } from "./prepare_plan.ts";
 import { assertPlanRunsDir, readPlan } from "./plan_store.ts";
-import { approveCase } from "./approval_store.ts";
+import { approveCase, readPlanCaseApproval } from "./approval_store.ts";
 import { runSingleCase, stageCaseForInspect } from "./audit_run.ts";
+import { automaticPreflight } from "./automatic_preflight.ts";
+import { readFile } from "node:fs/promises";
 import {
   buildReport,
   collectCaseStates,
@@ -24,7 +26,7 @@ import {
   writeReportAtomically,
 } from "./report.ts";
 import { acquireGlobalAuditLock, lockRecoveryNote } from "./lock.ts";
-import type { AuditResultRecord } from "./plan_types.ts";
+import type { AuditResultRecord, PlanCase } from "./plan_types.ts";
 import { isUnavailableResult, readWeekResult } from "./result_store.ts";
 import { defaultAuditorRole, resolveModelRole } from "./model_resolve.ts";
 
@@ -280,7 +282,120 @@ const cmdInspect = async (opts: GlobalOpts, rest: string[]) => {
   }
 };
 
-const cmdRun = async (opts: GlobalOpts) => {
+const parseRunFlags = (rest: string[]): boolean => {
+  if (rest.length === 0) return false;
+  if (rest.length !== 1 || rest[0] !== "--auto-approve") {
+    throw new Error("run accepts only --auto-approve");
+  }
+  return true;
+};
+
+const parseAutoApprove = (cmd: string, rest: string[]): boolean => {
+  if (cmd !== "run") return false;
+  return parseRunFlags(rest);
+};
+
+const preflightAutomaticCase = async (options: {
+  auditBase: string;
+  weekStart: string;
+  planCase: PlanCase;
+  runsDir?: string;
+}) => {
+  const staged = await stageCaseForInspect(options);
+  if ("error" in staged) {
+    return {
+      status: "held" as const,
+      reason: "automatic_preflight_unavailable",
+    };
+  }
+  try {
+    automaticPreflight(await readFile(staged.stagedPath));
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.message.startsWith("automatic_preflight_")
+        ? error.message
+        : "automatic_preflight_held";
+    return { status: "held" as const, reason };
+  }
+  return { status: "ready" as const, stagedPath: staged.stagedPath };
+};
+
+const ensureAutomaticApproval = async (options: {
+  auditBase: string;
+  weekRoot: string;
+  weekStart: string;
+  planCase: PlanCase;
+  stagedPath: string;
+  runsDir?: string;
+}) => {
+  const approval = await readPlanCaseApproval(
+    options.auditBase,
+    options.weekStart,
+    options.planCase.runId,
+  );
+  if (!approval.ok && approval.reason !== "missing") {
+    return { status: "held" as const, reason: "invalid_approval_state" };
+  }
+  if (approval.ok) return { status: "ready" as const };
+  try {
+    await approveCase({
+      auditBase: options.auditBase,
+      weekRoot: options.weekRoot,
+      weekStart: options.weekStart,
+      runId: options.planCase.runId,
+      patchSha256: options.planCase.patchSha256,
+      approvedInputPath: options.stagedPath,
+      runsDir: options.runsDir,
+      jevModel: options.planCase.jevModel,
+      approvalMode: "automatic",
+    });
+    return { status: "ready" as const };
+  } catch {
+    return { status: "held" as const, reason: "automatic_approval_held" };
+  }
+};
+
+const runCaseWithOptIn = async (options: {
+  auditBase: string;
+  weekRoot: string;
+  weekStart: string;
+  planCase: PlanCase;
+  runsDir?: string;
+  resolvedAuditor?: string;
+  autoApprove: boolean;
+}) => {
+  const input = {
+    auditBase: options.auditBase,
+    weekRoot: options.weekRoot,
+    weekStart: options.weekStart,
+    planCase: options.planCase,
+    runsDir: options.runsDir,
+    resolvedAuditorModel: options.resolvedAuditor,
+  };
+  if (!options.autoApprove) return await runSingleCase(input);
+  if (!options.resolvedAuditor?.startsWith("openai-codex/")) {
+    return { status: "held" as const, reason: "automatic_provider_not_codex" };
+  }
+  const preflight = await preflightAutomaticCase({
+    auditBase: options.auditBase,
+    weekStart: options.weekStart,
+    planCase: options.planCase,
+    runsDir: options.runsDir,
+  });
+  if (preflight.status === "held") return preflight;
+  const approval = await ensureAutomaticApproval({
+    auditBase: options.auditBase,
+    weekRoot: options.weekRoot,
+    weekStart: options.weekStart,
+    planCase: options.planCase,
+    stagedPath: preflight.stagedPath,
+    runsDir: options.runsDir,
+  });
+  if (approval.status === "held") return approval;
+  return await runSingleCase(input);
+};
+
+const cmdRun = async (opts: GlobalOpts, autoApprove: boolean) => {
   const period = resolvePeriod(opts.week);
   const auditBase = await resolveAuditBase(opts.auditDir, opts.runsDir);
   const lock = await acquireGlobalAuditLock(
@@ -307,13 +422,14 @@ const cmdRun = async (opts: GlobalOpts) => {
     }> = [];
     for (const planCase of plan.selected) {
       try {
-        const outcome = await runSingleCase({
+        const outcome = await runCaseWithOptIn({
           auditBase,
           weekRoot,
           weekStart: period.weekStart,
           planCase,
           runsDir: opts.runsDir,
-          resolvedAuditorModel: resolvedAuditor,
+          resolvedAuditor,
+          autoApprove,
         });
         if (outcome.status === "needs_preflight") {
           states.push({ planCase, status: "needs_preflight" });
@@ -425,7 +541,7 @@ const printHelp = () => {
     `prepare  offline plan + report (preserves on-disk case states)\n` +
     `inspect  --run-id ID  stage selected patch under audit tree for offline read\n` +
     `approve  --run-id ID --approved-input PATH (after inspecting staged patch)\n` +
-    `run      audit approved cases only\n` +
+    `run      audit approved cases only; --auto-approve opts into local-preflight Codex approval\n` +
     `report   regenerate report from disk state\n`;
   return text;
 };
@@ -437,7 +553,8 @@ const main = async () => {
     return;
   }
   const { cmd, rest, opts } = parseGlobal(args);
-  if (cmd === "prepare" || cmd === "run" || cmd === "report") {
+  const autoApprove = parseAutoApprove(cmd, rest);
+  if (cmd === "prepare" || cmd === "report") {
     rejectExtraRest(cmd, rest);
   } else if (
     rest.some((t) =>
@@ -449,7 +566,7 @@ const main = async () => {
   if (cmd === "prepare") await cmdPrepare(opts);
   else if (cmd === "inspect") await cmdInspect(opts, rest);
   else if (cmd === "approve") await cmdApprove(opts, rest);
-  else if (cmd === "run") await cmdRun(opts);
+  else if (cmd === "run") await cmdRun(opts, autoApprove);
   else if (cmd === "report") await cmdReport(opts);
   else throw new Error(`unknown command: ${cmd}`);
 };

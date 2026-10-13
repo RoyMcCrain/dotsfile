@@ -46,8 +46,9 @@ const writeRun = async (
   runsDir: string,
   runId: string,
   createdAt: string,
+  patch = PATCH,
 ) => {
-  const patchSha256 = sha256Bytes(new TextEncoder().encode(PATCH));
+  const patchSha256 = sha256Bytes(new TextEncoder().encode(patch));
   const dirName = `2020-09-29-${runId}`;
   const runDir = join(runsDir, dirName);
   await mkdir(runDir, { mode: 0o700 });
@@ -78,7 +79,7 @@ const writeRun = async (
     }\n`,
     { mode: 0o600 },
   );
-  await writeFile(join(runDir, "changes.patch"), PATCH, { mode: 0o600 });
+  await writeFile(join(runDir, "changes.patch"), patch, { mode: 0o600 });
   return { runDir, patchSha256 };
 };
 
@@ -124,6 +125,17 @@ const assertNoSpendArtifacts = async (
     globalAttempts = [];
   }
   assert.equal(globalAttempts.length, 0);
+  const cacheDir = join(auditDir, "cache");
+  let cacheFiles: string[];
+  try {
+    cacheFiles = (await readdir(cacheDir)).filter((name) =>
+      name.endsWith(".json")
+    );
+  } catch (error) {
+    if (!isMissingPath(error)) throw error;
+    cacheFiles = [];
+  }
+  assert.equal(cacheFiles.length, 0);
 };
 
 const runAuditCli = async (
@@ -144,6 +156,244 @@ const runAuditCli = async (
     unknown
   >;
 };
+
+Deno.test("auto-approve creates Codex provenance and is idempotent", async () => {
+  const root = await mkdtemp(join(tmpdir(), "jev-audit-auto-"));
+  const runsDir = join(root, "runs");
+  const auditDir = join(root, "audit");
+  const mocks = await writeMockScripts(root);
+  await writeFile(
+    mocks.resolver,
+    "#!/usr/bin/env bash\n" +
+      'if [[ "$1" == "--field" ]]; then echo route/mock-review; else echo openai-codex/mock-auditor:high; fi\n',
+    { mode: 0o700 },
+  );
+  await mkdir(runsDir, { recursive: true });
+  const runId = "12121212-1212-4121-8121-121212121212";
+  await writeRun(runsDir, runId, "2020-09-29T10:00:00.000Z");
+  const week = "2020-09-28";
+  const env = {
+    HOME: root,
+    XDG_DATA_HOME: join(root, "xdg"),
+    MODEL_RESOLVER: mocks.resolver,
+    PI_REVIEW_BIN: mocks.pi,
+    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+  };
+  await runAuditCli(env, [
+    "prepare",
+    "--runs-dir",
+    runsDir,
+    "--audit-dir",
+    auditDir,
+    "--week",
+    week,
+  ]);
+  const first = await runAuditCli(env, [
+    "run",
+    "--auto-approve",
+    "--runs-dir",
+    runsDir,
+    "--audit-dir",
+    auditDir,
+    "--week",
+    week,
+  ]);
+  assert.equal((first.counts as { audited: number }).audited, 1);
+  const approval = JSON.parse(
+    await readFile(
+      join(auditDir, "weeks", week, "approvals", `${runId}.json`),
+      "utf8",
+    ),
+  ) as { approvalMode: string };
+  assert.equal(approval.approvalMode, "automatic");
+  assert.equal(await readInvokeCount(mocks.countFile), 1);
+  await runAuditCli(env, [
+    "run",
+    "--auto-approve",
+    "--runs-dir",
+    runsDir,
+    "--audit-dir",
+    auditDir,
+    "--week",
+    week,
+  ]);
+  assert.equal(await readInvokeCount(mocks.countFile), 1);
+  await rm(root, { recursive: true, force: true });
+});
+
+const prepareUnsafeCase = async (patch: string) => {
+  const root = await mkdtemp(join(tmpdir(), "jev-auto-held-"));
+  const runsDir = join(root, "runs");
+  const auditDir = join(root, "audit");
+  const mocks = await writeMockScripts(root);
+  await writeFile(
+    mocks.resolver,
+    '#!/usr/bin/env bash\nif [[ "$1" == "--field" ]]; then echo route/mock-review; else echo openai-codex/mock-auditor:high; fi\n',
+    { mode: 0o700 },
+  );
+  await mkdir(runsDir, { recursive: true });
+  const runId = "abababab-abab-4bab-8bab-abababababab";
+  await writeRun(runsDir, runId, "2020-09-29T10:00:00.000Z", patch);
+  const week = "2020-09-28";
+  const env = {
+    HOME: root,
+    XDG_DATA_HOME: join(root, "xdg"),
+    PI_CODING_AGENT_DIR: join(root, "pi"),
+    MODEL_RESOLVER: mocks.resolver,
+    PI_REVIEW_BIN: mocks.pi,
+    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+  };
+  await runAuditCli(env, [
+    "prepare",
+    "--runs-dir",
+    runsDir,
+    "--audit-dir",
+    auditDir,
+    "--week",
+    week,
+  ]);
+  return { root, runsDir, auditDir, mocks, runId, week, env };
+};
+
+const assertHeldAutomatically = async (
+  fixture: Awaited<ReturnType<typeof prepareUnsafeCase>>,
+  approvalBytes?: Uint8Array,
+): Promise<void> => {
+  const { auditDir, env, mocks, runId, runsDir, week } = fixture;
+  const output = await runAuditCli(env, [
+    "run",
+    "--auto-approve",
+    "--runs-dir",
+    runsDir,
+    "--audit-dir",
+    auditDir,
+    "--week",
+    week,
+  ]);
+  assert.equal((output.counts as { held: number }).held, 1);
+  assert.equal(await readInvokeCount(mocks.countFile), 0);
+  await assertNoSpendArtifacts(auditDir, week, runId);
+  const approvalPath = join(
+    auditDir,
+    "weeks",
+    week,
+    "approvals",
+    `${runId}.json`,
+  );
+  if (approvalBytes) {
+    assert.deepEqual(await readFile(approvalPath), approvalBytes);
+  } else await assert.rejects(() => readFile(approvalPath));
+};
+
+const manuallyApprove = async (
+  fixture: Awaited<ReturnType<typeof prepareUnsafeCase>>,
+): Promise<Uint8Array> => {
+  const { auditDir, env, runId, runsDir, week } = fixture;
+  const inspected = await runAuditCli(env, [
+    "inspect",
+    "--run-id",
+    runId,
+    "--runs-dir",
+    runsDir,
+    "--audit-dir",
+    auditDir,
+    "--week",
+    week,
+  ]) as { stagedPath: string };
+  await runAuditCli(env, [
+    "approve",
+    "--run-id",
+    runId,
+    "--approved-input",
+    inspected.stagedPath,
+    "--runs-dir",
+    runsDir,
+    "--audit-dir",
+    auditDir,
+    "--week",
+    week,
+  ]);
+  return await readFile(
+    join(auditDir, "weeks", week, "approvals", `${runId}.json`),
+  );
+};
+
+Deno.test("credential-only automatic input is held without approval or spend", async () => {
+  const fixture = await prepareUnsafeCase(
+    PATCH + "+const key = AKIA1234567890ABCDEF;\n",
+  );
+  try {
+    await assertHeldAutomatically(fixture);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+Deno.test("PII-only automatic input is held without approval or spend", async () => {
+  const fixture = await prepareUnsafeCase(
+    PATCH + "+contact alice.private@gmail.com\n",
+  );
+  try {
+    await assertHeldAutomatically(fixture);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+Deno.test("existing manual approval cannot bypass automatic safety scan", async () => {
+  const fixture = await prepareUnsafeCase(
+    PATCH + "+contact alice.private@gmail.com\n",
+  );
+  try {
+    const bytes = await manuallyApprove(fixture);
+    await assertHeldAutomatically(fixture, bytes);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+Deno.test("current non-Codex provider overrides existing manual approval", async () => {
+  const fixture = await prepareUnsafeCase(PATCH);
+  try {
+    await writeFile(
+      fixture.mocks.resolver,
+      `#!/usr/bin/env bash\nif [[ "$1" == "--field" ]]; then echo route/mock-review; else echo mock/non-codex; fi\n`,
+      { mode: 0o700 },
+    );
+    const bytes = await manuallyApprove(fixture);
+    await assertHeldAutomatically(fixture, bytes);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+Deno.test("tampered selected patch is held before automatic approval", async () => {
+  const fixture = await prepareUnsafeCase(PATCH);
+  try {
+    await writeFile(
+      join(fixture.runsDir, `2020-09-29-${fixture.runId}`, "changes.patch"),
+      PATCH + "+tampered\n",
+    );
+    await assertHeldAutomatically(fixture);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+Deno.test("provider drift during automatic approval publication is held", async () => {
+  const fixture = await prepareUnsafeCase(PATCH);
+  try {
+    const count = join(fixture.root, "resolver.count");
+    await writeFile(
+      fixture.mocks.resolver,
+      `#!/usr/bin/env bash\nif [[ "$1" == "--field" ]]; then echo route/mock-review; exit 0; fi\nif [[ ! -f "${count}" ]]; then echo 1 > "${count}"; echo openai-codex/mock-auditor:high; else echo mock/non-codex; fi\n`,
+      { mode: 0o700 },
+    );
+    await assertHeldAutomatically(fixture);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
 
 Deno.test("prepare -> inspect -> approve -> run mocked integration", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-audit-int-"));

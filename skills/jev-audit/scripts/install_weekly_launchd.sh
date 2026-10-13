@@ -3,15 +3,18 @@
 set -euo pipefail
 
 INSTALL=0
+AUTO_APPROVE_ARG=
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--install) INSTALL=1 ;;
+	--auto-approve) AUTO_APPROVE_ARG=--auto-approve ;;
 	--help)
 		cat <<'EOF'
-Usage: install_weekly_launchd.sh [--install]
+Usage: install_weekly_launchd.sh [--install] [--auto-approve]
 
 Default: print launchd plist preview to stdout only (no filesystem writes).
 --install: write ~/Library/LaunchAgents/... and load (explicit opt-in only; Darwin).
+--auto-approve: enable explicit standing Codex approval after conservative local preflight.
 Runs: deno with scoped permissions on skills/jev-audit/scripts/audit.ts run
 Schedule: Monday 09:00 in the local timezone.
 Default audit week is the previous completed UTC week; local Monday 09:00 may differ from UTC week boundaries.
@@ -335,6 +338,10 @@ ALLOW_READ_E=$(xml_escape "$ALLOW_READ")
 ALLOW_WRITE_E=$(xml_escape "$ALLOW_WRITE")
 ALLOW_ENV_E=$(xml_escape "$ALLOW_ENV")
 ALLOW_RUN_E=$(xml_escape "$ALLOW_RUN")
+AUTO_APPROVE_XML=
+if [[ -n ${AUTO_APPROVE_ARG} ]]; then
+	AUTO_APPROVE_XML=$'\n    <string>--auto-approve</string>'
+fi
 
 render_plist() {
 	cat <<EOF
@@ -353,7 +360,7 @@ render_plist() {
     <string>--allow-run=${ALLOW_RUN_E}</string>
     <string>--no-config</string>
     <string>${AUDIT_E}</string>
-    <string>run</string>
+    <string>run</string>${AUTO_APPROVE_XML}
   </array>
   <key>StartCalendarInterval</key>
   <dict>

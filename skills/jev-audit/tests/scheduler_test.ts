@@ -40,11 +40,12 @@ type LaunchdPlist = {
 
 const runPreview = async (
   env: Record<string, string> = {},
+  args: string[] = [],
 ): Promise<{ stdout: string; success: boolean; stderr: string }> => {
   const inherited = { ...Deno.env.toObject() };
   delete inherited.MODEL_RESOLVER;
   const out = await new Deno.Command("bash", {
-    args: [SCRIPT],
+    args: [SCRIPT, ...args],
     env: { ...inherited, ...env },
     stdout: "piped",
     stderr: "piped",
@@ -226,6 +227,103 @@ const seedAuditCli = async (
     unknown
   >;
 };
+
+Deno.test({
+  name: "launchd opt-in preview auto-approves hermetic fixture once",
+  ignore: !isDarwin,
+  fn: async () => {
+    const period = defaultPreviousUtcWeek();
+    const createdAt = new Date(
+      Date.parse(period.weekStartIso) + 36 * 60 * 60 * 1000,
+    ).toISOString();
+    const home = await mkdtemp(join(tmpdir(), "jev-plist-optin-"));
+    const layout = layoutIsolatedHome(home);
+    await mkdir(layout.runsDir, { recursive: true });
+    await seedLaunchdTmpLayout(layout);
+    const countFile = join(home, "invoke.count");
+    const fakePi = await writeMockPi(home, countFile);
+    const runId = "44444444-4444-4444-8444-444444444444";
+    await writeRunFixture(layout.runsDir, runId, createdAt);
+    const resolver = join(home, "resolve-codex.sh");
+    await writeFile(
+      resolver,
+      "#!/usr/bin/env bash\n" +
+        'if [[ "$1" == "--field" && "$2" == "id" ]]; then echo route/mock-review; else echo openai-codex/mock-auditor:high; fi\n',
+      { mode: 0o700 },
+    );
+    const bashPath = Deno.env.get("JEV_AUDIT_BASH") ??
+      new TextDecoder().decode(
+        (await new Deno.Command("bash", {
+          args: ["-c", "command -v bash"],
+          stdout: "piped",
+        }).output()).stdout,
+      ).trim();
+    const env = {
+      HOME: layout.home,
+      XDG_DATA_HOME: layout.xdg,
+      PI_CODING_AGENT_DIR: layout.piDir,
+      PI_REVIEW_BIN: fakePi,
+      MODEL_RESOLVER: resolver,
+      PATH: Deno.env.get("PATH") ?? "/usr/bin:/bin",
+      JEV_AUDIT_BASH: bashPath,
+    };
+    try {
+      await seedAuditCli(env, ["prepare"]);
+      const preview = await runPreview(env, ["--auto-approve"]);
+      assert.equal(preview.success, true, preview.stderr);
+      const plist = await plistToJson(preview.stdout);
+      assert.equal(plist.EnvironmentVariables?.MODEL_RESOLVER, resolver);
+      assert.deepEqual(plist.ProgramArguments.slice(-3), [
+        AUDIT_SCRIPT,
+        "run",
+        "--auto-approve",
+      ]);
+      const run = await runPlistProgram(plist);
+      assert.equal(run.success, true, new TextDecoder().decode(run.stderr));
+      const outputBody = JSON.parse(new TextDecoder().decode(run.stdout)) as {
+        reportJson: string;
+      };
+      const outputReport = await readFile(outputBody.reportJson, "utf8");
+      assert.equal(
+        await readInvokeCount(countFile),
+        1,
+        `${new TextDecoder().decode(run.stdout)}\\n${outputReport}`,
+      );
+      const approval = JSON.parse(
+        await readFile(
+          join(
+            layout.xdg,
+            "parallel-review",
+            "jev-audit",
+            "weeks",
+            period.weekStart,
+            "approvals",
+            `${runId}.json`,
+          ),
+          "utf8",
+        ),
+      ) as { approvalMode: string };
+      assert.equal(approval.approvalMode, "automatic");
+      const repeated = await runPlistProgram(plist);
+      assert.equal(
+        repeated.success,
+        true,
+        new TextDecoder().decode(repeated.stderr),
+      );
+      assert.equal(await readInvokeCount(countFile), 1);
+      assert.deepEqual((await readdir(home)).sort(), [
+        "Library",
+        "fake_pi.sh",
+        "invoke.count",
+        "pi-agent",
+        "resolve-codex.sh",
+        "xdg-isolated",
+      ]);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  },
+});
 
 Deno.test("launchd preview stdout is plist only with scoped permissions", async () => {
   const { stdout, success, stderr } = await runPreview();

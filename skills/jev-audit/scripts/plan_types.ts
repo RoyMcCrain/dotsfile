@@ -49,6 +49,7 @@ export type ApprovalRecord = {
   approvedInputSha256: string;
   promptVersion: number;
   promptHash: string;
+  approvalMode?: "automatic";
 };
 
 export type AuditResultStatus = "success" | "failure" | "cached";
