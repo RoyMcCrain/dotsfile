@@ -5,7 +5,7 @@ description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=�
 
 # /parallel-review
 
-同じ patch を `model-roles.json` の `reviewLevels` で定義された reviewer に同時に渡し、結果を統合する。L1/L2 は **現在の caller モデル**（Pi が bash ごとに export する `PI_PROVIDER` / `PI_MODEL` / 任意 `PI_REASONING_LEVEL`）+ 固定 reviewer。L3 以降は従来どおり固定 6 reviewer（Grok・Codex・Opus・Antigravity Gemini・Fugu・Muse）。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
+同じ patch を `model-roles.json` の `reviewLevels` で定義された reviewer に同時に渡し、結果を統合する。L1/L2 は **現在の caller モデル**（Pi が bash ごとに export する `PI_PROVIDER` / `PI_MODEL` / 任意 `PI_REASONING_LEVEL`）+ 固定 reviewer。L3 以降は固定 7 reviewer（Grok・Codex・Opus・Antigravity Gemini・Fugu・DeepSeek V4.1 Flash・native Meta Muse）。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
 ## レビュー外部送信の常時許可
 
@@ -49,13 +49,13 @@ Antigravity 前提: Google OAuth 済みの `agy` CLI、インストール済み 
 
 ## レベル（1/2/3/4/5）
 
-レビューは5段階から選ぶ。**指定なしは auto**（Jev が OpenRouter Decisions API で routing 操作 1 回/run として深さを推定。`http_error` のみ最大 3 回リトライ、15 秒総期限）。ユーザーが **1..5 を明示**した場合はその数値が常に優先され、Jev / `OPEN_ROUTER_API_KEY` は使わない。auto が失敗・低信頼・patch 空のときは **L3 にフォールバック**（6 reviewer 標準）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
+レビューは5段階から選ぶ。**指定なしは auto**（Jev が OpenRouter Decisions API で routing 操作 1 回/run として深さを推定。`http_error` のみ最大 3 回リトライ、15 秒総期限）。ユーザーが **1..5 を明示**した場合はその数値が常に優先され、Jev / `OPEN_ROUTER_API_KEY` は使わない。auto が失敗・低信頼・patch 空のときは **L3 にフォールバック**（7 reviewer 標準）。レベルごとに **精度（モデル/thinking）と timeout 予算**を選ぶ。timeout は patch サイズではなく `reviewTimeouts` の固定 per-level 予算（`resolve-model.sh --review-level N` で `backend<TAB>model<TAB>initial<TAB>retry` を引く。`backend` は `pi` または `agy`）。
 
 - **1（最軽量）**: **現在の caller モデル** + Muse Contributor :high（通常 **2 reviewer**。caller が Muse と同一 ID のとき dedupe して **1**）。
 - **2（軽量）**: **caller** + Antigravity（`review.antigravity`）+ Muse（通常 **3**。caller が Muse または Antigravity と解決される Gemini と同一 ID のとき **2**）。
-- **3（標準 / auto フォールバック）**: Grok / Codex xhigh / Opus 5.5 :high / Antigravity / Fugu Max :high / Muse（**6 reviewer**、旧 L2 と同一）。**Jev 失敗・低信頼時の採用 tier**。
-- **4（deep）**: L3 と同構成だが Codex max・Opus 5.5 :max（Fugu Max :high のまま）（**6 reviewer**）。
-- **5（最深）**: Grok / Codex max / Opus 5.5 :max / Antigravity / Fugu Ultra v2 :high / Muse（**6 reviewer**、旧 L3 と同一）。
+- **3（標準 / auto フォールバック）**: Grok / Codex xhigh / Opus 5.5 :high / Antigravity / Fugu Max :high / DeepSeek V4.1 Flash :high / native Meta Muse（**7 reviewer**）。**Jev 失敗・低信頼時の採用 tier**。
+- **4（deep）**: L3 と同構成だが Codex max・Opus 5.5 :max（Fugu Max :high のまま）（**7 reviewer**）。
+- **5（最深）**: Grok / Codex max / Opus 5.5 :max / Antigravity / Fugu Ultra v2 :high / DeepSeek V4.1 Flash :high / native Meta Muse（**7 reviewer**）。
 
 **旧3段階からの移行**: 既存の自動化で旧標準として `--review-level 2` / `LEVEL=2` を明示している場合は **3**、旧 deep の **3** は **5** に変更する。旧 L1（5 reviewer）と完全一致する tier はないため用途に応じて再選択する。新 L1/L2 は意図的に少人数化した構成であり、旧数値のまま同じレビュー範囲にはならない。**指定なしは auto**（フォールバック L3）。
 
