@@ -6,26 +6,19 @@ This script searches through the Markdown documentation files in the references/
 It provides context-aware results, extracting relevant snippets around matched terms.
 """
 
-import os
 import sys
 import argparse
 import re
 import json
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
-from datetime import datetime
+from typing import List, Dict, Tuple
 
 # ANSI colors for terminal output
 class Colors:
     HEADER = '\033[95m'
-    BLUE = '\033[94m'
     CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
 def extract_frontmatter(content: str) -> Tuple[Dict, str]:
     """
@@ -55,63 +48,44 @@ def extract_frontmatter(content: str) -> Tuple[Dict, str]:
                 
     return frontmatter, body
 
+def _group_match_ranges(match_indices: List[int], max_gap: int) -> List[Tuple[int, int]]:
+    """Group ordered match indices into inclusive start/end ranges."""
+    ranges = []
+    start = previous = match_indices[0]
+    for index in match_indices[1:]:
+        if index - previous > max_gap:
+            ranges.append((start, previous))
+            start = index
+        previous = index
+    ranges.append((start, previous))
+    return ranges
+
+
+def _matching_line_indices(lines: List[str], keywords: List[str]) -> List[int]:
+    """Return indices of lines containing any literal keyword."""
+    return [i for i, line in enumerate(lines)
+            if any(keyword in line.lower() for keyword in keywords)]
+
+
 def get_context(text: str, query: str, context_lines: int = 2) -> List[str]:
-    """
-    Find matches and extract surrounding context lines.
-
-    Args:
-        text: Body text to search
-        query: Search term (can be space-separated for multiple keywords)
-        context_lines: Number of lines before/after to include
-
-    Returns:
-        List of context snippets
-    """
+    """Find matching lines and return their surrounding context snippets."""
     lines = text.split('\n')
     keywords = query.lower().split()
-    contexts = []
-
-    # Find line indices with matches (any keyword)
-    match_indices = [i for i, line in enumerate(lines)
-                     if any(kw in line.lower() for kw in keywords)]
-    
+    match_indices = _matching_line_indices(lines, keywords)
     if not match_indices:
         return []
-        
-    # Group nearby matches to avoid overlapping contexts
-    groups = []
-    if match_indices:
-        current_group = [match_indices[0]]
-        for i in range(1, len(match_indices)):
-            # If matches are within 2*context_lines, merge them
-            if match_indices[i] - match_indices[i-1] <= (context_lines * 2 + 1):
-                current_group.append(match_indices[i])
-            else:
-                groups.append(current_group)
-                current_group = [match_indices[i]]
-        groups.append(current_group)
-    
-    # Extract context for each group
-    for group in groups:
-        start_idx = max(0, group[0] - context_lines)
-        end_idx = min(len(lines), group[-1] + context_lines + 1)
-        
-        snippet_lines = lines[start_idx:end_idx]
-        
-        # Highlight matches (simple marking for now)
-        # In a real terminal, we could use ANSI codes, but for text output we keep it clean
-        # or we could add a marker like '> ' for matched lines
-        
-        formatted_snippet = []
-        for i, line in enumerate(snippet_lines):
-            original_idx = start_idx + i
-            prefix = "  "
-            if any(idx == original_idx for idx in group):
-                prefix = "> " # Marker for matched line
-            formatted_snippet.append(f"{prefix}{line}")
-            
-        contexts.append("\n".join(formatted_snippet))
-        
+
+    matched = set(match_indices)
+    contexts = []
+    max_gap = context_lines * 2 + 1
+    for first_match, last_match in _group_match_ranges(match_indices, max_gap):
+        start = max(0, first_match - context_lines)
+        stop = min(len(lines), last_match + context_lines + 1)
+        formatted = [
+            f"{'>' if first_match <= index <= last_match and index in matched else ' '} {line}"
+            for index, line in enumerate(lines[start:stop], start)
+        ]
+        contexts.append("\n".join(formatted))
     return contexts
 
 def search_docs(skill_dir: Path, query: str, max_results: int = 10) -> List[Dict]:
