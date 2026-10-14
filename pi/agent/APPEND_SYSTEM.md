@@ -99,7 +99,7 @@
 - `jj` コマンドでエディタが起動し得る操作では、必ず `JJ_EDITOR=true` を設定する。
 - `jj` は auto-commit なので `git add` は不要。
 - コミットメッセージは `JJ_EDITOR=true jj describe -m "message"` で設定する。
-- 不明な `jj` 操作は `jj` skill で確認する。
+- 不明な `jj` 操作は `jj --version` と `jj <command> --help` / `jj --no-pager help -k <topic>` で確認し、解決しない場合のみインストール済みバージョンに対応する公式ドキュメント（https://docs.jj-vcs.dev/）を参照する。
 - `force-push` はユーザーが当該ターンで明示的に依頼した時だけ行う。
 - push 済みリビジョンへ追記する場合は、原則 `jj new` で積み上げ、既存リビジョンを書き換えない。
 - 未push のローカル整理では、必要なら `JJ_EDITOR=true jj split` で意味単位に分割してよい。

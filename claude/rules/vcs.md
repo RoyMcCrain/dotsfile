@@ -9,13 +9,17 @@
 [ -d .jj ] && echo "use jj" || echo "use git"
 ```
 
-## ドキュメント参照
+## ヘルプ・ドキュメント参照
 
-jjコマンドの詳細は `/jj` スキルを使用して確認する。
+jj の使い方は、インストール済み CLI のバージョンとヘルプを優先して確認する。
 
+```bash
+jj --version
+jj <command> --help
+jj --no-pager help -k revsets
 ```
-/jj [質問]
-```
+
+ヘルプで解決できない場合のみ、インストール済みバージョンに対応する公式ドキュメント（https://docs.jj-vcs.dev/）を参照する。
 
 ## コマンド対応表
 
@@ -60,7 +64,7 @@ JJ_EDITOR=true jj split
 
 - jjはauto-commitなのでgit addは不要
 - コミットメッセージは `jj describe -m "message"` で設定
-- 不明な点は `/jj` で確認
+- 不明な点は `jj <command> --help` または `jj --no-pager help -k <topic>` で確認
 
 ## 安全ルール
 
