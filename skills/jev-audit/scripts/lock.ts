@@ -21,27 +21,6 @@ const tryAcquireLockFile = async (lockFile: string): Promise<boolean> => {
   }
 };
 
-export const acquireRunLock = async (
-  weekRoot: string,
-  lockFile: string,
-): Promise<RunLock> => {
-  await mkdir(weekRoot, { recursive: true, mode: 0o700 });
-  const acquired = await tryAcquireLockFile(lockFile);
-  if (!acquired) {
-    throw new Error("audit run already in progress");
-  }
-  return {
-    path: lockFile,
-    release: async () => {
-      try {
-        await unlink(lockFile);
-      } catch {
-        // best effort
-      }
-    },
-  };
-};
-
 export const acquireGlobalAuditLock = async (
   auditBase: string,
   lockFile: string,

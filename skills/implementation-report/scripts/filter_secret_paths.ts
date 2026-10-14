@@ -126,17 +126,6 @@ export const parseJjTemplateStatus = (text: string): PathChange[] => {
   return changes;
 };
 
-export const currentPaths = (changes: PathChange[]) => {
-  const seen = new Set<string>();
-  const paths: string[] = [];
-  for (const change of changes) {
-    if (!change.path || seen.has(change.path)) continue;
-    seen.add(change.path);
-    paths.push(change.path);
-  }
-  return paths;
-};
-
 export const relatedPaths = (changes: PathChange[]) => {
   const seen = new Set<string>();
   const paths: string[] = [];
