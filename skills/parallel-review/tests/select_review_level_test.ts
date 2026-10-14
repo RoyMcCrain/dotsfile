@@ -2096,7 +2096,7 @@ Deno.test("doc policy: parallel-review standing permission and routing", async (
     /preflight 成功後.*即時.*parallel-review|即時.*preflight/s,
   );
   assert.match(skill, /Jev.*常時許可|OpenRouter.*常時許可/s);
-  assert.match(skill, /Muse Contributor.*常時許可/s);
+  assert.match(skillStandingLine, /Muse Spark 1\.3.*Muse Wonder 1\.0/);
   assert.match(
     skill,
     /--approved-input.*preflight 成功.*常時許可|常時許可.*--approved-input/s,
@@ -2110,7 +2110,7 @@ Deno.test("doc policy: parallel-review standing permission and routing", async (
     append,
     /都度確認はしない|preflight 成功後に即時.*parallel-review/s,
   );
-  assert.match(append, /Jev と Muse Contributor.*常時許可/s);
+  assert.match(append, /Jev と Muse Spark 1.3.*常時許可/s);
 
   assert.match(
     injection,
