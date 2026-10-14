@@ -152,19 +152,6 @@ export const isPathInside = (parent: string, child: string): boolean => {
     (rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel));
 };
 
-export const assertInsideBase = async (
-  baseDir: string,
-  targetPath: string,
-  label: string,
-): Promise<string> => {
-  const baseReal = await realpath(baseDir);
-  const targetReal = await realpath(resolve(targetPath));
-  if (!isPathInside(baseReal, targetReal)) {
-    throw new Error(`${label} escapes audit data directory`);
-  }
-  return targetReal;
-};
-
 export const assertInsideBaseLstat = async (
   baseDir: string,
   targetPath: string,
@@ -193,9 +180,6 @@ export const approvalsDir = (weekRoot: string): string =>
 export const resultsDir = (weekRoot: string): string =>
   join(weekRoot, "results");
 
-export const stagingDir = (weekRoot: string): string =>
-  join(weekRoot, "staging");
-
 export const reportJsonPath = (weekRoot: string): string =>
   join(weekRoot, "report.json");
 
@@ -204,8 +188,3 @@ export const reportHtmlPath = (weekRoot: string): string =>
 
 export const globalLockPath = (auditBase: string): string =>
   join(auditBase, ".audit.lock");
-
-export const inspectStagingPath = (
-  weekRoot: string,
-  runId: string,
-): string => join(stagingDir(weekRoot), runId, "input.patch");

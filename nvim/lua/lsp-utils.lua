@@ -76,13 +76,4 @@ function M.format_on_save()
   end
 end
 
----ファイル保存時にPrettierを実行する
----@return nil
-function M.run_prettier()
-  local filename = vim.fn.expand('%:t')
-  if not string.find(filename, 'no_fmt') then
-    vim.cmd("silent! Prettier")
-  end
-end
-
 return M

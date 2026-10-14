@@ -222,13 +222,10 @@ EOF
 	local base_model="sakana-ai-console/fugu-max:high"
 	local ultra_model="sakana-ai-console/fugu-ultra-v2.0:high"
 
-	# Assert — enabledModels includes both Fugu pair entries
+	# Assert — catalog enables both Fugu pair entries
 	jq -e --arg base "$base_model" --arg ultra "$ultra_model" \
 		'(.enabledModels | index($base) != null) and (.enabledModels | index($ultra) != null)' \
 		"$real_catalog" >/dev/null
-	jq -e --arg base "$base_model" --arg ultra "$ultra_model" \
-		'(.enabledModels | index($base) != null) and (.enabledModels | index($ultra) != null)' \
-		"$real_settings" >/dev/null
 
 	# Assert — review.fugu resolves to ultra v2 :high with timeout 240
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.fugu
@@ -343,7 +340,6 @@ EOF
 @test "review.grok resolves and appears exactly once in parallel-review L3 through L5" {
 	# Arrange — integration against the tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local grok_model
 
 	# Act
@@ -365,9 +361,6 @@ EOF
 	jq -e --arg model "$grok_model" \
 		'[.enabledModels[] | select(startswith("xai/"))] == [$model]' \
 		"$real_catalog" >/dev/null
-	jq -e --arg model "$grok_model" \
-		'[.enabledModels[] | select(startswith("xai/"))] == [$model]' \
-		"$real_settings" >/dev/null
 
 	for level in 3 4 5; do
 		jq -e --arg model "$grok_model" --arg lvl "$level" \
@@ -611,20 +604,17 @@ EOF
 	cmp -s "$legacy" "$legacy_snapshot"
 }
 
-@test "Opus 5.5 high/max in catalog, settings, review.claude, and parallel-review L3/L4/L5" {
+@test "Opus 5.5 high/max in catalog, review.claude, and parallel-review L3/L4/L5" {
 	# Arrange — integration against the tracked repo catalog and settings
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local opus_high="anthropic/claude-opus-5-5:high"
 	local opus_max="anthropic/claude-opus-5-5:max"
 
-	# Assert — enabledModels includes Opus 5.5 high/max in catalog and settings
+	# Assert — catalog enables Opus 5.5 high/max
 	jq -e --arg high "$opus_high" --arg max "$opus_max" \
 		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
 		"$real_catalog" >/dev/null
-	jq -e --arg high "$opus_high" --arg max "$opus_max" \
-		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
-		"$real_settings" >/dev/null
 
 	# Assert — review.claude resolves to Opus 5.5 :high with expected label
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.claude
@@ -664,24 +654,16 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "Sonnet 5.5 high/max in catalog and settings; legacy Sonnet 5 scopes are gone" {
+@test "Sonnet 5.5 high/max in catalog; legacy Sonnet 5 scopes are gone" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local sonnet_high="anthropic/claude-sonnet-5-5:high"
 	local sonnet_max="anthropic/claude-sonnet-5-5:max"
 
 	jq -e --arg high "$sonnet_high" --arg max "$sonnet_max" \
 		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
 		"$real_catalog" >/dev/null
-	jq -e --arg high "$sonnet_high" --arg max "$sonnet_max" \
-		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
-		"$real_settings" >/dev/null
-
 	run jq -e '[.enabledModels[] | select(test("anthropic/claude-sonnet-5:"))] | length == 0' \
 		"$real_catalog"
-	[ "$status" -eq 0 ]
-	run jq -e '[.enabledModels[] | select(test("anthropic/claude-sonnet-5:"))] | length == 0' \
-		"$real_settings"
 	[ "$status" -eq 0 ]
 }
 
@@ -763,38 +745,24 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "GPT-6.1 Sol xhigh/max enabledModels entries are present in catalog and synced settings" {
-	# Arrange — integration against tracked repo catalog and settings
+@test "GPT-6.1 Sol xhigh/max enabledModels entries are present in catalog" {
+	# Arrange — integration against tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local sol_xhigh="openai/gpt-6.1-sol:xhigh"
 	local sol_max="openai/gpt-6.1-sol:max"
 
-	# Assert — catalog and settings expose each Sol scope entry exactly once
+	# Assert — catalog exposes each Sol scope entry exactly once
 	jq -e --arg x "$sol_xhigh" --arg m "$sol_max" \
 		'(.enabledModels | map(select(. == $x)) | length == 1) and (.enabledModels | map(select(. == $m)) | length == 1)' \
 		"$real_catalog" >/dev/null
-	jq -e --arg x "$sol_xhigh" --arg m "$sol_max" \
-		'(.enabledModels | map(select(. == $x)) | length == 1) and (.enabledModels | map(select(. == $m)) | length == 1)' \
-		"$real_settings" >/dev/null
-
-	# Assert — settings enabledModels mirror the catalog (resolve-model --apply output)
-	jq -e --slurpfile catalog "$real_catalog" '.enabledModels == $catalog[0].enabledModels' \
-		"$real_settings" >/dev/null
 }
 
-@test "OpenCode Go enabledModels glob is present in catalog and synced settings" {
-	# Arrange — integration against tracked repo catalog and settings
+@test "OpenCode Go enabledModels glob is present in catalog" {
+	# Arrange — integration against tracked repo catalog
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 
-	# Assert — catalog and settings both expose the provider glob scope
+	# Assert — catalog exposes the provider glob scope
 	jq -e '.enabledModels | index("opencode-go/*") != null' "$real_catalog" >/dev/null
-	jq -e '.enabledModels | index("opencode-go/*") != null' "$real_settings" >/dev/null
-
-	# Assert — settings enabledModels mirror the catalog (resolve-model --apply output)
-	jq -e --slurpfile catalog "$real_catalog" '.enabledModels == $catalog[0].enabledModels' \
-		"$real_settings" >/dev/null
 }
 
 @test "review.muse resolves native Meta with timeout 120 and appears once per parallel-review tier with tier budgets" {
@@ -926,10 +894,9 @@ EOF
 }
 
 @test "models.json registers two native Meta Muse models and one Go DeepSeek with caps and compat" {
-	# Arrange — integration against tracked models.json, catalog, and synced settings
+	# Arrange — integration against tracked models.json, catalog, and enabled scopes
 	local real_models="$BATS_TEST_DIRNAME/../models.json"
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 
 	# Assert — Meta provider transport, exactly two native Muse models, and normal Spark capabilities
 	jq -e '
@@ -963,11 +930,10 @@ EOF
 	' "$real_models" >/dev/null
 
 	# Assert — exact scopes keep older built-in Meta models out of cycling
-	jq -e --slurpfile catalog "$real_catalog" '
+	jq -e '
 		([.enabledModels[] | select(startswith("meta/"))] | sort) ==
-		["meta/muse-spark-1.3", "meta/muse-wonder-1.0"] and
-		(.enabledModels == $catalog[0].enabledModels)
-	' "$real_settings" >/dev/null
+		["meta/muse-spark-1.3", "meta/muse-wonder-1.0"]
+	' "$real_catalog" >/dev/null
 }
 
 @test "--review-level 1 fails without current model context" {
@@ -1456,22 +1422,33 @@ EOF
 	[ "$status" -ne 0 ]
 }
 
-@test "reviewLevels catalog shape all() rejects invalid current:false before valid pi" {
-	# Arrange — first entry invalid; stream jq -e without all() only checks the last row
-	local bad='{"reviewLevels":{"x":[{"current":false},{"pi":"provider/model:high"}],"y":[{"pi":"provider/last:high"}]}}'
+@test "--review-level rejects current:false before a valid pi entry" {
+	review_fixture_catalog <<'EOF'
+{
+  "enabledModels": [],
+  "roles": {},
+  "reviewTimeouts": { "1": { "initial": 10, "retry": 20 } },
+  "reviewLevels": {
+    "1": [
+      { "current": false },
+      { "pi": "provider/model:high" }
+    ]
+  }
+}
+EOF
+	local stdout_file="$TEST_ROOT/stdout-invalid-current.txt"
+	local stderr_file="$TEST_ROOT/stderr-invalid-current.txt"
+	local exit_code
 
-	# Assert — every entry in every tier must pass, not just the final tier
-	run jq -e '[.reviewLevels[][]] | all(
-		(has("pi") or has("role") or (has("current") and .current == true)) and
-		(. | keys | length == 1)
-	)' <<<"$bad"
-	[ "$status" -ne 0 ]
-
-	# Assert — legacy per-entry stream predicate false-positive (documents jq -e last-row behavior)
-	run jq -e '.reviewLevels | to_entries[] | .value[] |
-		(has("pi") or has("role") or (has("current") and .current == true)) and
-		(. | keys | length == 1)' <<<"$bad"
-	[ "$status" -eq 0 ]
+	set +e
+	env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+		"$RESOLVER" --review-level 1 --current-model "provider/caller:high" \
+		>"$stdout_file" 2>"$stderr_file"
+	exit_code=$?
+	set -e
+	[ "$exit_code" -ne 0 ]
+	[[ "$(<"$stderr_file")" == *"current must be true"* ]]
+	[ ! -s "$stdout_file" ]
 }
 
 @test "--review-level rejects more than one current marker in a tier" {
@@ -1617,7 +1594,7 @@ EOF
 	[[ "$output" == *"unknown model role"* ]]
 }
 
-@test "production enabledModels includes Luna high and matches settings.json" {
+@test "production --check verifies settings/catalog enabledModels synchronization" {
 	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
 	export PI_SETTINGS_FILE="$BATS_TEST_DIRNAME/../settings.json"
 	export CODEX_CONFIG_FILE="$BATS_TEST_TMPDIR/no-codex-config.toml"
