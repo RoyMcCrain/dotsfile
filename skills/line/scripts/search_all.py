@@ -21,30 +21,12 @@ def main():
     args = parser.parse_args()
 
     all_results = []
-
-    # Search LIFF
-    liff_results = search_docs(skill_dir / "liff", args.query, args.max_results)
-    for r in liff_results:
-        r["file"] = f"liff/{r['file']}"
-    all_results.extend(liff_results)
-
-    # Search Messaging API
-    msg_results = search_docs(skill_dir / "messaging-api", args.query, args.max_results)
-    for r in msg_results:
-        r["file"] = f"messaging-api/{r['file']}"
-    all_results.extend(msg_results)
-
-    # Search LINE Login
-    login_results = search_docs(skill_dir / "line-login", args.query, args.max_results)
-    for r in login_results:
-        r["file"] = f"line-login/{r['file']}"
-    all_results.extend(login_results)
-
-    # Search Mini App
-    mini_results = search_docs(skill_dir / "mini-app", args.query, args.max_results)
-    for r in mini_results:
-        r["file"] = f"mini-app/{r['file']}"
-    all_results.extend(mini_results)
+    skills = ("liff", "messaging-api", "line-login", "mini-app")
+    for skill in skills:
+        results = search_docs(skill_dir / skill, args.query, args.max_results)
+        for result in results:
+            result["file"] = f"{skill}/{result['file']}"
+        all_results.extend(results)
 
     # Sort by matches
     all_results.sort(key=lambda x: x["matches"], reverse=True)

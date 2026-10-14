@@ -873,10 +873,103 @@ const loadPriorSnapshots = async (runDir: string): Promise<Snapshot[]> => {
   return snapshots;
 };
 
+const assertCompletedExecutionCompatible = (
+  prior: ExecutionSnapshot,
+  current: ExecutionSnapshot,
+): void => {
+  if (!isDeepStrictEqual(prior, current)) {
+    throw new Error(`completed execution ${prior.id} changed`);
+  }
+};
+
+const assertProgressingExecutionCompatible = (
+  prior: ExecutionSnapshot,
+  current: ExecutionSnapshot,
+): void => {
+  if (prior.status === "running" && current.status === "pending") {
+    throw new Error(`execution ${prior.id} status regressed`);
+  }
+  for (const field of EXEC_IDENTITY_FIELDS) {
+    if (prior[field] !== current[field]) {
+      throw new Error(`execution ${prior.id} ${field} changed`);
+    }
+  }
+  if (
+    prior.files.chunk.sha256 !== current.files.chunk.sha256 ||
+    prior.files.stdoutLog.path !== current.files.stdoutLog.path ||
+    prior.files.stderrLog.path !== current.files.stderrLog.path
+  ) {
+    throw new Error(`execution ${prior.id} file identity changed`);
+  }
+};
+
+const assertExecutionsCompatible = (
+  prior: Snapshot,
+  currentById: Map<string, ExecutionSnapshot>,
+): void => {
+  for (const priorExec of prior.executions) {
+    const currentExec = currentById.get(priorExec.id);
+    if (!currentExec) {
+      throw new Error(`prior execution removed: ${priorExec.id}`);
+    }
+    if (priorExec.status === "completed") {
+      assertCompletedExecutionCompatible(priorExec, currentExec);
+    } else {
+      assertProgressingExecutionCompatible(priorExec, currentExec);
+    }
+  }
+};
+
+const assertFindingCompatible = (
+  executionId: string,
+  prior: AssessmentFinding,
+  current: AssessmentFinding | undefined,
+): void => {
+  if (!current) {
+    throw new Error(`prior finding removed: ${executionId}/${prior.id}`);
+  }
+  for (const field of IMMUTABLE_FINDING_FIELDS) {
+    if (prior[field] !== current[field]) {
+      throw new Error(
+        `immutable finding ${field} changed for ${executionId}/${prior.id}`,
+      );
+    }
+  }
+};
+
+const assertReviewsCompatible = (
+  prior: Snapshot,
+  currentByExecutionId: Map<string, Map<string, AssessmentFinding>>,
+): void => {
+  for (const priorReview of prior.reviews) {
+    const currentFindings = currentByExecutionId.get(priorReview.executionId);
+    if (!currentFindings) {
+      throw new Error(`prior review removed: ${priorReview.executionId}`);
+    }
+    for (const priorFinding of priorReview.findings) {
+      assertFindingCompatible(
+        priorReview.executionId,
+        priorFinding,
+        currentFindings.get(priorFinding.id),
+      );
+    }
+  }
+};
+
 const assertPriorSnapshotsCompatible = (
   priors: Snapshot[],
   current: Snapshot,
 ): void => {
+  const currentExecById = new Map(
+    current.executions.map((execution) => [execution.id, execution]),
+  );
+  const currentFindingsByExecutionId = new Map(
+    current.reviews.map((review) => [
+      review.executionId,
+      new Map(review.findings.map((finding) => [finding.id, finding])),
+    ]),
+  );
+
   for (const prior of priors) {
     if (!isDeepStrictEqual(prior.metadata, current.metadata)) {
       throw new Error("metadata changed across snapshots");
@@ -887,68 +980,8 @@ const assertPriorSnapshotsCompatible = (
     if (prior.files.prompt.sha256 !== current.files.prompt.sha256) {
       throw new Error("prompt hash changed across snapshots");
     }
-
-    const currentExecById = new Map(
-      current.executions.map((execution) => [execution.id, execution]),
-    );
-    const currentReviewById = new Map(
-      current.reviews.map((review) => [review.executionId, review]),
-    );
-
-    for (const priorExec of prior.executions) {
-      const currExec = currentExecById.get(priorExec.id);
-      if (!currExec) {
-        throw new Error(`prior execution removed: ${priorExec.id}`);
-      }
-
-      if (priorExec.status === "completed") {
-        const priorBody = { ...priorExec, files: priorExec.files };
-        const currBody = { ...currExec, files: currExec.files };
-        if (!isDeepStrictEqual(priorBody, currBody)) {
-          throw new Error(`completed execution ${priorExec.id} changed`);
-        }
-      } else {
-        if (priorExec.status === "running" && currExec.status === "pending") {
-          throw new Error(`execution ${priorExec.id} status regressed`);
-        }
-        for (const field of EXEC_IDENTITY_FIELDS) {
-          if (priorExec[field] !== currExec[field]) {
-            throw new Error(`execution ${priorExec.id} ${field} changed`);
-          }
-        }
-        if (
-          priorExec.files.chunk.sha256 !== currExec.files.chunk.sha256 ||
-          priorExec.files.stdoutLog.path !== currExec.files.stdoutLog.path ||
-          priorExec.files.stderrLog.path !== currExec.files.stderrLog.path
-        ) {
-          throw new Error(`execution ${priorExec.id} file identity changed`);
-        }
-      }
-    }
-
-    for (const priorReview of prior.reviews) {
-      const currReview = currentReviewById.get(priorReview.executionId);
-      if (!currReview) {
-        throw new Error(`prior review removed: ${priorReview.executionId}`);
-      }
-      for (const priorFinding of priorReview.findings) {
-        const currFinding = currReview.findings.find((f) =>
-          f.id === priorFinding.id
-        );
-        if (!currFinding) {
-          throw new Error(
-            `prior finding removed: ${priorReview.executionId}/${priorFinding.id}`,
-          );
-        }
-        for (const field of IMMUTABLE_FINDING_FIELDS) {
-          if (priorFinding[field] !== currFinding[field]) {
-            throw new Error(
-              `immutable finding ${field} changed for ${priorReview.executionId}/${priorFinding.id}`,
-            );
-          }
-        }
-      }
-    }
+    assertExecutionsCompatible(prior, currentExecById);
+    assertReviewsCompatible(prior, currentFindingsByExecutionId);
   }
 };
 

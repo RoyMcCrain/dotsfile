@@ -10,8 +10,11 @@ Usage:
     python update_docs.py --mini-app   # Update Mini App only
 """
 
+import os
+import stat
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 from datetime import datetime
 
@@ -37,17 +40,25 @@ DOCS = {
 }
 
 
+def open_staging_file(output: Path):
+    while True:
+        candidate = output.parent / f".{output.name}.{uuid.uuid4().hex}.tmp"
+        try:
+            return candidate, candidate.open("x", encoding="utf-8")
+        except FileExistsError:
+            continue
+
+
 def fetch_and_save(name: str, url: str, output: Path):
     """Fetch Markdown and save with frontmatter."""
     print(f"Fetching {name} from {url}...")
 
-    output.parent.mkdir(parents=True, exist_ok=True)
     today = datetime.now().strftime("%Y-%m-%d")
     source_url = url.replace("/index.html.md", "/")
 
     try:
         result = subprocess.run(
-            ["curl", "-sL", url],
+            ["curl", "-fsSL", url],
             capture_output=True,
             text=True,
             timeout=60
@@ -66,7 +77,21 @@ fetched_at: "{today}"
 
 {markdown}
 """
-        output.write_text(content, encoding="utf-8")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        existing_mode = stat.S_IMODE(output.stat().st_mode) if output.exists() else None
+        temporary = None
+        try:
+            temporary, staged = open_staging_file(output)
+            with staged:
+                if existing_mode is not None:
+                    os.chmod(temporary, existing_mode)
+                staged.write(content)
+                staged.flush()
+                os.fsync(staged.fileno())
+            os.replace(temporary, output)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
         print(f"  Saved to {output}")
         return True
 
@@ -78,15 +103,7 @@ fetched_at: "{today}"
     return False
 
 
-def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="Update LINE API documentation")
-    parser.add_argument("--liff", action="store_true", help="Update LIFF docs only")
-    parser.add_argument("--messaging", action="store_true", help="Update Messaging API docs only")
-    parser.add_argument("--login", action="store_true", help="Update LINE Login docs only")
-    parser.add_argument("--mini-app", action="store_true", help="Update Mini App docs only")
-    args = parser.parse_args()
-
+def selected_targets(args):
     targets = []
     if args.liff:
         targets.append("liff")
@@ -96,8 +113,19 @@ def main():
         targets.append("login")
     if getattr(args, "mini_app", False):
         targets.append("mini-app")
-    if not targets:
-        targets = list(DOCS.keys())
+    return targets or list(DOCS.keys())
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Update LINE API documentation")
+    parser.add_argument("--liff", action="store_true", help="Update LIFF docs only")
+    parser.add_argument("--messaging", action="store_true", help="Update Messaging API docs only")
+    parser.add_argument("--login", action="store_true", help="Update LINE Login docs only")
+    parser.add_argument("--mini-app", action="store_true", help="Update Mini App docs only")
+    args = parser.parse_args()
+
+    targets = selected_targets(args)
 
     success = 0
     for name in targets:
@@ -106,6 +134,8 @@ def main():
             success += 1
 
     print(f"\nUpdated {success}/{len(targets)} documents.")
+    if success != len(targets):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

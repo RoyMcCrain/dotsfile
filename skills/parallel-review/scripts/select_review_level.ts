@@ -74,6 +74,22 @@ export type LevelDecision = {
   httpStatuses?: number[];
 };
 
+type ChunkOptionalFields = Pick<
+  ChunkDecision,
+  "minConfidence" | "model" | "suggestedChoice" | "confidence"
+>;
+type LevelOptionalFields = Pick<
+  LevelDecision,
+  | "contextSha256"
+  | "httpStatuses"
+  | "minConfidence"
+  | "model"
+  | "suggestedLevel"
+  | "confidence"
+  | "costUsd"
+  | "probabilities"
+>;
+
 const DECISION_KEYS = new Set([
   "schemaVersion",
   "requestedLevel",
@@ -503,7 +519,146 @@ const validateChunkReason = (
   }
 };
 
-export const validateChunkDecision = (value: unknown): ChunkDecision => {
+const validateFixedChunkFields = (fields: ChunkOptionalFields): void => {
+  rejectExtraFields([
+    { value: fields.minConfidence, label: "minConfidence" },
+    { value: fields.model, label: "model" },
+    { value: fields.suggestedChoice, label: "suggestedChoice" },
+    { value: fields.confidence, label: "confidence" },
+  ], "fixed chunk decision");
+};
+
+const validateLowConfidenceChunkFallback = (
+  fields: ChunkOptionalFields & { minConfidence: number },
+): void => {
+  const { minConfidence, model, suggestedChoice, confidence } = fields;
+  if (confidence === undefined) {
+    throw new Error("chunk low_confidence fallback requires confidence");
+  }
+  if (confidence >= minConfidence) {
+    throw new Error(
+      "chunk low_confidence fallback requires confidence below minConfidence",
+    );
+  }
+  if (model === undefined) {
+    throw new Error("chunk low_confidence fallback requires model");
+  }
+  if (suggestedChoice === undefined) {
+    throw new Error("chunk low_confidence fallback requires suggestedChoice");
+  }
+};
+
+const validateWholePatchChunkFallback = (
+  fields: ChunkOptionalFields & { minConfidence: number; choice: ChunkChoice },
+): void => {
+  const { minConfidence, choice, model, suggestedChoice, confidence } = fields;
+  if (confidence === undefined) {
+    throw new Error("whole_patch_limit chunk fallback requires confidence");
+  }
+  if (confidence < minConfidence) {
+    throw new Error(
+      "whole_patch_limit chunk fallback requires confidence at or above minConfidence",
+    );
+  }
+  if (model === undefined) {
+    throw new Error("whole_patch_limit chunk fallback requires model");
+  }
+  if (suggestedChoice !== "none") {
+    throw new Error(
+      "whole_patch_limit chunk fallback requires suggestedChoice none",
+    );
+  }
+  if (choice !== "12000") {
+    throw new Error(
+      "whole_patch_limit chunk fallback requires effective choice 12000",
+    );
+  }
+};
+
+const validateFallbackChunkFields = (fields: {
+  reason: string;
+  choice: ChunkChoice;
+  minConfidence: number | undefined;
+  model: string | undefined;
+  suggestedChoice: ChunkChoice | undefined;
+  confidence: number | undefined;
+}): void => {
+  const { reason, choice, minConfidence, model, suggestedChoice, confidence } =
+    fields;
+  if (minConfidence === undefined) {
+    throw new Error("chunk fallback decision requires minConfidence");
+  }
+  if (reason === "low_confidence") {
+    validateLowConfidenceChunkFallback({
+      minConfidence,
+      model,
+      suggestedChoice,
+      confidence,
+    });
+    return;
+  }
+  if (reason === "whole_patch_limit") {
+    validateWholePatchChunkFallback({
+      minConfidence,
+      choice,
+      model,
+      suggestedChoice,
+      confidence,
+    });
+    return;
+  }
+  rejectExtraFields([
+    { value: model, label: "model" },
+    { value: suggestedChoice, label: "suggestedChoice" },
+    { value: confidence, label: "confidence" },
+  ], "chunk fallback decision");
+};
+
+const validateJevChunkFields = (
+  fields: ChunkOptionalFields & { choice: ChunkChoice },
+): void => {
+  const { minConfidence, confidence, suggestedChoice, choice, model } = fields;
+  if (minConfidence === undefined) {
+    throw new Error("jev chunk decision requires minConfidence");
+  }
+  if (confidence === undefined) {
+    throw new Error("jev chunk decision requires confidence");
+  }
+  if (confidence < minConfidence) {
+    throw new Error("jev chunk decision confidence below minConfidence");
+  }
+  if (suggestedChoice === undefined || suggestedChoice !== choice) {
+    throw new Error("jev chunk decision suggestedChoice must equal choice");
+  }
+  if (model === undefined) {
+    throw new Error("jev chunk decision requires model");
+  }
+};
+
+const validateChunkChoiceForSource = (
+  source: ChunkDecisionSource,
+  value: unknown,
+): ChunkChoice => {
+  if (!isChunkChoice(value)) {
+    throw new Error("chunk decision choice is invalid");
+  }
+  if (
+    (source === "fixed" || source === "fallback") &&
+    value !== "none" && value !== "12000"
+  ) {
+    throw new Error("fixed/fallback chunk choice must be none or 12000");
+  }
+  return value;
+};
+
+const validateChunkDecisionShape = (
+  value: unknown,
+): {
+  value: Record<string, unknown>;
+  source: ChunkDecisionSource;
+  reason: string;
+  choice: ChunkChoice;
+} => {
   if (!isObject(value)) throw new Error("chunk decision must be an object");
   for (const key of Object.keys(value)) {
     if (!CHUNK_DECISION_KEYS.has(key)) {
@@ -518,17 +673,13 @@ export const validateChunkDecision = (value: unknown): ChunkDecision => {
     throw new Error("chunk decision reason is invalid");
   }
   validateChunkReason(source, value.reason);
-  if (!isChunkChoice(value.choice)) {
-    throw new Error("chunk decision choice is invalid");
-  }
-  const choice = value.choice;
-  if (
-    (source === "fixed" || source === "fallback") &&
-    choice !== "none" && choice !== "12000"
-  ) {
-    throw new Error("fixed/fallback chunk choice must be none or 12000");
-  }
+  const choice = validateChunkChoiceForSource(source, value.choice);
+  return { value, source, reason: value.reason, choice };
+};
 
+const validateChunkDecisionFields = (
+  value: Record<string, unknown>,
+): ChunkOptionalFields => {
   let minConfidence: number | undefined;
   if (value.minConfidence !== undefined) {
     minConfidence = validateConfidence(value.minConfidence);
@@ -542,85 +693,43 @@ export const validateChunkDecision = (value: unknown): ChunkDecision => {
     suggestedChoice = value.suggestedChoice;
   }
   const confidence = validateConfidence(value.confidence);
+  return { minConfidence, model, suggestedChoice, confidence };
+};
+
+export const validateChunkDecision = (input: unknown): ChunkDecision => {
+  const { value, source, reason, choice } = validateChunkDecisionShape(input);
+  const { minConfidence, model, suggestedChoice, confidence } =
+    validateChunkDecisionFields(value);
 
   if (source === "fixed") {
-    rejectExtraFields([
-      { value: minConfidence, label: "minConfidence" },
-      { value: model, label: "model" },
-      { value: suggestedChoice, label: "suggestedChoice" },
-      { value: confidence, label: "confidence" },
-    ], "fixed chunk decision");
+    validateFixedChunkFields({
+      minConfidence,
+      model,
+      suggestedChoice,
+      confidence,
+    });
   } else if (source === "fallback") {
-    if (minConfidence === undefined) {
-      throw new Error("chunk fallback decision requires minConfidence");
-    }
-    if (value.reason === "low_confidence") {
-      if (confidence === undefined) {
-        throw new Error("chunk low_confidence fallback requires confidence");
-      }
-      if (confidence >= minConfidence) {
-        throw new Error(
-          "chunk low_confidence fallback requires confidence below minConfidence",
-        );
-      }
-      if (model === undefined) {
-        throw new Error("chunk low_confidence fallback requires model");
-      }
-      if (suggestedChoice === undefined) {
-        throw new Error(
-          "chunk low_confidence fallback requires suggestedChoice",
-        );
-      }
-    } else if (value.reason === "whole_patch_limit") {
-      if (confidence === undefined) {
-        throw new Error("whole_patch_limit chunk fallback requires confidence");
-      }
-      if (confidence < minConfidence) {
-        throw new Error(
-          "whole_patch_limit chunk fallback requires confidence at or above minConfidence",
-        );
-      }
-      if (model === undefined) {
-        throw new Error("whole_patch_limit chunk fallback requires model");
-      }
-      if (suggestedChoice !== "none") {
-        throw new Error(
-          "whole_patch_limit chunk fallback requires suggestedChoice none",
-        );
-      }
-      if (choice !== "12000") {
-        throw new Error(
-          "whole_patch_limit chunk fallback requires effective choice 12000",
-        );
-      }
-    } else {
-      rejectExtraFields([
-        { value: model, label: "model" },
-        { value: suggestedChoice, label: "suggestedChoice" },
-        { value: confidence, label: "confidence" },
-      ], "chunk fallback decision");
-    }
+    validateFallbackChunkFields({
+      reason,
+      choice,
+      minConfidence,
+      model,
+      suggestedChoice,
+      confidence,
+    });
   } else {
-    if (minConfidence === undefined) {
-      throw new Error("jev chunk decision requires minConfidence");
-    }
-    if (confidence === undefined) {
-      throw new Error("jev chunk decision requires confidence");
-    }
-    if (confidence < minConfidence) {
-      throw new Error("jev chunk decision confidence below minConfidence");
-    }
-    if (suggestedChoice === undefined || suggestedChoice !== value.choice) {
-      throw new Error("jev chunk decision suggestedChoice must equal choice");
-    }
-    if (model === undefined) {
-      throw new Error("jev chunk decision requires model");
-    }
+    validateJevChunkFields({
+      minConfidence,
+      confidence,
+      suggestedChoice,
+      choice,
+      model,
+    });
   }
 
   const decision: ChunkDecision = {
     source,
-    reason: value.reason,
+    reason,
     choice,
   };
   if (minConfidence !== undefined) decision.minConfidence = minConfidence;
@@ -679,36 +788,162 @@ const validateOptionalHttpStatuses = (
   return value;
 };
 
-export const validateLevelDecision = (value: unknown): LevelDecision => {
-  if (!isObject(value)) throw new Error("level decision must be an object");
-  for (const key of Object.keys(value)) {
+const validateExplicitLevelFields = (decision: LevelDecision): void => {
+  if (decision.requestedLevel !== decision.level) {
+    throw new Error("explicit requestedLevel must equal level");
+  }
+  rejectExtraFields([
+    { value: decision.minConfidence, label: "minConfidence" },
+    { value: decision.model, label: "model" },
+    { value: decision.suggestedLevel, label: "suggestedLevel" },
+    { value: decision.confidence, label: "confidence" },
+    { value: decision.costUsd, label: "costUsd" },
+    { value: decision.probabilities, label: "probabilities" },
+    { value: decision.contextSha256, label: "contextSha256" },
+    { value: decision.httpStatuses, label: "httpStatuses" },
+  ], "explicit decision");
+};
+
+const validateLowConfidenceLevelFallback = (
+  decision: LevelDecision,
+  minConfidence: number,
+): void => {
+  const { model, suggestedLevel, confidence } = decision;
+  if (confidence === undefined) {
+    throw new Error("low_confidence fallback requires confidence");
+  }
+  if (confidence >= minConfidence) {
+    throw new Error(
+      "low_confidence fallback requires confidence below minConfidence",
+    );
+  }
+  if (model === undefined) {
+    throw new Error("low_confidence fallback requires model");
+  }
+  if (suggestedLevel === undefined) {
+    throw new Error("low_confidence fallback requires suggestedLevel");
+  }
+};
+
+const validateFallbackLevelFields = (decision: LevelDecision): void => {
+  const {
+    requestedLevel,
+    level,
+    reason,
+    minConfidence,
+    model,
+    suggestedLevel,
+    confidence,
+    costUsd,
+    probabilities,
+  } = decision;
+  if (requestedLevel !== "auto") {
+    throw new Error("fallback requestedLevel must be auto");
+  }
+  if (level !== 3) {
+    throw new Error("fallback decision level must be 3");
+  }
+  if (minConfidence === undefined) {
+    throw new Error("fallback decision requires minConfidence");
+  }
+  if (reason === "low_confidence") {
+    validateLowConfidenceLevelFallback(decision, minConfidence);
+    return;
+  }
+  rejectExtraFields([
+    { value: model, label: "model" },
+    { value: suggestedLevel, label: "suggestedLevel" },
+    { value: confidence, label: "confidence" },
+    { value: costUsd, label: "costUsd" },
+    { value: probabilities, label: "probabilities" },
+  ], "fallback decision");
+};
+
+const validateJevLevelFields = (decision: LevelDecision): void => {
+  const {
+    requestedLevel,
+    level,
+    minConfidence,
+    confidence,
+    suggestedLevel,
+    model,
+  } = decision;
+  if (requestedLevel !== "auto") {
+    throw new Error("jev decision requestedLevel must be auto");
+  }
+  if (minConfidence === undefined) {
+    throw new Error("jev decision requires minConfidence");
+  }
+  if (confidence === undefined) {
+    throw new Error("jev decision requires confidence");
+  }
+  if (confidence < minConfidence) {
+    throw new Error("jev decision confidence below minConfidence");
+  }
+  if (suggestedLevel === undefined || suggestedLevel !== level) {
+    throw new Error("jev decision suggestedLevel must equal level");
+  }
+  if (model === undefined) {
+    throw new Error("jev decision requires model");
+  }
+};
+
+const validateLevelDecisionKeys = (input: Record<string, unknown>): void => {
+  for (const key of Object.keys(input)) {
     if (!DECISION_KEYS.has(key)) {
       throw new Error(`unknown level decision field: ${key}`);
     }
   }
-  if (value.schemaVersion !== SCHEMA_VERSION) {
+  if (input.schemaVersion !== SCHEMA_VERSION) {
     throw new Error("unsupported level decision schemaVersion");
   }
-  const requestedLevel = validateRequestedLevel(value.requestedLevel);
-  if (!isReviewLevel(value.level)) throw new Error("decision.level is invalid");
-  const source = value.source;
+};
+
+const validateDecisionPatchSha256 = (value: unknown): string => {
+  if (typeof value !== "string" || !SHA256_RE.test(value)) {
+    throw new Error("decision.patchSha256 is invalid");
+  }
+  return value;
+};
+
+const validateLevelDecisionShape = (
+  input: unknown,
+): {
+  value: Record<string, unknown>;
+  requestedLevel: RequestedLevel;
+  level: ReviewLevel;
+  source: "explicit" | "jev" | "fallback";
+  reason: string;
+  patchSha256: string;
+} => {
+  if (!isObject(input)) throw new Error("level decision must be an object");
+  validateLevelDecisionKeys(input);
+  const requestedLevel = validateRequestedLevel(input.requestedLevel);
+  if (!isReviewLevel(input.level)) throw new Error("decision.level is invalid");
+  const source = input.source;
   if (source !== "explicit" && source !== "jev" && source !== "fallback") {
     throw new Error("decision.source is invalid");
   }
-  if (typeof value.reason !== "string") {
+  if (typeof input.reason !== "string") {
     throw new Error("decision.reason is invalid");
   }
-  validateReason(source, value.reason);
-  if (
-    typeof value.patchSha256 !== "string" ||
-    !SHA256_RE.test(value.patchSha256)
-  ) {
-    throw new Error("decision.patchSha256 is invalid");
-  }
+  validateReason(source, input.reason);
+  const patchSha256 = validateDecisionPatchSha256(input.patchSha256);
+  return {
+    value: input,
+    requestedLevel,
+    level: input.level,
+    source,
+    reason: input.reason,
+    patchSha256,
+  };
+};
 
+const validateLevelDecisionFields = (
+  value: Record<string, unknown>,
+): LevelOptionalFields => {
   const contextSha256 = validateOptionalContextSha256(value.contextSha256);
   const httpStatuses = validateOptionalHttpStatuses(value.httpStatuses);
-
   let minConfidence: number | undefined;
   if (value.minConfidence !== undefined) {
     minConfidence = validateConfidence(value.minConfidence);
@@ -727,110 +962,83 @@ export const validateLevelDecision = (value: unknown): LevelDecision => {
   if (value.probabilities !== undefined) {
     probabilities = validateReviewLevelProbabilities(value.probabilities);
   }
+  return {
+    minConfidence,
+    model,
+    suggestedLevel,
+    confidence,
+    costUsd,
+    probabilities,
+    contextSha256,
+    httpStatuses,
+  };
+};
 
-  if (source === "explicit") {
-    if (requestedLevel !== value.level) {
-      throw new Error("explicit requestedLevel must equal level");
-    }
-    rejectExtraFields([
-      { value: minConfidence, label: "minConfidence" },
-      { value: model, label: "model" },
-      { value: suggestedLevel, label: "suggestedLevel" },
-      { value: confidence, label: "confidence" },
-      { value: costUsd, label: "costUsd" },
-      { value: probabilities, label: "probabilities" },
-      { value: contextSha256, label: "contextSha256" },
-      { value: httpStatuses, label: "httpStatuses" },
-    ], "explicit decision");
-  } else if (source === "fallback") {
-    if (requestedLevel !== "auto") {
-      throw new Error("fallback requestedLevel must be auto");
-    }
-    if (value.level !== 3) {
-      throw new Error("fallback decision level must be 3");
-    }
-    if (minConfidence === undefined) {
-      throw new Error("fallback decision requires minConfidence");
-    }
-    if (value.reason === "low_confidence") {
-      if (confidence === undefined) {
-        throw new Error("low_confidence fallback requires confidence");
-      }
-      if (confidence >= minConfidence) {
-        throw new Error(
-          "low_confidence fallback requires confidence below minConfidence",
-        );
-      }
-      if (model === undefined) {
-        throw new Error("low_confidence fallback requires model");
-      }
-      if (suggestedLevel === undefined) {
-        throw new Error("low_confidence fallback requires suggestedLevel");
-      }
-    } else {
-      rejectExtraFields([
-        { value: model, label: "model" },
-        { value: suggestedLevel, label: "suggestedLevel" },
-        { value: confidence, label: "confidence" },
-        { value: costUsd, label: "costUsd" },
-        { value: probabilities, label: "probabilities" },
-      ], "fallback decision");
-    }
+const validateLevelDecisionSource = (decision: LevelDecision): void => {
+  if (decision.source === "explicit") {
+    validateExplicitLevelFields(decision);
+  } else if (decision.source === "fallback") {
+    validateFallbackLevelFields(decision);
   } else {
-    if (requestedLevel !== "auto") {
-      throw new Error("jev decision requestedLevel must be auto");
-    }
-    if (minConfidence === undefined) {
-      throw new Error("jev decision requires minConfidence");
-    }
-    if (confidence === undefined) {
-      throw new Error("jev decision requires confidence");
-    }
-    if (confidence < minConfidence) {
-      throw new Error("jev decision confidence below minConfidence");
-    }
-    if (suggestedLevel === undefined || suggestedLevel !== value.level) {
-      throw new Error("jev decision suggestedLevel must equal level");
-    }
-    if (model === undefined) throw new Error("jev decision requires model");
+    validateJevLevelFields(decision);
   }
+};
 
+const validateChunkingSourceForLevel = (
+  levelSource: "explicit" | "jev" | "fallback",
+  chunkSource: ChunkDecisionSource,
+): void => {
+  if (levelSource === "explicit" && chunkSource !== "fixed") {
+    throw new Error("explicit level decision chunking must be fixed");
+  }
+  if (levelSource !== "explicit" && chunkSource === "fixed") {
+    throw new Error("fixed chunking requires explicit level decision");
+  }
+};
+
+const validateLevelChunking = (
+  value: unknown,
+  source: "explicit" | "jev" | "fallback",
+  minConfidence: number | undefined,
+): ChunkDecision | undefined => {
+  if (value === undefined) return undefined;
+  const chunking = validateChunkDecision(value);
+  validateChunkingSourceForLevel(source, chunking.source);
+  if (
+    minConfidence !== undefined &&
+    chunking.minConfidence !== undefined &&
+    chunking.minConfidence !== minConfidence
+  ) {
+    throw new Error(
+      "chunk minConfidence must match level decision minConfidence",
+    );
+  }
+  return chunking;
+};
+
+export const validateLevelDecision = (input: unknown): LevelDecision => {
+  const { value, requestedLevel, level, source, reason, patchSha256 } =
+    validateLevelDecisionShape(input);
+  const fields = validateLevelDecisionFields(value);
   const decision: LevelDecision = {
     schemaVersion: SCHEMA_VERSION,
     requestedLevel,
-    level: value.level,
+    level,
     source,
-    reason: value.reason,
-    patchSha256: value.patchSha256,
+    reason,
+    patchSha256,
   };
-  if (minConfidence !== undefined) decision.minConfidence = minConfidence;
-  if (model !== undefined) decision.model = model;
-  if (suggestedLevel !== undefined) decision.suggestedLevel = suggestedLevel;
-  if (confidence !== undefined) decision.confidence = confidence;
-  if (costUsd !== undefined) decision.costUsd = costUsd;
-  if (probabilities !== undefined) decision.probabilities = probabilities;
-  if (contextSha256 !== undefined) decision.contextSha256 = contextSha256;
-  if (httpStatuses !== undefined) decision.httpStatuses = httpStatuses;
-  if (value.chunking !== undefined) {
-    const chunking = validateChunkDecision(value.chunking);
-    if (source === "explicit") {
-      if (chunking.source !== "fixed") {
-        throw new Error("explicit level decision chunking must be fixed");
-      }
-    } else if (chunking.source === "fixed") {
-      throw new Error("fixed chunking requires explicit level decision");
-    }
-    if (
-      minConfidence !== undefined &&
-      chunking.minConfidence !== undefined &&
-      chunking.minConfidence !== minConfidence
-    ) {
-      throw new Error(
-        "chunk minConfidence must match level decision minConfidence",
-      );
-    }
-    decision.chunking = chunking;
-  }
+  const optionalFields = Object.fromEntries(
+    Object.entries(fields).filter(([, field]) => field !== undefined),
+  ) as LevelOptionalFields;
+  Object.assign(decision, optionalFields);
+  validateLevelDecisionSource(decision);
+  const chunking = validateLevelChunking(
+    value.chunking,
+    source,
+    fields.minConfidence,
+  );
+  if (chunking !== undefined) decision.chunking = chunking;
   return decision;
 };
 
