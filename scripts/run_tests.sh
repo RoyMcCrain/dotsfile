@@ -95,6 +95,29 @@ run "deno test (report skills)" deno test --allow-read --allow-write --allow-run
 	skills/review-report/tests/ \
 	skills/implementation-report/tests/
 
+# Trusted fixtures need filesystem/run access and UID ownership checks.
+# Scrub caller credentials and omit Deno network permission; --allow-run
+# does not sandbox child-process network access.
+mkdir -p \
+	"$pi_agent_test_tmp/deno-home" \
+	"$pi_agent_test_tmp/deno-tmp" \
+	"$pi_agent_test_tmp/deno-xdg-cache" \
+	"$pi_agent_test_tmp/deno-xdg-config" \
+	"$pi_agent_test_tmp/deno-xdg-data" \
+	"$pi_agent_test_tmp/deno-xdg-state"
+run "deno test (review/audit suites)" env -i \
+	PATH="$PATH" \
+	HOME="$pi_agent_test_tmp/deno-home" \
+	TMPDIR="$pi_agent_test_tmp/deno-tmp" \
+	XDG_CACHE_HOME="$pi_agent_test_tmp/deno-xdg-cache" \
+	XDG_CONFIG_HOME="$pi_agent_test_tmp/deno-xdg-config" \
+	XDG_DATA_HOME="$pi_agent_test_tmp/deno-xdg-data" \
+	XDG_STATE_HOME="$pi_agent_test_tmp/deno-xdg-state" \
+	deno test --no-config --no-prompt --allow-read --allow-write --allow-run --allow-env --allow-sys=uid --quiet \
+	skills/parallel-review/tests/ \
+	skills/review-model-eval/tests/ \
+	skills/jev-audit/tests/
+
 impl_deno_tmp=$(mktemp -d "${TMPDIR:-/tmp}/impl-deno.XXXXXX")
 impl_deno_tmp=$(cd "$impl_deno_tmp" && pwd -P)
 run "deno test (impl history)" env \

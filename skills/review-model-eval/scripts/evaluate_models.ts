@@ -719,6 +719,234 @@ const applyComparableForQuality = (cases: CaseRow[]): void => {
   }
 };
 
+type GroupKey = string;
+
+type ExecutionStats = {
+  total: number;
+  completed: number;
+  successful: number;
+  failed: number;
+  timeouts: number;
+  unfinished: number;
+  no_findings: number;
+  unparsed: number;
+  elapsed: number[];
+};
+
+type GroupIdentity = Pick<
+  CaseRow,
+  "backend" | "model" | "level" | "levelScale" | "actorKind"
+>;
+
+const groupKey = (identity: GroupIdentity): GroupKey =>
+  JSON.stringify([
+    identity.backend,
+    identity.model,
+    identity.level,
+    identity.levelScale,
+    identity.actorKind,
+  ]);
+
+const emptyExecutionStats = (): ExecutionStats => ({
+  total: 0,
+  completed: 0,
+  successful: 0,
+  failed: 0,
+  timeouts: 0,
+  unfinished: 0,
+  no_findings: 0,
+  unparsed: 0,
+  elapsed: [],
+});
+
+const addSuccessfulExecution = (
+  stats: ExecutionStats,
+  exec: Snapshot["executions"][number],
+): void => {
+  stats.successful++;
+  if (exec.startedAt && exec.endedAt) {
+    stats.elapsed.push(
+      (Date.parse(exec.endedAt) - Date.parse(exec.startedAt)) / 1000,
+    );
+  }
+};
+
+const addExecutionStats = (
+  stats: ExecutionStats,
+  exec: Snapshot["executions"][number],
+  review: Snapshot["reviews"][number],
+): void => {
+  stats.total++;
+  if (exec.status === "pending" || exec.status === "running") {
+    stats.unfinished++;
+    return;
+  }
+  stats.completed++;
+  if (exec.exitCode === 0) {
+    addSuccessfulExecution(stats, exec);
+  } else {
+    stats.failed++;
+    if (exec.exitCode === 124) stats.timeouts++;
+  }
+  if (review.verdict === "no_findings") stats.no_findings++;
+  if (review.verdict === "unparsed") stats.unparsed++;
+};
+
+const collectExecutionStats = (selected: SelectedRun[]) => {
+  const statsByGroup = new Map<GroupKey, ExecutionStats>();
+  for (const item of selected) {
+    const { snapshot } = item;
+    const reviewByExec = new Map(
+      snapshot.reviews.map((review) => [review.executionId, review]),
+    );
+    const level = parseLevel(snapshot.metadata.level);
+    const levelScale = getLevelScale(snapshot.metadata);
+    for (const exec of snapshot.executions) {
+      const key = groupKey({
+        backend: exec.backend,
+        model: exec.model,
+        level,
+        levelScale,
+        actorKind: snapshot.actor.kind,
+      });
+      let stats = statsByGroup.get(key);
+      if (!stats) {
+        stats = emptyExecutionStats();
+        statsByGroup.set(key, stats);
+      }
+      addExecutionStats(stats, exec, reviewByExec.get(exec.id)!);
+    }
+  }
+  return statsByGroup;
+};
+
+type CaseGroups = {
+  issues: Map<GroupKey, DedupedIssue[]>;
+  cases: Map<GroupKey, CaseRow[]>;
+  actorIds: Map<GroupKey, Set<string>>;
+  benchmarks: Map<GroupKey, Set<string>>;
+  runs: Map<GroupKey, Set<string>>;
+};
+
+const groupCases = (
+  allCases: CaseRow[],
+  selectedByRunDir: Map<string, SelectedRun>,
+): CaseGroups => {
+  const groups: CaseGroups = {
+    issues: new Map(),
+    cases: new Map(),
+    actorIds: new Map(),
+    benchmarks: new Map(),
+    runs: new Map(),
+  };
+  for (const c of allCases) {
+    const key = groupKey(c);
+    const cases = groups.cases.get(key) ?? [];
+    cases.push(c);
+    groups.cases.set(key, cases);
+    const actors = groups.actorIds.get(key) ?? new Set<string>();
+    actors.add(c.actorId);
+    groups.actorIds.set(key, actors);
+    const benchmarks = groups.benchmarks.get(key) ?? new Set<string>();
+    benchmarks.add(`${c.patchSha256}:${c.promptSha256}`);
+    groups.benchmarks.set(key, benchmarks);
+    const runs = groups.runs.get(key) ?? new Set<string>();
+    runs.add(c.runId);
+    groups.runs.set(key, runs);
+    const item = selectedByRunDir.get(c.runDir)!;
+    const issues = groups.issues.get(key) ?? [];
+    issues.push(...dedupeIssues(item, c.backend, c.model));
+    groups.issues.set(key, issues);
+  }
+  return groups;
+};
+
+const executionSummary = (stats: ExecutionStats) => ({
+  total: stats.total,
+  completed: stats.completed,
+  successful: stats.successful,
+  failed: stats.failed,
+  timeouts: stats.timeouts,
+  unfinished: stats.unfinished,
+  no_findings: stats.no_findings,
+  unparsed: stats.unparsed,
+  successRate: rate(stats.successful, stats.completed),
+  failureRate: rate(stats.failed, stats.completed),
+  timeoutRate: rate(stats.timeouts, stats.completed),
+  medianElapsedSeconds: median(stats.elapsed),
+});
+
+const issueSummary = (issues: DedupedIssue[]) => {
+  let rawFindings = 0;
+  for (const issue of issues) rawFindings += issue.rawFindings;
+  const summary = summarizeIssues(issues);
+  const { decisions, verifications, actions } = summary;
+  const verConfNum = verifications.confirmed;
+  const verConfDen = verConfNum + verifications.contradicted;
+  return {
+    issues: {
+      unique: issues.length,
+      rawFindings,
+      decisions,
+      verifications,
+      actions,
+    },
+    adoption: summary.adoption,
+    verificationConfirmation: {
+      numerator: verConfNum,
+      denominator: verConfDen,
+      rate: rate(verConfNum, verConfDen),
+      label: "裏取り済み指摘の確認率",
+    },
+    verificationCoverage: {
+      numerator: verConfDen,
+      denominator: issues.length,
+      rate: rate(verConfDen, issues.length),
+    },
+    actions,
+  };
+};
+
+const buildModelSummaries = (
+  groups: CaseGroups,
+  executionStats: Map<GroupKey, ExecutionStats>,
+): ModelSummary[] => {
+  const summaries: ModelSummary[] = [];
+  for (
+    const [gk, cases] of [...groups.cases.entries()].sort(([a], [b]) =>
+      a.localeCompare(b)
+    )
+  ) {
+    const [backend, model, level, levelScale, actorKind] = JSON.parse(gk) as [
+      string,
+      string,
+      ReviewLevel,
+      LevelScale,
+      "agent" | "human",
+    ];
+    const issueDetails = issueSummary(groups.issues.get(gk) ?? []);
+    const execStats = executionStats.get(gk) ?? emptyExecutionStats();
+    summaries.push({
+      backend,
+      model,
+      level,
+      levelScale,
+      actorKind,
+      actorIds: [...groups.actorIds.get(gk)!].sort(),
+      distinctBenchmarks: groups.benchmarks.get(gk)!.size,
+      runs: groups.runs.get(gk)!.size,
+      cases: cases.length,
+      issues: issueDetails.issues,
+      adoption: issueDetails.adoption,
+      verificationConfirmation: issueDetails.verificationConfirmation,
+      verificationCoverage: issueDetails.verificationCoverage,
+      actions: issueDetails.actions,
+      executions: executionSummary(execStats),
+    });
+  }
+  return summaries;
+};
+
 export const buildReport = (
   loaded: LoadResult,
   inputDirectory: string,
@@ -738,159 +966,9 @@ export const buildReport = (
     return k;
   });
 
-  type GroupKey = string;
-  const groupIssues = new Map<GroupKey, DedupedIssue[]>();
-  const groupCases = new Map<GroupKey, CaseRow[]>();
-  const groupActorIds = new Map<GroupKey, Set<string>>();
-  const groupBenchmarks = new Map<GroupKey, Set<string>>();
-  const groupRuns = new Map<GroupKey, Set<string>>();
-
-  for (const c of allCases) {
-    const gk = JSON.stringify([
-      c.backend,
-      c.model,
-      c.level,
-      c.levelScale,
-      c.actorKind,
-    ]);
-    const cases = groupCases.get(gk) ?? [];
-    cases.push(c);
-    groupCases.set(gk, cases);
-    const actors = groupActorIds.get(gk) ?? new Set<string>();
-    actors.add(c.actorId);
-    groupActorIds.set(gk, actors);
-    const benchmarks = groupBenchmarks.get(gk) ?? new Set<string>();
-    benchmarks.add(`${c.patchSha256}:${c.promptSha256}`);
-    groupBenchmarks.set(gk, benchmarks);
-    const runs = groupRuns.get(gk) ?? new Set<string>();
-    runs.add(c.runId);
-    groupRuns.set(gk, runs);
-
-    const item = selectedByRunDir.get(c.runDir)!;
-    const issues = dedupeIssues(item, c.backend, c.model);
-    const existing = groupIssues.get(gk) ?? [];
-    existing.push(...issues);
-    groupIssues.set(gk, existing);
-  }
-
-  const modelSummaries: ModelSummary[] = [];
-  for (
-    const [gk, cases] of [...groupCases.entries()].sort(([a], [b]) =>
-      a.localeCompare(b)
-    )
-  ) {
-    const [backend, model, level, levelScale, actorKind] = JSON.parse(gk) as [
-      string,
-      string,
-      ReviewLevel,
-      LevelScale,
-      "agent" | "human",
-    ];
-    const issues = groupIssues.get(gk) ?? [];
-    let rawFindings = 0;
-    for (const issue of issues) rawFindings += issue.rawFindings;
-    const summary = summarizeIssues(issues);
-    const { decisions, verifications, actions } = summary;
-    const adoptionNum = summary.adoption.numerator;
-    const adoptionDen = summary.adoption.denominator;
-    const verConfNum = verifications.confirmed;
-    const verConfDen = verifications.confirmed + verifications.contradicted;
-    const verCovNum = verifications.confirmed + verifications.contradicted;
-
-    const execStats = {
-      total: 0,
-      completed: 0,
-      successful: 0,
-      failed: 0,
-      timeouts: 0,
-      unfinished: 0,
-      no_findings: 0,
-      unparsed: 0,
-      elapsed: [] as number[],
-    };
-
-    for (const item of loaded.selected) {
-      for (const exec of item.snapshot.executions) {
-        if (exec.backend !== backend || exec.model !== model) continue;
-        if (parseLevel(item.snapshot.metadata.level) !== level) continue;
-        if (getLevelScale(item.snapshot.metadata) !== levelScale) continue;
-        if (item.snapshot.actor.kind !== actorKind) continue;
-
-        execStats.total++;
-        const review = item.snapshot.reviews.find((r) =>
-          r.executionId === exec.id
-        )!;
-        if (exec.status === "pending" || exec.status === "running") {
-          execStats.unfinished++;
-          continue;
-        }
-        execStats.completed++;
-        if (exec.exitCode === 0) {
-          execStats.successful++;
-          if (exec.startedAt && exec.endedAt) {
-            execStats.elapsed.push(
-              (Date.parse(exec.endedAt) - Date.parse(exec.startedAt)) / 1000,
-            );
-          }
-        } else {
-          execStats.failed++;
-          if (exec.exitCode === 124) execStats.timeouts++;
-        }
-        if (review.verdict === "no_findings") execStats.no_findings++;
-        if (review.verdict === "unparsed") execStats.unparsed++;
-      }
-    }
-
-    modelSummaries.push({
-      backend,
-      model,
-      level,
-      levelScale,
-      actorKind: actorKind as "agent" | "human",
-      actorIds: [...(groupActorIds.get(gk) ?? [])].sort(),
-      distinctBenchmarks: groupBenchmarks.get(gk)?.size ?? 0,
-      runs: groupRuns.get(gk)?.size ?? 0,
-      cases: cases.length,
-      issues: {
-        unique: issues.length,
-        rawFindings,
-        decisions,
-        verifications,
-        actions,
-      },
-      adoption: {
-        numerator: adoptionNum,
-        denominator: adoptionDen,
-        rate: rate(adoptionNum, adoptionDen),
-      },
-      verificationConfirmation: {
-        numerator: verConfNum,
-        denominator: verConfDen,
-        rate: rate(verConfNum, verConfDen),
-        label: "裏取り済み指摘の確認率",
-      },
-      verificationCoverage: {
-        numerator: verCovNum,
-        denominator: issues.length,
-        rate: rate(verCovNum, issues.length),
-      },
-      actions,
-      executions: {
-        total: execStats.total,
-        completed: execStats.completed,
-        successful: execStats.successful,
-        failed: execStats.failed,
-        timeouts: execStats.timeouts,
-        unfinished: execStats.unfinished,
-        no_findings: execStats.no_findings,
-        unparsed: execStats.unparsed,
-        successRate: rate(execStats.successful, execStats.completed),
-        failureRate: rate(execStats.failed, execStats.completed),
-        timeoutRate: rate(execStats.timeouts, execStats.completed),
-        medianElapsedSeconds: median(execStats.elapsed),
-      },
-    });
-  }
+  const groups = groupCases(allCases, selectedByRunDir);
+  const executionStats = collectExecutionStats(loaded.selected);
+  const modelSummaries = buildModelSummaries(groups, executionStats);
 
   return {
     schemaVersion: 1,
