@@ -781,6 +781,7 @@ EOF
 		$'4\t600\t900'
 		$'5\t600\t900'
 	)
+	local -A expected_muse_by_level=()
 	skill_path="$BATS_TEST_DIRNAME/../../../skills/muse-review/SKILL.md"
 	claude_link="$BATS_TEST_DIRNAME/../../../claude/skills/muse-review"
 
@@ -799,6 +800,7 @@ EOF
 	# Assert — each tier carries exactly one native Meta Muse of the configured tier-specific type
 	for line in "${expected_tiers[@]}"; do
 		IFS=$'\t' read -r level tier_model <<<"$line"
+		expected_muse_by_level[$level]=$tier_model
 		jq -e --arg model "$tier_model" --arg lvl "$level" '
 			([.reviewLevels[$lvl][] | (.pi // empty) | select(. == $model)] | length == 1)
 		' "$real_catalog" >/dev/null
@@ -826,18 +828,14 @@ EOF
 
 	# Assert — static L3/L4/L5 resolution preserves row counts, DeepSeek ordering, Muse selection and budgets
 	for line in "${expected_budgets[@]}"; do
-		local lvl initial retry expected_muse
+		local lvl initial retry
 		IFS=$'\t' read -r lvl initial retry <<<"$line"
-		if [ "$lvl" = 3 ]; then
-			expected_muse="meta/muse-spark-1.3:high"
-		else
-			expected_muse="meta/muse-wonder-1.0:high"
-		fi
-		run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level "$lvl"
+		run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
+			MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level "$lvl"
 		[ "$status" -eq 0 ]
 		[ "${#lines[@]}" -eq 7 ]
 		[ "${lines[-2]}" = "$(printf 'pi\t%s\t%s\t%s' "$deepseek_model" "$initial" "$retry")" ]
-		[ "${lines[-1]}" = "$(printf 'pi\t%s\t%s\t%s' "$expected_muse" "$initial" "$retry")" ]
+		[ "${lines[-1]}" = "$(printf 'pi\t%s\t%s\t%s' "${expected_muse_by_level[$lvl]}" "$initial" "$retry")" ]
 	done
 
 	# Assert — dynamic L1/L2 include Muse with 300/300 when caller differs
@@ -1398,15 +1396,6 @@ EOF
 	[ "${#lines[@]}" -eq 2 ]
 	[ "${lines[0]}" = "$(printf 'pi\topencode-go/muse-spark-1.3-contributor:high\t10\t20')" ]
 	[ "${lines[1]}" = "$(printf 'pi\topencode-go/another-model:high\t10\t20')" ]
-}
-
-@test "--review-level 3 resolves without PI env" {
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-
-	run env -u PI_PROVIDER -u PI_MODEL -u PI_REASONING_LEVEL \
-		MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 3
-	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 7 ]
 }
 
 @test "--review-level rejects empty reviewLevels list" {

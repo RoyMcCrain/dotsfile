@@ -128,16 +128,13 @@ def search_docs(skill_dir: Path, query: str, max_results: int = 10) -> List[Dict
     """
     references_dir = skill_dir / "references"
     docs_dir = skill_dir / "docs"
-    if references_dir.exists():
-        content_dir = references_dir
-    elif docs_dir.exists():
-        content_dir = docs_dir
-    else:
+    content_dir = references_dir if references_dir.exists() else docs_dir
+    if not content_dir.exists():
         print(f"Error: {references_dir} (or {docs_dir}) not found.")
         return []
 
     keywords = query.lower().split()
-    results = []
+    candidates = []
 
     # Walk through all markdown files in references/ (fallback to docs/)
     for file_path in content_dir.glob("**/*.md"):
@@ -152,22 +149,22 @@ def search_docs(skill_dir: Path, query: str, max_results: int = 10) -> List[Dict
             matches_count = sum(body_lower.count(kw) for kw in keywords)
 
             if matches_count > 0:
-                contexts = get_context(body, query)
-
-                results.append({
+                candidates.append((matches_count, body, {
                     "file": str(file_path.relative_to(skill_dir)),
                     "matches": matches_count,
-                    "contexts": contexts,
                     "source_url": frontmatter.get("source_url", "Unknown"),
                     "fetched_at": frontmatter.get("fetched_at", "Unknown")
-                })
+                }))
         except Exception as e:
             print(f"Error reading {file_path}: {e}", file=sys.stderr)
                 
-    # Sort by number of matches (descending)
-    results.sort(key=lambda x: x["matches"], reverse=True)
-    
-    return results[:max_results]
+    # Sort by number of matches (descending), then materialize selected contexts.
+    candidates.sort(key=lambda candidate: candidate[0], reverse=True)
+    candidates = candidates[:max_results]
+    return [
+        {**result, "contexts": get_context(body, query)}
+        for _, body, result in candidates
+    ]
 
 def format_results(results: List[Dict], query: str):
     """Print results in a human-readable format."""
