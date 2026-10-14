@@ -12,6 +12,7 @@
   CDP/extension or reuse its profile unless the user explicitly requests it.
   When using `playwright-cli`, use a named isolated session and close it in the
   same task.
-- This routing does not replace the web-research policy. Searching, scraping,
-  crawling, and researching external web content must continue to use the
-  designated Firecrawl-based workflow.
+- This routing does not replace the host's web-research policy. Follow its
+  cross-research-first routing, including the narrow ax HTTP/body exception for
+  a simple fetch of a known public official raw-Markdown URL; other searching,
+  scraping, crawling, and multi-page research use the designated Firecrawl workflow.

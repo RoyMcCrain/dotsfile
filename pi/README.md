@@ -634,7 +634,8 @@ exposure is controlled by which runtime directory links the skill.
 
 | Skill | Invoke | Notes |
 | ----- | ------ | ----- |
-| `firecrawl` | `/skill:firecrawl` | source dir: `skills/firecrawl-cli` |
+| `ax` | `/skill:ax` | Simple known public official raw-Markdown fetch only; classify cross-research first, validate response, Firecrawl fallback |
+| `firecrawl` | `/skill:firecrawl` | Search/discovery, unknown URLs, JS, scrape/crawl, multi-page; source dir: `skills/firecrawl-cli` |
 | `firecrawl-agent` | `/skill:firecrawl-agent` | structured extraction |
 | `cross-research` | `/skill:cross-research` | Firecrawl + agy + Grok X Search 並列検証 |
 | `antigravity-research` | `/skill:antigravity-research` | agy のみ（未検証サマリ） |

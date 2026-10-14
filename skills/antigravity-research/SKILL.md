@@ -1,7 +1,7 @@
 ---
 name: antigravity-research
 description: |
-  Antigravity CLI (agy) 単独で横断調査・推論・トレンド要約を行う（agy のみ、一次ソースの裏取りなし）。横断的な理解の概要が欲しい時に使う。agy 単独はハルシネーション（もっともらしい誤り）を素通しするので、結論に使う事実は確証扱いしないこと。裏取り・複数ソース・技術判断が要るなら代わりに `/cross-research`、URL本文取得は firecrawl skill を使う。
+  Antigravity CLI (agy) 単独で横断調査・推論・トレンド要約を行う（agy のみ、一次ソースの裏取りなし）。横断的な理解の概要が欲しい時に使う。agy 単独はハルシネーション（もっともらしい誤り）を素通しするので、結論に使う事実は確証扱いしないこと。裏取り・複数ソース・技術判断が要るなら代わりに `/cross-research`、URL本文取得は host の Web Research Rules に従う（既知の公開公式 raw-Markdown URLの単純取得では ax を優先）。
 ---
 
 # /antigravity-research

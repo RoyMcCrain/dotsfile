@@ -1,7 +1,7 @@
 ---
 name: firecrawl-scrape
 description: |
-  Extract clean markdown from any URL, including JavaScript-rendered SPAs. Use this skill whenever the user provides a URL and wants its content, says "scrape", "grab", "fetch", "pull", "get the page", "extract from this URL", or "read this webpage". Handles JS-rendered pages, multiple concurrent URLs, and returns LLM-optimized markdown. Use this for SPAs, JS-rendered pages, multiple URLs, or pages found via search (the host's built-in web fetch tool can't get these). For reading a single known static URL once, the host's web retrieval tool is fine.
+  Extract clean markdown with Firecrawl from URLs, including JS-rendered SPAs. Use when a URL's content is needed, including searched pages, JS pages, or multiple URLs. A simple fetch of a known public official raw-Markdown URL uses ax first; use Firecrawl for fallback. For other single known static URLs, the host's web retrieval tool is fine.
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
@@ -13,8 +13,8 @@ Scrape one or more URLs. Returns clean, LLM-optimized markdown. Multiple URLs ar
 
 ## When to use
 
-- You have a specific URL and want its content
-- The page is static or JS-rendered (SPA)
+- You have a specific URL and want its content, except a simple one-off fetch from a known public official raw-Markdown URL (ax first; Firecrawl for failure/non-Markdown fallback).
+- The page is JS-rendered (SPA), was found via search, or is part of a multi-URL task.
 - Step 2 in the [workflow escalation pattern](firecrawl-cli): search → **scrape** → map → crawl → interact
 
 ## Quick start

@@ -116,9 +116,9 @@
 
 ## Web Research Rules
 
-- Web検索、URL本文取得、scrape、crawl、構造化抽出は firecrawl 系 skill を基本にする。
-- 検索や複数URL調査、SPA、crawl、構造化抽出では `firecrawl` / `firecrawl-*` skill を使う。
-- 重要な調査は firecrawl 単独で終えず、`cross-research` skill で Firecrawl、`agy`、Grok X Search を並行して突き合わせる。
+- cross-research の昇格基準をルート選択より先に判定する。コード・設計・依存判断、複数ソース検証、直近12ヶ月で変動する事実、矛盾の予想があれば `cross-research` が優先で、既存の Firecrawl / agy / Grok X Search レーンを維持する。既知 Markdown URL は免除にならない。
+- それ以外の単純な1回の取得で、既知の公開公式 raw-Markdown URLに限り `ax` のHTTP/bodyモードを優先する（`--md` ではない）。HTTP成功・最終URL・実際の本文を検査し、失敗、不完全、HTML/ログイン/エラー本文なら反復せず公式HTMLページまたは公式サイト検索を Firecrawl で取得する。
+- URL発見・検索、複数URL、SPA、crawl、構造化抽出は `firecrawl` / `firecrawl-*` skill を使う。既存の `.firecrawl/` キャッシュは出典・版・鮮度が十分なら再利用し、実際の出典と取得／キャッシュ日を保つ。
 
 次のどれか1つでも該当したら `cross-research` に昇格する:
 
