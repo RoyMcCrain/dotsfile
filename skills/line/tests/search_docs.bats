@@ -64,6 +64,22 @@ for index, script in enumerate(paths):
     spec = importlib.util.spec_from_file_location(f"search_docs_{index}", isolated / "scripts/search_docs.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    context_cases = [
+        (
+            "merge at threshold and split one beyond, with OR keywords",
+            "start\nMiXeD\nx\nx\nOTHER\nx\nx\nx\nthird\nend",
+            "mixed other third",
+            1,
+            ["  start\n> MiXeD\n  x\n  x\n> OTHER\n  x", "  x\n> third\n  end"],
+        ),
+        ("clip at boundaries and retain terminal newline", "hit\nend\n", "HIT", 2, ["> hit\n  end\n  "]),
+        ("zero context separates matches", "Hit\nx\nOTHER\nx\nhit", "hit other", 0, ["> Hit", "> OTHER", "> hit"]),
+        ("negative context preserves group-local highlighting", "hit\nhit\nhit\n", "hit", -2, ["  hit", "", ""]),
+        ("no match returns no snippets", "nothing here", "absent", 1, []),
+    ]
+    for name, text, query, context_lines, expected in context_cases:
+        assert module.get_context(text, query, context_lines) == expected, name
+
     with patch.object(Path, "glob", return_value=controlled_order):
         module_results = module.search_docs(isolated, "needle", 3)
     assert [row["file"] for row in module_results] == ["references/top.md", "references/tie-b.md", "references/tie-a.md"]
