@@ -1,0 +1,5 @@
+{
+  "labels": ["同期コード開始", "listener を同期実行", "emit は true を返す", "after を同期出力", "後で microtask"],
+  "forbidden": [],
+  "edges": ["sync->listener", "listener->emit", "emit->after", "after->microtask"]
+}

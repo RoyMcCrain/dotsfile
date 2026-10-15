@@ -1,0 +1,9 @@
+{
+  "checks": [
+    {
+      "name": "event-order",
+      "cmd": "node examples/order.mjs",
+      "expect": ["before", "listener", "handled: true", "after", "microtask"]
+    }
+  ]
+}

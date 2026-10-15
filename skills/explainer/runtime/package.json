@@ -1,0 +1,13 @@
+{
+  "name": "@local/explainer-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "dependencies": {
+    "@mizchi/vlmkit": "0.22.0",
+    "marked": "18.0.14",
+    "mermaid": "12.0.0",
+    "playwright": "1.56.1"
+  }
+}

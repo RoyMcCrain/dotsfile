@@ -1,0 +1,5 @@
+flowchart TB
+  sync[同期コード開始] --> listener[listener を同期実行]
+  listener --> emit[emit は true を返す]
+  emit --> after[after を同期出力]
+  after --> microtask[後で microtask]
