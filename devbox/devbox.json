@@ -53,6 +53,7 @@
     "taplo@latest",
     "github:yusukebe/ax",
     "hunk@latest",
+    "hyperfine@latest",
     "rsgain@latest",
     "cloudflared@latest",
     "obsidian-headless@0.0.14"
