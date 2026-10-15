@@ -14,4 +14,4 @@ ax --help              # オプション確認（POST・認証ヘッダー等）
 ## 例外（curlのままでよいケース）
 
 - インストールスクリプトのcurlパイプ（例: `curl -fsSL https://.../install | sh`）はツール配布の慣習であり対象外
-- 単一の既知URLの本文取得・要約が目的ならWebFetchを優先する（[[web-research-delegation]]参照）。axはAPI疎通・ヘッダー確認・構造抽出などターミナル上のデバッグ用途で使う
+- 単一の既知URLの本文取得・要約が目的ならWebFetchを優先する（[[web-research-delegation]]参照）。ただし既知の公開公式 raw-Markdown URLの単純取得は同ルールに従い ax HTTP/body を優先する。axはAPI疎通・ヘッダー確認・構造抽出などターミナル上の診断にも使う

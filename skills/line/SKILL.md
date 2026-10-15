@@ -17,23 +17,26 @@ LINE ドキュメント、検索・更新コマンドは提供しません。
 2. 以下を調査の入口に、対象の機能・SDK
    版に合う公式ページを選びます。仕様は実際に確認した本文を根拠にします。
 
-| 領域          | 公式資料の入口                                            |
-| ------------- | --------------------------------------------------------- |
-| LIFF          | <https://developers.line.biz/ja/reference/liff/>          |
-| Messaging API | <https://developers.line.biz/ja/reference/messaging-api/> |
-| LINE Login    | <https://developers.line.biz/ja/reference/line-login/>    |
-| LINE MINI App | <https://developers.line.biz/ja/reference/line-mini-app/> |
+| 領域          | 公式資料の入口                                                         |
+| ------------- | ---------------------------------------------------------------------- |
+| LIFF          | <https://developers.line.biz/ja/reference/liff/index.html.md>          |
+| Messaging API | <https://developers.line.biz/ja/reference/messaging-api/index.html.md> |
+| LINE Login    | <https://developers.line.biz/ja/reference/line-login/index.html.md>    |
+| LINE MINI App | <https://developers.line.biz/ja/reference/line-mini-app/index.html.md> |
 
-3. `firecrawl` スキルを使い、質問に必要な `developers.line.biz`
-   の節だけを検索・取得します。最初にタスク内の `.firecrawl/`
-   結果を確認し、同じタスクで不要な再取得を避けます。鮮度やバージョン要件に対してキャッシュが不十分なら取得し直してください。キャッシュは検索結果であり、恒久的に正しい仕様ではありません。4領域を自動巡回・ミラーしません。
-4. 実装・設計・依存関係の判断や、相互検証が必要な調査は既存の Web Research Rules
-   に従い `cross-research` スキルへ回します。Firecrawl で取得した LINE
-   の公式資料を
-   主な根拠とし、他の調査レーンは補助証拠として扱います。判断に影響する調査を
-   Firecrawl
-   だけで黙って完了しません。依頼済みの通常の公開資料調査について、重複する許可を求めません。
-5. 仕様を確認した後、必要な範囲で既存プロジェクトの実装・セキュリティ境界を照合します。根拠のない現行仕様を断定しません。
+3. 取得前にタスク内の `.firecrawl/`
+   結果を確認し、出典・版・鮮度が十分なキャッシュは経路が異なっても再利用します。不足時のみ取得し、キャッシュは恒久的に正しい仕様とは扱いません。実際の出典と取得／キャッシュ確認日を区別して記録し、4領域を自動巡回・ミラーしません。
+4. ルートを選ぶ前に既存の Web Research Rules の cross-research
+   昇格基準を判定します。コード・設計・依存関係の判断、複数ソースの裏取り、直近12ヶ月で変動する事実、または矛盾が予想される場合は
+   `cross-research` を先に使い、Firecrawl / agy / Grok X Search
+   のレーンと既存の許可・フォールバックを維持します。既知 Markdown URL
+   は例外になりません。
+5. 昇格基準に該当せず、十分なキャッシュもない単純な1回取得で、既知の公開公式
+   raw-Markdown URL がある場合だけ `ax` のHTTP/bodyモードを使います（`--md`
+   ではない）。HTTP成功、最終URL、本文が実際に利用可能なMarkdownであることを確認します。失敗・不完全・HTML/ログイン/エラー本文なら反復せず、対応する公式HTMLページまたは公式サイト検索を
+   Firecrawl で取得します。未知URLの発見、JSページ、複数ページ・検索は Firecrawl
+   を使います。
+6. 仕様を確認した後、必要な範囲で既存プロジェクトの実装・セキュリティ境界を照合します。根拠のない現行仕様を断定しません。依頼済みの通常の公開資料調査について、重複する許可を求めません。
 
 ## 確認ポイント
 

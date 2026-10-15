@@ -37,7 +37,7 @@ cursor-agent -p --trust --mode ask --model gpt-5.3-codex-xhigh "{question}"
 
 ## Web Research
 
-Default = firecrawl. Web検索・URL本文取得・scrape/crawl はこれ:
+cross-research 昇格基準を先に判定し、コード・設計・依存判断、複数ソース検証、直近12ヶ月の変動情報、矛盾が予想される調査では Firecrawl + agy + Grok X Search を並行実行する。通常はFirecrawlだが、既知の公開公式 raw-Markdown URLの単純な1回取得だけは ax HTTP/body（失敗・非Markdownなら公式HTML/検索をFirecrawl）を使う。検索・未知URL・scrape/crawl はFirecrawl:
 
 ```bash
 firecrawl search "{query}" --scrape --limit 3 -o .firecrawl/r.json --json

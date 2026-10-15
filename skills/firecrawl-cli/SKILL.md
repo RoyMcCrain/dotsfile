@@ -1,7 +1,7 @@
 ---
 name: firecrawl
 description: |
-  Search, scrape, and interact with the web via the Firecrawl CLI. Use this skill whenever the user wants to search the web, find articles, research a topic, look something up online, scrape a webpage, grab content from a URL, get data from a website, crawl documentation, download a site, or interact with pages that need clicks or logins. Also use when they say "fetch this page", "pull the content from", "get the page at https://", or reference external websites. This provides real-time web search with full page content and interaction capabilities beyond typical built-in web tools. Do NOT trigger for local file operations, git commands, deployments, or code editing tasks. When the research needs multi-source verification, affects a technical/design/dependency decision, or recency matters, do not finish with firecrawl alone — escalate to `/cross-research` (parallel Firecrawl + agy + Grok X Search cross-checking).
+  Search, scrape, and interact with the web via Firecrawl. Use for web search/discovery, URL content retrieval, JS pages, multi-page work, crawling, or page interaction. A simple fetch of a known public official raw-Markdown URL uses ax first; Firecrawl handles failures/non-Markdown fallback. Do NOT trigger for local file operations, git, deployments, or code editing. Classify cross-research first: multi-source, technical/design/dependency decisions, recent variable facts, or likely contradictions escalate to `/cross-research` (Firecrawl + agy + Grok X Search).
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
@@ -10,6 +10,8 @@ allowed-tools:
 # Firecrawl CLI
 
 Search, scrape, and interact with the web. Returns clean markdown optimized for LLM context windows.
+
+Before checking Firecrawl prerequisites or making verification requests, classify cross-research escalation under Web Research Rules. For a simple one-off retrieval from a known public official raw-Markdown URL, use ax HTTP/body mode first; validate HTTP success, final URL, and usable Markdown body. If it fails or returns incomplete/non-Markdown content (including HTML, login, or error pages), stop retrying and use Firecrawl on the corresponding official HTML page or official-site search. Unknown URLs, discovery, JS pages, multi-page research, and all cross-research Firecrawl lanes remain Firecrawl. Reuse adequate `.firecrawl/` cache regardless of backend, preserving real source and fetch/cache date. No Firecrawl status/auth/install check is needed solely for an ax-qualifying fetch.
 
 Run `firecrawl --help` or `firecrawl <command> --help` for full option details.
 
@@ -62,7 +64,7 @@ Follow this escalation pattern:
 | Need                        | Command               | When                                                      |
 | --------------------------- | --------------------- | --------------------------------------------------------- |
 | Find pages on a topic       | `search`              | No specific URL yet                                       |
-| Get a page's content        | `scrape`              | Have a URL, page is static or JS-rendered                 |
+| Get a page's content        | `scrape`              | Have a URL; except simple known official raw-Markdown fetches (ax first) |
 | Find URLs within a site     | `map`                 | Need to locate a specific subpage                         |
 | Bulk extract a site section | `crawl`               | Need many pages (e.g., all /docs/)                        |
 | AI-powered data extraction  | `agent`               | Need structured data from complex sites                   |
@@ -215,7 +217,7 @@ Use `modes: ["json", "git-diff"]` for **mixed mode**: you get both `diff.json` (
 ## When to Load References
 
 - **Searching the web or finding sources first** -> [firecrawl-search](../firecrawl-search/SKILL.md)
-- **Scraping a known URL** -> [firecrawl-scrape](../firecrawl-scrape/SKILL.md)
+- **Scraping a known URL** -> [firecrawl-scrape](../firecrawl-scrape/SKILL.md) (except qualifying raw-Markdown one-off; ax first)
 - **Finding URLs on a known site** -> [firecrawl-map](../firecrawl-map/SKILL.md)
 - **Bulk extraction from a docs section or site** -> [firecrawl-crawl](../firecrawl-crawl/SKILL.md)
 - **AI-powered structured extraction from complex sites** -> [firecrawl-agent](../firecrawl-agent/SKILL.md)

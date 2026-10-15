@@ -2,7 +2,7 @@
 
 ## 重要: WebSearch禁止
 
-ClaudeのWebSearchツールは使用禁止。Web検索・調査は **firecrawl を基本**とし、**大きいタスクは Firecrawl + agy + Grok X Search で並行精査**する。
+ClaudeのWebSearchツールは使用禁止。cross-research の昇格基準を必ず先に判定し、大きいタスクは **Firecrawl + agy + Grok X Search で並行精査**する。通常の検索・調査は Firecrawl が基本だが、既知の公開公式 raw-Markdown URLを単純に1回取得する場合だけ ax を優先する。
 WebSearch は `claude/settings.json` の `permissions.deny` で機械的にもブロック済み（ルールと二重化）。
 
 > Gemini CLI は 2026-06-18 に個人/無料枠のリクエスト処理を停止し Antigravity CLI (`agy`) に統合された。
@@ -12,7 +12,8 @@ WebSearch は `claude/settings.json` の `permissions.deny` で機械的にも�
 | 状況 | 使うもの |
 |------|----------|
 | WebSearch（検索クエリ） | **禁止** → firecrawl |
-| 単一の既知URLを1回読むだけ | WebFetch 可（軽量・即時） |
+| 既知の公開公式 raw-Markdown URLを1回取得 | ax HTTP/body（失敗・非Markdownなら公式ページをFirecrawl） |
+| その他の単一既知URLを1回読むだけ | WebFetch 可（軽量・即時） |
 | 検索・複数URL・SPA・scrape/crawl・構造化抽出 | firecrawl skill |
 | 大きい／確証が要る調査（後述の昇格基準） | `/cross-research`（Firecrawl + agy + Grok X Search 並行精査） |
 
@@ -26,15 +27,15 @@ WebSearch は `claude/settings.json` の `permissions.deny` で機械的にも�
 - [ ] ソースの矛盾が予想される
 
 例: 「Next.js vs Remix どちらにすべきか」「この依存の脆弱性は本当か」→ 昇格する。
-「あるライブラリの最新版番号を1つ知りたいだけ」→ 昇格しない（firecrawl 単発でよい）。
+「確定した版の公開公式Markdownを既知URLから1回取得するだけ」→ 昇格基準に当たらなければ ax。最新版・料金など変動する情報の判断は昇格する。
 迷ったら昇格する（安全側）。
 
 ## 基本方針
 
-1. **デフォルト = firecrawl**
-   - Web検索・URL本文取得・scrape/crawl/構造化抽出は firecrawl skill を使う（`/firecrawl` ほか firecrawl-* skill）
-   - 実URLの一次ソースが取れる。WebSearch の代替はこれ（単一既知URLの即時取得だけは WebFetch 可）
-2. **大きいタスク = 3レーン並行**
+1. **デフォルト = firecrawl（昇格基準の判定後）**
+   - Web検索・URL discovery・scrape/crawl/構造化抽出は firecrawl skill を使う（`/firecrawl` ほか firecrawl-* skill）。単純な既知公開公式 raw-Markdown の1回取得だけ ax HTTP/body を優先し、実際のHTTP成功・最終URL・本文を確認する。失敗・不完全・HTML/ログイン/エラー本文なら反復せず対応する公式HTMLまたは公式サイト検索を Firecrawl で取得する。
+   - 実URLの一次ソースが取れる。WebSearch の代替はこれ（その他の単一既知URLの即時取得だけは WebFetch 可）。キャッシュの出典・版・鮮度が十分なら再利用し、実際の取得／確認日を保つ。
+2. **大きいタスク = 3レーン並行（ax例外より優先）**
    - 昇格基準に当たる調査は `/cross-research` で **Firecrawl + agy + Grok X Search** を**並行実行して突き合わせ精査**
    - **Firecrawl** = canonical Web ドキュメント（主根拠）
    - **Grok X Search** = X 上の一次発表・公開議論（公式 X 投稿は発表の補助。一般反応はソーシャルシグナルのみ）
