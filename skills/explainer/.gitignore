@@ -1,0 +1,5 @@
+.browsers/
+examples/*/dist/
+examples/*/figures/.figure-check/
+examples/*/.first-reader/
+__pycache__/

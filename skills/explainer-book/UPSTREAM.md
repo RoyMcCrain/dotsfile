@@ -1,0 +1,1 @@
+Vendored with `explainer` from [mizchi/explainer](https://github.com/mizchi/explainer), snapshot `ccdd7bacfb47451e38506d837af8a629504960b2` (plugin 0.5.3). See `../explainer/UPSTREAM.md` for provenance, the complete local patch list, licenses, and update instructions.

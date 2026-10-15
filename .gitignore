@@ -1,5 +1,6 @@
 node_modules/
 package-lock.json
+!skills/explainer/runtime/package-lock.json
 .DS_Store
 nvim/swp
 nvim/undo
@@ -11,6 +12,10 @@ __pycache__/
 
 # firecrawl CLI のローカルキャッシュ
 .firecrawl/
+
+# explainer / vlmkit validation output
+/.vlmkit/
+/test-results/
 
 # Claude Code local scratch (research notes, etc.)
 .claude/docs/

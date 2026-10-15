@@ -1,0 +1,1 @@
+Vendored with `explainer` from [mizchi/explainer](https://github.com/mizchi/explainer), snapshot `ccdd7bacfb47451e38506d837af8a629504960b2` (plugin 0.5.3). See `../explainer/UPSTREAM.md` for provenance and update instructions. Local patch clarifies the Python-only offline claim and simulated-reader/isolation limits in `SKILL.md`.
