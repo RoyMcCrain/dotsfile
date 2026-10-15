@@ -257,6 +257,13 @@ for OLD_NAME in cursor fugu large-diff-review cursor-review crm-postmortem
         mv $OLD_DEST $BACKUP
     end
 end
+# Retire only shared jj links owned by this repository.
+for JJ_SKILL_DEST in "$HOME/.agents/skills/jj" "$HOME/.codex/skills/jj"
+    if test -L "$JJ_SKILL_DEST"; and test (readlink "$JJ_SKILL_DEST") = "$BASE_DIR/skills/jj"
+        rm "$JJ_SKILL_DEST"
+        print_success "Removed stale jj skill link: $JJ_SKILL_DEST"
+    end
+end
 set LIST_SKILLS $BASE_DIR/scripts/build_env/list_shared_agent_skills.sh
 set SHARED_AGENT_SKILLS (bash $LIST_SKILLS $BASE_DIR)
 if test $status -ne 0

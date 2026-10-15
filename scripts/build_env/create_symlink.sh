@@ -139,6 +139,14 @@ for OLD_SKILL in cursor fugu large-diff-review cursor-review crm-postmortem; do
     mv "${OLD_DEST}" "$HOME/.agents/skill-backups/${OLD_SKILL}.backup-$(date +%Y%m%d%H%M%S)"
   fi
 done
+
+# Retire only the shared jj skill link owned by this repository.
+for JJ_SKILL_DEST in "$HOME/.agents/skills/jj" "$HOME/.codex/skills/jj"; do
+  if [ -L "${JJ_SKILL_DEST}" ] && [ "$(readlink "${JJ_SKILL_DEST}")" = "${BASE_DIR}/skills/jj" ]; then
+    rm "${JJ_SKILL_DEST}"
+  fi
+done
+
 LIST_SKILLS="${BASE_DIR}/scripts/build_env/list_shared_agent_skills.sh"
 SKILL_LIST_FILE=$(mktemp)
 if ! bash "${LIST_SKILLS}" "${BASE_DIR}" >"${SKILL_LIST_FILE}"; then

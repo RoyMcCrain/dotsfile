@@ -17,7 +17,6 @@ paths = [
     repo / "skills/line/line-login/scripts/search_docs.py",
     repo / "skills/line/messaging-api/scripts/search_docs.py",
     repo / "skills/line/mini-app/scripts/search_docs.py",
-    repo / "skills/jj/scripts/search_docs.py",
 ]
 
 def write_doc(directory, name, body):
