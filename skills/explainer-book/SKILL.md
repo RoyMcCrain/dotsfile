@@ -57,7 +57,7 @@ disable-model-invocation: false
 5. 章を書く     explainer の writing.md の型。章の冒頭に所要時間とゴール、末尾に理解度チェック
 6. 検証         bash <explainer-skill>/scripts/run.sh book <book-dir> [--write]
 7. 読ませる     first-reader で、少なくとも 01-quickstart と演習の章を、ペルソナ本人に読ませる（explainer の手順 8）
-8. 渡す         dist/index.html と、各章の 1 行要約。未検証の点を明記
+8. 渡す         検証済みの目次 HTML を explainer の cmux preview 手順で開き、各章の 1 行要約と未検証の点を明記
 ```
 
 ### 2. 学習目標
@@ -120,6 +120,10 @@ wrapper が `EXPLAINER_RUNTIME` とブラウザーキャッシュを設定しま
 そのあと、README と全章を wrapper 経由で `verify-doc.mjs --pages` に渡す。出力の引用、図、ページ間リンク、各ページの vlmkit ゲートを検査する。`checks.json` の各コマンドは終了コード 0 かつ期待する出力の一致が必要。演習で意図した失敗を示す場合は、終了コードを保存して期待値を明示的に検査し、検査コマンド自体は 0 で終了させる（例：`tool; status=$?; test "$status" -eq 7`）。出力だけでは失敗を合格扱いにしない。
 
 `book verdict: VERIFIED` になるまで直す。
+
+### 8. 渡す
+
+通常の book 検証・ビルドで README と全章を検証した `dist/index.html`（目次）を開き、各章の 1 行要約と未検証の点を添える。表示方法、cmux の workspace / browser surface の選択、表示確認、失敗時の fallback は [`explainer` の「9. 渡す」](../explainer/SKILL.md#9-渡す) に従う。HTML を作り直す場合は目次と全章を順序どおり build に渡し、目次だけの再ビルドで章ナビを失わせない。
 
 ## やってはいけないこと
 

@@ -40,6 +40,14 @@ PI_CODING_AGENT_DIR=$PWD/pi/agent pi --list-models
 PI_CODING_AGENT_DIR=$PWD/pi/agent pi
 ```
 
+## `/explain` prompt
+
+`/explain` creates an explainer artifact to understand an implementation before
+human review; `/explain <target/focus>` narrows its scope. Pi and Claude share
+`skills/explainer/prompts/explain.md`; Pi discovers it through the explicit
+`prompts` entry in `pi/agent/settings.json`. Run `/reload` after changing the
+prompt or settings so Pi picks up the edits. This command does not run a review.
+
 ## Shift+Enter (WSL / Windows Terminal)
 
 Mac Ghostty sends Kitty keyboard protocol for `Shift+Enter`, so pi inserts a

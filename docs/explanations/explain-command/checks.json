@@ -1,0 +1,22 @@
+{
+  "checks": [
+    {
+      "name": "prompt-flow",
+      "cmd": "PI_PROMPT_LOADER=\"$(npm root -g)/@earendil-works/pi-coding-agent/dist/core/prompt-templates.js\" node examples/prompt-flow.mjs",
+      "expect": [
+        "registered: /explain [対象・重点]",
+        "expanded: no arguments, src/auth.ts, quoted path + focus",
+        "Claude alias: same canonical file"
+      ]
+    },
+    {
+      "name": "focused-tests",
+      "cwd": "../../..",
+      "cmd": "bats skills/explainer/tests/verify-doc.bats pi/agent/tests/list-shared-agent-skills.bats",
+      "expect": [
+        "ok 1 checks success and rejects output mismatch",
+        "ok 10 fails when an immediate skills directory lacks SKILL.md"
+      ]
+    }
+  ]
+}
