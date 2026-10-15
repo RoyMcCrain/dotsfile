@@ -1,0 +1,7 @@
+flowchart TB
+  invoke["/explain"] --> expand["Pi: prompt 展開"]
+  expand --> skill["agent: skill"]
+  skill --> markdown["agent: Markdown 保存"]
+  markdown --> verify["agent: HTML 検証"]
+  verify --> cmux["agent: caller cmux 表示"]
+  cmux --> stop["agent: 終了"]

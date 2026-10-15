@@ -49,7 +49,7 @@ D2、スライド、形式手法ツール、アイコン、Vega、yomiyasu は�
 6. 図          references/figures.md。事実シート（*.facts.json）を先に、図は後
 7. 検証        bash <skill>/scripts/run.sh verify <doc-dir> が VERIFIED になるまで
 8. 読ませる    first-reader スキルで読み手をシミュレーションし、離脱箇所と模擬 recall を見る（実際の人間テスト・翌日記憶の測定ではない）
-9. 渡す        HTML（dist/index.html）と要約。検証できなかったことは「未検証」と明記
+9. 渡す        検証後、関連する HTML を cmux ブラウザーで開き、Markdown と HTML のパス・検証範囲・実際の表示結果を伝える
 ```
 
 ### 1. ペルソナ
@@ -230,7 +230,30 @@ first-reader は書き直さない。読み手の証言を受けて、どこを�
 
 ### 9. 渡す
 
-- チャットでは、要約（3〜5 行）と `dist/index.html` を渡す。検証の結果（VERIFIED か、何が未検証か）も添える。
+- 生成と通常の検証が終わったら、関連する HTML を cmux ブラウザーで開く。プレビューは検証ではない。チャットでは要約（3〜5 行）に加え、元の Markdown と HTML の両方のパス、`VERIFIED` の有無と検証範囲、実際に開けたかを伝える。開けたことは、cmux の結果を確認してから報告する。
+- HTML がまだ無く、既存の Markdown を渡す場合は、既存 wrapper で生成する。README の例：
+  ```sh
+  bash <skill>/scripts/run.sh build <doc-dir>/README.md
+  ```
+  `README.md` は `<doc-dir>/dist/index.html`、ほかの Markdown は `<doc-dir>/dist/<stem>.html` になる。検証済みの HTML があれば、再ビルドしない。
+- 本は通常の book 検証・ビルドで README と全章を検証した HTML を使う。作り直す必要がある場合も、目次と全章を順序どおり渡し、目次を 1 ページだけ再ビルドして章ナビを失わせない。
+  ```sh
+  bash <explainer-skill>/scripts/run.sh build <book-dir>/README.md <book-dir>/01-quickstart.md <book-dir>/02-....md [...ordered chapters]
+  ```
+- cmux の UI 操作は、`CMUX_WORKSPACE_ID` が空でなく、`cmux` コマンドがあり、`cmux ping` が成功した場合だけ行う。条件を満たさなければ Markdown / HTML のパスと、未表示の理由を返す。別・フォーカス中の workspace を推測せず、サーバー起動、公開、対象 repo への依存導入、外部ブラウザーでの表示もしない。
+- HTML パスからエスケープ済み絶対 file URL を作る（HTML パスを引用した argv として渡す）：
+  ```sh
+  html="<doc-dir>/dist/index.html" # 実際の生成 HTML のパスに置き換える
+  url=$(node -e 'const { resolve } = require("node:path"); const { pathToFileURL } = require("node:url"); console.log(pathToFileURL(resolve(process.argv[1])).href)' "$html")
+  ```
+  `file://$PWD/...` のような文字列連結は使わない（空白・日本語・`#` を壊す）。
+- 配置と参照先の選択は [`cmux-workspace`](../cmux-workspace/SKILL.md) に従う。caller workspace の panes / surfaces を調べ、同じ文書の既存 preview surface があれば再利用する。右側 helper pane があればそこに browser surface を追加し、なければ右に pane を 1 つだけ作る。次の 2 コマンドは状況に応じた**代替案**で、続けて両方実行しない。
+  ```sh
+  cmux new-surface --workspace "$CMUX_WORKSPACE_ID" --pane <helper-pane-ref> --type browser --url "$url" --focus false --json
+  cmux new-pane --workspace "$CMUX_WORKSPACE_ID" --type browser --direction right --url "$url" --focus false --json
+  ```
+  focus / select は行わない。同じ文書の preview surface が既にあれば新規作成せず、その surface を `cmux browser <surface-ref> goto "$url"` で再利用する。新規作成時は返された surface ref を使う。いずれも [`cmux-browser`](../cmux-browser/SKILL.md) に従って `cmux browser <surface-ref> get url` で遷移先を確かめ、対応していれば load wait と `get text body`（必要なら `get html body`）で内容も確認する。file URL エラーや表示不可はそのまま報告し、別 workspace や公開サーバーに切り替えない。
+- `cmux markdown open` は Markdown の編集・live reload 用の任意機能。既定の納品先は HTML を開いた cmux ブラウザー。
 - PR では、差分の説明を同じ型で書き、図の SVG を添付する。理解度チェックは PR 本文の末尾に置く。
 
 ## PR の説明に使うとき

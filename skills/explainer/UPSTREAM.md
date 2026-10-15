@@ -12,7 +12,12 @@ dependency resolution patches in explainer's `verify-doc.mjs`, `build-html.mjs`,
 and `figure-check.mjs`; failed check commands now fail verification; Japanese
 EventEmitter example; workspace Claude links and scoped ignore rules. Local
 documentation also specifies runtime setup and wrapper commands, optional tools,
-exit-status-plus-output check semantics, and simulation/privacy limits.
+exit-status-plus-output check semantics, simulation/privacy limits, and the cmux
+browser delivery workflow for generated explanation HTML, including
+workspace-scoped preview, verification reporting, and a no-cmux fallback. A
+local `/explain` command and shared prompt template were added at
+`skills/explainer/prompts/explain.md`, discovered by Pi settings and linked for
+Claude at `claude/commands/explain.md`.
 
 To update: review upstream changes at the URL above, vendor only these three
 directories and license files, preserve local policies/runtime/demo, regenerate

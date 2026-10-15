@@ -41,5 +41,6 @@
     "extensions/*.ts"
   ],
   "lastChangelogVersion": "1.2.0",
-  "packages": []
+  "packages": [],
+  "prompts": ["~/.agents/skills/explainer/prompts"]
 }

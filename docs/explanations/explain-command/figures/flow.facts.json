@@ -1,0 +1,20 @@
+{
+  "labels": [
+    "/explain",
+    "Pi: prompt 展開",
+    "agent: skill",
+    "agent: Markdown",
+    "agent: HTML 検証",
+    "agent: caller cmux",
+    "agent: 終了"
+  ],
+  "forbidden": ["自動コードレビュー"],
+  "edges": [
+    "invoke->expand",
+    "expand->skill",
+    "skill->markdown",
+    "markdown->verify",
+    "verify->cmux",
+    "cmux->stop"
+  ]
+}
