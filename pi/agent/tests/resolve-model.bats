@@ -396,7 +396,7 @@ EOF
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --review-level 5
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "$(printf 'pi\txai/grok-4.7\t600\t900')" ]
-	[ "${lines[3]}" = "$(printf 'agy\tgemini-3.8-flash-high\t600\t900')" ]
+	[ "${lines[3]}" = "$(printf 'agy\tgemini-4-argon-high\t600\t900')" ]
 }
 
 @test "review.antigravity resolves with --field agy and fails default Pi resolution" {
@@ -404,7 +404,7 @@ EOF
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field agy review.antigravity
 	[ "$status" -eq 0 ]
-	[ "$output" = "gemini-3.8-flash-high" ]
+	[ "$output" = "gemini-4-argon-high" ]
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.antigravity
 	[ "$status" -ne 0 ]
@@ -416,7 +416,7 @@ EOF
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --list
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"review.antigravity"$'\t'"gemini-3.8-flash-high"$'\t'"Gemini 3.8 Flash High (Antigravity)"* ]]
+	[[ "$output" == *"review.antigravity"$'\t'"gemini-4-argon-high"$'\t'"Gemini 4 Argon High (Antigravity)"* ]]
 }
 
 @test "review.antigravity appears exactly once in parallel-review L2 through L5" {

@@ -32,8 +32,8 @@
       "timeout": 120
     },
     "review.antigravity": {
-      "agy": "gemini-3.8-flash-high",
-      "label": "Gemini 3.8 Flash High (Antigravity)"
+      "agy": "gemini-4-argon-high",
+      "label": "Gemini 4 Argon High (Antigravity)"
     },
     "review.fugu": {
       "pi": "sakana-ai-console/fugu-ultra-v2.0:high",
