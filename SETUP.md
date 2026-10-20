@@ -83,6 +83,39 @@ Pi の TypeScript テストは Bun で実行する。依存は初回と `pi/agen
 bun install --cwd pi/agent
 ```
 
+## Claude Code: Parallel Search MCP（任意）
+
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) を使うと、
+Claude Code から `web_search` で Web 検索、`web_fetch` でページ本文の取得ができる。
+アカウント・API キーなしで無料で試せる（利用制限あり）。匿名の検索は Fast mode を使う。
+
+利用する場合だけ、Claude Code をインストール済みのターミナルで登録する：
+
+```bash
+claude mcp add --transport http --scope user parallel-search https://search.parallel.ai/mcp
+claude mcp get parallel-search
+```
+
+`--scope user` は全プロジェクトで有効になる。
+この手順は `claude/mcp-servers.json` の自動登録には含めない。
+既存のリサーチ方針（Firecrawl の既定利用と cross-research の昇格基準）は維持する。
+
+新しい Claude Code セッションを開き、`/mcp` で `parallel-search` の接続を確認する。
+Parallel を明示して試す場合の依頼例：
+
+```text
+Parallel Search MCP の web_search で GNU プロジェクトの設立目的を公式サイトから探し、
+web_fetch で見つかったページを読んで、日本語で要約して。参照した URL も付けて。
+```
+
+不要になったら、追加時と同じ scope で削除する：
+
+```bash
+claude mcp remove --scope user parallel-search
+```
+
+scope や接続状態の詳細は [Claude Code の MCP ガイド](https://code.claude.com/docs/en/mcp) を参照。
+
 ## Antigravity CLI (agy)
 
 旧 Gemini CLI の後継。devbox/nixpkgsには無く Homebrew cask で配布されるため別途インストールする：
