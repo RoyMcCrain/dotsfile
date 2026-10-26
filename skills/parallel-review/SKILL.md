@@ -7,6 +7,10 @@ description: 隔離済み reviewer を5段階レベル（1=最軽量動的 / 2=�
 
 同じ patch を `model-roles.json` の `reviewLevels` で定義された reviewer に同時に渡し、結果を統合する。L1/L2 は **現在の caller モデル**（Pi が bash ごとに export する `PI_PROVIDER` / `PI_MODEL` / 任意 `PI_REASONING_LEVEL`）+ 固定 reviewer。L3 以降は固定 7 reviewer（Grok・Codex・Opus・Antigravity Gemini・Fugu・DeepSeek V4.1 Flash・native Meta Muse）。Muse は L1–L3 が Spark 1.3 :high、L4/L5 が Wonder 1.0 :high。Pi 子プロセスの skill 再読込による再帰起動を禁止する。Antigravity は `run_antigravity_review.sh` と toolless グローバル custom agent `patch-reviewer` を使う（`setup_fish.sh` / `create_symlink.sh` で `~/.gemini/config/agents/patch-reviewer/agent.md` をリンク）。Grok 単体を明示指定された場合は `grok-review` を使う（`parallel-review` の reviewer 構成は変えない）。
 
+## Security specialization
+
+通常の「レビューして」も含め、すべての parallel-review run で [security-review](../security-review/SKILL.md) の共通セキュリティ指示と静的 prompt supplement を適用する。通常レビューは既定 prompt の correctness/security/回帰/設計/テスト不足の観点を維持して supplement を加える。明示的なセキュリティレビュー依頼（例: 「セキュリティ観点でレビュー」「セキュリティのパラレルレビュー」「security review」または `/skill:security-review`）だけは対象をセキュリティに絞る。単体 reviewer の明示依頼は既存 routing を優先する。security-review を supplement として読むことは新たな workflow 起動ではない。専用 invocation もこの workflow を一度だけ再利用し、preflight/init を再実行したり子 reviewer から skill を再帰呼び出ししたりしない。
+
 ## レビュー外部送信の常時許可
 
 **対象**: 当該ターンでユーザーが実際にレビューを依頼した run のみ（「レビューして」の引用・議論だけでは依頼にならない）。単体 reviewer や `review-report` 等を明示された場合は本節の即時 `parallel-review` ルールよりその skill を優先する。
@@ -191,7 +195,7 @@ REVIEW_DIR=$(deno run --no-config --allow-read --allow-write \
 install -m 600 "$STAGING/changes.patch" "$REVIEW_DIR/changes.patch" || exit 1
 ```
 
-8. 下の prompt を `$REVIEW_DIR/prompt.md` に保存する。全 reviewer で同じ2ファイルを使う。
+8. 親が [静的 security prompt supplement](../security-review/references/review-prompt.md) を読み、通常レビューでは下の既定 prompt に続けて同 supplement を `$REVIEW_DIR/prompt.md` に保存する。明示的な security-review 専用 invocation では、既定 prompt の「観点」だけを security のみに狭めた上で同じ supplement を続ける（一般レビューの観点を追加しない）。この skill がすでに実行中の workflow から supplement として読まれた場合、新しい workflow を起動せず、同じ run の prompt に適用する。prompt は全 reviewer 共通。追加の reviewer / API context / reviewer 入力はなく、reviewer に渡す入力ファイルは sanitized patch/chunk のみ。
 9. **外部 reviewer 送信**: L1–L3 は Muse Spark 1.3 :high、L4/L5 は Muse Wonder 1.0 :high を含む。**「レビュー外部送信の常時許可」節**（Jev・その他採用 reviewer）に従う。再確認不要。停止条件は同節。
 10. 解決済み reviewer 一覧を **1 run 1 回だけ** `$REVIEW_DIR/reviewers.tsv` に保存する（`resolve-model.sh --review-level "$LEVEL"`）。L1/L2 で runtime current が必要な場合、Pi の `PI_PROVIDER`/`PI_MODEL` または `--current-model` が無いと resolver が失敗し **停止**（別 tier へ silently 切替えない）。
 
@@ -429,8 +433,8 @@ esac
 
 ## 統合
 
-- 2件以上一致: 高確度。
-- 1件のみ: 呼び出し元が事実確認できたものだけ採用。
+- security 以外の指摘は、2件以上一致なら高確度。1件のみなら呼び出し元が事実確認できたものだけ採用。
+- security finding は、どのレビュー mode でも複数 reviewer の一致を独立した証拠として扱わない。ソース根拠と具体的な影響を統合側が確認できた場合に限り採用し、確認できない runtime/deployment 事実は未解決として扱う。
 - 一部が失敗/timeout: **1回リトライ後も失敗なら**、成功した reviewer の結果は捨てず、失敗理由を添えて報告。失敗 / 中断は `unavailable`（`no_findings` ではない）。
 - 出力をそのまま貼らず、重大度順に整理する。
 - reviewer prose から assessment を自動推論しない。統合エージェントが `$REVIEW_DIR/assessment.json` を書く（スキーマは [references/history-format.md](references/history-format.md)）。各 execution を **exactly once** 参照する。overlap issue は同一 `issueKey` で attribution を残す。**rejected / deferred / pending の finding もすべて snapshot に含める**。採用（`decision=accepted`）と verification は独立。
