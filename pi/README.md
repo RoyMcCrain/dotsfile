@@ -607,13 +607,14 @@ exposure is controlled by which runtime directory links the skill.
 
 ### Pi skill inventory (by category)
 
-**Review** (plain 「レビューして」 → `parallel-review` **auto** Jev level with optional routing context, L3 fallback):
+**Review** (plain 「レビューして」 → `parallel-review` **auto** Jev level with optional routing context, L3 fallback; every default parallel review also includes `security-review`'s common security guidance):
 
 単独の「レビューして」は preflight 後に `parallel-review` を即実行（Muse/Jev 送信の都度再確認不要。秘密検査・撤回/制限時の停止は従来どおり）。instructions/skills を手編集した既存 Pi セッションでは `/reload` で反映（upstream `docs/configuration.md` / `docs/skills.md`）。
 
 | Skill | Trigger |
 | ----- | ------- |
 | `parallel-review` | 「レビューして」（単独） |
+| `security-review` | 通常の parallel-review に共通セキュリティ指示を提供。明示的な「セキュリティ観点でレビュー」/「セキュリティのパラレルレビュー」/ `security review` / `/skill:security-review` は同じ parallel-review workflow をセキュリティ専用で実行 |
 | `review-report` | 「レビューレポート作って」 |
 | `implementation-report` | 「実装レポート作って」 |
 | `review-verify` | 「裏取りして」 / verification パケット |
