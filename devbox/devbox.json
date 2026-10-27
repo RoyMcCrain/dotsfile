@@ -56,7 +56,7 @@
     "hyperfine@latest",
     "rsgain@latest",
     "cloudflared@latest",
-    "obsidian-headless@0.0.14"
+    "obsidian-headless@latest"
   ],
   "env": {
     "PNPM_HOME":         "$HOME/.local/share/pnpm",
