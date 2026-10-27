@@ -39,7 +39,7 @@
 
 - PR merge / branch deletion / bookmark deletion
 - force-push
-- 外部送信（メール・メッセージ・API投稿）。**例外**: 当該ターンでユーザーが実際にレビューを依頼した場合、その依頼自体が **スコープ限定のレビュー API 送信**（Jev / OpenRouter、Muse、採用 tier の reviewer 実行）に対する外部送信要件を充足する（`parallel-review` 常時許可。秘密検査は毎回実施し、認証情報・顧客データ・雇用先機密の疑い、または送信許可の撤回・制限・拒否時は停止して確認）。Jev auto に載せる **preflight 済み・検査済み最小 routing context JSON**（reviewer 入力は patch のみ）も同じスコープに含める。引用・議論だけの「レビューして」は依頼にならない。無関係な API・メール等は従来どおり明示依頼必須。
+- 外部送信（メール・メッセージ・API投稿）。**例外**: 当該ターンでユーザーが実際に parallel review を依頼した場合、その依頼自体が Codex と Claude に対する**秘密検査済み patch/chunk と設定どおりの retry**送信の要件を満たす。認証情報・顧客データ・雇用先機密の疑い、または送信許可の撤回・拒否・制限時は停止して確認する。黙って別 provider に切り替えない。引用・議論だけの「レビューして」は依頼にならず、無関係な API・メール等は従来どおり明示依頼必須。
 - 破壊的削除（`rm -rf` 等）
 
 ## Implementation Delegation
@@ -49,7 +49,7 @@
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
 - 委譲後は必ず diff 目視、lint、test、仕様充足チェックで検証し、投げっぱなしにしない。
-- 当該ターンで実際のレビュー依頼（引用・議論だけの「レビューして」は除く）かつ単体レビュアー・レポート系を明示されない限り、**preflight 成功後に即時** `parallel-review` skill を実行する（skill 採用や Muse/Jev 送信の都度確認はしない。reviewLevels の5段階。レベル**未指定は auto**（Jev → 失敗時 L3）。**1..5 明示は Jev より優先**）。L1/L2 は runtime caller（`PI_PROVIDER`/`PI_MODEL`）を current reviewer として含む。Muse は L1–L3 に Spark 1.3 :high、L4/L5 に Wonder 1.0 :high を含む。Jev auto は `OPEN_ROUTER_API_KEY` と `route.review` モデルで patch と（preflight 済みの）最小 routing context を OpenRouter に送る（reviewer 入力は patch のみ。メイン Pi モデルは変更しない）。現在使用中の provider と同じ reviewer も除外しない。**Jev と Muse Spark 1.3 を含む採用 reviewer への送信は個人設定として常時許可済み**（patch/chunk/リトライごとの再確認は不要）。認証情報・顧客データ・雇用先機密の疑い、Jev/Muse 送信の撤回・制限・拒否がある場合は API/reviewer 送信前に停止して確認する（Muse を silently 省略したり別 provider へ切り替えない）。
+- 当該ターンで実際のレビュー依頼（引用・議論だけの「レビューして」は除く）かつ単体 reviewer・レポート系を明示されない限り、preflight 成功後に `parallel-review` を実行する。L1/L2 のみで Codex + Claude の固定2 reviewer（Pi headless）を使う。未指定および `--level auto` は offline L1 alias、明示値は 1/2 のみ（3..5 は拒否）。L1 は Codex Sol :xhigh + Opus :high、L2 は Astra :max + Opus :max（model ID は catalog のみ）。Jev/OpenRouter、routing context、API key、runtime caller、Muse/Grok/Antigravity/Fugu/DeepSeek は parallel 経路に含めない。レビュー依頼に伴う外部送信許可は秘密検査済み patch/chunk と Codex/Claude の設定済み retry のみ。秘密情報・顧客データ・雇用先機密の疑い、または送信許可の撤回・拒否・制限時は停止し、provider を黙って切り替えない。無関係な API 等へ許可を拡大しない。Timeout は L1 600/600s、L2 600/900s。各 reviewer は失敗/timeout 後に一度 retry する。
 - ユーザーがレビュアーを明示した場合のみ `grok-review` / `codex-review` / `claude-review` / `fugu-review` / `muse-review` skill を使う。`muse-review` 単体は Muse の明示指定時のみ使う。秘密の疑いまたは許可の撤回・制限・拒否時は停止する。
 
 ## Simplicity Principles

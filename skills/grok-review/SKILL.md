@@ -5,7 +5,7 @@ description: Pi headless（xAI Grok 4.7）で120秒上限の単体コードレ�
 
 # /grok-review
 
-xAI Grok 4.7 を、再帰起動しない隔離済み Pi headless で実行する。`parallel-review` でも Grok は L3+ に含まれるが、Grok 単体を明示指定された場合はこの skill を使う。
+xAI Grok 4.7 を、再帰起動しない隔離済み Pi headless で単体実行する。Grok は parallel-review に含まれず、Grok 単体を明示指定された場合だけこの skill を使う。
 
 ## 手順
 

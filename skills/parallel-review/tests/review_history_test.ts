@@ -1636,7 +1636,7 @@ Deno.test("getLevelScale and metadata levelScale validation", () => {
   for (const bad of ["3", 4, true, null]) {
     assert.throws(
       () => getLevelScale({ levelScale: bad }),
-      /metadata.levelScale must be 3 or 5/,
+      /metadata.levelScale must be 2, 3, or 5/,
     );
   }
 });
@@ -1727,7 +1727,7 @@ Deno.test("validateSnapshot rejects legacy level 4/5 and scale mismatches", () =
           ...snapshotBase,
           metadata: meta({ level: 2, levelScale: badScale }),
         }),
-      /metadata.levelScale must be 3 or 5/,
+      /metadata.levelScale must be 2, 3, or 5/,
     );
   }
 
@@ -1974,13 +1974,13 @@ Deno.test("SKILL chunk split block: numeric passes max-bytes, none skips splitte
   try {
     const numeric = await runSkillChunkSplitBlock({
       reviewDir,
-      chunkChoice: "24000",
+      chunkChoice: "12000",
       splitter: fakeSplitter,
     });
     assert.equal(numeric.code, 0, numeric.stderr);
     assert.equal(
       await readFile(logPath, "utf8").then((s) => s.trim()),
-      "24000",
+      "12000",
     );
     assert.match(numeric.stdout, /CHUNKS=/);
 
@@ -1993,7 +1993,7 @@ Deno.test("SKILL chunk split block: numeric passes max-bytes, none skips splitte
     assert.match(none.stdout, /CHUNK_ID=whole/);
     assert.match(none.stdout, /CHUNK_FILE=changes\.patch/);
     assert.doesNotMatch(none.stdout, /CHUNKS=/);
-    assert.equal(await readFile(logPath, "utf8"), "24000\n");
+    assert.equal(await readFile(logPath, "utf8"), "12000\n");
   } finally {
     await rm(work, { recursive: true, force: true });
   }
@@ -2033,38 +2033,31 @@ Deno.test("SKILL chunk split block: real splitter two ~9KB sections", async () =
   });
   const splitter = join(import.meta.dirname!, "../scripts/split_patch.sh");
   try {
-    for (
-      const [choice, expectedChunks] of [
-        ["12000", 2],
-        ["24000", 1],
-        ["48000", 1],
-      ] as const
-    ) {
-      const run = await runSkillChunkSplitBlock({
-        reviewDir,
-        chunkChoice: choice,
-        splitter,
-      });
-      assert.equal(run.code, 0, `${choice}: ${run.stderr}`);
-      const chunksLine = run.stdout.split("\n").find((l) =>
-        l.startsWith("CHUNKS=")
-      );
-      assert.ok(chunksLine, choice);
-      const paths = chunksLine!.slice("CHUNKS=".length).trim().split(/\s+/);
-      assert.equal(paths.length, expectedChunks, choice);
-      const parts: Uint8Array[] = [];
-      for (const p of paths) {
-        parts.push(new Uint8Array(await readFile(p)));
-      }
-      const total = parts.reduce((n, p) => n + p.byteLength, 0);
-      const reassembled = new Uint8Array(total);
-      let offset = 0;
-      for (const part of parts) {
-        reassembled.set(part, offset);
-        offset += part.byteLength;
-      }
-      assert.deepEqual(reassembled, patchBytes, choice);
+    const choice = "12000";
+    const run = await runSkillChunkSplitBlock({
+      reviewDir,
+      chunkChoice: choice,
+      splitter,
+    });
+    assert.equal(run.code, 0, `${choice}: ${run.stderr}`);
+    const chunksLine = run.stdout.split("\n").find((l) =>
+      l.startsWith("CHUNKS=")
+    );
+    assert.ok(chunksLine, choice);
+    const paths = chunksLine!.slice("CHUNKS=".length).trim().split(/\s+/);
+    assert.equal(paths.length, 2, choice);
+    const parts: Uint8Array[] = [];
+    for (const p of paths) {
+      parts.push(new Uint8Array(await readFile(p)));
     }
+    const total = parts.reduce((n, p) => n + p.byteLength, 0);
+    const reassembled = new Uint8Array(total);
+    let offset = 0;
+    for (const part of parts) {
+      reassembled.set(part, offset);
+      offset += part.byteLength;
+    }
+    assert.deepEqual(reassembled, patchBytes, choice);
   } finally {
     await rm(work, { recursive: true, force: true });
   }
@@ -2075,7 +2068,7 @@ Deno.test("SKILL bash blocks pass bash -n shellcheck and shfmt", async () => {
   const bash5 = await findBash5();
   const blocks = [
     extractBashBlock(skill, "## 実行記録（provenance）"),
-    extractBashBlock(skill, "## Preflight → レベル選択 → init（1回だけ）"),
+    extractBashBlock(skill, "## Preflight"),
     extractBashBlock(skill, "## 並行実行（chunk ごと）"),
     extractBashBlock(skill, "## 大きい patch（分割レビュー）"),
     extractBashBlock(skill, "### 採用判断の保存（必須）"),
@@ -2095,7 +2088,7 @@ Deno.test("SKILL bash loop integration with fake resolver and runner", async () 
     await writeFile(
       fakeResolver,
       "#!/usr/bin/env bash\n" +
-        'printf \'%s\\n\' "pi\tprovider/model-a:high\t10\t10" "agy\tprovider/model-b:high\t10\t10"\n',
+        'printf \'%s\\n\' "pi\tprovider/model-a:high\t10\t10" "pi\tprovider/model-b:high\t10\t10"\n',
       { mode: 0o755 },
     );
 
@@ -2123,28 +2116,6 @@ case "$model" in
   provider/model-a:high) echo "review-a-$(basename "$input")"; exit 0 ;;
   provider/model-b:high) echo "review-b-$(basename "$input") timed out" >&2; exit 124 ;;
   *) echo "unknown model $model" >&2; exit 9 ;;
-esac
-`,
-      { mode: 0o755 },
-    );
-
-    const fakeAgy = join(bin, "run_antigravity_review.sh");
-    const agyEventsFlagLog = join(work, "agy-events-args.log");
-    await writeFile(
-      fakeAgy,
-      `#!/usr/bin/env bash
-set -euo pipefail
-model=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --model) model="$2"; shift 2 ;;
-    --events-log) echo "$2" >>${JSON.stringify(agyEventsFlagLog)}; shift 2 ;;
-    *) shift ;;
-  esac
-done
-case "$model" in
-  provider/model-b:high) echo "review-b timed out" >&2; exit 124 ;;
-  *) echo "review-agy"; exit 0 ;;
 esac
 `,
       { mode: 0o755 },
@@ -2192,9 +2163,6 @@ esac
     ).replace(
       'PI_RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"',
       "",
-    ).replace(
-      'AGY_RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_antigravity_review.sh"',
-      "",
     );
 
     const bash5 = await findBash5();
@@ -2205,7 +2173,6 @@ esac
 set -euo pipefail
 REVIEW_DIR=${JSON.stringify(reviewDir)}
 PI_RUNNER=${JSON.stringify(fakeRunner)}
-AGY_RUNNER=${JSON.stringify(fakeAgy)}
 CHUNK_ID=${JSON.stringify(chunkId)}
 CHUNK_FILE=${JSON.stringify(chunkFile)}
 ${loopSnippet}
@@ -2247,11 +2214,8 @@ ${loopSnippet}
     );
     assert.match(piEventsArgs, /whole-r01\.events\.jsonl/);
     assert.match(piEventsArgs, /c001-r01\.events\.jsonl/);
-    assert.doesNotMatch(piEventsArgs, /whole-r02/);
-    const agyEventsArgs = await readFile(agyEventsFlagLog, "utf8").catch(() =>
-      ""
-    );
-    assert.equal(agyEventsArgs.trim(), "");
+    assert.match(piEventsArgs, /whole-r02\.events\.jsonl/);
+    assert.match(piEventsArgs, /c001-r02\.events\.jsonl/);
 
     for (
       const execId of [
@@ -2315,7 +2279,6 @@ ${loopSnippet}
 set -euo pipefail
 REVIEW_DIR=${JSON.stringify(reviewDir)}
 PI_RUNNER=${JSON.stringify(fakeRunner)}
-AGY_RUNNER=${JSON.stringify(fakeAgy)}
 CHUNK_ID=whole
 CHUNK_FILE=changes.patch
 ${loopSnippet}
@@ -2609,6 +2572,86 @@ Deno.test("save publishes snapshots atomically when write is interrupted", async
     );
     const secondStat = await Deno.stat(second.snapshotPath);
     assert.equal(secondStat.mode! & 0o777, 0o600);
+  });
+});
+
+Deno.test("scale2 init CLI roundtrip preserves decision and snapshot metadata", async () => {
+  await withTempHome(async (home, xdg) => {
+    const patchBytes = new TextEncoder().encode("scale2 patch\n");
+    const patchPath = join(home, "staging.patch");
+    await writeFile(patchPath, patchBytes, { mode: 0o600 });
+    const decision = buildExplicitDecision({
+      level: 2,
+      patchSha256: sha256Bytes(patchBytes),
+    });
+    const decisionPath = join(home, "decision.json");
+    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
+
+    const initOut = await runCli([
+      "init",
+      "--repository",
+      "/tmp/repo",
+      "--revision",
+      "deadbeef",
+      "--level",
+      "2",
+      "--level-scale",
+      "2",
+      "--level-decision",
+      decisionPath,
+    ], childEnv(home, xdg));
+    assert.equal(initOut.code, 0, initOut.stderr);
+    const runDir = initOut.stdout.trim();
+    const metadata = JSON.parse(
+      await readFile(join(runDir, "metadata.json"), "utf8"),
+    );
+    assert.equal(metadata.levelScale, 2);
+    assert.deepEqual(metadata.levelDecision, decision);
+
+    await prepareRunForSave(runDir);
+    await writeFile(join(runDir, "changes.patch"), patchBytes, { mode: 0o600 });
+    const snapshotPath = await saveRunViaCli(
+      home,
+      xdg,
+      runDir,
+      minimalAssessment("whole-r01", "no_findings"),
+    );
+    const snapshot = validateSnapshot(
+      JSON.parse(await readFile(snapshotPath, "utf8")),
+    );
+    assert.equal(snapshot.metadata.levelScale, 2);
+    assert.deepEqual(snapshot.metadata.levelDecision, decision);
+  });
+});
+
+Deno.test("scale2 init CLI rejects out-of-range and noncanonical scales", async () => {
+  await withTempHome(async (home, xdg) => {
+    const run = (level: string, scale: string) =>
+      runCli([
+        "init",
+        "--repository",
+        "/tmp/repo",
+        "--revision",
+        "deadbeef",
+        "--level",
+        level,
+        "--level-scale",
+        scale,
+      ], childEnv(home, xdg));
+
+    const tooHigh = await run("3", "2");
+    assert.notEqual(tooHigh.code, 0);
+    assert.match(tooHigh.stderr, /level exceeds levelScale 2/);
+    const noncanonical = await run("2", "02");
+    assert.notEqual(noncanonical.code, 0);
+    assert.match(noncanonical.stderr, /level-scale must be 2, 3, or 5/);
+    const unsupported = await run("2", "4");
+    assert.notEqual(unsupported.code, 0);
+    assert.match(unsupported.stderr, /level-scale must be 2, 3, or 5/);
+    await assert.rejects(
+      () => Deno.stat(join(xdg, "parallel-review")),
+      Deno.errors.NotFound,
+    );
   });
 });
 

@@ -93,18 +93,15 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh impl.default                 # -> Pi implementation model id
 ~/.pi/agent/resolve-model.sh --field cursor ROLE          # -> Cursor Agent model id (compatibility)
 ~/.pi/agent/resolve-model.sh --field agy review.antigravity # -> Antigravity model id
-~/.pi/agent/resolve-model.sh --field id route.review       # -> Jev OpenRouter model id (parallel-review auto)
-~/.pi/agent/resolve-model.sh --review-level 3              # -> backend/model/timeouts TSV (L3 / auto fallback tier)
+~/.pi/agent/resolve-model.sh --review-level 2              # -> Codex/Claude Pi reviewer TSV (L2)
 ~/.pi/agent/resolve-model.sh --label review.grok
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Set `OPEN_ROUTER_API_KEY` in the environment for parallel-review **auto** selection (`select_review_level.ts` reads only that variable; explicit `1..5` skips Jev). One auto routing Decisions operation (same payload; up to 3 `http_error`-only HTTP retries with abortable 250ms/500ms/1s default waits or `Retry-After`, 4 attempts max, one shared 15s total deadline including waits) classifies **review depth** and **chunk plan** (`chunking.choice`: `none` or decimal-byte targets `12000` / `24000` / `48000`; independent confidence) from the sanitized patch and optional secret-screened routing context (`review-context.json`; reviewers still receive patch only). Explicit levels use offline fixed chunk thresholds (15KB or 400 newlines → `12000`, else `none`) and ignore context. Auto uses `route.review` plus scoped Deno permissions in `skills/parallel-review/SKILL.md` (`--allow-net=openrouter.ai:443`, `--allow-env=OPEN_ROUTER_API_KEY`). Unspecified review level → auto; depth failures fall back to **L3** (seven fixed reviewers). Main Pi session model is unchanged.
+Parallel-review uses exactly two Pi headless reviewers, Codex and Claude, at L1/L2 only. Unspecified level defaults to offline L1; `--level auto` is an offline L1 alias. Only explicit levels 1/2 are accepted (3..5 are rejected). No Jev/OpenRouter routing, API key, routing context, or runtime caller is used. Chunking is local: raw patch bytes >=15000 or >=400 newlines selects `12000`, otherwise `none`; splitting respects file boundaries and never splits or truncates a single diff section.
 
-Each run retains the suggested depth, confidence, threshold, applied level and
-fallback reason in `metadata.json`; valid five-level probabilities are also saved
-when Jev supplies them. Inspect these records offline, including unfinished runs:
+New history records explicit offline decisions. Existing Jev/fallback records remain readable for historical evaluation; inspect records offline, including unfinished runs:
 
 ```bash
 deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
@@ -112,30 +109,23 @@ deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
   --repository "$PWD"
 ```
 
-The repository filter matches the stored path exactly. Confidence is not measured
-accuracy; repeated decisions for the same patch are not independent samples.
-Thresholds are not automatically adjusted and old records are not rewritten.
+Repeated decisions for the same patch are not independent samples. Historical Jev fields are not collected for new runs.
 
-Current roles: `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
-`review.fugu`, `review.muse`, `review.deepseek`, `route.review`, `route.fugu.base`,
+Current roles include `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
+`review.fugu`, `review.muse`, `review.deepseek`, `route.fugu.base`,
 `route.fugu.ultra`, `impl.default`, `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
 `reviewLevels` tier models, role labels, and the `enabledModels` cycling list),
 then run `--apply` and `--check`. Skills pick it up immediately because
 `run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
-`run_antigravity_review.sh --role review.antigravity` resolves via `--field agy`.
-Parallel-review tiers resolve from `--review-level N` (L1 **1–2** rows, L2 **2–3** after
-caller-vs-fixed dedupe; L3–L5 fixed seven rows)
-(`backend<TAB>model<TAB>initial<TAB>retry`; backends `pi` or `agy`). L1/L2 take the runtime
-caller from `PI_PROVIDER`/`PI_MODEL` (optional `PI_REASONING_LEVEL`) or `--current-model`
-/`--current-backend`; explicit flags override Pi env. All tiers include Muse Contributor
-:high (native Meta `review.muse`) with tier timeout budgets (not the standalone 120s);
-L3–L5 additionally include `review.deepseek` (OpenCode Go DeepSeek V4.1 Flash :high).
-Parallel-review Codex slots: L3 uses **GPT-6.1 Sol** (`:xhigh`); L4 and L5 use **GPT-6 Astra**
-(`:max`). Standalone `codex-review` and role `review.codex` stay on Astra (`:high`); `codex.default`
-remains Astra. L1/L2 still review with the runtime caller model, not a fixed Codex tier id.
-Install the Antigravity `patch-reviewer` agent via setup scripts before using the agy runner.
+Parallel-review tiers resolve with `--review-level N` as two `pi` backend rows
+(`backend<TAB>model<TAB>initial<TAB>retry`). L1 uses Codex Sol :xhigh + Opus :high;
+L2 uses Astra :max + Opus :max. Catalog is the sole source of exact model IDs.
+Timeouts are L1 600/600s and L2 600/900s (initial/retry).
+Each reviewer retries once after failure or timeout. Other provider roles remain
+available for their independent explicitly selected skills; they are not used in
+parallel-review.
 
 `enabledModels` controls Pi's Ctrl+P cycling choices (configured with
 `/scoped-models`); it is not an allowlist for `--model` or skill role resolution. Role and tier
@@ -228,9 +218,9 @@ Tracked custom providers:
 
 **Fugu (Sakana) — active.** The `sakana-ai-console` provider serves
 `fugu-max` (base, everyday) and `fugu-ultra-v2.0` (ultra, deep review).
-`review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). `parallel-review` L3/L4
-use Fugu Max :high; L5 adds Fugu Ultra v2 :high; L1/L2 have no **fixed**
-Fugu slot (the runtime caller may still be Fugu). Legacy pre-reactivation
+`review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). Fugu is not used by
+`parallel-review`; it remains available through explicitly selected standalone
+review skills. Legacy pre-reactivation
 snapshot: `pi/agent/fugu.disabled.json.example` (obsolete IDs — do not merge).
 
 **Local caps** (deliberate Pi operational limits; Sakana's setup catalog lists
@@ -427,8 +417,7 @@ and clear stale status.
 
 `openrouter-balance.ts` adds a compact TUI status such as `OpenRouter $12.34`
 via the extension status bar (alongside Codex usage and other statuses). It is
-shown in TUI mode regardless of the selected main model, because Jev and other
-flows still use OpenRouter when the primary provider is not OpenRouter.
+shown in TUI mode regardless of the selected main model, because other independent features may use OpenRouter when the primary provider is not OpenRouter.
 
 The balance comes from OpenRouter's management API (`GET /api/v1/credits`), not
 from the inference key (`OPEN_ROUTER_API_KEY`).
@@ -607,10 +596,9 @@ exposure is controlled by which runtime directory links the skill.
 
 ### Pi skill inventory (by category)
 
-**Review** (plain 「レビューして」 → `parallel-review` **auto** Jev level with optional routing context, L3 fallback; every default parallel review also includes `security-review`'s common security guidance):
+**Review** (plain 「レビューして」 → `parallel-review` Codex + Claude fixed pair; every default parallel review also includes `security-review`'s common security guidance):
 
-単独の「レビューして」は preflight 後に `parallel-review` を即実行（Muse/Jev 送信の都度再確認不要。秘密検査・撤回/制限時の停止は従来どおり）。instructions/skills を手編集した既存 Pi セッションでは `/reload` で反映（upstream `docs/configuration.md` / `docs/skills.md`）。
-
+単独の「レビューして」は preflight 後に `parallel-review` を実行（秘密検査と送信許可の停止条件を維持）。未指定 level は offline L1、`--level auto` も offline L1 alias。
 | Skill | Trigger |
 | ----- | ------- |
 | `parallel-review` | 「レビューして」（単独） |
@@ -620,7 +608,7 @@ exposure is controlled by which runtime directory links the skill.
 | `review-verify` | 「裏取りして」 / verification パケット |
 | `codex-review` / `claude-review` / `grok-review` | 単体 reviewer を明示指定時 |
 | `fugu-review` | Fugu 単体 reviewer を明示指定時 |
-| `muse-review` | Muse 単体 reviewer を明示指定時（`/skill:muse-review`）。Contributor は prompts/completions を学習利用（非 ZDR）。parallel でも全 tier に Muse が含まれる。単体 skill は明示時のみ（timeout 120s、`attempts=1`）。**個人設定によりユーザー依頼レビューの学習利用送信は常時許可済み**（patch ごとの再確認なし。秘密検査は必須）。role `review.muse`、`run_pi_review.sh` 再利用 |
+| `muse-review` | Muse 単体 reviewer を明示指定時（`/skill:muse-review`）。Contributor は prompts/completions を学習利用（非 ZDR）。parallel には含めない。単体 skill は明示時のみ（timeout 120s、`attempts=1`）。role `review.muse`、`run_pi_review.sh` 再利用 |
 | `hunk-review` | Hunk バンドル（devbox 同梱） |
 
 **Implementation & PR**:
