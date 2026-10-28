@@ -10,10 +10,12 @@ https://www.jetify.com/devbox/docs/installing_devbox/
 
 ### 設定ファイルの場所
 
-devbox globalの設定は以下のsymlinkで管理：
+devbox globalの設定は以下のように管理：
 ```
-~/.local/share/devbox/global/default/devbox.json → dotsfile/devbox/devbox.json
+~/.local/share/devbox/global/default/devbox.json → dotsfile/devbox/devbox.json (symlink)
+~/.local/share/devbox/global/default/runtime-packages/ (実ディレクトリ。flake.nix と flake.lock のコピー)
 ```
+Nix の pure evaluation がこの構成での symlink 経由の flake 参照を拒否するため、`runtime-packages` は symlink ではなく実体のコピーにする。
 
 ### パッケージ管理
 
@@ -36,6 +38,19 @@ devbox global list
 ```bash
 refresh-global  # devboxが自動定義するalias
 ```
+
+### Runtime versions
+
+Node.js 26 は Devbox のパッケージカタログから解決する。Deno 2.9.8、Bun 1.4.4、Eclipse Temurin JDK 21 (21.0.13+9) は、カタログに固定バージョンがないため、`devbox/runtime-packages` の flake で公式バイナリのバージョンと SHA-256 を固定している。
+
+pin を更新するときは `devbox/runtime-packages/flake.nix` と必要に応じて `flake.lock` を編集し、次のコマンドで global 側の実体コピーを同期してからインストールする（セットアップスクリプト全体の再実行は不要）：
+
+```bash
+cp devbox/runtime-packages/flake.nix devbox/runtime-packages/flake.lock ~/.local/share/devbox/global/default/runtime-packages/
+devbox global install
+```
+
+対象パッケージがカタログで利用可能になったら、`devbox/devbox.json` の `path:` エントリを通常のカタログパッケージに戻し、このローカル flake コピーの設定と説明を削除する。
 
 ### pnpm / LSP
 
