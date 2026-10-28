@@ -122,6 +122,24 @@ if not test -d $DEVBOX_GLOBAL_DIR
     mkdir -p $DEVBOX_GLOBAL_DIR
 end
 create_symlink $BASE_DIR/devbox/devbox.json $DEVBOX_GLOBAL_DIR/devbox.json "devbox global config"
+set RUNTIME_PACKAGES_DIR $DEVBOX_GLOBAL_DIR/runtime-packages
+if test -L $RUNTIME_PACKAGES_DIR
+    print_error "Refusing symlink runtime packages directory: $RUNTIME_PACKAGES_DIR"
+    exit 1
+end
+if not mkdir -p $RUNTIME_PACKAGES_DIR
+    print_error "Failed to create runtime packages directory: $RUNTIME_PACKAGES_DIR"
+    exit 1
+end
+if test -L $RUNTIME_PACKAGES_DIR/flake.nix; or test -L $RUNTIME_PACKAGES_DIR/flake.lock
+    print_error "Refusing symlink runtime package files in: $RUNTIME_PACKAGES_DIR"
+    exit 1
+end
+if not cp $BASE_DIR/devbox/runtime-packages/flake.nix $BASE_DIR/devbox/runtime-packages/flake.lock $RUNTIME_PACKAGES_DIR/
+    print_error "Failed to copy runtime package flake files"
+    exit 1
+end
+print_success "Copied devbox runtime package flake files"
 
 echo ""
 
