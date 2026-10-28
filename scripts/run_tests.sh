@@ -118,7 +118,8 @@ run "deno test (review/audit suites)" env -i \
 	skills/review-model-eval/tests/ \
 	skills/jev-audit/tests/
 
-impl_deno_tmp=$(mktemp -d "${TMPDIR:-/tmp}/impl-deno.XXXXXX")
+impl_deno_tmp="$pi_agent_test_tmp/impl-deno"
+mkdir -p "$impl_deno_tmp"
 impl_deno_tmp=$(cd "$impl_deno_tmp" && pwd -P)
 run "deno test (impl history)" env \
 	IMPL_TEST_SYMLINK=0 \

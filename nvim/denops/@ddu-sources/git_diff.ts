@@ -37,7 +37,7 @@ export class Source extends BaseSource<Params> {
             stderr: "piped",
           });
           const unstagedResult = await unstagedCmd.output();
-          
+
           // git diff --cached --name-status でstagedファイルとステータスを取得
           const stagedCmd = new Deno.Command("git", {
             args: ["diff", "--cached", "--name-status"],
@@ -47,12 +47,12 @@ export class Source extends BaseSource<Params> {
           const stagedResult = await stagedCmd.output();
 
           const decoder = new TextDecoder();
-          
+
           // unstagedファイルを処理
           const unstagedLines = decoder.decode(unstagedResult.stdout)
             .split("\n")
             .filter((line) => line.length > 0);
-          
+
           for (const line of unstagedLines) {
             const [status, ...pathParts] = line.split("\t");
             const file = pathParts.join("\t");
@@ -65,7 +65,7 @@ export class Source extends BaseSource<Params> {
           const stagedLines = decoder.decode(stagedResult.stdout)
             .split("\n")
             .filter((line) => line.length > 0);
-          
+
           for (const line of stagedLines) {
             const [status, ...pathParts] = line.split("\t");
             const file = pathParts.join("\t");

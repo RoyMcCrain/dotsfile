@@ -20,7 +20,7 @@ sudo apt update && sudo apt install -y build-essential zsh zip language-pack-ja
 devboxを先にインストールしてghを追加：
 ```bash
 curl -fsSL https://get.jetify.com/devbox | bash
-devbox global add gh
+devbox global add gh jq bash
 devbox global install
 eval "$(devbox global shellenv)"
 ```
@@ -44,17 +44,16 @@ cd ~/ghq/github.com/RoyMcCrain/dotsfile
 ## シンボリックリンク作成
 
 ```bash
-chmod +x ./scripts/build_env/setup_fish.sh
-./scripts/build_env/setup_fish.sh
-chmod +x ./scripts/build_env/create_symlink.sh
-./scripts/build_env/create_symlink.sh
+./scripts/build_env/setup.sh
 ```
 
 これにより以下がシンボリックリンクされる：
 - nvim, fish, gitconfig等の基本設定
 - claude/, codex/, antigravity/ のAI Tools設定
 
-あわせて `create_symlink.sh` が git の `core.hooksPath` を `.githooks` に設定し、
+セットアップは Bash のみを使い、Fish・Zsh・ghq は必要ありません。互換性のため `setup_fish.sh` と `create_symlink.sh` も残していますが、どちらも同じ `setup.sh` を呼び出します。
+
+あわせて `setup.sh` が git の `core.hooksPath` を `.githooks` に設定し、
 push 前に `scripts/run_tests.sh`（Bun + Deno + bats）が走る pre-push hook が有効になる。
 
 > **注意**: git hooks は `git push` でのみ発火する。`jj git push` は git hooks を実行しないため、
@@ -62,7 +61,7 @@ push 前に `scripts/run_tests.sh`（Bun + Deno + bats）が走る pre-push hook
 
 ## devboxツールのインストール
 
-`setup_fish.sh`実行後（devbox.jsonのシンボリックリンク作成後）：
+`setup.sh`実行後（devbox.jsonのシンボリックリンク作成後）：
 
 ```bash
 devbox global install

@@ -210,24 +210,12 @@ EOF
 	[[ "$output" == *"unknown review level"* ]]
 }
 
-@test "review.antigravity resolves with --field agy and fails default Pi resolution" {
+@test "retired Antigravity reviewer role is unavailable in the production catalog" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field agy review.antigravity
-	[ "$status" -eq 0 ]
-	[ "$output" = "gemini-4-argon-high" ]
-
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.antigravity
 	[ "$status" -ne 0 ]
-	[[ "$output" == *has\ no\ model\ id* ]]
-}
-
-@test "--list includes agy roles with agy model ids" {
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --list
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"review.antigravity"$'	'"gemini-4-argon-high"$'	'"Gemini 4 Argon High (Antigravity)"* ]]
+	[[ "$output" == *"unknown model role"* ]]
 }
 
 @test "--review-level rejects role reference without agy model" {
