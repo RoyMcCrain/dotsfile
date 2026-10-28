@@ -4,12 +4,12 @@
     "typebox": "npm:typebox"
   },
   "lint": {
-    "include": ["nvim/plugins/**/*.ts"],
+    "include": ["nvim/**/*.ts"],
     "rules": {
       "tags": ["recommended"]
     }
   },
   "fmt": {
-    "include": ["nvim/plugins/**/*.ts"]
+    "include": ["nvim/**/*.ts"]
   }
 }

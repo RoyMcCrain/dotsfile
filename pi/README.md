@@ -30,7 +30,7 @@ The dotfiles setup scripts link the tracked files into `~/.pi/agent` without
 touching `auth.json`. `pi/agent/AGENTS.md` is Pi's global context file:
 
 ```bash
-./scripts/build_env/setup_fish.sh
+./scripts/build_env/setup.sh
 ```
 
 For one-off testing without symlinks:
@@ -92,7 +92,6 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
 ~/.pi/agent/resolve-model.sh impl.default                 # -> Pi implementation model id
 ~/.pi/agent/resolve-model.sh --field cursor ROLE          # -> Cursor Agent model id (compatibility)
-~/.pi/agent/resolve-model.sh --field agy review.antigravity # -> Antigravity model id
 ~/.pi/agent/resolve-model.sh --review-level 2              # -> Codex/Claude Pi reviewer TSV (L2)
 ~/.pi/agent/resolve-model.sh --label review.grok
 ~/.pi/agent/resolve-model.sh --apply                      # sync derived config
@@ -111,8 +110,8 @@ deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
 
 Repeated decisions for the same patch are not independent samples. Historical Jev fields are not collected for new runs.
 
-Current roles include `review.codex`, `review.claude`, `review.grok`, `review.antigravity`,
-`review.fugu`, `review.muse`, `review.deepseek`, `route.fugu.base`,
+Current roles include `review.codex`, `review.claude`, `review.grok`, `review.fugu`,
+`review.muse`, `review.deepseek`, `route.fugu.base`,
 `route.fugu.ultra`, `impl.default`, `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
@@ -574,8 +573,8 @@ Do not duplicate shared skills under `pi/agent/skills/`. Pi discovers
 Which skill directories are linked into `~/.agents/skills/` is defined by
 `scripts/build_env/list_shared_agent_skills.sh`. It enumerates every immediate
 directory under `skills/` (each must contain `SKILL.md`) plus Codex-native
-overrides from `codex/skills/`. Both `create_symlink.sh` and `setup_fish.sh` call
-it — adding a shared skill under `skills/` requires no inventory edit.
+overrides from `codex/skills/`. Canonical setup consumes this inventory — adding a
+shared skill under `skills/` requires no inventory edit.
 
 After changing skills, re-run your dotfiles setup (or link manually) so
 `~/.agents/skills/` picks up the new symlinks.

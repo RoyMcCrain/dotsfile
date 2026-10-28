@@ -73,6 +73,7 @@ EOF
 	export TMPDIR
 	run bash "$REPO/scripts/run_tests.sh"
 	[ "$status" -eq 0 ]
+	[ -z "$(fd -t d '^(impl-deno|pi-agent-tests)\.' "$TMPDIR" 2>/dev/null)" ]
 
 	jq -s -e --arg fixture_tmp "$TMPDIR" --arg caller_home "$HOME" --arg caller_tmp "$TMPDIR" --arg caller_cache "$XDG_CACHE_HOME" --arg caller_config "$XDG_CONFIG_HOME" --arg caller_data "$XDG_DATA_HOME" --arg caller_state "$XDG_STATE_HOME" '
 		. as $records |
@@ -92,11 +93,19 @@ EOF
 }
 
 @test "runner propagates each added-suite failure and continues" {
+	mkdir -p "$TEST_ROOT/private-tmp"
+	TMPDIR=$(cd "$TEST_ROOT/private-tmp" && pwd -P)
+	export TMPDIR
 	for suite in skills/parallel-review/tests/ skills/review-model-eval/tests/ skills/jev-audit/tests/; do
 		printf '%s' "$suite" >"$TEST_ROOT/fail-suite"
 		: >"$LOG"
 		run bash "$REPO/scripts/run_tests.sh"
 		[ "$status" -eq 1 ]
+		remaining=$(fd -t d '^(impl-deno|pi-agent-tests)\.' "$TMPDIR" 2>/dev/null)
+		[ -z "$remaining" ] || {
+			printf 'leftover: %s\n' "$remaining"
+			false
+		}
 		[[ "$output" == *'deno test (impl history)'* ]] || false
 	done
 }

@@ -31,10 +31,6 @@
       "label": "Grok 4.7 (xAI review)",
       "timeout": 120
     },
-    "review.antigravity": {
-      "agy": "gemini-4-argon-high",
-      "label": "Gemini 4 Argon High (Antigravity)"
-    },
     "review.fugu": {
       "pi": "sakana-ai-console/fugu-ultra-v2.0:high",
       "label": "Sakana Fugu Ultra v2 High",
