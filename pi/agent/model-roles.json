@@ -1,5 +1,5 @@
 {
-  "description": "Single source of truth for model IDs. Skills resolve roles via resolve-model.sh; run --apply to sync enabledModels into settings.json. defaultModel is runtime state owned by Pi and is intentionally not managed here. parallel-review picks a tier from reviewLevels (1=lightest dynamic, 2=light dynamic, 3=standard, 4=deep, 5=deepest); tiers select model precision and fixed attempt budgets. Per-tier attempt budgets live in reviewTimeouts (initial/retry seconds); resolve with --review-level N (backend<TAB>model<TAB>initial<TAB>retry). Levels 1–2 include {\"current\":true} for the runtime caller model (Pi exports PI_PROVIDER/PI_MODEL[/PI_REASONING_LEVEL] per bash call, or pass --current-model). single-reviewer skills use the review.* roles, which are defined separately and may differ from a tier's models. Roles name one model per consumer: .pi for Pi headless, .agy for Antigravity CLI (resolve with --field agy), .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
+  "description": "Single source of truth for model IDs. parallel-review selects offline review tiers (1..2; unspecified/auto means L1), each with exactly two Pi reviewers in Codex then Claude order. Tier attempt budgets live in reviewTimeouts. Roles name one model per consumer: .pi for Pi headless, .agy for Antigravity CLI (resolve with --field agy), .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
   "enabledModels": [
     "xai/grok-4.7",
     "anthropic/claude-sonnet-5-5:high",
@@ -49,10 +49,6 @@
       "pi": "opencode-go/deepseek-v4.1-flash:high",
       "label": "DeepSeek V4.1 Flash High"
     },
-    "route.review": {
-      "id": "typesafe/jev-1.13",
-      "label": "Jev 1.13 (OpenRouter review routing)"
-    },
     "route.fugu.base": {
       "id": "fugu-max",
       "label": "Sakana Fugu Max"
@@ -83,48 +79,25 @@
     }
   },
   "reviewTimeouts": {
-    "1": { "initial": 300, "retry": 300 },
-    "2": { "initial": 300, "retry": 300 },
-    "3": { "initial": 600, "retry": 600 },
-    "4": { "initial": 600, "retry": 900 },
-    "5": { "initial": 600, "retry": 900 }
+    "1": { "initial": 600, "retry": 600 },
+    "2": { "initial": 600, "retry": 900 }
   },
   "reviewLevels": {
     "1": [
-      { "current": true },
-      { "pi": "meta/muse-spark-1.3:high" }
+      {
+        "pi": "openai/gpt-6.1-sol:xhigh"
+      },
+      {
+        "pi": "anthropic/claude-opus-5-5:high"
+      }
     ],
     "2": [
-      { "current": true },
-      { "role": "review.antigravity" },
-      { "pi": "meta/muse-spark-1.3:high" }
-    ],
-    "3": [
-      { "pi": "xai/grok-4.7" },
-      { "pi": "openai/gpt-6.1-sol:xhigh" },
-      { "pi": "anthropic/claude-opus-5-5:high" },
-      { "role": "review.antigravity" },
-      { "pi": "sakana-ai-console/fugu-max:high" },
-      { "pi": "opencode-go/deepseek-v4.1-flash:high" },
-      { "pi": "meta/muse-spark-1.3:high" }
-    ],
-    "4": [
-      { "pi": "xai/grok-4.7" },
-      { "pi": "openai/gpt-6-astra:max" },
-      { "pi": "anthropic/claude-opus-5-5:max" },
-      { "role": "review.antigravity" },
-      { "pi": "sakana-ai-console/fugu-max:high" },
-      { "pi": "opencode-go/deepseek-v4.1-flash:high" },
-      { "pi": "meta/muse-wonder-1.0:high" }
-    ],
-    "5": [
-      { "pi": "xai/grok-4.7" },
-      { "pi": "openai/gpt-6-astra:max" },
-      { "pi": "anthropic/claude-opus-5-5:max" },
-      { "role": "review.antigravity" },
-      { "pi": "sakana-ai-console/fugu-ultra-v2.0:high" },
-      { "pi": "opencode-go/deepseek-v4.1-flash:high" },
-      { "pi": "meta/muse-wonder-1.0:high" }
+      {
+        "pi": "openai/gpt-6-astra:max"
+      },
+      {
+        "pi": "anthropic/claude-opus-5-5:max"
+      }
     ]
   }
 }

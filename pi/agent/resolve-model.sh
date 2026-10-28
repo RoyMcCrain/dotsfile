@@ -116,7 +116,7 @@ print_field() {
 	printf '%s\n' "$value"
 }
 
-# reviewLevels drive parallel-review tiers (1=lightest … 5=deepest).
+# reviewLevels drive catalog-defined tiers (production: 1=standard, 2=deep).
 # Emit per reviewer: backend (pi or agy), model id, initial timeout, retry timeout.
 # Levels with {"current":true} need PI_PROVIDER/PI_MODEL (optional PI_REASONING_LEVEL) or --current-model.
 

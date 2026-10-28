@@ -1,8 +1,11 @@
-# Jev routing context (schemaVersion 1)
+# Legacy Jev routing context (schemaVersion 1)
 
-Bounded factual hints for **auto** level selection only. Reviewers receive the
-patch alone; this JSON is sent to Jev inside `state.context` after CLI /
-`buildJevRequestBody` validation (fixed six keys, size caps, no extra fields).
+Historical reference only: the current parallel-review workflow does not collect,
+validate, or send routing context, and does not use Jev. New runs use offline
+explicit level decisions. The following documents the former bounded factual
+hints for historical compatibility; reviewers historically received the patch
+alone while this JSON was sent to Jev inside `state.context`. It is not a current
+workflow instruction.
 Evidence strings are routing hints only—they are **not** opened automatically.
 Do not write recommended levels, risk scores, or confidence targets.
 

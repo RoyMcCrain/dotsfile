@@ -154,7 +154,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export type ReviewLevel = 1 | 2 | 3 | 4 | 5;
-export type LevelScale = 3 | 5;
+export type LevelScale = 2 | 3 | 5;
 
 export const parseLevel = (value: unknown): ReviewLevel => {
   if (
@@ -174,8 +174,8 @@ export const getLevelScale = (
 ): LevelScale => {
   const raw = metadata.levelScale;
   if (raw === undefined) return 3;
-  if (raw === 3 || raw === 5) return raw;
-  throw new Error("metadata.levelScale must be 3 or 5");
+  if (raw === 2 || raw === 3 || raw === 5) return raw;
+  throw new Error("metadata.levelScale must be 2, 3, or 5");
 };
 
 const assertLevelWithinScale = (
@@ -289,8 +289,8 @@ export const validateMetadata = (value: unknown): Record<string, unknown> => {
     if (decision.level !== level) {
       throw new Error("metadata.level must match levelDecision.level");
     }
-    if (getLevelScale(value) !== 5) {
-      throw new Error("levelDecision requires levelScale 5");
+    if (getLevelScale(value) === 3) {
+      throw new Error("levelDecision requires levelScale 2 or 5");
     }
   }
   return value;
@@ -738,6 +738,7 @@ export const initRun = async (options: {
   repository: string;
   revision: string;
   level: number;
+  levelScale?: LevelScale;
   levelDecision?: unknown;
 }) => {
   if (!isNonEmptyString(options.repository)) {
@@ -747,6 +748,7 @@ export const initRun = async (options: {
     throw new Error("revision is required");
   }
   const level = parseLevel(options.level);
+  const levelScale = options.levelScale ?? 5;
   let levelDecisionRecord: Record<string, unknown> | undefined;
   if (options.levelDecision !== undefined) {
     const decision = validateLevelDecision(options.levelDecision);
@@ -757,7 +759,6 @@ export const initRun = async (options: {
   }
   const runId = randomUUID();
   const runDir = resolve(getRunsBaseDir(), `${utcDatePrefix()}-${runId}`);
-  await ensurePrivateDir(runDir);
   const metadata: Record<string, unknown> = {
     schemaVersion: SCHEMA_VERSION,
     runId,
@@ -765,11 +766,13 @@ export const initRun = async (options: {
     repository: options.repository,
     revision: options.revision,
     level,
-    levelScale: 5 as const,
+    levelScale,
   };
   if (levelDecisionRecord !== undefined) {
     metadata.levelDecision = levelDecisionRecord;
   }
+  validateMetadata(metadata);
+  await ensurePrivateDir(runDir);
   await writePrivateFile(
     join(runDir, "metadata.json"),
     `${JSON.stringify(metadata, null, 2)}\n`,
@@ -1225,14 +1228,21 @@ const cmdInit = async (args: string[]) => {
   const parsed = parseArgs(args);
   rejectUnknownFlags(
     parsed,
-    new Set(["repository", "revision", "level", "level-decision"]),
+    new Set([
+      "repository",
+      "revision",
+      "level",
+      "level-scale",
+      "level-decision",
+    ]),
   );
   const repository = parsed.get("repository");
   const revision = parsed.get("revision");
   const levelRaw = parsed.get("level");
+  const levelScaleRaw = parsed.get("level-scale");
   if (!repository || !revision || !levelRaw) {
     throw new Error(
-      "usage: review_history.ts init --repository PATH --revision REV --level N [--level-decision FILE]",
+      "usage: review_history.ts init --repository PATH --revision REV --level N [--level-scale 2|3|5] [--level-decision FILE]",
     );
   }
   let levelDecision: unknown;
@@ -1240,10 +1250,18 @@ const cmdInit = async (args: string[]) => {
   if (decisionPath) {
     levelDecision = JSON.parse(await readFile(decisionPath, "utf8"));
   }
+  if (
+    levelScaleRaw !== undefined && !["2", "3", "5"].includes(levelScaleRaw)
+  ) {
+    throw new Error("level-scale must be 2, 3, or 5");
+  }
   const { runDir } = await initRun({
     repository,
     revision,
     level: parseLevel(levelRaw),
+    ...(levelScaleRaw === undefined
+      ? {}
+      : { levelScale: Number(levelScaleRaw) as LevelScale }),
     levelDecision,
   });
   await Deno.stdout.write(new TextEncoder().encode(`${runDir}\n`));

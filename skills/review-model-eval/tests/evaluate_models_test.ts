@@ -123,6 +123,7 @@ const setupRunDir = async (
   env: RunsEnv,
   executions: ExecutionRecord[],
   level: 1 | 2 | 3 | 4 | 5 = 2,
+  levelScale?: 2 | 3 | 5,
 ) => {
   const initOut = await runHistoryCli([
     "init",
@@ -132,6 +133,7 @@ const setupRunDir = async (
     "abc123",
     "--level",
     String(level),
+    ...(levelScale === undefined ? [] : ["--level-scale", String(levelScale)]),
   ], childEnv(env.home, env.xdg));
   assert.equal(initOut.code, 0, initOut.stderr);
   const runDir = initOut.stdout.trim();
@@ -819,7 +821,7 @@ Deno.test("separates level actor backend effort and coverage comparability", asy
   });
 });
 
-Deno.test("legacy and 5-level runs with same numeric level do not merge", async () => {
+Deno.test("scale2, legacy, and 5-level runs with same numeric level stay separate", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const model = "provider/model-a:high";
     const actor = { kind: "agent" as const, id: "cursor/integrator:default" };
@@ -857,15 +859,26 @@ Deno.test("legacy and 5-level runs with same numeric level do not merge", async 
       reviews: qualityReviews("scale5"),
     });
 
+    const { runDir: scale2Run } = await setupRunDir(
+      { home, xdg },
+      dualExecutionPair(60).map((e) => ({ ...e, model })),
+      2,
+      2,
+    );
+    await saveSnapshot(scale2Run, {
+      actor,
+      reviews: qualityReviews("scale5"),
+    });
+
     const loaded = await loadSelectedRuns(runsRoot);
     const report = buildReport(loaded, runsRoot);
     const sameLevel = report.modelSummaries.filter((s) =>
       s.model === model && s.level === 2
     );
-    assert.equal(sameLevel.length, 2);
+    assert.equal(sameLevel.length, 3);
     assert.deepEqual(
       sameLevel.map((s) => s.levelScale).sort(),
-      [3, 5],
+      [2, 3, 5],
     );
 
     const legacySummary = sameLevel.find((s) => s.levelScale === 3)!;
@@ -903,9 +916,11 @@ Deno.test("legacy and 5-level runs with same numeric level do not merge", async 
     assert.notEqual(legacyCase.runId, scale5Case.runId);
 
     const html = renderReportHtml(report);
+    assert.match(html, /L2 \[2段階\]/);
     assert.match(html, /L2 \[3段階・旧\]/);
     assert.match(html, /L2 \[5段階\]/);
     const json = JSON.stringify(report);
+    assert.ok(json.includes('"levelScale":2'));
     assert.ok(json.includes('"levelScale":3'));
     assert.ok(json.includes('"levelScale":5'));
   });

@@ -33,8 +33,10 @@ const fmtHashShort = (hash: string): string =>
 const thCells = (headers: string[]): string =>
   `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
 
-const levelScaleLabel = (scale: LevelScale): string =>
-  scale === 3 ? "3段階・旧" : "5段階";
+const levelScaleLabel = (scale: LevelScale): string => {
+  if (scale === 2) return "2段階";
+  return scale === 3 ? "3段階・旧" : "5段階";
+};
 
 const formatLevelCell = (
   level: number,

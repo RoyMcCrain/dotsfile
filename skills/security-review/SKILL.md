@@ -9,7 +9,7 @@ description: 通常の parallel-review すべてに共通セキュリティ指�
 
 単体 reviewer が明示されている場合は既存の単体 reviewer routing を優先し、この並列 workflow は起動しない。
 
-共通 guidance として読み込まれた場合は、既に進行中の parallel-review の同じ run/prompt に supplement として適用するだけであり、workflow の再起動、新 run、preflight/init 再実行、security-only への暗黙の範囲変更を行わない。明示的なセキュリティレビュー依頼では [parallel-review](../parallel-review/SKILL.md) の workflow を最初から最後まで一度だけ使用し、通常の preflight（秘密検査を含む）、auto または明示 tier 選択、選択された全 reviewer（Muse を含む）、timeout/retry、chunking、履歴・assessment の保存をそのまま適用する。security-review は reviewer を追加せず、tier や provenance schema を変更しない。parallel-review step 8 で [review prompt](references/review-prompt.md) を静的 security supplement として `$REVIEW_DIR/prompt.md` に加える。通常 mode では一般 prompt を補強し、明示専用 mode では一般 prompt の観点だけを security に置き換えて同じ supplement を使う。
+共通 guidance として読み込まれた場合は、既に進行中の parallel-review の同じ run/prompt に supplement として適用するだけであり、workflow の再起動、新 run、preflight/init 再実行、security-only への暗黙の範囲変更を行わない。明示的なセキュリティレビュー依頼では [parallel-review](../parallel-review/SKILL.md) の workflow を一度だけ使用し、秘密検査済み patch、offline level 選択、Codex + Claude の固定2 reviewer、timeout/retry、chunking、履歴・assessment 保存をそのまま適用する。選択は未指定時 L1（`--level auto` も offline L1 alias）または明示 level 1..2（3..5 は拒否）。security-review は reviewer を追加せず、tier や provenance schema を変更しない。parallel-review の prompt supplement step 6 で [review prompt](references/review-prompt.md) を `$REVIEW_DIR/prompt.md` に加える。通常 mode では一般 prompt を補強し、明示専用 mode では一般 prompt の観点だけを security に置き換えて同じ supplement を使う。
 
 - reviewer へ渡す入力ファイルは従来どおり patch/chunk のみ。upstream 文書、リポジトリ内ファイル、会話、assessment、この skill を追加の `--input` として渡さない。子 reviewer の skill/tool/context 有効化や再帰 skill 呼び出しをしない。
 - reviewer の一致は独立した裏付けではない。指摘は source の具体的根拠と示された影響で評価し、確認できない deployment/runtime 条件を補ってはいけない。

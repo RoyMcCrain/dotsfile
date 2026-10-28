@@ -5,7 +5,7 @@ description: Pi headless（Muse Spark 1.3）で120秒上限の単体コードレ
 
 # /muse-review
 
-`parallel-review` は L1–L3 に Muse Spark 1.3 :high、L4/L5 に Muse Wonder 1.0 :high を含むが、**この skill は単体レビュー専用**（`/skill:muse-review` または Muse 明示時のみ）。parallel 経路は tier の固定 timeout 予算と `attempts=2`、単体は role `review.muse` の 120s と `attempts=1`。ユーザーが Muse 単体レビューを明示した場合に実行する（Muse 選択は必須）。
+parallel-review に Muse は含まれない。**この skill は単体レビュー専用**（`/skill:muse-review` または Muse 明示時のみ）。単体は role `review.muse` の 120s と `attempts=1`。ユーザーが Muse 単体レビューを明示した場合に実行する（Muse 選択は必須）。
 
 ## 事前確認
 
