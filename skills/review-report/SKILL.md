@@ -142,11 +142,11 @@ Prompt template: [references/prompts.md](references/prompts.md)
 手動で行う場合のみ:
 
 ```bash
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/review-report/scripts/merge_verifications.ts \
   report.json verification.json -o report.json
 
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/review-report/scripts/render_report.ts \
   report.json -o report.html
 ```
@@ -200,11 +200,11 @@ Prompt 雛形: [references/prompts.md](references/prompts.md) の Stage 3。
 Contract: [references/report-format.md](references/report-format.md)
 
 ```bash
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/review-report/scripts/render_report.ts \
   report.json -o report.html
 
-deno run --allow-read \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/review-report/scripts/render_report.ts \
   report.json --validate-only
 ```

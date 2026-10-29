@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { chmod, lstat, mkdir } from "node:fs/promises";
 import {
   basename,
   dirname,
@@ -7,17 +7,17 @@ import {
   relative,
   resolve,
 } from "node:path";
-import { lstat, realpath } from "node:fs/promises";
+import { realpath } from "node:fs/promises";
 import { getRunsBaseDir } from "../../parallel-review/scripts/review_history.ts";
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
 export const getAuditBaseDir = (): string => {
-  const home = Deno.env.get("HOME");
+  const home = process.env["HOME"];
   if (!isNonEmptyString(home)) throw new Error("HOME is required");
   const homeAbs = resolve(home);
-  const xdg = Deno.env.get("XDG_DATA_HOME");
+  const xdg = process.env["XDG_DATA_HOME"];
   const dataHome = isNonEmptyString(xdg)
     ? (() => {
       if (!isAbsolute(xdg)) throw new Error("XDG_DATA_HOME must be absolute");
@@ -31,7 +31,6 @@ export const effectiveRunsBaseDir = (runsDir?: string): string =>
   resolve(runsDir ?? getRunsBaseDir());
 
 const isMissingPath = (error: unknown): boolean =>
-  error instanceof Deno.errors.NotFound ||
   (typeof error === "object" &&
     error !== null &&
     "code" in error &&
@@ -93,9 +92,9 @@ export const assertAuditRelativePathSafe = async (
       throw new Error(`${label}: invalid path segment`);
     }
     const next = join(current, seg);
-    let st: Deno.FileInfo;
+    let st: Awaited<ReturnType<typeof lstat>>;
     try {
-      st = await Deno.lstat(next);
+      st = await lstat(next);
     } catch (error) {
       if (isMissingPath(error)) {
         const parentReal = await realpath(current);
@@ -107,11 +106,11 @@ export const assertAuditRelativePathSafe = async (
       }
       throw error;
     }
-    if (st.isSymlink) {
+    if (st.isSymbolicLink()) {
       throw new Error(`${label} must not be a symlink`);
     }
     if (i === segments.length - 1) {
-      const targetReal = st.isDirectory
+      const targetReal = st.isDirectory()
         ? await realpath(next)
         : await realpath(next);
       if (!isPathInside(auditBaseReal, targetReal)) {
@@ -119,7 +118,7 @@ export const assertAuditRelativePathSafe = async (
       }
       return targetReal;
     }
-    if (!st.isDirectory) {
+    if (!st.isDirectory()) {
       throw new Error(`${label}: not a directory`);
     }
     current = await realpath(next);
@@ -135,14 +134,14 @@ export const ensurePrivateDir = async (
   const abs = resolve(path);
   await mkdir(abs, { recursive: true, mode: 0o700 });
   const resolved = await realpath(abs);
-  const st = await Deno.lstat(resolved);
-  if (st.isSymlink) {
+  const st = await lstat(resolved);
+  if (st.isSymbolicLink()) {
     throw new Error("audit directory must not be a symlink");
   }
-  if (!st.isDirectory) {
+  if (!st.isDirectory()) {
     throw new Error("audit path must be a directory");
   }
-  await Deno.chmod(resolved, 0o700);
+  await chmod(resolved, 0o700);
   return resolved;
 };
 
@@ -159,8 +158,8 @@ export const assertInsideBaseLstat = async (
 ): Promise<string> => {
   const baseReal = await realpath(baseDir);
   const abs = resolve(targetPath);
-  const st = await Deno.lstat(abs);
-  if (st.isSymlink) throw new Error(`${label} must not be a symlink`);
+  const st = await lstat(abs);
+  if (st.isSymbolicLink()) throw new Error(`${label} must not be a symlink`);
   const targetReal = await realpath(abs);
   if (!isPathInside(baseReal, targetReal)) {
     throw new Error(`${label} escapes audit data directory`);

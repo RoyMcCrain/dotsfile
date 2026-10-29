@@ -71,12 +71,12 @@ dotsfile リポジトリ（この skill の親）を `DOTSFILE` とする:
 DOTSFILE="${DOTSFILE:-$HOME/ghq/github.com/RoyMcCrain/dotsfile}"
 REPORT_DIR=/path/to/report-dir
 
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   "$DOTSFILE/skills/review-report/scripts/merge_verifications.ts" \
   "$REPORT_DIR/report.json" "$REPORT_DIR/verification.json" \
   -o "$REPORT_DIR/report.json"
 
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   "$DOTSFILE/skills/review-report/scripts/render_report.ts" \
   "$REPORT_DIR/report.json" -o "$REPORT_DIR/report.html"
 

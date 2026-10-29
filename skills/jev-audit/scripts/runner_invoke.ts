@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   buildAuditorSystemPrompt,
@@ -17,39 +17,29 @@ export type RunnerInvoke = (options: {
   timeoutSeconds: number;
 }) => Promise<RunnerOutcome>;
 
-const resolveBash = (): string => Deno.env.get("JEV_AUDIT_BASH") ?? "bash";
+const resolveBash = (): string => process.env["JEV_AUDIT_BASH"] ?? "bash";
 
 export const invokeRunner: RunnerInvoke = async (options) => {
   const script = join(
     import.meta.dirname!,
     "../../parallel-review/scripts/run_pi_review.sh",
   );
-  const cmd = new Deno.Command(resolveBash(), {
-    args: [
-      script,
-      "--model",
-      options.model,
-      "--prompt",
-      options.promptPath,
-      "--input",
-      options.inputPath,
-      "--timeout",
-      String(options.timeoutSeconds),
-      "--attempts",
-      "1",
-      "--cwd",
-      options.cwd,
-    ],
-    stdin: "null",
-    stdout: "piped",
-    stderr: "null",
+  const cmd = Bun.spawn([
+    resolveBash(), script, "--model", options.model, "--prompt", options.promptPath,
+    "--input", options.inputPath, "--timeout", String(options.timeoutSeconds),
+    "--attempts", "1", "--cwd", options.cwd,
+  ], {
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "ignore",
     cwd: options.cwd,
+    env: { ...process.env },
   });
-  const out = await cmd.output();
-  if (!out.success) {
+  const status = await cmd.exited;
+  if (status !== 0) {
     return { ok: false, reason: "runner_failed" };
   }
-  return { ok: true, stdout: new TextDecoder().decode(out.stdout) };
+  return { ok: true, stdout: await new Response(cmd.stdout).text() };
 };
 
 export const prepareIsolatedRun = async (): Promise<{
@@ -57,16 +47,16 @@ export const prepareIsolatedRun = async (): Promise<{
   promptPath: string;
   cleanup: () => Promise<void>;
 }> => {
-  const cwd = await Deno.makeTempDir({ prefix: "jev-audit-cwd-" });
+  const cwd = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "jev-audit-cwd-"));
   const removeCwd = async (): Promise<void> => {
     try {
-      await Deno.remove(cwd, { recursive: true });
+      await rm(cwd, { recursive: true, force: true });
     } catch {
       // ignore
     }
   };
   try {
-    await Deno.chmod(cwd, 0o700);
+    await chmod(cwd, 0o700);
     const promptPath = join(cwd, "prompt.md");
     const system = buildAuditorSystemPrompt();
     const user = buildAuditorUserPrompt();

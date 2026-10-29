@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -7,7 +8,7 @@ import { runSingleCase } from "../scripts/audit_run.ts";
 import type { PlanCase, WeeklyPlan } from "../scripts/plan_types.ts";
 import { writePlanImmutable } from "../scripts/plan_store.ts";
 
-Deno.test("patch hash mismatch rejected", async () => {
+test("patch hash mismatch rejected", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-patch-"));
   const runDir = join(root, "run");
   await mkdir(runDir, { recursive: true });
@@ -20,7 +21,7 @@ Deno.test("patch hash mismatch rejected", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("no runner without approval", async () => {
+test("no runner without approval", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-noap-"));
   await mkdir(root, { recursive: true, mode: 0o700 });
   const weekStart = "2020-09-28";
@@ -55,9 +56,10 @@ Deno.test("no runner without approval", async () => {
     }],
   };
   await writePlanImmutable(root, weekStart, plan);
-  Deno.env.set(
-    "MODEL_RESOLVER",
-    join(import.meta.dirname!, "fixtures/resolve_mock.sh"),
+  const previousResolver = process.env.MODEL_RESOLVER;
+  process.env.MODEL_RESOLVER = join(
+    import.meta.dirname!,
+    "fixtures/resolve_mock.sh",
   );
   try {
     const state = await runSingleCase({
@@ -68,7 +70,8 @@ Deno.test("no runner without approval", async () => {
     });
     assert.equal(state.status, "needs_preflight");
   } finally {
-    Deno.env.delete("MODEL_RESOLVER");
+    if (previousResolver === undefined) delete process.env.MODEL_RESOLVER;
+    else process.env.MODEL_RESOLVER = previousResolver;
   }
   await rm(root, { recursive: true, force: true });
 });

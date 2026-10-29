@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -9,28 +10,24 @@ import {
 import { promptHash } from "../scripts/result_store.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 const PATCH = "diff --git a/a b\n+1\n";
 
 const runCli = async (
   env: Record<string, string>,
   args: string[],
 ): Promise<Record<string, unknown>> => {
-  const out = await new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "--no-config", AUDIT_SCRIPT, ...args],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  const out = await runFixtureProcess(["run", AUDIT_SCRIPT, ...args], {
+    ...process.env,
+    ...env,
+  });
   if (!out.success) {
     throw new Error(new TextDecoder().decode(out.stderr));
   }
-  return JSON.parse(new TextDecoder().decode(out.stdout)) as Record<
-    string,
-    unknown
-  >;
+  return JSON.parse(out.stdoutText) as Record<string, unknown>;
 };
 
-Deno.test("repeated prepare preserves unavailable failure state", async () => {
+test("repeated prepare preserves unavailable failure state", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-prep-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");

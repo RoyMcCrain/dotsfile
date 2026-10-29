@@ -1,28 +1,24 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 
 const runCli = async (
   env: Record<string, string>,
   args: string[],
 ): Promise<{ ok: boolean; stderr: string }> => {
-  const cmd = new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "--no-config", AUDIT_SCRIPT, ...args],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
+  const out = await runFixtureProcess(["run", AUDIT_SCRIPT, ...args], {
+    ...process.env,
+    ...env,
   });
-  const out = await cmd.output();
-  return {
-    ok: out.success,
-    stderr: new TextDecoder().decode(out.stderr),
-  };
+  return { ok: out.success, stderr: out.stderrText };
 };
 
-Deno.test("rejects audit-dir under default runs without creating history paths", async () => {
+test("rejects audit-dir under default runs without creating history paths", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-contain-"));
   const xdg = join(home, ".local", "share");
   const badAudit = join(xdg, "parallel-review", "runs", "should-not-create");
@@ -38,7 +34,7 @@ Deno.test("rejects audit-dir under default runs without creating history paths",
   await rm(home, { recursive: true, force: true });
 });
 
-Deno.test("rejects audit-dir equal to explicit runs-dir", async () => {
+test("rejects audit-dir equal to explicit runs-dir", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-contain-eq-"));
   const runs = join(root, "runs");
   const result = await runCli(

@@ -38,7 +38,7 @@ Example (illustrative, not ground truth):
     "evidence": ["skills/parallel-review/scripts/select_review_level.ts"]
   },
   "runtime": {
-    "summary": "Deno CLI invoked locally during parallel-review preflight",
+    "summary": "Bun CLI invoked locally during parallel-review preflight",
     "evidence": ["skills/parallel-review/SKILL.md"]
   },
   "impact": "unknown",

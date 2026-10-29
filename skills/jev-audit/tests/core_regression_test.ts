@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   mkdir,
@@ -21,8 +22,9 @@ import {
 import { AUDITOR_PROMPT_VERSION } from "../scripts/auditor_prompt.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 
-Deno.test("rejects audit-dir when symlink ancestor aliases into runs", async () => {
+test("rejects audit-dir when symlink ancestor aliases into runs", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-symlink-runs-"));
   const runs = join(root, "runs");
   await mkdir(runs, { recursive: true });
@@ -36,7 +38,7 @@ Deno.test("rejects audit-dir when symlink ancestor aliases into runs", async () 
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("validateWeeklyPlan preserves historyWarningCodes under counts", () => {
+test("validateWeeklyPlan preserves historyWarningCodes under counts", () => {
   const plan = validateWeeklyPlan({
     schemaVersion: 1,
     weekStart: "2020-09-28",
@@ -61,7 +63,7 @@ Deno.test("validateWeeklyPlan preserves historyWarningCodes under counts", () =>
   assert.deepEqual(plan.counts.historyWarningCodes, ["duplicate_run_id:2"]);
 });
 
-Deno.test("buildReport week-over-week uses recorded models not live resolver", async () => {
+test("buildReport week-over-week uses recorded models not live resolver", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-wow-"));
   const model = "recorded/auditor-v1";
   const ph = promptHash();
@@ -207,7 +209,7 @@ Deno.test("buildReport week-over-week uses recorded models not live resolver", a
   await rm(auditBase, { recursive: true, force: true });
 });
 
-Deno.test("buildReport auditor promptHash uses recorded result not live prompt", async () => {
+test("buildReport auditor promptHash uses recorded result not live prompt", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-recorded-ph-"));
   const storedPrompt = "f".repeat(64);
   const plan: WeeklyPlan = {
@@ -269,7 +271,7 @@ Deno.test("buildReport auditor promptHash uses recorded result not live prompt",
   await rm(auditBase, { recursive: true, force: true });
 });
 
-Deno.test("cached failure stays unavailable on repeated run", async () => {
+test("cached failure stays unavailable on repeated run", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-cached-fail-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -306,22 +308,10 @@ Deno.test("cached failure stays unavailable on repeated run", async () => {
   };
   const week = "2020-09-28";
   const prep = async () => {
-    await new Deno.Command(Deno.execPath(), {
-      args: [
-        "run",
-        "-A",
-        "--no-config",
-        AUDIT_SCRIPT,
-        "prepare",
-        "--runs-dir",
-        runsDir,
-        "--audit-dir",
-        auditDir,
-        "--week",
-        week,
-      ],
-      env: { ...Deno.env.toObject(), ...env },
-    }).output();
+    await runFixtureProcess(
+      ["run", AUDIT_SCRIPT, "prepare", "--runs-dir", runsDir, "--audit-dir", auditDir, "--week", week],
+      { ...process.env, ...env },
+    );
   };
   await prep();
   const weekRoot = join(auditDir, "weeks", week);

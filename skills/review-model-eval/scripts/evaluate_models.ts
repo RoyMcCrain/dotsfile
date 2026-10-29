@@ -187,16 +187,14 @@ const consolidate = (
 };
 
 const isNotFoundError = (error: unknown): boolean => {
-  if (error instanceof Deno.errors.NotFound) return true;
-  if (
-    error instanceof Error &&
+  return error instanceof Error &&
     "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
-  ) {
-    return true;
-  }
-  return false;
+    (error as NodeJS.ErrnoException).code === "ENOENT";
 };
+
+const isPermissionDeniedError = (error: unknown) =>
+  error instanceof Error && "code" in error &&
+  ["EACCES", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? "");
 
 const isPathInside = (parent: string, child: string): boolean => {
   const rel = relative(parent, child);
@@ -270,9 +268,9 @@ const readSnapshotFile = async (
 ): Promise<{ snapshot: Snapshot; sha256: string; path: string } | null> => {
   const path = join(runDir, "snapshots", fileName);
   try {
-    const lstat = await Deno.lstat(path);
-    if (lstat.isSymlink) return null;
-    if (!lstat.isFile) return null;
+    const fileStat = await lstat(path);
+    if (fileStat.isSymbolicLink()) return null;
+    if (!fileStat.isFile()) return null;
     const content = await readFile(path);
     const parsed = validateSnapshot(
       JSON.parse(new TextDecoder().decode(content)),
@@ -342,7 +340,7 @@ export const loadSelectedRuns = async (
     if (isNotFoundError(error)) {
       return { selected: [], warnings, excludedRunDirs, excludedSnapshots };
     }
-    if (error instanceof Deno.errors.PermissionDenied) {
+    if (isPermissionDeniedError(error)) {
       throw new Error(`runs directory unreadable: ${runsDir}`);
     }
     throw error;
@@ -352,27 +350,27 @@ export const loadSelectedRuns = async (
 
   for (const name of entries) {
     const runDir = join(runsDir, name);
-    let lstat: Deno.FileInfo;
+    let runStat;
     try {
-      lstat = await Deno.lstat(runDir);
+      runStat = await lstat(runDir);
     } catch {
       warnings.push(`${runDir}: unreadable run directory`);
       excludedRunDirs++;
       continue;
     }
-    if (lstat.isSymlink) {
+    if (runStat.isSymbolicLink()) {
       warnings.push(`${runDir}: symlink run directory skipped`);
       excludedRunDirs++;
       continue;
     }
-    if (!lstat.isDirectory) continue;
+    if (!runStat.isDirectory()) continue;
 
     const snapshotsDir = join(runDir, "snapshots");
-    let snapLstat: Deno.FileInfo | null = null;
+    let snapLstat;
     try {
-      snapLstat = await Deno.lstat(snapshotsDir);
+      snapLstat = await lstat(snapshotsDir);
     } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
+      if (isNotFoundError(error)) {
         warnings.push(`${runDir}: no snapshots directory`);
         excludedRunDirs++;
         continue;
@@ -381,7 +379,7 @@ export const loadSelectedRuns = async (
       excludedRunDirs++;
       continue;
     }
-    if (snapLstat.isSymlink) {
+    if (snapLstat.isSymbolicLink()) {
       warnings.push(`${runDir}: snapshots directory is symlink`);
       excludedRunDirs++;
       continue;
@@ -409,8 +407,8 @@ export const loadSelectedRuns = async (
     for (const fileName of snapFiles) {
       const filePath = join(snapshotsDir, fileName);
       try {
-        const fileLstat = await Deno.lstat(filePath);
-        if (fileLstat.isSymlink) {
+        const fileLstat = await lstat(filePath);
+        if (fileLstat.isSymbolicLink()) {
           warnings.push(`${filePath}: symlink snapshot skipped`);
           excludedSnapshots++;
           invalidInRun = true;
@@ -1074,10 +1072,10 @@ Default out: parallel-review/reports/<UTC-date>-<uuid>`);
 
 if (import.meta.main) {
   try {
-    const parsed = parseArgs(Deno.args);
+    const parsed = parseArgs(process.argv.slice(2));
     if (parsed.help) {
       printHelp();
-      Deno.exit(0);
+      process.exit(0);
     }
     const runsDir = resolve(parsed.runsDir ?? getRunsBaseDir());
     const outDir = resolve(parsed.outDir ?? defaultOutDir());
@@ -1085,6 +1083,6 @@ if (import.meta.main) {
     console.log(JSON.stringify(result));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
-    Deno.exit(1);
+    process.exit(1);
   }
 }

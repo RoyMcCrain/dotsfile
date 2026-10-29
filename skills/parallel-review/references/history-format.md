@@ -33,7 +33,7 @@ HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
 # 任意 --level-decision FILE（select_review_level.ts の JSON）を受け付ける。
 
 # 統合完了後（必須）
-SNAPSHOT=$(deno run --no-config --allow-read --allow-write "$HISTORY" save \
+SNAPSHOT=$(bun --config=/dev/null --no-env-file --no-install run "$HISTORY" save \
 	--dir "$REVIEW_DIR" --input "$REVIEW_DIR/assessment.json") || exit 1
 ```
 
@@ -68,8 +68,8 @@ Pi backend が `--events-log` 付き runner で生成する **任意** JSONL。p
 - 1 execution あたり 1 ファイル。retry attempt は同一ファイルに `attempt` フィールド（1 始まり）で追記。
 - 行の種類:
   - `attempt_start` / `attempt_exit` — runner が jq で追記。`timestampMs`（Unix ms・数値）と `attempt`（数値）を含む。`attempt_exit` には実際の終了コード（timeout は `124`）も含む。
-  - `pi_event` — Deno helper が Pi JSON 行から抽出。`timestampMs` / `elapsedMs` は数値。`streamCategory` の `assistant_stream_start` は **assistant `message_start` の到達 proxy** であり、生 HTTP の TTFT や provider 内部計測ではない。
-  - `wrapper_error` — Deno helper が Pi 子プロセスの **spawn に失敗したときのみ** sidecar に追記（現状 `read` / runtime トレース行は出さない）。`attempt` / 数値 `timestampMs` / allowlist `errorCategory` / `phase: "spawn"` のみ。raw 例外・コマンド・パスは含めない。読み取り中の失敗は stderr の固定メッセージに留め、sidecar には書かない。
+  - `pi_event` — Bun helper が Pi JSON 行から抽出。`timestampMs` / `elapsedMs` は数値。`streamCategory` の `assistant_stream_start` は **assistant `message_start` の到達 proxy** であり、生 HTTP の TTFT や provider 内部計測ではない。
+  - `wrapper_error` — Bun helper が Pi 子プロセスの **spawn に失敗したときのみ** sidecar に追記（現状 `read` / runtime トレース行は出さない）。`attempt` / 数値 `timestampMs` / allowlist `errorCategory` / `phase: "spawn"` のみ。raw 例外・コマンド・パスは含めない。読み取り中の失敗は stderr の固定メッセージに留め、sidecar には書かない。
 - `pi_event` の allowlist メタデータ: 正規化済み Pi `eventType` / `role` / `assistantMessageEventType`、`deltaChars`、allowlist 数値 `usage`（`input` / `output` / `cacheRead` / `cacheWrite` / `cacheWrite1h` / `reasoning` / `totalTokens` と、ネスト `cost` の `input` / `output` / `cacheRead` / `cacheWrite` / `total` のみ）、正規化済み `stopReason`、`streamCategory`、失敗時のみ任意 `errorCategory`（`authentication` / `rate_limit` / `network` / `provider_error` / `unknown` 等の固定コード）と allowlist 数値 `httpStatus`（401 / 403 / 429 のみ。生エラー文字列中の任意数字（request id・経過 ms・URL 断片など）からは推定しない。明示的 HTTP/status マーカーまたは SDK エラー形式など、HTTP ステータスと認識できる文脈がある場合のみ付与）。
 - prompt / patch / delta 本文 / 完全 message / 資格情報 / 環境は **含めない**。
 - ファイル mode `0600`。親 skill が `logs/` を用意し、runner が存在チェック後に新規作成する。
@@ -102,7 +102,7 @@ Pi backend が `--events-log` 付き runner で生成する **任意** JSONL。p
 **read-only 一覧**（snapshot 不要・未完了 run 含む）:
 
 ```bash
-deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
+bun --config=/dev/null --no-env-file --no-install run \
   "$HOME/.agents/skills/parallel-review/scripts/review_history.ts" decisions
 ```
 

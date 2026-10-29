@@ -7,61 +7,31 @@ setup() {
 	TEST_REPO="$BATS_TEST_TMPDIR/fake-repo"
 	STUB_BIN="$TEST_REPO/bin"
 	BUN_LOG="$BATS_TEST_TMPDIR/bun-args.log"
-	DENO_LOG="$BATS_TEST_TMPDIR/deno-args.log"
 	NODE_LOG="$BATS_TEST_TMPDIR/node-args.log"
 	BATS_LOG="$BATS_TEST_TMPDIR/bats-args.log"
 	REAL_NODE=$(command -v node)
 	REAL_FD=$(command -v fd)
-	# Same Bash that runs this bats file (run_tests.sh needs mapfile).
 	RUN_BASH=$BASH
-
-	mkdir -p \
-		"$STUB_BIN" \
-		"$TEST_REPO/scripts" \
-		"$TEST_REPO/pi/agent/tests" \
-		"$TEST_REPO/skills/review-report/tests" \
-		"$TEST_REPO/skills/implementation-report/tests" \
-		"$TEST_REPO/fish/tests"
-	cp "$PRODUCTION_RUN_TESTS" "$TEST_REPO/scripts/run_tests.sh"
-	for tool in dirname env mkdir mktemp rm; do
-		ln -s "$(command -v "$tool")" "$STUB_BIN/$tool"
+	mkdir -p "$STUB_BIN" "$TEST_REPO/scripts" "$TEST_REPO/pi/agent/tests" \
+		"$TEST_REPO/pi/agent/node_modules/.bin" "$TEST_REPO/fish/tests"
+	for suite in parallel-review implementation-report review-report review-model-eval jev-audit impl; do
+		mkdir -p "$TEST_REPO/skills/$suite/tests"
+		: >"$TEST_REPO/skills/$suite/tests/sample_test.ts"
 	done
+	cp "$PRODUCTION_RUN_TESTS" "$TEST_REPO/scripts/run_tests.sh"
+	for tool in dirname env mkdir mktemp rm; do ln -s "$(command -v "$tool")" "$STUB_BIN/$tool"; done
 	ln -s "$RUN_BASH" "$STUB_BIN/bash"
-}
-
-load_bun_log() {
-	local -a bun_records
-	mapfile -t -n 5 bun_records <"$BUN_LOG"
-	PI_BUN_ARGS=${bun_records[0]#ARGS:}
-	PI_BUN_TMPDIR=${bun_records[1]#TMPDIR:}
-	PI_BUN_AGENT_DIR=${bun_records[2]#PI_CODING_AGENT_DIR:}
-	PI_BUN_HOME=${bun_records[3]#HOME:}
-	PI_BUN_SENTINEL=${bun_records[4]#SENTINEL:}
-}
-
-assert_pi_bun_args() {
-	[[ "$PI_BUN_ARGS" == *"--no-install"* ]]
-	[[ "$PI_BUN_ARGS" == *" test "* ]]
-	[[ "$PI_BUN_ARGS" == *"sample.test.ts"* ]]
-	[[ "$PI_BUN_ARGS" != *".node.test.mjs"* ]]
-	[[ "$PI_BUN_ARGS" != *"--allow-"* ]]
-	[[ -n "$PI_BUN_TMPDIR" ]]
-	[[ "$PI_BUN_AGENT_DIR" == "$PI_BUN_TMPDIR/pi-agent" ]]
-	[[ "$PI_BUN_HOME" == "$PI_BUN_TMPDIR/home" ]]
-	[[ -z "$PI_BUN_SENTINEL" ]]
+	install_fd_stub
+	install_tool_stubs
+	write_minimal_fixture
 }
 
 install_fd_stub() {
-	local node_fail=${1:-0}
 	cat >"$STUB_BIN/fd" <<EOF
 #!/usr/bin/env bash
-set -euo pipefail
-if [[ "\$*" == *'*.node.test.mjs'* ]]; then
-	if [[ "$node_fail" -eq 1 ]]; then
-		echo "stub fd: node discovery failed" >&2
-		exit 1
-	fi
-	exec "$REAL_FD" "\$@"
+if [[ "\$*" == *'*.node.test.mjs'* && -f "$TEST_REPO/fd-fail" ]]; then
+	echo 'stub fd: node discovery failed' >&2
+	exit 1
 fi
 exec "$REAL_FD" "\$@"
 EOF
@@ -69,254 +39,150 @@ EOF
 }
 
 install_tool_stubs() {
-	local node_mode=${1:-pass}
-	local bun_mode=${2:-pass}
 	: >"$BUN_LOG"
-	: >"$DENO_LOG"
 	: >"$NODE_LOG"
 	: >"$BATS_LOG"
-
-	if [[ "$bun_mode" == "omit" ]]; then
-		rm -f "$STUB_BIN/bun"
-	else
-		cat >"$STUB_BIN/bun" <<EOF
+	cat >"$STUB_BIN/bun" <<EOF
 #!/usr/bin/env bash
 {
 	echo "ARGS:\$*"
-	echo "TMPDIR:\${TMPDIR-}"
-	echo "PI_CODING_AGENT_DIR:\${PI_CODING_AGENT_DIR-}"
-	echo "HOME:\${HOME-}"
-	echo "SENTINEL:\${PI_REVIEW_SENTINEL-}"
-} >> "$BUN_LOG"
-exit 0
+	for key in HOME TMPDIR PI_CODING_AGENT_DIR XDG_CACHE_HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME PI_REVIEW_SENTINEL; do
+		eval 'value=\${'"\$key"'-}'
+		echo "\$key:\$value"
+	done
+	[[ -d \${HOME-} && -d \${TMPDIR-} && -d \${PI_CODING_AGENT_DIR-} && -d \${XDG_CACHE_HOME-} && -d \${XDG_CONFIG_HOME-} && -d \${XDG_DATA_HOME-} && -d \${XDG_STATE_HOME-} ]]
+	echo "PRIVATE_DIRS_EXIST:\$?"
+} >>"$BUN_LOG"
+[[ ! -f "$TEST_REPO/bun-fail" || "\$*" != *"\$(<"$TEST_REPO/bun-fail")"* ]]
 EOF
-		chmod +x "$STUB_BIN/bun"
-	fi
-
-	cat >"$STUB_BIN/deno" <<EOF
+	cat >"$STUB_BIN/node" <<EOF
 #!/usr/bin/env bash
-{
-	echo "ARGS:\$*"
-	echo "TMPDIR:\${TMPDIR-}"
-	echo "PI_CODING_AGENT_DIR:\${PI_CODING_AGENT_DIR-}"
-	echo "HOME:\${HOME-}"
-	echo "SENTINEL:\${PI_REVIEW_SENTINEL-}"
-} >> "$DENO_LOG"
-exit 0
-EOF
-	chmod +x "$STUB_BIN/deno"
-
-	cat >"$STUB_BIN/bats" <<EOF
-#!/usr/bin/env bash
-echo "\$*" >> "$BATS_LOG"
-exit 0
-EOF
-	chmod +x "$STUB_BIN/bats"
-
-	if [[ "$node_mode" == "pass" ]]; then
-		cat >"$STUB_BIN/node" <<EOF
-#!/usr/bin/env bash
-echo "\$*" >> "$NODE_LOG"
+echo "\$*" >>"$NODE_LOG"
 exec "$REAL_NODE" "\$@"
 EOF
-		chmod +x "$STUB_BIN/node"
-	elif [[ "$node_mode" == "omit" ]]; then
-		rm -f "$STUB_BIN/node"
-	else
-		cat >"$STUB_BIN/node" <<EOF
+	cat >"$STUB_BIN/bats" <<EOF
 #!/usr/bin/env bash
-echo "\$*" >> "$NODE_LOG"
-exit 1
+echo "\$*" >>"$BATS_LOG"
+exit 0
 EOF
-		chmod +x "$STUB_BIN/node"
-	fi
+	cat >"$TEST_REPO/pi/agent/node_modules/.bin/tsc" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >>"$TEST_REPO/tsc.log"
+exit 0
+EOF
+	chmod +x "$STUB_BIN/bun" "$STUB_BIN/node" "$STUB_BIN/bats" "$TEST_REPO/pi/agent/node_modules/.bin/tsc"
+	PATH="$STUB_BIN:$PATH"
+	export PATH
 }
 
 write_minimal_fixture() {
-	mkdir -p "$TEST_REPO/pi/agent/node_modules/.bin"
-	cat >"$TEST_REPO/pi/agent/node_modules/.bin/tsc" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-	chmod +x "$TEST_REPO/pi/agent/node_modules/.bin/tsc"
 	cat >"$TEST_REPO/pi/agent/tests/sample.node.test.mjs" <<'EOF'
 import test from "node:test";
 test("stub pass", () => {});
 EOF
-	printf '%s\n' 'import test from "node:test"; test("space path", () => {});' \
-		>"$TEST_REPO/pi/agent/tests/space name.node.test.mjs"
-	cat >"$TEST_REPO/pi/agent/tests/sample.test.ts" <<'EOF'
-test("bun stub target", () => {});
-EOF
-	cat >"$TEST_REPO/pi/agent/tests/stub.bats" <<'EOF'
-@test "fixture stub" { true; }
-EOF
+	printf '%s\n' 'import test from "node:test"; test("space path", () => {});' >"$TEST_REPO/pi/agent/tests/space name.node.test.mjs"
+	: >"$TEST_REPO/pi/agent/tests/sample.test.ts"
+	: >"$TEST_REPO/pi/agent/tests/stub.bats"
 }
 
 run_copied_run_tests() {
-	# Only explicitly installed tools are visible, including on hosts with /usr/bin/node.
 	run env PATH="$STUB_BIN" PI_REVIEW_SENTINEL=caller-secret "$RUN_BASH" "$TEST_REPO/scripts/run_tests.sh"
 }
 
-@test "copied run_tests.sh discovers node tests and passes vm flag to node" {
-	install_fd_stub 0
-	install_tool_stubs pass
-	write_minimal_fixture
+assert_private_dirs_cleaned() {
+	while IFS= read -r private_dir; do
+		[ ! -e "$private_dir" ]
+	done < <(rg '^(HOME|TMPDIR|PI_CODING_AGENT_DIR|XDG_CACHE_HOME|XDG_CONFIG_HOME|XDG_DATA_HOME|XDG_STATE_HOME):' "$BUN_LOG" | cut -d: -f2- | sort -u)
+}
 
+@test "runner uses explicit absolute Bun paths, Node VM tests, and isolated skill environments" {
 	run_copied_run_tests
 	[ "$status" -eq 0 ]
-
-	node_args=$(<"$NODE_LOG")
-	[[ "$node_args" == *"--experimental-vm-modules"* ]]
-	[[ "$node_args" == *"--test"* ]]
-	[[ "$node_args" == *"sample.node.test.mjs"* ]]
-	[[ "$node_args" == *"space name.node.test.mjs"* ]]
-
-	load_bun_log
-	assert_pi_bun_args
-	[[ "$PI_BUN_ARGS" == *"$TEST_REPO/pi/agent/tests/sample.test.ts"* ]]
-	[[ ! -d "$PI_BUN_TMPDIR" ]]
-	[[ ! -d "$PI_BUN_AGENT_DIR" ]]
+	[[ "$(<"$NODE_LOG")" == *"--experimental-vm-modules --test"* ]]
+	[[ "$(<"$NODE_LOG")" == *"space name.node.test.mjs"* ]]
+	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 6 ]
+	[ "$(rg -c '^ARGS:.*pi/agent/tests/sample.test.ts' "$BUN_LOG")" -eq 1 ]
+	if rg -q 'Deno|--allow-' "$BUN_LOG"; then false; fi
+	while IFS= read -r keyline; do
+		case "$keyline" in
+		HOME:* | TMPDIR:* | PI_CODING_AGENT_DIR:* | XDG_CACHE_HOME:* | XDG_CONFIG_HOME:* | XDG_DATA_HOME:* | XDG_STATE_HOME:*)
+			[[ "$keyline" == *"/pi-agent-tests."* || "$keyline" == *"/skills."* ]]
+			;;
+		PI_REVIEW_SENTINEL:) ;;
+		PRIVATE_DIRS_EXIST:0) ;;
+		*) false ;;
+		esac
+	done < <(rg '^(HOME|TMPDIR|PI_CODING_AGENT_DIR|XDG_CACHE_HOME|XDG_CONFIG_HOME|XDG_DATA_HOME|XDG_STATE_HOME|PI_REVIEW_SENTINEL):' "$BUN_LOG")
+	if rg -q 'caller-secret' "$BUN_LOG"; then false; fi
+	[ "$(rg -c '^PRIVATE_DIRS_EXIST:0$' "$BUN_LOG")" -eq 7 ]
+	[[ "$(<"$TEST_REPO/tsc.log")" == *"tsconfig.skills.json"* ]]
+	assert_private_dirs_cleaned
 }
 
-@test "copied run_tests.sh canonicalizes Pi temp and leaves caller TMPDIR and agent dir unchanged" {
-	install_fd_stub 0
-	install_tool_stubs pass
-	write_minimal_fixture
-
-	local fixture_base="$BATS_TEST_TMPDIR/caller base/fixture-temp"
-	local caller_tmp_link="$BATS_TEST_TMPDIR/caller base/tmp link"
-	local caller_agent_dir="$BATS_TEST_TMPDIR/caller-agent-dir"
-	mkdir -p "$fixture_base" "$caller_agent_dir"
-	echo caller-base-sentinel >"$fixture_base/sentinel"
-	echo caller-agent-sentinel >"$caller_agent_dir/sentinel"
-	ln -s "$fixture_base" "$caller_tmp_link"
-	canon_base=$(cd "$fixture_base" && pwd -P)
-
-	run env \
-		PATH="$STUB_BIN" \
-		PI_REVIEW_SENTINEL=caller-secret \
-		TMPDIR="$caller_tmp_link" \
-		PI_CODING_AGENT_DIR="$caller_agent_dir" \
-		"$RUN_BASH" "$TEST_REPO/scripts/run_tests.sh"
+@test "runner keeps caller TMPDIR and agent directory intact" {
+	local caller_tmp="$BATS_TEST_TMPDIR/caller tmp" caller_agent="$BATS_TEST_TMPDIR/caller-agent"
+	mkdir -p "$caller_tmp" "$caller_agent"
+	echo keep >"$caller_tmp/sentinel"
+	echo keep >"$caller_agent/sentinel"
+	run env PATH="$STUB_BIN" TMPDIR="$caller_tmp" PI_CODING_AGENT_DIR="$caller_agent" \
+		PI_REVIEW_SENTINEL=caller-secret "$RUN_BASH" "$TEST_REPO/scripts/run_tests.sh"
 	[ "$status" -eq 0 ]
-
-	load_bun_log
-	assert_pi_bun_args
-	[[ "$PI_BUN_TMPDIR" == "$canon_base"/* ]]
-	[[ "$PI_BUN_AGENT_DIR" != "$caller_agent_dir" ]]
-	[[ ! -d "$PI_BUN_TMPDIR" ]]
-	[[ -f "$fixture_base/sentinel" ]]
-	[[ "$(<"$fixture_base/sentinel")" == "caller-base-sentinel" ]]
-	[[ -f "$caller_agent_dir/sentinel" ]]
-	[[ "$(<"$caller_agent_dir/sentinel")" == "caller-agent-sentinel" ]]
-
-	local -a deno_records
-	mapfile -t deno_records <"$DENO_LOG"
-	[[ "${deno_records[1]}" == "TMPDIR:$caller_tmp_link" ]]
-	[[ "${deno_records[2]}" == "PI_CODING_AGENT_DIR:$caller_agent_dir" ]]
-	[[ "${deno_records[3]}" == "HOME:$HOME" ]]
-	[[ "${deno_records[4]}" == "SENTINEL:caller-secret" ]]
-	[[ "$PI_BUN_HOME" == "$PI_BUN_TMPDIR/home" ]]
-	[[ "$PI_BUN_HOME" != "$HOME" ]]
+	[ "$(<"$caller_tmp/sentinel")" = keep ]
+	[ "$(<"$caller_agent/sentinel")" = keep ]
+	[[ "$(<"$caller_tmp/sentinel")" == keep ]]
+	if rg -Fqx "TMPDIR:$caller_tmp" "$BUN_LOG" || rg -Fqx "PI_CODING_AGENT_DIR:$caller_agent" "$BUN_LOG" || rg -q 'caller-secret' "$BUN_LOG"; then false; fi
+	[ "$(rg -c '^PRIVATE_DIRS_EXIST:0$' "$BUN_LOG")" -eq 7 ]
+	assert_private_dirs_cleaned
 }
 
-@test "copied run_tests.sh fails when bun is missing from PATH" {
-	install_fd_stub 0
-	install_tool_stubs pass omit
-	write_minimal_fixture
-
+@test "runner fails when Bun is missing from PATH and does not require Deno" {
+	rm -f "$STUB_BIN/bun"
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"missing required tool: bun"* ]]
 }
 
-@test "copied run_tests.sh fails when Pi node_modules is missing" {
-	install_fd_stub 0
-	install_tool_stubs pass
-	write_minimal_fixture
-	rm -rf "$TEST_REPO/pi/agent/node_modules"
-
+@test "runner fails when Pi node_modules is missing" {
+	rm -r "$TEST_REPO/pi/agent/node_modules"
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"missing pi/agent/node_modules; run: bun install --cwd pi/agent"* ]]
-	[[ ! -s "$BUN_LOG" ]]
+	[ ! -s "$BUN_LOG" ]
 }
 
-@test "copied run_tests.sh fails when node is missing from PATH" {
-	install_fd_stub 0
-	install_tool_stubs omit
-	write_minimal_fixture
-
+@test "runner fails when Node is missing" {
+	rm -f "$STUB_BIN/node"
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"missing required tool: node"* ]]
 }
 
-@test "copied run_tests.sh propagates failing node tests" {
-	install_fd_stub 0
-	install_tool_stubs pass
-	cat >"$TEST_REPO/pi/agent/tests/sample.test.ts" <<'EOF'
-test("bun stub target", () => {});
+@test "runner propagates Node failures and continues to later suites" {
+	cat >"$STUB_BIN/node" <<'EOF'
+#!/usr/bin/env bash
+echo "$*" >>"$NODE_LOG"
+exit 1
 EOF
-	cat >"$TEST_REPO/pi/agent/tests/fail.node.test.mjs" <<'EOF'
-import test from "node:test";
-import assert from "node:assert/strict";
-test("stub fail", () => {
-  assert.fail("expected failure");
-});
-EOF
-	cat >"$TEST_REPO/pi/agent/tests/stub.bats" <<'EOF'
-@test "fixture stub" { true; }
-EOF
-	mkdir -p \
-		"$TEST_REPO/pi/agent/node_modules" \
-		"$TEST_REPO/skills/review-report/tests" \
-		"$TEST_REPO/skills/implementation-report/tests" \
-		"$TEST_REPO/fish/tests"
-
+	chmod +x "$STUB_BIN/node"
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"FAILED: node test (pi/agent *.node.test.mjs)"* ]]
+	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 6 ]
 }
 
-@test "copied run_tests.sh fails when fd cannot discover node tests" {
-	install_fd_stub 1
-	install_tool_stubs pass
-	write_minimal_fixture
-
+@test "runner reports fd discovery failure" {
+	touch "$TEST_REPO/fd-fail"
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"failed to discover pi/agent node tests (fd)"* ]]
-
-	load_bun_log
-	[[ -n "$PI_BUN_TMPDIR" ]]
-	[[ ! -d "$PI_BUN_TMPDIR" ]]
 }
 
-@test "copied run_tests.sh removes Pi temp root after Bun failure" {
-	install_fd_stub 0
-	install_tool_stubs pass
-	write_minimal_fixture
-	cat >"$STUB_BIN/bun" <<EOF
-#!/usr/bin/env bash
-{
-	echo "ARGS:\$*"
-	echo "TMPDIR:\${TMPDIR-}"
-	echo "PI_CODING_AGENT_DIR:\${PI_CODING_AGENT_DIR-}"
-	echo "HOME:\${HOME-}"
-	echo "SENTINEL:\${PI_REVIEW_SENTINEL-}"
-} >> "$BUN_LOG"
-exit 1
-EOF
-	chmod +x "$STUB_BIN/bun"
-
+@test "runner propagates Bun failures and continues to following suites and Bats" {
+	printf 'parallel-review/tests/sample_test.ts' >"$TEST_REPO/bun-fail"
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"FAILED: bun test (pi/agent)"* ]]
-
-	load_bun_log
-	[[ -n "$PI_BUN_TMPDIR" ]]
-	[[ ! -d "$PI_BUN_TMPDIR" ]]
-	[[ ! -d "$PI_BUN_AGENT_DIR" ]]
+	[[ "$output" == *"FAILED: bun test (skills/parallel-review)"* ]]
+	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 6 ]
+	[ -s "$BATS_LOG" ]
+	assert_private_dirs_cleaned
 }

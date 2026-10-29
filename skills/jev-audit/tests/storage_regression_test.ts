@@ -1,6 +1,9 @@
+import { spyOn, test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   link,
+  lstat,
+  stat,
   mkdir,
   mkdtemp,
   readdir,
@@ -34,14 +37,14 @@ const RUN_ID = "11111111-1111-4111-8111-111111111111";
 const COMPLETED_WEEK = "2020-09-28";
 
 const restoreEnv = (key: string, previous: string | undefined): void => {
-  if (previous === undefined) Deno.env.delete(key);
-  else Deno.env.set(key, previous);
+  if (previous === undefined) delete process.env[key];
+  else process.env[key] = previous;
 };
 
 const assertOwnedTempLeaf = async (path: string): Promise<void> => {
-  const st = await Deno.lstat(path);
-  const uid = (st as Deno.FileInfo & { uid?: number }).uid;
-  if (uid !== undefined && uid !== Deno.uid()) {
+  const st = await lstat(path);
+  const uid = st.uid;
+  if (uid !== undefined && process.getuid?.() !== undefined && uid !== process.getuid()) {
     throw new Error(`refusing to clean foreign-owned temp: ${path}`);
   }
 };
@@ -53,7 +56,7 @@ const listJevPubTemps = async (dir: string): Promise<string[]> => {
   );
 };
 
-Deno.test("stagePrivatePatch rejects pre-existing input.patch symlink", async () => {
+test("stagePrivatePatch rejects pre-existing input.patch symlink", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-stage-symlink-"));
   const outside = join(root, "outside");
   const audit = join(root, "audit");
@@ -73,7 +76,7 @@ Deno.test("stagePrivatePatch rejects pre-existing input.patch symlink", async ()
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("stagePrivatePatch rejects hard-linked outside inode", async () => {
+test("stagePrivatePatch rejects hard-linked outside inode", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-stage-hardlink-"));
   const audit = join(root, "audit");
   const outside = join(root, "outside.txt");
@@ -95,7 +98,7 @@ Deno.test("stagePrivatePatch rejects hard-linked outside inode", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("approveCase rejects approvals directory symlink", async () => {
+test("approveCase rejects approvals directory symlink", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-approval-symlink-"));
   const audit = join(root, "audit");
   const outside = join(root, "outside");
@@ -135,12 +138,9 @@ Deno.test("approveCase rejects approvals directory symlink", async () => {
       }),
     }),
   );
-  const prevModel = Deno.env.get("MODEL_RESOLVER");
-  const prevBash = Deno.env.get("JEV_AUDIT_BASH");
-  Deno.env.set(
-    "MODEL_RESOLVER",
-    join(import.meta.dirname!, "fixtures/resolve_mock.sh"),
-  );
+  const prevModel = process.env.MODEL_RESOLVER;
+  const prevBash = process.env.JEV_AUDIT_BASH;
+  process.env.MODEL_RESOLVER = join(import.meta.dirname!, "fixtures/resolve_mock.sh");
   try {
     await assert.rejects(
       () =>
@@ -155,7 +155,7 @@ Deno.test("approveCase rejects approvals directory symlink", async () => {
         }),
       /symlink|approvals/,
     );
-    await assert.rejects(() => Deno.stat(join(outside, `${RUN_ID}.json`)));
+    await assert.rejects(() => stat(join(outside, `${RUN_ID}.json`)));
   } finally {
     restoreEnv("MODEL_RESOLVER", prevModel);
     restoreEnv("JEV_AUDIT_BASH", prevBash);
@@ -163,7 +163,7 @@ Deno.test("approveCase rejects approvals directory symlink", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("readApproval propagates non-missing approvals root errors", async () => {
+test("readApproval propagates non-missing approvals root errors", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-read-approval-"));
   const bad = join(root, "not-a-dir");
   await writeFile(bad, "file", { mode: 0o600 });
@@ -174,7 +174,7 @@ Deno.test("readApproval propagates non-missing approvals root errors", async () 
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("ensureWeeklyPlan rejects weeks symlink before outside mkdir", async () => {
+test("ensureWeeklyPlan rejects weeks symlink before outside mkdir", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-prepare-weeks-link-"));
   const auditLink = join(root, "audit-link");
   const outside = join(root, "outside");
@@ -191,11 +191,11 @@ Deno.test("ensureWeeklyPlan rejects weeks symlink before outside mkdir", async (
       }),
     /symlink|week/,
   );
-  await assert.rejects(() => Deno.stat(join(outside, "2020-09-21")));
+  await assert.rejects(() => stat(join(outside, "2020-09-21")));
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("ensureWeeklyPlan rejects current and future UTC weeks", async () => {
+test("ensureWeeklyPlan rejects current and future UTC weeks", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-prepare-future-"));
   const audit = join(root, "audit");
   await mkdir(join(root, "runs"), { recursive: true });
@@ -231,7 +231,7 @@ Deno.test("ensureWeeklyPlan rejects current and future UTC weeks", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("immutable JSON publish leaves no partial file on link failure", async () => {
+test("immutable JSON publish leaves no partial file on link failure", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-atomic-pub-"));
   const weekRoot = join(root, "weeks", COMPLETED_WEEK);
   await mkdir(weekRoot, { recursive: true, mode: 0o700 });
@@ -266,7 +266,7 @@ Deno.test("immutable JSON publish leaves no partial file on link failure", async
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("conservativeTokenScan detects modern token prefixes", () => {
+test("conservativeTokenScan detects modern token prefixes", () => {
   const enc = (s: string) => new TextEncoder().encode(s);
   assert.throws(
     () => conservativeTokenScan(enc("token sk-proj-" + "a".repeat(40))),
@@ -292,7 +292,7 @@ Deno.test("conservativeTokenScan detects modern token prefixes", () => {
   );
 });
 
-Deno.test("repeated stagePrivatePatch replaces regular file safely", async () => {
+test("repeated stagePrivatePatch replaces regular file safely", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-stage-repeat-"));
   const audit = join(root, "audit");
   await mkdir(audit, { recursive: true, mode: 0o700 });
@@ -306,12 +306,12 @@ Deno.test("repeated stagePrivatePatch replaces regular file safely", async () =>
   const p2 = await stagePrivatePatch(audit, COMPLETED_WEEK, RUN_ID, second);
   assert.equal(p1, p2);
   assert.equal(await readFile(p2, "utf8"), new TextDecoder().decode(second));
-  const st = await Deno.lstat(p2);
+  const st = await lstat(p2);
   assert.equal(st.mode! & 0o777, 0o600);
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("publishPrivateFileAtomic creates private mode and no-overwrite leaf", async () => {
+test("publishPrivateFileAtomic creates private mode and no-overwrite leaf", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-pub-mode-"));
   const dir = join(root, "dir");
   await mkdir(dir, { recursive: true, mode: 0o700 });
@@ -320,7 +320,7 @@ Deno.test("publishPrivateFileAtomic creates private mode and no-overwrite leaf",
     ifExists: "fail",
   });
   assert.equal(outcome, "created");
-  const st = await Deno.lstat(finalPath);
+  const st = await lstat(finalPath);
   assert.equal(st.mode! & 0o777, 0o600);
   await assert.rejects(
     () => publishPrivateFileAtomic(finalPath, '{"other":true}\n'),
@@ -330,27 +330,24 @@ Deno.test("publishPrivateFileAtomic creates private mode and no-overwrite leaf",
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("publishPrivateFileAtomic cleans up after sync failure", async () => {
+test("publishPrivateFileAtomic cleans up after sync failure", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-pub-sync-fail-"));
   const dir = join(root, "dir");
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const finalPath = join(dir, "leaf.json");
   const kept = '{"keep":true}\n';
   await writeFile(finalPath, kept, { mode: 0o600 });
-  const originalOpen = Deno.open;
-  Deno.open = async (path, options) => {
-    const handle = await originalOpen(path, options);
-    const pathStr = typeof path === "string"
-      ? path
-      : path instanceof URL
-      ? path.pathname
-      : String(path);
+  const fsPromises = await import("node:fs/promises");
+  const originalOpen = fsPromises.open;
+  const openSpy = spyOn(fsPromises, "open").mockImplementation(async (...args) => {
+    const handle = await originalOpen(...args);
+    const pathStr = String(args[0]);
     if (pathStr.includes(".jev-pub-") && pathStr.endsWith(".tmp")) {
       await assertOwnedTempLeaf(pathStr);
       handle.sync = () => Promise.reject(new Error("sync interrupted"));
     }
     return handle;
-  };
+  });
   try {
     await assert.rejects(
       () =>
@@ -367,10 +364,10 @@ Deno.test("publishPrivateFileAtomic cleans up after sync failure", async () => {
       () => publishPrivateFileAtomic(freshPath, '{"x":1}\n'),
       /sync interrupted/,
     );
-    await assert.rejects(() => Deno.stat(freshPath));
+    await assert.rejects(() => stat(freshPath), { code: "ENOENT" });
     assert.equal((await listJevPubTemps(dir)).length, 0);
   } finally {
-    Deno.open = originalOpen;
+    openSpy.mockRestore();
     await rm(root, { recursive: true, force: true });
   }
 });

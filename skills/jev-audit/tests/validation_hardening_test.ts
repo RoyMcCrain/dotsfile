@@ -1,5 +1,7 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { spyOn } from "bun:test";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AUDITOR_PROMPT_VERSION } from "../scripts/auditor_prompt.ts";
@@ -85,7 +87,7 @@ const baseSuccessResult = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-Deno.test("validateWeeklyPlan rejects non-array historyWarningCodes", () => {
+test("validateWeeklyPlan rejects non-array historyWarningCodes", () => {
   assert.throws(
     () =>
       validateWeeklyPlan(baseWeeklyPlan({
@@ -95,7 +97,7 @@ Deno.test("validateWeeklyPlan rejects non-array historyWarningCodes", () => {
   );
 });
 
-Deno.test("validateWeeklyPlan accepts bounded historyWarningCodes array", () => {
+test("validateWeeklyPlan accepts bounded historyWarningCodes array", () => {
   const plan = validateWeeklyPlan(baseWeeklyPlan({
     counts: {
       ...baseCounts(),
@@ -108,21 +110,21 @@ Deno.test("validateWeeklyPlan accepts bounded historyWarningCodes array", () => 
   assert.deepEqual(plan.counts.historyWarningCodes, ["duplicate_run_id:2"]);
 });
 
-Deno.test("validateWeeklyPlan rejects invalid plan createdAt timestamp", () => {
+test("validateWeeklyPlan rejects invalid plan createdAt timestamp", () => {
   assert.throws(
     () => validateWeeklyPlan(baseWeeklyPlan({ createdAt: "not-a-date" })),
     /createdAt/,
   );
 });
 
-Deno.test("validateWeeklyPlan allows plan createdAt outside sampling week", () => {
+test("validateWeeklyPlan allows plan createdAt outside sampling week", () => {
   const plan = validateWeeklyPlan(baseWeeklyPlan({
     createdAt: "2030-06-01T00:00:00.000Z",
   }));
   assert.equal(plan.createdAt, "2030-06-01T00:00:00.000Z");
 });
 
-Deno.test("validateWeeklyPlan rejects selected case createdAt before week", () => {
+test("validateWeeklyPlan rejects selected case createdAt before week", () => {
   assert.throws(
     () =>
       validateWeeklyPlan(baseWeeklyPlan({
@@ -139,7 +141,7 @@ Deno.test("validateWeeklyPlan rejects selected case createdAt before week", () =
   );
 });
 
-Deno.test("validateWeeklyPlan rejects selected case at weekEnd boundary", () => {
+test("validateWeeklyPlan rejects selected case at weekEnd boundary", () => {
   const period = periodFromWeekStart("2020-09-28");
   assert.throws(
     () =>
@@ -150,7 +152,7 @@ Deno.test("validateWeeklyPlan rejects selected case at weekEnd boundary", () => 
   );
 });
 
-Deno.test("validateWeeklyPlan accepts selected case at weekStart and before weekEnd", () => {
+test("validateWeeklyPlan accepts selected case at weekStart and before weekEnd", () => {
   const period = periodFromWeekStart("2020-09-28");
   validateWeeklyPlan(baseWeeklyPlan({
     selected: [basePlanCase(period.weekStartIso)],
@@ -160,13 +162,13 @@ Deno.test("validateWeeklyPlan accepts selected case at weekStart and before week
   }));
 });
 
-Deno.test("validateWeeklyPlan accepts Date.parseable non-ISO selected createdAt in week", () => {
+test("validateWeeklyPlan accepts Date.parseable non-ISO selected createdAt in week", () => {
   validateWeeklyPlan(baseWeeklyPlan({
     selected: [basePlanCase("Mon, 28 Sep 2020 12:00:00 GMT")],
   }));
 });
 
-Deno.test("validateApprovalRecord rejects invalid approvedAt", () => {
+test("validateApprovalRecord rejects invalid approvedAt", () => {
   assert.throws(
     () =>
       validateApprovalRecord({
@@ -184,7 +186,7 @@ Deno.test("validateApprovalRecord rejects invalid approvedAt", () => {
   );
 });
 
-Deno.test("validateApprovalRecord accepts Date.parseable non-ISO approvedAt", () => {
+test("validateApprovalRecord accepts Date.parseable non-ISO approvedAt", () => {
   const record = validateApprovalRecord({
     schemaVersion: 1,
     weekStart: "2020-09-28",
@@ -199,7 +201,7 @@ Deno.test("validateApprovalRecord accepts Date.parseable non-ISO approvedAt", ()
   assert.equal(record.approvedAt, "Mon, 15 Jan 2026 12:00:00 GMT");
 });
 
-Deno.test("validateAuditResultRecord rejects invalid attemptedAt", () => {
+test("validateAuditResultRecord rejects invalid attemptedAt", () => {
   assert.throws(
     () =>
       validateAuditResultRecord(
@@ -209,14 +211,14 @@ Deno.test("validateAuditResultRecord rejects invalid attemptedAt", () => {
   );
 });
 
-Deno.test("validateAuditResultRecord accepts Date.parseable non-ISO attemptedAt", () => {
+test("validateAuditResultRecord accepts Date.parseable non-ISO attemptedAt", () => {
   const record = validateAuditResultRecord(baseSuccessResult({
     attemptedAt: "Wed, 01 Jan 2026 00:00:00 GMT",
   }));
   assert.equal(record.attemptedAt, "Wed, 01 Jan 2026 00:00:00 GMT");
 });
 
-Deno.test("validateAuditResultRecord rejects cachedFromWeek on success", () => {
+test("validateAuditResultRecord rejects cachedFromWeek on success", () => {
   assert.throws(
     () =>
       validateAuditResultRecord(baseSuccessResult({
@@ -226,7 +228,7 @@ Deno.test("validateAuditResultRecord rejects cachedFromWeek on success", () => {
   );
 });
 
-Deno.test("validateAuditResultRecord rejects cachedFromWeek on failure", () => {
+test("validateAuditResultRecord rejects cachedFromWeek on failure", () => {
   assert.throws(
     () =>
       validateAuditResultRecord({
@@ -246,7 +248,7 @@ Deno.test("validateAuditResultRecord rejects cachedFromWeek on failure", () => {
   );
 });
 
-Deno.test("validateAuditResultRecord allows cached backfill from newer sampling week", () => {
+test("validateAuditResultRecord allows cached backfill from newer sampling week", () => {
   const record = validateAuditResultRecord({
     schemaVersion: 1,
     runId: RUN_ID,
@@ -268,10 +270,7 @@ Deno.test("validateAuditResultRecord allows cached backfill from newer sampling 
   assert.equal(record.cachedFromWeek, "2020-10-05");
 });
 
-Deno.test({
-  name: "readJsonFile reads ordinary JSON",
-  sanitizeResources: true,
-  fn: async () => {
+test("readJsonFile reads ordinary JSON", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-read-json-"));
     const path = join(root, "ok.json");
     try {
@@ -280,20 +279,16 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test("readJsonFile missing file propagates not found", async () => {
+test("readJsonFile missing file propagates not found", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-read-miss-"));
   const path = join(root, "missing.json");
-  await assert.rejects(() => readJsonFile(path), Deno.errors.NotFound);
+  await assert.rejects(() => readJsonFile(path), { code: "ENOENT" });
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test({
-  name: "readJsonFile rejects invalid JSON with safe error",
-  sanitizeResources: true,
-  fn: async () => {
+test("readJsonFile rejects invalid JSON with safe error", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-read-bad-"));
     const path = join(root, "bad.json");
     try {
@@ -302,13 +297,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "readJsonFile rejects file larger than 1 MiB",
-  sanitizeResources: true,
-  fn: async () => {
+test("readJsonFile rejects file larger than 1 MiB", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-read-big-"));
     const path = join(root, "big.json");
     try {
@@ -318,13 +309,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "readJsonFile rejects valid JSON at exactly 1 MiB plus one byte",
-  sanitizeResources: true,
-  fn: async () => {
+test("readJsonFile rejects valid JSON at exactly 1 MiB plus one byte", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-read-max-plus-"));
     const path = join(root, "max-plus-one.json");
     try {
@@ -335,13 +322,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "readJsonFile accepts valid JSON at exactly 1 MiB",
-  sanitizeResources: true,
-  fn: async () => {
+test("readJsonFile accepts valid JSON at exactly 1 MiB", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-read-bound-"));
     const path = join(root, "bound.json");
     try {
@@ -353,62 +336,66 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "readJsonFile completes JSON after legal short reads",
-  sanitizeResources: true,
-  fn: async () => {
+test("readJsonFile handles short reads and closes handles on success and invalid JSON", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-read-short-"));
     const path = join(root, "chunked.json");
     const content = '{"ok":true,"n":42}';
-    const origOpen = Deno.open;
-    Deno.open = async (...args: Parameters<typeof Deno.open>) => {
+    const fsPromises = await import("node:fs/promises");
+    const origOpen = fsPromises.open;
+    let openedHandle: Awaited<ReturnType<typeof origOpen>> | undefined;
+    const openSpy = spyOn(fsPromises, "open").mockImplementation(async (...args) => {
       const file = await origOpen(...args);
+      openedHandle = file;
       const read = file.read.bind(file);
-      file.read = (buf: Uint8Array) => {
-        const slice = buf.subarray(0, Math.min(3, buf.length));
-        return read(slice);
-      };
+      const shortRead = (buffer: Uint8Array, offset = 0, length = buffer.length - offset, position: number | null = null) =>
+        read(buffer, offset, Math.min(3, length), position);
+      file.read = shortRead as typeof file.read;
       return file;
-    };
+    });
     try {
       await writeFile(path, content, { mode: 0o600 });
       assert.deepEqual(await readJsonFile(path), { ok: true, n: 42 });
+      assert.ok(openedHandle);
+      await assert.rejects(
+        () => openedHandle!.read(Buffer.alloc(1), 0, 1, 0),
+        { code: "EBADF" },
+      );
+      await writeFile(path, "{");
+      await assert.rejects(() => readJsonFile(path), expectSafeJsonError);
+      await assert.rejects(
+        () => openedHandle!.read(Buffer.alloc(1), 0, 1, 0),
+        { code: "EBADF" },
+      );
     } finally {
-      Deno.open = origOpen;
+      openSpy.mockRestore();
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "readJsonFile sanitizes open failures",
-  sanitizeResources: true,
-  fn: async () => {
+test("readJsonFile sanitizes open failures", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-read-open-"));
     const path = join(root, "locked.json");
-    const origOpen = Deno.open;
-    Deno.open = () => {
-      throw new Deno.errors.PermissionDenied("mock open failure");
-    };
+    const fsPromises = await import("node:fs/promises");
+    const openSpy = spyOn(fsPromises, "open").mockImplementation(() => {
+      throw Object.assign(new Error("mock open failure"), { code: "EACCES" });
+    });
     try {
       await writeFile(path, "{}", { mode: 0o600 });
       await assert.rejects(() => readJsonFile(path), expectSafeJsonError);
     } finally {
-      Deno.open = origOpen;
+      openSpy.mockRestore();
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test("parseAuditorResponse rejects raw input over 64 KiB UTF-8", () => {
+test("parseAuditorResponse rejects raw input over 64 KiB UTF-8", () => {
   const big = "x".repeat(64 * 1024 + 1);
   assert.throws(() => parseAuditorResponse(big), /large|long|size/i);
 });
 
-Deno.test("parseAuditorResponse rejects multibyte payload over 64 KiB UTF-8", () => {
+test("parseAuditorResponse rejects multibyte payload over 64 KiB UTF-8", () => {
   const pad = "あ".repeat(22_000);
   const raw = JSON.stringify({
     minLevel: 2,
@@ -424,7 +411,7 @@ Deno.test("parseAuditorResponse rejects multibyte payload over 64 KiB UTF-8", ()
   assert.throws(() => parseAuditorResponse(raw), /large|long|size/i);
 });
 
-Deno.test("parseAuditorResponse rejects oversized fenced JSON", () => {
+test("parseAuditorResponse rejects oversized fenced JSON", () => {
   const inner = JSON.stringify({
     minLevel: 2,
     maxLevel: 3,

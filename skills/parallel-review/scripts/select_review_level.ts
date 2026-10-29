@@ -1006,7 +1006,7 @@ export const readPatchFile = async (path: string): Promise<Uint8Array> => {
 const HELP = `select_review_level.ts — offline parallel-review level selection
 
 Usage:
-  deno run --no-config --no-prompt --allow-read select_review_level.ts \\
+  bun --config=/dev/null --no-env-file --no-install run select_review_level.ts \\
     --input PATCH_FILE [--level auto|1|2]
 
 Flags:
@@ -1072,13 +1072,13 @@ export const runCli = async (
 };
 
 const main = async () => {
-  const result = await runCli(Deno.args);
+  const result = await runCli(process.argv.slice(2));
   if (result.code !== 0) {
-    await Deno.stderr.write(new TextEncoder().encode(result.stderr));
-    Deno.exit(1);
+    process.stderr.write(result.stderr);
+    process.exitCode = 1;
   }
   if (result.stdout) {
-    await Deno.stdout.write(new TextEncoder().encode(result.stdout));
+    process.stdout.write(result.stdout);
   }
 };
 

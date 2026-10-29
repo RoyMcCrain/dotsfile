@@ -25,7 +25,7 @@ mkdir -p "$REVIEW_DIR/logs"
   --events-log "$REVIEW_DIR/logs/grok.events.jsonl"
 ```
 
-`--events-log` は Grok timeout 診断用の metadata-only JSONL（本文・patch・資格情報は記録しない）。runner 側で `deno` と `jq` が必須。stdout は従来どおり reviewer 最終テキストのみ。
+`--events-log` は Grok timeout 診断用の metadata-only JSONL（本文・patch・資格情報は記録しない）。runner 側で `bun` と `jq` が必須。stdout は従来どおり reviewer 最終テキストのみ。
 
 ## 制約
 

@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   assertMondayUtc,
@@ -7,7 +8,7 @@ import {
   periodFromWeekStart,
 } from "../scripts/week_period.ts";
 
-Deno.test("UTC week boundaries and Monday validation", () => {
+test("UTC week boundaries and Monday validation", () => {
   assert.throws(() => parseUtcDate("2026-02-30"), /invalid UTC date/);
   assert.throws(() => assertMondayUtc("2026-09-29"), /Monday/);
   assert.doesNotThrow(() => assertMondayUtc("2026-09-28"));
@@ -23,7 +24,7 @@ Deno.test("UTC week boundaries and Monday validation", () => {
   );
 });
 
-Deno.test("default previous UTC week is stable for fixed now", () => {
+test("default previous UTC week is stable for fixed now", () => {
   const now = new Date("2026-10-07T12:00:00.000Z");
   const period = defaultPreviousUtcWeek(now);
   assert.equal(period.weekStart, "2026-09-28");

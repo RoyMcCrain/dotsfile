@@ -144,7 +144,7 @@ export default function workspaceCd(pi: ExtensionAPI) {
         pendingTarget = undefined;
         pi.sendUserMessage(
           `/${WORKSPACE_CD_CONTINUE_COMMAND} ${encodeURIComponent(target)}`,
-          // Runtime 0.84 supports command dispatch; deno.lock types are still 0.83.
+          // Runtime 0.84 supports command dispatch; package lock types are still 0.83.
           { expandPromptTemplates: true } as Parameters<
             typeof pi.sendUserMessage
           >[1],

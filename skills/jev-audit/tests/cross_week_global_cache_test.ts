@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -8,6 +9,7 @@ import {
 } from "../../parallel-review/scripts/select_review_level.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 
 const PATCH =
   "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n+shared\n";
@@ -71,12 +73,10 @@ const runAuditCli = async (
   env: Record<string, string>,
   args: string[],
 ): Promise<void> => {
-  const out = await new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "--no-config", AUDIT_SCRIPT, ...args],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  const out = await runFixtureProcess(["run", AUDIT_SCRIPT, ...args], {
+    ...process.env,
+    ...env,
+  });
   if (!out.success) {
     throw new Error(new TextDecoder().decode(out.stderr));
   }
@@ -101,11 +101,8 @@ const approveAndRunWeek = async (
   const inspected = JSON.parse(
     new TextDecoder().decode(
       (
-        await new Deno.Command(Deno.execPath(), {
-          args: [
+        await runFixtureProcess([
             "run",
-            "-A",
-            "--no-config",
             AUDIT_SCRIPT,
             "inspect",
             "--run-id",
@@ -117,9 +114,8 @@ const approveAndRunWeek = async (
             "--week",
             week,
           ],
-          env: { ...Deno.env.toObject(), ...env },
-          stdout: "piped",
-        }).output()
+          { ...process.env, ...env },
+        )
       ).stdout,
     ),
   ) as { stagedPath: string };
@@ -147,7 +143,7 @@ const approveAndRunWeek = async (
   ]);
 };
 
-Deno.test("cross-week success cache reuses global result despite attempt marker", async () => {
+test("cross-week success cache reuses global result despite attempt marker", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-xweek-ok-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -165,7 +161,7 @@ Deno.test("cross-week success cache reuses global result despite attempt marker"
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH ?? "bash",
   };
   await approveAndRunWeek(env, runsDir, auditDir, "2020-09-21", runId1);
   assert.equal(Number(await readFile(mocks.countFile, "utf8")), 1);
@@ -182,7 +178,7 @@ Deno.test("cross-week success cache reuses global result despite attempt marker"
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("cross-week failure cache stays unavailable without second invoke", async () => {
+test("cross-week failure cache stays unavailable without second invoke", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-xweek-fail-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -197,7 +193,7 @@ Deno.test("cross-week failure cache stays unavailable without second invoke", as
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH ?? "bash",
   };
   await approveAndRunWeek(env, runsDir, auditDir, "2020-09-21", runId1);
   assert.equal(Number(await readFile(mocks.countFile, "utf8")), 1);

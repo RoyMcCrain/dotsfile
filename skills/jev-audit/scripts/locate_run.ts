@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { lstat, readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
   getRunsBaseDir,
@@ -7,7 +7,6 @@ import {
 import { validateLevelDecision } from "../../parallel-review/scripts/select_review_level.ts";
 
 const isMissingDir = (error: unknown): boolean => {
-  if (error instanceof Deno.errors.NotFound) return true;
   return typeof error === "object" &&
     error !== null &&
     "code" in error &&
@@ -29,8 +28,8 @@ export const indexRunDirs = async (
 
   let entries: string[];
   try {
-    const rootLstat = await Deno.lstat(runsRoot);
-    if (rootLstat.isSymlink) {
+    const rootLstat = await lstat(runsRoot);
+    if (rootLstat.isSymbolicLink()) {
       warnings.push({ runDir: runsRoot, reason: "symlink_runs_root" });
       return { byRunId, warnings };
     }
@@ -43,20 +42,20 @@ export const indexRunDirs = async (
   for (const name of entries.sort()) {
     const runDir = join(runsRoot, name);
     try {
-      const childLstat = await Deno.lstat(runDir);
-      if (childLstat.isSymlink) {
+      const childLstat = await lstat(runDir);
+      if (childLstat.isSymbolicLink()) {
         warnings.push({ runDir, reason: "symlink_run_dir" });
         continue;
       }
-      if (!childLstat.isDirectory) continue;
+      if (!childLstat.isDirectory()) continue;
 
       const metadataPath = join(runDir, "metadata.json");
-      const metaLstat = await Deno.lstat(metadataPath);
-      if (metaLstat.isSymlink) {
+      const metaLstat = await lstat(metadataPath);
+      if (metaLstat.isSymbolicLink()) {
         warnings.push({ runDir, reason: "symlink_metadata" });
         continue;
       }
-      if (!metaLstat.isFile) {
+      if (!metaLstat.isFile()) {
         warnings.push({ runDir, reason: "invalid_metadata" });
         continue;
       }
@@ -100,8 +99,8 @@ export const metadataPatchSha256Matches = async (
 ): Promise<boolean> => {
   try {
     const metadataPath = join(runDir, "metadata.json");
-    const metaLstat = await Deno.lstat(metadataPath);
-    if (metaLstat.isSymlink || !metaLstat.isFile) return false;
+    const metaLstat = await lstat(metadataPath);
+    if (metaLstat.isSymbolicLink() || !metaLstat.isFile()) return false;
     const metadata = validateMetadata(
       JSON.parse(await readFile(metadataPath, "utf8")),
     );

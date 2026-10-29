@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   mkdir,
@@ -16,6 +17,7 @@ import {
 import { isMissingPath } from "../scripts/state_io.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 
 const PATCH =
   "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n+hello\n";
@@ -142,22 +144,17 @@ const runAuditCli = async (
   env: Record<string, string>,
   args: string[],
 ): Promise<Record<string, unknown>> => {
-  const out = await new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "--no-config", AUDIT_SCRIPT, ...args],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  const out = await runFixtureProcess(["run", AUDIT_SCRIPT, ...args], {
+    ...process.env,
+    ...env,
+  });
   if (!out.success) {
     throw new Error(new TextDecoder().decode(out.stderr));
   }
-  return JSON.parse(new TextDecoder().decode(out.stdout)) as Record<
-    string,
-    unknown
-  >;
+  return JSON.parse(out.stdoutText) as Record<string, unknown>;
 };
 
-Deno.test("auto-approve creates Codex provenance and is idempotent", async () => {
+test("auto-approve creates Codex provenance and is idempotent", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-audit-auto-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -177,7 +174,7 @@ Deno.test("auto-approve creates Codex provenance and is idempotent", async () =>
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH ?? "bash",
   };
   await runAuditCli(env, [
     "prepare",
@@ -241,7 +238,7 @@ const prepareUnsafeCase = async (patch: string) => {
     PI_CODING_AGENT_DIR: join(root, "pi"),
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH ?? "bash",
   };
   await runAuditCli(env, [
     "prepare",
@@ -318,7 +315,7 @@ const manuallyApprove = async (
   );
 };
 
-Deno.test("credential-only automatic input is held without approval or spend", async () => {
+test("credential-only automatic input is held without approval or spend", async () => {
   const fixture = await prepareUnsafeCase(
     PATCH + "+const key = AKIA1234567890ABCDEF;\n",
   );
@@ -329,7 +326,7 @@ Deno.test("credential-only automatic input is held without approval or spend", a
   }
 });
 
-Deno.test("PII-only automatic input is held without approval or spend", async () => {
+test("PII-only automatic input is held without approval or spend", async () => {
   const fixture = await prepareUnsafeCase(
     PATCH + "+contact alice.private@gmail.com\n",
   );
@@ -340,7 +337,7 @@ Deno.test("PII-only automatic input is held without approval or spend", async ()
   }
 });
 
-Deno.test("existing manual approval cannot bypass automatic safety scan", async () => {
+test("existing manual approval cannot bypass automatic safety scan", async () => {
   const fixture = await prepareUnsafeCase(
     PATCH + "+contact alice.private@gmail.com\n",
   );
@@ -352,7 +349,7 @@ Deno.test("existing manual approval cannot bypass automatic safety scan", async 
   }
 });
 
-Deno.test("current non-Codex provider overrides existing manual approval", async () => {
+test("current non-Codex provider overrides existing manual approval", async () => {
   const fixture = await prepareUnsafeCase(PATCH);
   try {
     await writeFile(
@@ -367,7 +364,7 @@ Deno.test("current non-Codex provider overrides existing manual approval", async
   }
 });
 
-Deno.test("tampered selected patch is held before automatic approval", async () => {
+test("tampered selected patch is held before automatic approval", async () => {
   const fixture = await prepareUnsafeCase(PATCH);
   try {
     await writeFile(
@@ -380,7 +377,7 @@ Deno.test("tampered selected patch is held before automatic approval", async () 
   }
 });
 
-Deno.test("provider drift during automatic approval publication is held", async () => {
+test("provider drift during automatic approval publication is held", async () => {
   const fixture = await prepareUnsafeCase(PATCH);
   try {
     const count = join(fixture.root, "resolver.count");
@@ -395,7 +392,7 @@ Deno.test("provider drift during automatic approval publication is held", async 
   }
 });
 
-Deno.test("prepare -> inspect -> approve -> run mocked integration", async () => {
+test("prepare -> inspect -> approve -> run mocked integration", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-audit-int-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -411,7 +408,7 @@ Deno.test("prepare -> inspect -> approve -> run mocked integration", async () =>
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH ?? "bash",
   };
 
   const prepared = await runAuditCli(env, [

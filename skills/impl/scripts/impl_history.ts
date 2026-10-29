@@ -1,3 +1,4 @@
+import { lstat, mkdir, readFile, realpath, readdir, rename, rm, writeFile, chmod } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { type ExecutionStatus, SCHEMA_VERSION } from "./impl_stream.ts";
 import type {
@@ -715,8 +716,8 @@ export function validateRunMetadata(
 
 const isSymlink = async (path: string) => {
   try {
-    const st = await Deno.lstat(path);
-    return st.isSymlink;
+    const st = await lstat(path);
+    return st.isSymbolicLink();
   } catch {
     return false;
   }
@@ -728,7 +729,7 @@ const readRunMetadataFile = async (metaPath: string) => {
   }
   let text: string;
   try {
-    text = await Deno.readTextFile(metaPath);
+    text = await readFile(metaPath, "utf8");
   } catch {
     return { excluded: { path: metaPath, reason: "metadata missing" } };
   }
@@ -765,11 +766,11 @@ export async function loadRunMetadataFromRoot(
     };
   }
   try {
-    for await (const entry of Deno.readDir(runsRoot)) {
-      if (!entry.isDirectory) continue;
+    for (const entry of await readdir(runsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
       const result = await ingestRunDirectory(runsRoot, entry.name);
       if (result.excluded) excluded.push(result.excluded);
-      if (result.record) records.push(result.record);
+      if ("record" in result) records.push(result.record);
     }
   } catch {
     return {
@@ -1319,17 +1320,17 @@ export const toReportArtifact = (report: ImplReport) => ({
 
 const expandHome = (path: string) => {
   if (!path.startsWith("~/")) return path;
-  const home = Deno.env.get("HOME") ?? "";
+  const home = process.env.HOME ?? "";
   return join(home, path.slice(2));
 };
 
 export const resolveDefaultRunsDir = () => {
-  const impl = Deno.env.get("IMPL_RUNS_DIR");
+  const impl = process.env.IMPL_RUNS_DIR;
   if (impl !== undefined && impl !== "") {
     return resolve(expandHome(impl));
   }
-  const xdg = Deno.env.get("XDG_DATA_HOME");
-  const home = Deno.env.get("HOME") ?? "";
+  const xdg = process.env.XDG_DATA_HOME;
+  const home = process.env.HOME ?? "";
   const base = xdg !== undefined && xdg !== ""
     ? expandHome(xdg)
     : join(home, ".local/share");
@@ -1338,7 +1339,7 @@ export const resolveDefaultRunsDir = () => {
 
 const realPathIfExists = async (path: string) => {
   try {
-    return await Deno.realPath(path);
+    return await realpath(path);
   } catch {
     return resolve(path);
   }
@@ -1356,24 +1357,24 @@ const assertOutputOutsideRuns = async (outDir: string, runsRoot: string) => {
 };
 
 const assertOutputParentReady = async (parent: string) => {
-  const parentStat = await Deno.lstat(parent).catch((e) => {
-    if (e instanceof Deno.errors.NotFound) {
+  const parentStat = await lstat(parent).catch((e: NodeJS.ErrnoException) => {
+    if (e.code === "ENOENT") {
       throw new Error("output parent directory missing");
     }
     throw e;
   });
-  if (!parentStat.isDirectory || parentStat.isSymlink) {
+  if (!parentStat.isDirectory() || parentStat.isSymbolicLink()) {
     throw new Error("output parent invalid");
   }
 };
 
 const assertOutputLeafAvailable = async (outDir: string) => {
   try {
-    const existing = await Deno.lstat(outDir);
-    if (existing.isSymlink) throw new Error("output path is symlink");
+    const existing = await lstat(outDir);
+    if (existing.isSymbolicLink()) throw new Error("output path is symlink");
     throw new Error("output directory already exists");
   } catch (e) {
-    if (e instanceof Deno.errors.NotFound) return;
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return;
     throw e;
   }
 };
@@ -1396,17 +1397,17 @@ export async function writeReport(
   await assertExclusiveOutputDir(outDir);
   const parent = dirname(outDir);
   const leaf = basename(outDir);
-  await Deno.mkdir(join(parent, leaf), { recursive: false, mode: 0o700 });
+  await mkdir(join(parent, leaf), { recursive: false, mode: 0o700 });
   const artifact = toReportArtifact(report);
-  await Deno.writeTextFile(
+  await writeFile(
     join(outDir, "report.json"),
     `${JSON.stringify(artifact, null, 2)}\n`,
-    { mode: 0o600, createNew: true },
+    { mode: 0o600, flag: "wx" },
   );
-  await Deno.writeTextFile(
+  await writeFile(
     join(outDir, "report.html"),
     renderReportHtml(report),
-    { mode: 0o600, createNew: true },
+    { mode: 0o600, flag: "wx" },
   );
 }
 
@@ -1424,7 +1425,7 @@ export async function setValidationStatus(
 ) {
   assertSetValidationStatus(status);
   const metaPath = join(runDir, "metadata.json");
-  const text = await Deno.readTextFile(metaPath);
+  const text = await readFile(metaPath, "utf8");
   const parsed = JSON.parse(text) as unknown;
   const validated = validateRunMetadata(parsed);
   if (!validated.ok) throw new Error("invalid metadata");
@@ -1436,15 +1437,15 @@ export async function setValidationStatus(
   if (!recheck.ok) throw new Error("invalid metadata after update");
   const tmp = join(runDir, `.metadata.${crypto.randomUUID()}.tmp`);
   try {
-    await Deno.writeTextFile(tmp, `${JSON.stringify(recheck.ok, null, 2)}\n`, {
+    await writeFile(tmp, `${JSON.stringify(recheck.ok, null, 2)}\n`, {
       mode: 0o600,
-      createNew: true,
+      flag: "wx",
     });
-    await Deno.rename(tmp, metaPath);
-    await Deno.chmod(metaPath, 0o600);
+    await rename(tmp, metaPath);
+    await chmod(metaPath, 0o600);
   } catch (e) {
     try {
-      await Deno.remove(tmp);
+      await rm(tmp);
     } catch { /* ignore */ }
     throw e;
   }
@@ -1492,7 +1493,7 @@ const assertOnlyKnownFlags = (args: string[], allowed: string[]) => {
 
 const cliFail = (message: string): never => {
   console.error(message);
-  Deno.exit(1);
+  process.exit(1);
 };
 
 export function parseReportCliArgs(rest: string[]) {
@@ -1533,7 +1534,7 @@ async function mainSetValidation(rest: string[]) {
 }
 
 async function main() {
-  const [sub, ...rest] = Deno.args;
+  const [sub, ...rest] = process.argv.slice(2);
   if (sub === "report") {
     await mainReport(rest);
     return;
@@ -1548,6 +1549,6 @@ async function main() {
 if (import.meta.main) {
   await main().catch((err) => {
     console.error(err instanceof Error ? err.message : "impl_history failed");
-    Deno.exit(1);
+    process.exit(1);
   });
 }

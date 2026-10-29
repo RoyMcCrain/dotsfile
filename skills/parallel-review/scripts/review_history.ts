@@ -1,10 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  chmod,
   link,
+  lstat,
   mkdir,
   readdir,
   readFile,
   realpath,
+  stat,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -143,7 +146,6 @@ const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
 const isMissingDir = (error: unknown): boolean => {
-  if (error instanceof Deno.errors.NotFound) return true;
   return typeof error === "object" &&
     error !== null &&
     "code" in error &&
@@ -656,10 +658,10 @@ export const validateSnapshot = (value: unknown): Snapshot => {
 };
 
 export const getRunsBaseDir = (): string => {
-  const home = Deno.env.get("HOME");
+  const home = process.env.HOME;
   if (!isNonEmptyString(home)) throw new Error("HOME is required");
   const homeAbs = resolve(home);
-  const xdg = Deno.env.get("XDG_DATA_HOME");
+  const xdg = process.env.XDG_DATA_HOME;
   const dataHome = isNonEmptyString(xdg)
     ? (() => {
       if (!isAbsolute(xdg)) {
@@ -694,12 +696,9 @@ const isEexist = (error: unknown): boolean =>
   (error as { code: string }).code === "EEXIST";
 
 const createOwnedSnapshotTemp = async (snapshotsDir: string) => {
-  const tempPath = await Deno.makeTempFile({
-    dir: snapshotsDir,
-    prefix: ".snap-",
-    suffix: ".tmp",
-  });
-  await Deno.chmod(tempPath, 0o600);
+  const tempPath = join(snapshotsDir, `.snap-${randomUUID()}.tmp`);
+  await writeFile(tempPath, "", { mode: 0o600, flag: "wx" });
+  await chmod(tempPath, 0o600);
   return tempPath;
 };
 
@@ -787,11 +786,11 @@ const resolveRunRelativePath = async (
   const normalized = validateRunRelativePath(relPath, "path");
   const candidate = resolve(runDir, normalized);
   const runReal = await realpath(runDir);
-  const candidateLstat = await Deno.lstat(candidate).catch((error) => {
+  const candidateLstat = await lstat(candidate).catch((error) => {
     if (isMissingDir(error)) throw error;
     throw error;
   });
-  if (candidateLstat.isSymlink) {
+  if (candidateLstat.isSymbolicLink()) {
     throw new Error(`path escapes run dir: ${relPath}`);
   }
   const candidateReal = await realpath(candidate);
@@ -807,8 +806,8 @@ const readRegularFileInRun = async (
   relPath: string,
 ) => {
   const absPath = await resolveRunRelativePath(runDir, relPath);
-  const stat = await Deno.stat(absPath);
-  if (!stat.isFile) throw new Error(`not a regular file: ${relPath}`);
+  const fileStat = await stat(absPath);
+  if (!fileStat.isFile()) throw new Error(`not a regular file: ${relPath}`);
   const content = await readFile(absPath);
   return { absPath, content };
 };
@@ -828,8 +827,8 @@ const listJsonInSubdir = async (
 ): Promise<string[]> => {
   const dirPath = join(runDir, subdir);
   try {
-    const dirLstat = await Deno.lstat(dirPath);
-    if (dirLstat.isSymlink) {
+    const dirLstat = await lstat(dirPath);
+    if (dirLstat.isSymbolicLink()) {
       throw new Error(`${label} directory must not be a symlink`);
     }
     return (await readdir(dirPath)).filter((name) => name.endsWith(".json"));
@@ -1061,8 +1060,8 @@ export const saveAssessment = async (options: {
 
   const snapshotsDir = join(runDir, "snapshots");
   await ensurePrivateDir(snapshotsDir);
-  const snapshotsLstat = await Deno.lstat(snapshotsDir);
-  if (snapshotsLstat.isSymlink) {
+  const snapshotsLstat = await lstat(snapshotsDir);
+  if (snapshotsLstat.isSymbolicLink()) {
     throw new Error("snapshots directory must not be a symlink");
   }
   const snapshotName = `${snapshotTimestamp()}-${randomUUID()}.json`;
@@ -1104,8 +1103,8 @@ export const readDecisionHistory = async (options: {
 
   let entries: string[];
   try {
-    const rootLstat = await Deno.lstat(runsRoot);
-    if (rootLstat.isSymlink) {
+    const rootLstat = await lstat(runsRoot);
+    if (rootLstat.isSymbolicLink()) {
       warnings.push({ runDir: runsRoot, reason: "symlink_runs_root" });
       return { decisions, warnings };
     }
@@ -1119,26 +1118,26 @@ export const readDecisionHistory = async (options: {
     const runDir = join(runsRoot, name);
     let childLstat;
     try {
-      childLstat = await Deno.lstat(runDir);
+      childLstat = await lstat(runDir);
     } catch {
       warnings.push({ runDir, reason: "unreadable_run_dir" });
       continue;
     }
-    if (childLstat.isSymlink) {
+    if (childLstat.isSymbolicLink()) {
       warnings.push({ runDir, reason: "symlink_run_dir" });
       continue;
     }
-    if (!childLstat.isDirectory) continue;
+    if (!childLstat.isDirectory()) continue;
 
     const metadataPath = join(runDir, "metadata.json");
     let metadataLstat;
     try {
-      metadataLstat = await Deno.lstat(metadataPath);
+      metadataLstat = await lstat(metadataPath);
     } catch {
       warnings.push({ runDir, reason: "unreadable_metadata" });
       continue;
     }
-    if (metadataLstat.isSymlink) {
+    if (metadataLstat.isSymbolicLink()) {
       warnings.push({ runDir, reason: "symlink_metadata" });
       continue;
     }
@@ -1264,7 +1263,7 @@ const cmdInit = async (args: string[]) => {
       : { levelScale: Number(levelScaleRaw) as LevelScale }),
     levelDecision,
   });
-  await Deno.stdout.write(new TextEncoder().encode(`${runDir}\n`));
+  console.log(runDir);
 };
 
 const cmdSave = async (args: string[]) => {
@@ -1282,7 +1281,7 @@ const cmdSave = async (args: string[]) => {
     runDir,
     assessment: JSON.parse(raw),
   });
-  await Deno.stdout.write(new TextEncoder().encode(`${snapshotPath}\n`));
+  console.log(snapshotPath);
 };
 
 const rejectEmptyFlagValue = (value: string, flag: string): void => {
@@ -1304,13 +1303,11 @@ const cmdDecisions = async (args: string[]) => {
     runsDir: runsDirRaw !== undefined ? resolve(runsDirRaw) : undefined,
     repository: repositoryRaw,
   });
-  await Deno.stdout.write(
-    new TextEncoder().encode(`${JSON.stringify(result)}\n`),
-  );
+  console.log(JSON.stringify(result));
 };
 
 const main = async () => {
-  const [command, ...rest] = Deno.args;
+  const [command, ...rest] = process.argv.slice(2);
   if (command === "init") {
     await cmdInit(rest);
     return;
@@ -1329,6 +1326,6 @@ const main = async () => {
 if (import.meta.main) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
-    Deno.exit(1);
+    process.exitCode = 1;
   });
 }

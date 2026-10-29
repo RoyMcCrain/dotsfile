@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -17,7 +18,7 @@ const planCase = (overrides: Partial<PlanCase> = {}): PlanCase => ({
   ...overrides,
 });
 
-Deno.test("stored result without approval is unavailable not audited", async () => {
+test("stored result without approval is unavailable not audited", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-derive-noap-"));
   const week = "2026-09-28";
   const pc = planCase();
@@ -51,7 +52,7 @@ Deno.test("stored result without approval is unavailable not audited", async () 
   await rm(auditBase, { recursive: true, force: true });
 });
 
-Deno.test("week-local cached copy with wrong runId fails identity", async () => {
+test("week-local cached copy with wrong runId fails identity", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-derive-wrong-"));
   const week = "2026-09-28";
   const pc = planCase();

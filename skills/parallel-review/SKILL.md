@@ -40,7 +40,7 @@ CLI は `select_review_level.ts --input PATCH [--level 1..2|auto] [--help]` の�
 
 ## 実行記録（provenance）
 
-履歴保存には `deno` と `jq` が必要（devbox 管理）。各 run の判断・採用実績はローカルに永続化し、[history format](references/history-format.md) を正本とする。reviewer には assessment / 過去 snapshot を渡さない（アンカリング防止）。新規 run は offline explicit level decision のみ。過去 Jev/fallback 履歴は読取互換。
+履歴保存には `bun` と `jq` が必要（devbox 管理）。各 run の判断・採用実績はローカルに永続化し、[history format](references/history-format.md) を正本とする。reviewer には assessment / 過去 snapshot を渡さない（アンカリング防止）。新規 run は offline explicit level decision のみ。過去 Jev/fallback 履歴は読取互換。
 
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
@@ -59,7 +59,7 @@ umask 077
 : "${HISTORY:?}" "${SELECT_LEVEL:?}" "${RESOLVER:?}"
 REQUESTED_LEVEL="${LEVEL:-1}"
 # ここまでに preflight 済みの sanitized patch を $STAGING/changes.patch に作成・検査する。
-LEVEL_DECISION_JSON=$(deno run --no-config --no-prompt --allow-read "$SELECT_LEVEL" \
+LEVEL_DECISION_JSON=$(bun --config=/dev/null --no-env-file --no-install run "$SELECT_LEVEL" \
 	--input "$STAGING/changes.patch" --level "$REQUESTED_LEVEL") || exit 1
 LEVEL=$(printf '%s' "$LEVEL_DECISION_JSON" | jq -er '.level') || exit 1
 CHUNK_CHOICE=$(printf '%s' "$LEVEL_DECISION_JSON" | jq -er '.chunking.choice') || exit 1
@@ -74,7 +74,7 @@ for entry in "${resolved_reviewers[@]}"; do
 done
 DECISION_FILE="$STAGING/level-decision.json"
 printf '%s\n' "$LEVEL_DECISION_JSON" >"$DECISION_FILE" || exit 1
-REVIEW_DIR=$(deno run --no-config --allow-read --allow-write --allow-env=HOME,XDG_DATA_HOME \
+REVIEW_DIR=$(bun --config=/dev/null --no-env-file --no-install run \
 	"$HISTORY" init --repository "$PWD" --revision "$REVISION" --level "$LEVEL" \
 	--level-decision "$DECISION_FILE" --level-scale 2) || exit 1
 [[ -n "$REVIEW_DIR" ]] || exit 1
@@ -91,7 +91,7 @@ resolver は上記のとおり一度だけ実行し、両 entry の backend/必�
 後から read-only で履歴を一覧する:
 
 ```bash
-deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
+bun --config=/dev/null --no-env-file --no-install run \
 	"$HISTORY" decisions --repository "$PWD"
 ```
 
@@ -225,9 +225,9 @@ if ((failures > 0)); then
 fi
 ```
 
-`run_pi_review.sh` は Bash 5 以上を必要とする。Pi runner は一時設定で retry を止め、CLI で skill / context / extension / tools を無効化した patch-only を強制する。各 Pi backend に `--events-log logs/<execution-id>.events.jsonl` を渡す（`deno` + `jq` 必須）。
+`run_pi_review.sh` は Bash 5 以上を必要とする。Pi runner は一時設定で retry を止め、CLI で skill / context / extension / tools を無効化した patch-only を強制する。各 Pi backend に `--events-log logs/<execution-id>.events.jsonl` を渡す（`bun` + `jq` 必須）。
 
-events sidecar は **メタデータのみ**（正規化イベント種別・stream phase・allowlist 数値 usage・attempt 別 `elapsedMs`、失敗時の固定 `errorCategory` / allowlist `httpStatus`、`wrapper_error` 行）。生 JSON・prompt/patch・delta 本文・資格情報は書かない。events モードでは runner が Deno events helper を起動する直前のコマンド環境だけ、export 済みの `LD_*` / `DYLD_*` 変数名を `-u` で除去する（親シェル環境と scoped `--allow-run` / `--allow-write` はそのまま）。ファイルは runner が retry 前に `0600` で一度だけ新規作成し、各 attempt の watchdog 実行前に `attempt_start`、終了後に `attempt_exit`（いずれも数値 `timestampMs`）を jq で追記する。timeout 前でも観測済み行は保存される。snapshot / execution schema には含めない（診断用）。
+events sidecar は **メタデータのみ**（正規化イベント種別・stream phase・allowlist 数値 usage・attempt 別 `elapsedMs`、失敗時の固定 `errorCategory` / allowlist `httpStatus`、`wrapper_error` 行）。生 JSON・prompt/patch・delta 本文・資格情報は書かない。events モードでは runner が Bun events helper を起動する直前のコマンド環境だけ、export 済みの `LD_*` / `DYLD_*` 変数名を `-u` で除去する（親シェル環境はそのまま。Bun は Deno のような runtime permission sandbox を提供しない）。ファイルは runner が retry 前に `0600` で一度だけ新規作成し、各 attempt の watchdog 実行前に `attempt_start`、終了後に `attempt_exit`（いずれも数値 `timestampMs`）を jq で追記する。timeout 前でも観測済み行は保存される。snapshot / execution schema には含めない（診断用）。
 
 `assistant_stream_start`（`pi_event.streamCategory`）は assistant `message_start` 到達の proxy であり、生 HTTP TTFT ではない。`usage` / ネスト `cost` は SDK allowlist キーのみ記録する。
 
@@ -303,7 +303,7 @@ esac
 統合完了後、必ず snapshot を保存する。CLI が成功したパスだけ「保存済み」と報告する。
 
 ```bash
-SNAPSHOT=$(deno run --no-config --allow-read --allow-write \
+SNAPSHOT=$(bun --config=/dev/null --no-env-file --no-install run \
 	"$HOME/.agents/skills/parallel-review/scripts/review_history.ts" save \
 	--dir "$REVIEW_DIR" --input "$REVIEW_DIR/assessment.json") || {
 	echo "assessment snapshot save failed" >&2

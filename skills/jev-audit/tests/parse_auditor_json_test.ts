@@ -1,7 +1,8 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { parseAuditorResponse } from "../scripts/parse_auditor_json.ts";
 
-Deno.test("schema rejects invalid auditor JSON", () => {
+test("schema rejects invalid auditor JSON", () => {
   assert.throws(() => parseAuditorResponse("not json"), /JSON/);
   assert.throws(
     () =>
@@ -19,7 +20,7 @@ Deno.test("schema rejects invalid auditor JSON", () => {
   );
 });
 
-Deno.test("accepts fenced JSON block", () => {
+test("accepts fenced JSON block", () => {
   const raw =
     '```json\n{"minLevel":2,"maxLevel":4,"reason":"ok","concerns":["a"]}\n```';
   const parsed = parseAuditorResponse(raw);

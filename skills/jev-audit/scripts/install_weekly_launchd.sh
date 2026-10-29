@@ -15,7 +15,8 @@ Usage: install_weekly_launchd.sh [--install] [--auto-approve]
 Default: print launchd plist preview to stdout only (no filesystem writes).
 --install: write ~/Library/LaunchAgents/... and load (explicit opt-in only; Darwin).
 --auto-approve: enable explicit standing Codex approval after conservative local preflight.
-Runs: deno with scoped permissions on skills/jev-audit/scripts/audit.ts run
+Runs: Bun without a Deno-style runtime sandbox on skills/jev-audit/scripts/audit.ts run
+Bun has no equivalent permission scopes; application validation remains in effect.
 Schedule: Monday 09:00 in the local timezone.
 Default audit week is the previous completed UTC week; local Monday 09:00 may differ from UTC week boundaries.
 EOF
@@ -38,18 +39,6 @@ xml_escape() {
 	s=${s//\"/\&quot;}
 	s=${s//\'/\&#39;}
 	printf '%s' "$s"
-}
-
-deny_comma_paths() {
-	local label=$1
-	shift
-	local p
-	for p in "$@"; do
-		if [[ "$p" == *','* ]]; then
-			printf '%s\n' "path for ${label} contains comma (unsupported in Deno scoped permissions): ${p}" >&2
-			exit 1
-		fi
-	done
 }
 
 require_absolute() {
@@ -110,106 +99,8 @@ reject_symlink_ancestors_under() {
 	done
 }
 
-resolve_physical() {
-	local path=$1
-	local probe=${path}
-	while [[ ! -e ${probe} && ${probe} != '/' ]]; do
-		probe=$(dirname "$probe")
-	done
-	if [[ ! -e ${probe} ]]; then
-		printf '%s' "${path}"
-		return 0
-	fi
-	local base
-	base=$(cd "${probe}" && pwd -P) || {
-		printf '%s' "${path}"
-		return 0
-	}
-	if [[ ${probe} == "${path}" ]]; then
-		printf '%s' "${base}"
-	else
-		printf '%s/%s' "${base}" "${path#"${probe}/"}"
-	fi
-}
-
-PERM_READ_PARTS=()
-PERM_WRITE_PARTS=()
-perm_bucket_contains() {
-	local bucket=$1
-	local want=$2
-	local existing
-	case "${bucket}" in
-	PERM_READ_PARTS)
-		if ((${#PERM_READ_PARTS[@]} > 0)); then
-			for existing in "${PERM_READ_PARTS[@]}"; do
-				[[ "${existing}" == "${want}" ]] && return 0
-			done
-		fi
-		;;
-	PERM_WRITE_PARTS)
-		if ((${#PERM_WRITE_PARTS[@]} > 0)); then
-			for existing in "${PERM_WRITE_PARTS[@]}"; do
-				[[ "${existing}" == "${want}" ]] && return 0
-			done
-		fi
-		;;
-	esac
-	return 1
-}
-perm_bucket_add() {
-	local bucket=$1
-	local path=$2
-	[[ -z ${path} ]] && return 0
-	local alias
-	perm_bucket_contains "${bucket}" "${path}" && return 0
-	case "${bucket}" in
-	PERM_READ_PARTS) PERM_READ_PARTS+=("${path}") ;;
-	PERM_WRITE_PARTS) PERM_WRITE_PARTS+=("${path}") ;;
-	esac
-	if [[ ${path} == /private/* ]]; then
-		alias=${path#/private}
-		perm_bucket_contains "${bucket}" "${alias}" && return 0
-		case "${bucket}" in
-		PERM_READ_PARTS) PERM_READ_PARTS+=("${alias}") ;;
-		PERM_WRITE_PARTS) PERM_WRITE_PARTS+=("${alias}") ;;
-		esac
-	fi
-}
-join_perm_paths() {
-	local bucket=$1
-	local out=''
-	local item
-	case "${bucket}" in
-	PERM_READ_PARTS)
-		if ((${#PERM_READ_PARTS[@]} == 0)); then
-			return 0
-		fi
-		for item in "${PERM_READ_PARTS[@]}"; do
-			if [[ -n ${out} ]]; then
-				out+=",${item}"
-			else
-				out=${item}
-			fi
-		done
-		;;
-	PERM_WRITE_PARTS)
-		if ((${#PERM_WRITE_PARTS[@]} == 0)); then
-			return 0
-		fi
-		for item in "${PERM_WRITE_PARTS[@]}"; do
-			if [[ -n ${out} ]]; then
-				out+=",${item}"
-			else
-				out=${item}
-			fi
-		done
-		;;
-	esac
-	printf '%s' "${out}"
-}
-
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P)
-DENO=$(command -v deno || true)
+BUN=$(command -v bun || true)
 PI_BIN=$(command -v pi || true)
 JQ_BIN=$(command -v jq || true)
 
@@ -240,7 +131,7 @@ PATH_PARTS=()
 [[ -n ${BASH5} ]] && PATH_PARTS+=("$(dirname "$BASH5")")
 [[ -n ${PI_BIN} ]] && PATH_PARTS+=("$(dirname "$PI_BIN")")
 [[ -n ${JQ_BIN} ]] && PATH_PARTS+=("$(dirname "$JQ_BIN")")
-[[ -n ${DENO} ]] && PATH_PARTS+=("$(dirname "$DENO")")
+[[ -n ${BUN} ]] && PATH_PARTS+=("$(dirname "$BUN")")
 for extra in node perl ps sleep; do
 	extra_bin=$(command -v "${extra}" 2>/dev/null || true)
 	[[ -n ${extra_bin} ]] && PATH_PARTS+=("$(dirname "$extra_bin")")
@@ -271,24 +162,6 @@ if [[ -n ${PI_REVIEW} ]]; then
 	require_absolute PI_REVIEW "${PI_REVIEW}"
 fi
 
-HOME_P=$(resolve_physical "${HOME}")
-XDG_P=$(resolve_physical "${XDG_DATA}")
-JEV_AUDIT_P=$(resolve_physical "${JEV_AUDIT}")
-JEV_TMP_P=$(resolve_physical "${JEV_TMP}")
-PI_DIR_P=$(resolve_physical "${PI_DIR}")
-CONFIG_P=$(resolve_physical "${HOME}/.config")
-
-perm_bucket_add PERM_READ_PARTS "${REPO_ROOT}"
-perm_bucket_add PERM_READ_PARTS "${HOME_P}"
-perm_bucket_add PERM_READ_PARTS "${CONFIG_P}"
-perm_bucket_add PERM_READ_PARTS "${PI_DIR_P}"
-perm_bucket_add PERM_READ_PARTS "${XDG_P}"
-perm_bucket_add PERM_READ_PARTS "${JEV_AUDIT_P}"
-perm_bucket_add PERM_READ_PARTS "${JEV_TMP_P}"
-perm_bucket_add PERM_WRITE_PARTS "${XDG_P}"
-perm_bucket_add PERM_WRITE_PARTS "${JEV_AUDIT_P}"
-perm_bucket_add PERM_WRITE_PARTS "${JEV_TMP_P}"
-
 MODEL_RESOLVER_RAW="${MODEL_RESOLVER:-}"
 MODEL_RESOLVER_E=""
 if [[ -n ${MODEL_RESOLVER_RAW} ]]; then
@@ -296,35 +169,7 @@ if [[ -n ${MODEL_RESOLVER_RAW} ]]; then
 	MODEL_RESOLVER_E=$(xml_escape "${MODEL_RESOLVER_RAW}")
 fi
 
-ALLOW_READ=$(join_perm_paths PERM_READ_PARTS)
-ALLOW_WRITE=$(join_perm_paths PERM_WRITE_PARTS)
-ALLOW_ENV="HOME,XDG_DATA_HOME,PATH,PI_CODING_AGENT_DIR,PI_REVIEW_BIN,MODEL_RESOLVER,JEV_AUDIT_BASH,TMPDIR"
-
-ALLOW_RUN_PARTS=()
-append_allow_run() {
-	local bin=$1
-	[[ -z ${bin} || ! -x ${bin} ]] && return 0
-	local existing
-	if ((${#ALLOW_RUN_PARTS[@]} > 0)); then
-		for existing in "${ALLOW_RUN_PARTS[@]}"; do
-			[[ "${existing}" == "${bin}" ]] && return 0
-		done
-	fi
-	ALLOW_RUN_PARTS+=("${bin}")
-}
-append_allow_run "${JEV_AUDIT_BASH}"
-append_allow_run /bin/bash
-[[ -n ${PI_REVIEW} ]] && append_allow_run "${PI_REVIEW}"
-[[ -n ${DENO} ]] && append_allow_run "${DENO}"
-ALLOW_RUN=$(
-	IFS=,
-	echo "${ALLOW_RUN_PARTS[*]}"
-)
-
-deny_comma_paths "scoped permission" "${REPO_ROOT}" "${HOME_P}" "${CONFIG_P}" "${PI_DIR_P}" "${XDG_P}" \
-	"${JEV_AUDIT_P}" "${JEV_TMP_P}" "${JEV_AUDIT_BASH}" "${PI_REVIEW}" "${DENO}"
-
-DENO_E=$(xml_escape "$DENO")
+BUN_E=$(xml_escape "$BUN")
 AUDIT_E=$(xml_escape "$AUDIT_TS")
 LOG_E=$(xml_escape "$LOG")
 HOME_E=$(xml_escape "$HOME")
@@ -334,10 +179,6 @@ XDG_E=$(xml_escape "$XDG_DATA")
 TMP_E=$(xml_escape "$JEV_TMP")
 JEV_BASH_E=$(xml_escape "$JEV_AUDIT_BASH")
 PI_REVIEW_E=$(xml_escape "$PI_REVIEW")
-ALLOW_READ_E=$(xml_escape "$ALLOW_READ")
-ALLOW_WRITE_E=$(xml_escape "$ALLOW_WRITE")
-ALLOW_ENV_E=$(xml_escape "$ALLOW_ENV")
-ALLOW_RUN_E=$(xml_escape "$ALLOW_RUN")
 AUTO_APPROVE_XML=
 if [[ -n ${AUTO_APPROVE_ARG} ]]; then
 	AUTO_APPROVE_XML=$'\n    <string>--auto-approve</string>'
@@ -352,13 +193,11 @@ render_plist() {
   <key>Label</key><string>${LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${DENO_E}</string>
+    <string>${BUN_E}</string>
+    <string>--config=/dev/null</string>
+    <string>--no-env-file</string>
+    <string>--no-install</string>
     <string>run</string>
-    <string>--allow-read=${ALLOW_READ_E}</string>
-    <string>--allow-write=${ALLOW_WRITE_E}</string>
-    <string>--allow-env=${ALLOW_ENV_E}</string>
-    <string>--allow-run=${ALLOW_RUN_E}</string>
-    <string>--no-config</string>
     <string>${AUDIT_E}</string>
     <string>run</string>${AUTO_APPROVE_XML}
   </array>
@@ -400,7 +239,7 @@ if [[ -z ${JEV_AUDIT_BASH} ]]; then
 	echo "bash not found" >&2
 	exit 1
 fi
-require_executable_regular deno "${DENO}"
+require_executable_regular bun "${BUN}"
 require_executable_regular jq "${JQ_BIN}"
 require_executable_regular PI_REVIEW_BIN "${PI_REVIEW}"
 require_executable_regular JEV_AUDIT_BASH "${JEV_AUDIT_BASH}"

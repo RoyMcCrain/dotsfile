@@ -68,26 +68,26 @@ Jev の **requestedLevel=auto**
 `--audit-dir` を差し替え）:**
 
 ```bash
-deno run -A --no-config skills/jev-audit/scripts/audit.ts prepare
+bun --config=/dev/null --no-env-file --no-install run skills/jev-audit/scripts/audit.ts prepare
 ```
 
 続き（プレースホルダ付き）:
 
 ```bash
-deno run -A --no-config skills/jev-audit/scripts/audit.ts prepare \
+bun --config=/dev/null --no-env-file --no-install run skills/jev-audit/scripts/audit.ts prepare \
   --runs-dir PATH --audit-dir PATH --week YYYY-MM-DD
 
-deno run -A --no-config skills/jev-audit/scripts/audit.ts inspect \
+bun --config=/dev/null --no-env-file --no-install run skills/jev-audit/scripts/audit.ts inspect \
   --run-id RUN_ID --runs-dir PATH --audit-dir PATH --week YYYY-MM-DD
 
-deno run -A --no-config skills/jev-audit/scripts/audit.ts approve \
+bun --config=/dev/null --no-env-file --no-install run skills/jev-audit/scripts/audit.ts approve \
   --run-id RUN_ID --approved-input STAGED_PATCH_PATH \
   --runs-dir PATH --audit-dir PATH --week YYYY-MM-DD
 
-deno run -A --no-config skills/jev-audit/scripts/audit.ts run \
+bun --config=/dev/null --no-env-file --no-install run skills/jev-audit/scripts/audit.ts run \
   --runs-dir PATH --audit-dir PATH --week YYYY-MM-DD
 
-deno run -A --no-config skills/jev-audit/scripts/audit.ts report \
+bun --config=/dev/null --no-env-file --no-install run skills/jev-audit/scripts/audit.ts report \
   --runs-dir PATH --audit-dir PATH --week YYYY-MM-DD
 ```
 
@@ -118,15 +118,18 @@ workspace を削除・移動する場合は再インストールする。明示�
 
 ### Linux / WSL（cron）
 
-crontab 1 行に `\` 継続は使えない。環境変数・権限付き `deno run` は **ラッパ
-shell スクリプト**に書き、cron からそのスクリプトを 1 行で呼ぶ。
+crontab 1 行に `\` 継続は使えない。環境変数の設定は **ラッパ shell スクリプト**
+に書き、cron からそのスクリプトを 1 行で呼ぶ。Bun には Deno のような実行時
+ファイル・環境・子プロセス権限 sandbox がないため、これらの scope を設定できない。
+アプリケーション側のパス検証や秘密情報の制御は維持されるが、実行時 permission
+sandbox の同等性は提供されない。
 
 ```cron
 0 9 * * 1 /home/you/bin/jev-audit-weekly-run.sh
 ```
 
-ラッパ例は各環境の `PATH` / `deno` / `--allow-*` を自分で合わせる（本 SKILL
-では固定の crontab 行は示さない）。
+ラッパ例は各環境の `PATH` / `bun` を自分で合わせる（本 SKILL では固定の
+crontab 行は示さない）。
 
 ### ロック回復
 

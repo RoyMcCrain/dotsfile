@@ -1,4 +1,8 @@
+import { promisify } from "node:util";
+import { execFile } from "node:child_process";
+import { realpath, stat, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
+const execFileAsync = promisify(execFile);
 import { isSecretPath } from "../../review-report/scripts/render_report.ts";
 import {
   classifyChanges,
@@ -29,37 +33,36 @@ export const uniqueNonSecretPaths = (paths: string[]) => {
   return out;
 };
 
-const decoder = new TextDecoder();
-
 export const runCommand = async (
   bin: string,
   args: string[],
   cwd: string,
 ): Promise<string> => {
-  const result = await new Deno.Command(bin, {
-    args,
-    cwd,
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  if (!result.success) {
-    const stderr = decoder.decode(result.stderr).trim();
+  try {
+    const result = await execFileAsync(bin, args, {
+      cwd,
+      encoding: "utf8",
+      maxBuffer: Infinity,
+    });
+    return result.stdout;
+  } catch (error) {
+    const failure = error as NodeJS.ErrnoException & { stderr?: string };
+    const stderr = failure.stderr?.trim();
     throw new Error(
-      `${bin} ${args.join(" ")} failed: ${stderr || `exit ${result.code}`}`,
+      `${bin} ${args.join(" ")} failed: ${stderr || `exit ${failure.code ?? "unknown"}`}`,
     );
   }
-  return decoder.decode(result.stdout);
 };
 
 const detectVcs = async (repo: string): Promise<"jj" | "git"> => {
   try {
-    const info = await Deno.stat(`${repo}/.jj`);
-    if (info.isDirectory) return "jj";
+    const info = await stat(`${repo}/.jj`);
+    if (info.isDirectory()) return "jj";
   } catch {
     // fall through to git
   }
   try {
-    await Deno.stat(`${repo}/.git`);
+    await stat(`${repo}/.git`);
     return "git";
   } catch {
     throw new Error(`no .jj or .git directory in ${repo}`);
@@ -112,7 +115,7 @@ const listChanges = async (
 export const collectRepositoryMetadata = async (
   repo: string,
 ): Promise<RepositoryMetadata> => {
-  const resolved = await Deno.realPath(repo);
+  const resolved = await realpath(repo);
   const vcs = await detectVcs(resolved);
   const [trackedFiles, changes] = await Promise.all([
     listTrackedFiles(resolved, vcs),
@@ -168,10 +171,7 @@ export const main = async (argv: string[]) => {
   }
 
   try {
-    await Deno.writeTextFile(
-      output,
-      `${JSON.stringify(metadata, null, 2)}\n`,
-    );
+    await writeFile(output, `${JSON.stringify(metadata, null, 2)}\n`);
   } catch (error) {
     console.error(
       `write error: ${error instanceof Error ? error.message : String(error)}`,
@@ -184,5 +184,7 @@ export const main = async (argv: string[]) => {
 };
 
 if (import.meta.main) {
-  Deno.exit(await main(Deno.args));
+  main(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
 }

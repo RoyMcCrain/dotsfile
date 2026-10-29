@@ -3,6 +3,11 @@
  * EOF: a trailing line without LF is parsed once if valid JSON; otherwise fails.
  */
 
+import { constants } from "node:fs";
+import { open } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { constants as osConstants } from "node:os";
+
 const SUCCESS_STOP_REASONS = new Set(["stop", "length"]);
 
 const KNOWN_STOP_REASONS = new Set([
@@ -216,15 +221,9 @@ export const classifyProviderFailure = (
 };
 
 export const classifyWrapperError = (err: unknown): SafeErrorDiagnostic => {
-  if (err instanceof Deno.errors.NotCapable) {
-    return { category: "permission_denied" };
-  }
-  if (err instanceof Deno.errors.PermissionDenied) {
-    return { category: "permission_denied" };
-  }
-  if (err instanceof Deno.errors.NotFound) {
-    return { category: "executable_not_found" };
-  }
+  const code = (err as NodeJS.ErrnoException)?.code;
+  if (code === "EACCES" || code === "EPERM") return { category: "permission_denied" };
+  if (code === "ENOENT") return { category: "executable_not_found" };
   return { category: "internal_error" };
 };
 
@@ -490,6 +489,14 @@ export function finalizeStreamOutcome(tracker: StreamTracker): ParseOutcome {
   return { finalTextBlocks: blocks, streamError: undefined };
 }
 
+function normalizeChildExitCode(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+): number | null {
+  const signalNumber = signal ? osConstants.signals[signal] : undefined;
+  return code ?? (signalNumber ? 128 + signalNumber : null);
+}
+
 export function resolveWrapperExitCode(
   streamError: string | undefined,
   childCode: number | null,
@@ -508,31 +515,45 @@ export function formatFinalStdout(blocks: string[]): Uint8Array {
 }
 
 async function writeAll(
-  writer: { write(p: Uint8Array): Promise<number> },
+  writer: NodeJS.WriteStream,
   bytes: Uint8Array,
 ): Promise<boolean> {
-  let offset = 0;
-  while (offset < bytes.length) {
-    const written = await writer.write(bytes.subarray(offset));
-    if (written <= 0) return false;
-    offset += written;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => writer.removeListener("error", onError);
+      const finish = (error?: Error | null) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (error) reject(error);
+        else resolve();
+      };
+      const onError = (error: Error) => finish(error);
+      writer.once("error", onError);
+      writer.write(bytes, (error) => {
+        if (!error) finish();
+        else setImmediate(() => finish(error));
+      });
+    });
+    return true;
+  } catch {
+    return false;
   }
-  return true;
 }
 
 const appendWrapperError = (
-  file: Deno.FsFile,
+  file: Awaited<ReturnType<typeof open>>,
   record: Omit<WrapperErrorRecord, "kind">,
-): Promise<boolean> =>
-  appendLogLine(file, { kind: "wrapper_error", ...record });
+): Promise<boolean> => appendLogLine(file, { kind: "wrapper_error", ...record });
 
 async function appendLogLine(
-  file: Deno.FsFile,
+  file: Awaited<ReturnType<typeof open>>,
   event: SanitizedPiEvent | WrapperErrorRecord | Record<string, unknown>,
 ): Promise<boolean> {
-  const bytes = new TextEncoder().encode(`${JSON.stringify(event)}\n`);
   try {
-    return await writeAll(file, bytes);
+    await file.writeFile(`${JSON.stringify(event)}\n`);
+    return true;
   } catch {
     return false;
   }
@@ -583,9 +604,9 @@ export async function runPiReviewEventsHelper(options: {
 }): Promise<number> {
   const attemptStartMs = Date.now();
   const tracker = createStreamTracker();
-  let file: Deno.FsFile;
+  let file: Awaited<ReturnType<typeof open>>;
   try {
-    file = await Deno.open(options.eventsLog, { write: true, append: true });
+    file = await open(options.eventsLog, constants.O_WRONLY | constants.O_APPEND);
   } catch {
     console.error("pi review events: failed to open events log");
     return 1;
@@ -599,14 +620,9 @@ export async function runPiReviewEventsHelper(options: {
   };
 
   const [bin, ...piArgs] = options.command;
-  let proc: Deno.ChildProcess;
+  let proc: ReturnType<typeof spawn>;
   try {
-    proc = new Deno.Command(bin, {
-      args: piArgs,
-      stdin: "null",
-      stdout: "piped",
-      stderr: "inherit",
-    }).spawn();
+    proc = spawn(bin, piArgs, { stdio: ["ignore", "pipe", "inherit"] });
   } catch (err) {
     const diag = classifyWrapperError(err);
     await appendWrapperError(file, {
@@ -615,11 +631,18 @@ export async function runPiReviewEventsHelper(options: {
       errorCategory: diag.category,
       phase: "spawn",
     });
-    file.close();
+    await file.close();
     console.error(`pi review events: ${diag.category}`);
     return 1;
   }
 
+  const closeStatus = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+    proc.once("close", (code, signal) => resolve({ code, signal }));
+  });
+  const spawnError = new Promise<Error | undefined>((resolve) => {
+    proc.once("error", (error) => resolve(error));
+    proc.once("spawn", () => resolve(undefined));
+  });
   const decoder = new TextDecoder();
   let carry = "";
   let streamError: string | undefined;
@@ -641,10 +664,7 @@ export async function runPiReviewEventsHelper(options: {
   };
 
   try {
-    const reader = proc.stdout.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    for await (const value of proc.stdout!) {
       carry += decoder.decode(value, { stream: true });
       const split = splitJsonlLines(carry);
       carry = split.remainder;
@@ -661,9 +681,22 @@ export async function runPiReviewEventsHelper(options: {
       "pi review stream: failed while reading assistant output";
   }
 
-  file.close();
-
-  const status = await proc.status;
+  const status = await closeStatus;
+  const childCode = normalizeChildExitCode(status.code, status.signal);
+  const error = await spawnError;
+  if (error) {
+    const diag = classifyWrapperError(error);
+    await appendWrapperError(file, {
+      attempt: options.attempt,
+      timestampMs: Date.now(),
+      errorCategory: diag.category,
+      phase: "spawn",
+    });
+    console.error(`pi review events: ${diag.category}`);
+    await file.close();
+    return 1;
+  }
+  await file.close();
   const outcome = finalizeStreamOutcome(tracker);
 
   if (logFailed && streamError === undefined) {
@@ -671,16 +704,16 @@ export async function runPiReviewEventsHelper(options: {
   }
 
   const err = streamError ?? outcome.streamError;
-  if (status.code !== null && status.code !== 0) {
+  if (childCode !== null && childCode !== 0) {
     if (err !== undefined) console.error(err);
-    return status.code;
+    return childCode;
   }
   if (err !== undefined) {
     console.error(err);
-    return resolveWrapperExitCode(err, status.code, status.signal);
+    return resolveWrapperExitCode(err, childCode, status.signal);
   }
   const stdoutOk = await writeAll(
-    Deno.stdout,
+    process.stdout,
     formatFinalStdout(
       outcome.finalTextBlocks,
     ),
@@ -695,18 +728,18 @@ export async function runPiReviewEventsHelper(options: {
 async function main(): Promise<void> {
   let parsed: ReturnType<typeof parseCliArgs>;
   try {
-    parsed = parseCliArgs(Deno.args);
+    parsed = parseCliArgs(process.argv.slice(2));
   } catch {
     console.error("pi review events: invalid command line");
-    Deno.exit(1);
+    process.exit(1);
   }
-  Deno.exit(await runPiReviewEventsHelper(parsed));
+  process.exit(await runPiReviewEventsHelper(parsed));
 }
 
 if (import.meta.main) {
   await main().catch((err) => {
     const { category } = classifyWrapperError(err);
     console.error(`pi review events: ${category}`);
-    Deno.exit(1);
+    process.exit(1);
   });
 }

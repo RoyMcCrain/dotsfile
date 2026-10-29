@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -19,7 +20,7 @@ const planCase = (overrides: Partial<PlanCase> = {}): PlanCase => ({
   ...overrides,
 });
 
-Deno.test("effective vs suggested denominators and strata separation", async () => {
+test("effective vs suggested denominators and strata separation", async () => {
   const comparison = buildComparison(5, undefined, {
     minLevel: 2,
     maxLevel: 4,

@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -5,24 +6,20 @@ import { tmpdir } from "node:os";
 import { parseUtcDate } from "../scripts/week_period.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 
 const runCli = async (
   args: string[],
   home: string,
 ): Promise<{ ok: boolean; stderr: string }> => {
-  const out = await new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "--no-config", AUDIT_SCRIPT, ...args],
-    env: {
-      ...Deno.env.toObject(),
-      HOME: home,
-      XDG_DATA_HOME: join(home, "xdg"),
-    },
-    stderr: "piped",
-  }).output();
-  return { ok: out.success, stderr: new TextDecoder().decode(out.stderr) };
+  const out = await runFixtureProcess(
+    ["run", AUDIT_SCRIPT, ...args],
+    { ...process.env, HOME: home, XDG_DATA_HOME: join(home, "xdg") },
+  );
+  return { ok: out.success, stderr: out.stderrText };
 };
 
-Deno.test("CLI rejects invalid week and impossible dates", async () => {
+test("CLI rejects invalid week and impossible dates", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-cli-"));
   assert.throws(() => parseUtcDate("2026-02-30"), /invalid UTC date/);
   const badDay = await runCli(["prepare", "--week", "2026-09-29"], home);
@@ -35,7 +32,7 @@ Deno.test("CLI rejects invalid week and impossible dates", async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-Deno.test("run auto-approval flag is explicit and command-scoped", async () => {
+test("run auto-approval flag is explicit and command-scoped", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-cli-auto-"));
   for (
     const args of [
@@ -50,7 +47,7 @@ Deno.test("run auto-approval flag is explicit and command-scoped", async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-Deno.test("rejected prepare performs no audit writes", async () => {
+test("rejected prepare performs no audit writes", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-cli-nowrite-"));
   const auditDir = join(home, "audit");
   await runCli(

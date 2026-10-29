@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { test } from "bun:test";
+import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   buildReport,
@@ -65,8 +67,8 @@ const baseMeta = (over: Partial<RunMetadata> = {}): RunMetadata => ({
 
 async function writeRun(root: string, id: string, meta: unknown) {
   const dir = join(root, id);
-  await Deno.mkdir(dir, { recursive: true, mode: 0o700 });
-  await Deno.writeTextFile(
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  await writeFile(
     join(dir, "metadata.json"),
     JSON.stringify(meta, null, 2),
     { mode: 0o600 },
@@ -74,17 +76,17 @@ async function writeRun(root: string, id: string, meta: unknown) {
 }
 
 const testTempRoot = () => {
-  const root = Deno.env.get("IMPL_TEST_ROOT");
+  const root = process.env.IMPL_TEST_ROOT;
   if (!root) {
     throw new Error("IMPL_TEST_ROOT is required for impl history tests");
   }
   return root;
 };
 
-/** Deno requires unscoped --allow-write to create symlinks (see run_tests.sh). */
-const symlinkTestsEnabled = () => Deno.env.get("IMPL_TEST_SYMLINK") === "1";
+/** Symlink regression cases run when explicitly enabled in the test environment. */
+const symlinkTestsEnabled = () => process.env.IMPL_TEST_SYMLINK === "1";
 
-Deno.test("regression: conservative coverage on failed stream is accepted", () => {
+test("regression: conservative coverage on failed stream is accepted", () => {
   const meta = baseMeta({
     executionStatus: "failed",
     usage: { ...usageComplete(), coverage: "partial" },
@@ -92,7 +94,7 @@ Deno.test("regression: conservative coverage on failed stream is accepted", () =
   assert.ok(validateRunMetadata(meta).ok);
 });
 
-Deno.test("regression: overflowing aggregate remains unknown, not zero", () => {
+test("regression: overflowing aggregate remains unknown, not zero", () => {
   const meta = baseMeta({ usage: { ...usageComplete(), input: 1e308 } });
   assert.equal(
     buildReport("/tmp/fixture", { records: [meta, meta], excluded: [] })
@@ -101,8 +103,8 @@ Deno.test("regression: overflowing aggregate remains unknown, not zero", () => {
   );
 });
 
-Deno.test("report no-data is honest", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("report no-data is honest", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const loaded = await loadRunMetadataFromRoot(root);
   const report = buildReport(root, loaded);
   assert.equal(report.hasData, false);
@@ -110,16 +112,16 @@ Deno.test("report no-data is honest", async () => {
   assert(html.includes("実装履歴がありません"));
 });
 
-Deno.test("invalid schemaVersion is excluded", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("invalid schemaVersion is excluded", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "bad", { ...baseMeta(), schemaVersion: 99 });
   const loaded = await loadRunMetadataFromRoot(root);
   assert.equal(loaded.records.length, 0);
   assert.equal(loaded.excluded.length, 1);
 });
 
-Deno.test("secret canary unknown field excludes record and report artifact", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("secret canary unknown field excludes record and report artifact", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "canary", { ...baseMeta(), [CANARY]: "leak" });
   const loaded = await loadRunMetadataFromRoot(root);
   assert.equal(loaded.records.length, 0);
@@ -129,15 +131,15 @@ Deno.test("secret canary unknown field excludes record and report artifact", asy
   assert.equal(json.includes(CANARY), false);
 });
 
-Deno.test("completed with exit 17 is excluded", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("completed with exit 17 is excluded", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "bad-exit", { ...baseMeta(), exitCode: 17 });
   const loaded = await loadRunMetadataFromRoot(root);
   assert.equal(loaded.records.length, 0);
 });
 
-Deno.test("invalid executionStatus enum is excluded", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("invalid executionStatus enum is excluded", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "bad-status", {
     ...baseMeta(),
     executionStatus: "passed",
@@ -146,22 +148,22 @@ Deno.test("invalid executionStatus enum is excluded", async () => {
   assert.equal(loaded.records.length, 0);
 });
 
-Deno.test("negative elapsedMs is excluded", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("negative elapsedMs is excluded", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "neg", { ...baseMeta(), elapsedMs: -1 });
   const loaded = await loadRunMetadataFromRoot(root);
   assert.equal(loaded.records.length, 0);
 });
 
-Deno.test("invalid prompt hash is excluded", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("invalid prompt hash is excluded", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "hash", { ...baseMeta(), promptSha256: "not-hex" });
   const loaded = await loadRunMetadataFromRoot(root);
   assert.equal(loaded.records.length, 0);
 });
 
-Deno.test("parent passed without completed is excluded", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("parent passed without completed is excluded", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "pv", {
     ...baseMeta(),
     executionStatus: "failed",
@@ -172,7 +174,7 @@ Deno.test("parent passed without completed is excluded", async () => {
   assert.equal(loaded.records.length, 0);
 });
 
-Deno.test("HTML escapes untrusted model names even when record invalid", () => {
+test("HTML escapes untrusted model names even when record invalid", () => {
   const evil = "evil<script>alert(1)</script>";
   const html = renderReportHtml(
     buildReport("/tmp/x", {
@@ -190,8 +192,8 @@ Deno.test("HTML escapes untrusted model names even when record invalid", () => {
   assert(validHtml.includes("&lt;script&gt;"));
 });
 
-Deno.test("elapsed omits running placeholder and shows median", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("elapsed omits running placeholder and shows median", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "done", baseMeta({ elapsedMs: 10000 }));
   await writeRun(root, "done2", {
     ...baseMeta(),
@@ -218,8 +220,8 @@ Deno.test("elapsed omits running placeholder and shows median", async () => {
   assert(html.includes("20000"));
 });
 
-Deno.test("usage shows unknown not zero for missing metrics", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("usage shows unknown not zero for missing metrics", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "u", {
     ...baseMeta(),
     usage: {
@@ -239,8 +241,8 @@ Deno.test("usage shows unknown not zero for missing metrics", async () => {
   assert(html.includes("unknown"));
 });
 
-Deno.test("matched case uses unique keys and per-model summaries", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("matched case uses unique keys and per-model summaries", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const prov = baseMeta().codeProvenance;
   await writeRun(root, "a", baseMeta());
   await writeRun(root, "b", {
@@ -265,8 +267,8 @@ Deno.test("matched case uses unique keys and per-model summaries", async () => {
   assert(report.warnings.some((w) => w.includes("品質") || w.includes("比較")));
 });
 
-Deno.test("unknown provenance never matched", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("unknown provenance never matched", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "u", {
     ...baseMeta(),
     codeProvenance: {
@@ -279,48 +281,44 @@ Deno.test("unknown provenance never matched", async () => {
   assert(report.caseGroups.every((g) => !g.matched));
 });
 
-Deno.test("writeReport refuses existing output directory", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("writeReport refuses existing output directory", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const out = join(root, "out");
-  await Deno.mkdir(out);
+  await mkdir(out);
   const report = buildReport(root, { records: [], excluded: [] });
   await assert.rejects(() => writeReport(out, report));
 });
 
-Deno.test({
-  name: "writeReport refuses output inside runs via symlink alias",
-  ignore: !symlinkTestsEnabled(),
-  fn: async () => {
-    const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test.skipIf(!symlinkTestsEnabled())("writeReport refuses output inside runs via symlink alias", async () => {
+    const root = await mkdtemp(join(testTempRoot(), "test-"));
     const runs = join(root, "runs");
     const outside = join(root, "outside");
-    await Deno.mkdir(runs, { recursive: true });
-    await Deno.mkdir(outside, { recursive: true });
-    await Deno.symlink("../runs", join(outside, "alias"));
+    await mkdir(runs, { recursive: true });
+    await mkdir(outside, { recursive: true });
+    await symlink("../runs", join(outside, "alias"));
     const out = join(outside, "alias", "report-out");
     const report = buildReport(runs, { records: [], excluded: [] });
     await assert.rejects(() => writeReport(out, report, runs));
-  },
 });
 
-Deno.test("writeReport creates private files exclusively", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("writeReport creates private files exclusively", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const runs = join(root, "runs");
   const outParent = join(root, "reports");
-  await Deno.mkdir(runs, { recursive: true });
-  await Deno.mkdir(outParent, { recursive: true });
+  await mkdir(runs, { recursive: true });
+  await mkdir(outParent, { recursive: true });
   const out = join(outParent, "r1");
   const report = buildReport(runs, { records: [], excluded: [] });
   await writeReport(out, report, runs);
-  const st = await Deno.stat(out);
-  assert.equal((st.mode ?? 0) & 0o777, 0o700);
-  const jsonMode = ((await Deno.stat(join(out, "report.json"))).mode ?? 0) &
+  const st = await stat(out);
+  assert.equal(st.mode & 0o777, 0o700);
+  const jsonMode = (await stat(join(out, "report.json"))).mode &
     0o777;
   assert.equal(jsonMode, 0o600);
 });
 
-Deno.test("set-validation passed requires completed execution", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("set-validation passed requires completed execution", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const meta = {
     ...baseMeta(),
     executionStatus: "failed" as const,
@@ -331,16 +329,16 @@ Deno.test("set-validation passed requires completed execution", async () => {
   await assert.rejects(() => setValidationStatus(runDir, "passed"));
 });
 
-Deno.test("set-validation rejects corrupted completed exit 17", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("set-validation rejects corrupted completed exit 17", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const raw = { ...baseMeta(), exitCode: 17 };
   await writeRun(root, "run1", raw);
   const runDir = join(root, "run1");
   await assert.rejects(() => setValidationStatus(runDir, "failed"));
 });
 
-Deno.test("set-validation rejects invalid status at runtime", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("set-validation rejects invalid status at runtime", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "run1", baseMeta());
   const runDir = join(root, "run1");
   await assert.rejects(() =>
@@ -348,33 +346,33 @@ Deno.test("set-validation rejects invalid status at runtime", async () => {
   );
 });
 
-Deno.test("validateRunMetadata returns fixed reason not exception text", () => {
+test("validateRunMetadata returns fixed reason not exception text", () => {
   const r = validateRunMetadata({ schemaVersion: 1, bad: true });
   assert.equal(r.ok, undefined);
   assert(r.reason && !r.reason.includes("stack"));
 });
 
-Deno.test("resolveDefaultRunsDir honors IMPL_RUNS_DIR and XDG", () => {
-  const home = Deno.env.get("HOME") ?? "";
-  const prevImpl = Deno.env.get("IMPL_RUNS_DIR");
-  const prevXdg = Deno.env.get("XDG_DATA_HOME");
+test("resolveDefaultRunsDir honors IMPL_RUNS_DIR and XDG", () => {
+  const home = process.env.HOME ?? "";
+  const prevImpl = process.env.IMPL_RUNS_DIR;
+  const prevXdg = process.env.XDG_DATA_HOME;
   try {
-    Deno.env.set("IMPL_RUNS_DIR", "~/custom-impl-runs");
-    Deno.env.delete("XDG_DATA_HOME");
+    process.env.IMPL_RUNS_DIR = "~/custom-impl-runs";
+    delete process.env.XDG_DATA_HOME;
     assert(resolveDefaultRunsDir().endsWith("custom-impl-runs"));
-    Deno.env.delete("IMPL_RUNS_DIR");
-    Deno.env.set("XDG_DATA_HOME", join(home, "xdg-test"));
+    delete process.env.IMPL_RUNS_DIR;
+    process.env.XDG_DATA_HOME = join(home, "xdg-test");
     assert(resolveDefaultRunsDir().includes("xdg-test/impl/runs"));
   } finally {
-    if (prevImpl === undefined) Deno.env.delete("IMPL_RUNS_DIR");
-    else Deno.env.set("IMPL_RUNS_DIR", prevImpl);
-    if (prevXdg === undefined) Deno.env.delete("XDG_DATA_HOME");
-    else Deno.env.set("XDG_DATA_HOME", prevXdg);
+    if (prevImpl === undefined) delete process.env.IMPL_RUNS_DIR;
+    else process.env.IMPL_RUNS_DIR = prevImpl;
+    if (prevXdg === undefined) delete process.env.XDG_DATA_HOME;
+    else process.env.XDG_DATA_HOME = prevXdg;
   }
 });
 
-Deno.test("running metadata without timing loads and round-trips", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("running metadata without timing loads and round-trips", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const running = {
     ...baseMeta(),
     runId: "running-1",
@@ -400,8 +398,8 @@ Deno.test("running metadata without timing loads and round-trips", async () => {
   assert.equal(artifact.modelSummaries[0]?.inputKnownSlices, 1);
 });
 
-Deno.test("running with elapsedMs is rejected on load", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("running with elapsedMs is rejected on load", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "bad-run", {
     ...baseMeta(),
     executionStatus: "running",
@@ -413,12 +411,12 @@ Deno.test("running with elapsedMs is rejected on load", async () => {
   assert.equal(loaded.records.length, 0);
 });
 
-Deno.test("fractional retryCount is rejected", () => {
+test("fractional retryCount is rejected", () => {
   const bad = validateRunMetadata({ ...baseMeta(), retryCount: 1.5 });
   assert.equal(bad.ok, undefined);
 });
 
-Deno.test("toolCalls count zero is accepted", () => {
+test("toolCalls count zero is accepted", () => {
   const ok = validateRunMetadata({
     ...baseMeta(),
     toolCalls: { read: 0, bash: 0 },
@@ -426,7 +424,7 @@ Deno.test("toolCalls count zero is accepted", () => {
   assert(ok.ok);
 });
 
-Deno.test("toolCalls unknown tool key is rejected", () => {
+test("toolCalls unknown tool key is rejected", () => {
   const bad = validateRunMetadata({
     ...baseMeta(),
     toolCalls: { evilTool: 1 },
@@ -434,7 +432,7 @@ Deno.test("toolCalls unknown tool key is rejected", () => {
   assert.equal(bad.ok, undefined);
 });
 
-Deno.test("non-hex provenance revision is rejected", () => {
+test("non-hex provenance revision is rejected", () => {
   const bad = validateRunMetadata({
     ...baseMeta(),
     codeProvenance: {
@@ -445,7 +443,7 @@ Deno.test("non-hex provenance revision is rejected", () => {
   assert.equal(bad.ok, undefined);
 });
 
-Deno.test("usage input without knownSlices is rejected", () => {
+test("usage input without knownSlices is rejected", () => {
   const bad = validateRunMetadata({
     ...baseMeta(),
     usage: {
@@ -461,7 +459,7 @@ Deno.test("usage input without knownSlices is rejected", () => {
   assert.equal(bad.ok, undefined);
 });
 
-Deno.test("usage knownSlices without numeric is rejected", () => {
+test("usage knownSlices without numeric is rejected", () => {
   const usage = { ...usageComplete() };
   delete (usage as { input?: number }).input;
   const bad = validateRunMetadata({
@@ -471,7 +469,7 @@ Deno.test("usage knownSlices without numeric is rejected", () => {
   assert.equal(bad.ok, undefined);
 });
 
-Deno.test("fake usage complete coverage is rejected", () => {
+test("fake usage complete coverage is rejected", () => {
   const bad = validateRunMetadata({
     ...baseMeta(),
     usage: {
@@ -490,8 +488,8 @@ Deno.test("fake usage complete coverage is rejected", () => {
   assert.equal(bad.ok, undefined);
 });
 
-Deno.test("report artifact includes slice denominators", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("report artifact includes slice denominators", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "u", baseMeta());
   const report = buildReport(root, await loadRunMetadataFromRoot(root));
   const artifact = toReportArtifact(report);
@@ -503,8 +501,8 @@ Deno.test("report artifact includes slice denominators", async () => {
   assert(html.includes("1/1 slices"));
 });
 
-Deno.test("set-validation on running allows not-run and failed", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("set-validation on running allows not-run and failed", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   const running = {
     ...baseMeta(),
     executionStatus: "running",
@@ -519,8 +517,8 @@ Deno.test("set-validation on running allows not-run and failed", async () => {
   await setValidationStatus(runDir, "failed");
 });
 
-Deno.test("set-validation passed refuses running execution", async () => {
-  const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test("set-validation passed refuses running execution", async () => {
+  const root = await mkdtemp(join(testTempRoot(), "test-"));
   await writeRun(root, "run1", {
     ...baseMeta(),
     executionStatus: "running",
@@ -532,30 +530,27 @@ Deno.test("set-validation passed refuses running execution", async () => {
   await assert.rejects(() => setValidationStatus(join(root, "run1"), "passed"));
 });
 
-Deno.test("CLI rejects duplicate flags and positional args", () => {
+test("CLI rejects duplicate flags and positional args", () => {
   assert.throws(() =>
     parseReportCliArgs(["--out", "/tmp/x", "--out", "/tmp/y"])
   );
   assert.throws(() => parseReportCliArgs(["extra", "--out", "/tmp/x"]));
 });
 
-Deno.test({
-  name: "load skips symlink run dir and metadata",
-  ignore: !symlinkTestsEnabled(),
-  fn: async () => {
-    const root = await Deno.makeTempDir({ dir: testTempRoot() });
+test.skipIf(!symlinkTestsEnabled())("load skips symlink run dir and metadata", async () => {
+    const root = await mkdtemp(join(testTempRoot(), "test-"));
     const real = join(root, "real-run");
-    await Deno.mkdir(real, { recursive: true });
-    await Deno.writeTextFile(
+    await mkdir(real, { recursive: true });
+    await writeFile(
       join(real, "metadata.json"),
       JSON.stringify(baseMeta()),
     );
-    await Deno.symlink("../real-run", join(root, "linked-run"));
+    await symlink("../real-run", join(root, "linked-run"));
     const outside = join(root, "outside-meta.json");
-    await Deno.writeTextFile(outside, JSON.stringify(baseMeta({ runId: "x" })));
+    await writeFile(outside, JSON.stringify(baseMeta({ runId: "x" })));
     const linkMetaRun = join(root, "link-meta-run");
-    await Deno.mkdir(linkMetaRun);
-    await Deno.symlink(
+    await mkdir(linkMetaRun);
+    await symlink(
       "../outside-meta.json",
       join(linkMetaRun, "metadata.json"),
     );
@@ -564,5 +559,4 @@ Deno.test({
     assert(
       loaded.excluded.some((e) => e.reason.toLowerCase().includes("symlink")),
     );
-  },
 });

@@ -54,7 +54,7 @@ cd ~/ghq/github.com/RoyMcCrain/dotsfile
 セットアップは Bash のみを使い、Fish・Zsh・ghq は必要ありません。互換性のため `setup_fish.sh` と `create_symlink.sh` も残していますが、どちらも同じ `setup.sh` を呼び出します。
 
 あわせて `setup.sh` が git の `core.hooksPath` を `.githooks` に設定し、
-push 前に `scripts/run_tests.sh`（Bun + Deno + bats）が走る pre-push hook が有効になる。
+push 前に `scripts/run_tests.sh`（Bun + Node + bats）が走る pre-push hook が有効になる。
 
 > **注意**: git hooks は `git push` でのみ発火する。`jj git push` は git hooks を実行しないため、
 > jj で push する場合は事前に `./scripts/run_tests.sh` を手動で実行すること。
@@ -76,11 +76,14 @@ devbox global run setup-npm
 
 これにより`neovim`, `typescript`, `@typescript/native-preview`がインストールされる。
 
-Pi の TypeScript テストは Bun で実行する。依存は初回と `pi/agent/package.json` 更新時に入れる：
+Pi と移行済み shared skills の TypeScript テストは Bun、Node テストは Node、シェルテストは Bats で実行する。依存は初回と `pi/agent/package.json` 更新時に入れる：
 
 ```bash
 bun install --cwd pi/agent
+bash scripts/run_tests.sh
 ```
+
+Bun に Deno の `--allow-*` と同等の実行時サンドボックスはない。テストランナーは隔離された HOME/TMPDIR/XDG を使うが、ファイルシステムやネットワークのサンドボックスではない。nvim/dpp.vim は引き続き Deno を使用する。
 
 ## Antigravity CLI (agy)
 

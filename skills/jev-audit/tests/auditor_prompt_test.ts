@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { REVIEW_CRITERIA } from "../../parallel-review/scripts/select_review_level.ts";
 import {
@@ -5,7 +6,7 @@ import {
   buildAuditorUserPrompt,
 } from "../scripts/auditor_prompt.ts";
 
-Deno.test("blind prompt includes rubric without Jev metadata", () => {
+test("blind prompt includes rubric without Jev metadata", () => {
   const user = buildAuditorUserPrompt();
   const system = buildAuditorSystemPrompt();
   assert.match(user, /Level 1:/);

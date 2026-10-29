@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { chmod, mkdir } from "node:fs/promises";
 import { readDecisionHistory } from "../../parallel-review/scripts/review_history.ts";
 import { createdAtInPeriod, type UtcWeekPeriod } from "./week_period.ts";
 import {
@@ -156,7 +156,7 @@ export const ensureWeeklyPlan = async (options: {
     return { weekRoot: root, plan: existing, created: false };
   }
   await mkdir(root, { recursive: true, mode: 0o700 });
-  await Deno.chmod(root, 0o700);
+  await chmod(root, 0o700);
   const plan = await buildPlanFromHistory({
     period: options.period,
     runsDir: options.runsDir,

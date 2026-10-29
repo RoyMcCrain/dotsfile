@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   chmod,
@@ -28,7 +29,7 @@ const FIXTURE_RESOLVER = join(
   "fixtures/resolve_mock.sh",
 );
 
-const isDarwin = Deno.build.os === "darwin";
+const isDarwin = process.platform === "darwin";
 
 const PATCH =
   "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n+hello\n";
@@ -38,23 +39,19 @@ type LaunchdPlist = {
   EnvironmentVariables?: Record<string, string>;
 };
 
+const runCommand = (command: string, args: string[], env?: Record<string, string>) => {
+  const out = Bun.spawnSync([command, ...args], { env, stdout: "pipe", stderr: "pipe" });
+  return { success: out.exitCode === 0, stdout: out.stdout, stderr: out.stderr };
+};
+
 const runPreview = async (
   env: Record<string, string> = {},
   args: string[] = [],
 ): Promise<{ stdout: string; success: boolean; stderr: string }> => {
-  const inherited = { ...Deno.env.toObject() };
+  const inherited = { ...process.env } as Record<string, string>;
   delete inherited.MODEL_RESOLVER;
-  const out = await new Deno.Command("bash", {
-    args: [SCRIPT, ...args],
-    env: { ...inherited, ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  return {
-    stdout: new TextDecoder().decode(out.stdout),
-    stderr: new TextDecoder().decode(out.stderr),
-    success: out.success,
-  };
+  const out = runCommand("bash", [SCRIPT, ...args], { ...inherited, ...env });
+  return { stdout: out.stdout.toString(), stderr: out.stderr.toString(), success: out.success };
 };
 
 const plistToJson = async (xml: string): Promise<LaunchdPlist> => {
@@ -62,13 +59,9 @@ const plistToJson = async (xml: string): Promise<LaunchdPlist> => {
   const path = join(dir, "preview.plist");
   try {
     await writeFile(path, xml);
-    const out = await new Deno.Command("plutil", {
-      args: ["-convert", "json", "-o", "-", path],
-      stdout: "piped",
-      stderr: "piped",
-    }).output();
-    assert.equal(out.success, true, new TextDecoder().decode(out.stderr));
-    return JSON.parse(new TextDecoder().decode(out.stdout)) as LaunchdPlist;
+    const out = runCommand("plutil", ["-convert", "json", "-o", "-", path]);
+    assert.equal(out.success, true, out.stderr.toString());
+    return JSON.parse(out.stdout.toString()) as LaunchdPlist;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -76,20 +69,13 @@ const plistToJson = async (xml: string): Promise<LaunchdPlist> => {
 
 const runPlistProgram = async (
   plist: LaunchdPlist,
-): Promise<Deno.CommandOutput> => {
+): Promise<ReturnType<typeof runCommand>> => {
   const args = plist.ProgramArguments;
-  assert.ok(args.length >= 2, "expected deno + args");
-  const deno = args[0];
-  const denoArgs = args.slice(1);
-  const baseEnv = plist.EnvironmentVariables ?? {};
-  return await new Deno.Command(deno, {
-    args: denoArgs,
-    clearEnv: true,
-    env: baseEnv,
-    stdin: "null",
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  assert.ok(args.length >= 2, "expected Bun + args");
+  assert.ok(args[0]?.startsWith("/"), "Bun executable path must be absolute");
+  assert.ok(args[0]?.endsWith("/bun"), "ProgramArguments must invoke Bun");
+  const baseEnv = { ...plist.EnvironmentVariables } as Record<string, string>;
+  return runCommand(args[0]!, args.slice(1), baseEnv);
 };
 
 type IsolatedLayout = {
@@ -215,23 +201,12 @@ const seedAuditCli = async (
   env: Record<string, string>,
   args: string[],
 ): Promise<Record<string, unknown>> => {
-  const out = await new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "--no-config", AUDIT_SCRIPT, ...args],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  assert.equal(out.success, true, new TextDecoder().decode(out.stderr));
-  return JSON.parse(new TextDecoder().decode(out.stdout)) as Record<
-    string,
-    unknown
-  >;
+  const out = runCommand(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", AUDIT_SCRIPT, ...args], { ...process.env, ...env } as Record<string, string>);
+  assert.equal(out.success, true, out.stderr.toString());
+  return JSON.parse(out.stdout.toString()) as Record<string, unknown>;
 };
 
-Deno.test({
-  name: "launchd opt-in preview auto-approves hermetic fixture once",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("launchd opt-in preview auto-approves hermetic fixture once", async () => {
     const period = defaultPreviousUtcWeek();
     const createdAt = new Date(
       Date.parse(period.weekStartIso) + 36 * 60 * 60 * 1000,
@@ -251,12 +226,9 @@ Deno.test({
         'if [[ "$1" == "--field" && "$2" == "id" ]]; then echo route/mock-review; else echo openai-codex/mock-auditor:high; fi\n',
       { mode: 0o700 },
     );
-    const bashPath = Deno.env.get("JEV_AUDIT_BASH") ??
+    const bashPath = process.env.JEV_AUDIT_BASH ??
       new TextDecoder().decode(
-        (await new Deno.Command("bash", {
-          args: ["-c", "command -v bash"],
-          stdout: "piped",
-        }).output()).stdout,
+        runCommand("bash", ["-c", "command -v bash"]).stdout,
       ).trim();
     const env = {
       HOME: layout.home,
@@ -264,7 +236,7 @@ Deno.test({
       PI_CODING_AGENT_DIR: layout.piDir,
       PI_REVIEW_BIN: fakePi,
       MODEL_RESOLVER: resolver,
-      PATH: Deno.env.get("PATH") ?? "/usr/bin:/bin",
+      PATH: process.env.PATH ?? "/usr/bin:/bin",
       JEV_AUDIT_BASH: bashPath,
     };
     try {
@@ -322,20 +294,20 @@ Deno.test({
     } finally {
       await rm(home, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test("launchd preview stdout is plist only with scoped permissions", async () => {
+test("launchd preview uses Bun and does not claim runtime permission scopes", async () => {
   const { stdout, success, stderr } = await runPreview();
   assert.equal(success, true, stderr);
   assert.match(stdout, /^<\?xml/);
   assert.doesNotMatch(stdout.trim(), /\n[^\n]*installed /);
   assert.match(stdout, /Weekday<\/key><integer>1/);
   assert.match(stdout, /Hour<\/key><integer>9/);
-  assert.match(stdout, /--allow-read=/);
-  assert.match(stdout, /--allow-write=/);
-  assert.match(stdout, /--allow-env=.*TMPDIR/);
-  assert.match(stdout, /--allow-run=/);
+  assert.match(stdout, /<string>--config=\/dev\/null<\/string>/);
+  assert.match(stdout, /<string>--no-env-file<\/string>/);
+  assert.match(stdout, /<string>--no-install<\/string>/);
+  assert.match(stdout, /<string>run<\/string>/);
+  assert.doesNotMatch(stdout, /--allow-(?:read|write|env|run)=/);
   assert.equal(stdout.includes("-A"), false);
   assert.equal(stdout.includes("OPEN_ROUTER"), false);
   assert.match(stdout, /<key>JEV_AUDIT_BASH<\/key>/);
@@ -343,7 +315,7 @@ Deno.test("launchd preview stdout is plist only with scoped permissions", async 
   assert.match(stdout, /<key>TMPDIR<\/key>/);
 });
 
-Deno.test("launchd preview does not create log or tmp paths", async () => {
+test("launchd preview does not create log or tmp paths", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-preview-nowrite-"));
   const xdg = join(home, "xdg-isolated");
   const log = join(xdg, "parallel-review", "jev-audit", "launchd.log");
@@ -361,7 +333,7 @@ Deno.test("launchd preview does not create log or tmp paths", async () => {
   }
 });
 
-Deno.test("xml_escape preserves special characters in plist paths", async () => {
+test("xml_escape preserves special characters in plist paths", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-xml-"));
   const xdg = join(home, "data&<>\"'dir");
   await mkdir(xdg, { recursive: true });
@@ -379,12 +351,8 @@ Deno.test("xml_escape preserves special characters in plist paths", async () => 
       const lintPath = join(lintDir, "lint.plist");
       try {
         await writeFile(lintPath, stdout);
-        const lint = await new Deno.Command("plutil", {
-          args: ["-lint", lintPath],
-          stdout: "piped",
-          stderr: "piped",
-        }).output();
-        assert.equal(lint.success, true, new TextDecoder().decode(lint.stderr));
+        const lint = runCommand("plutil", ["-lint", lintPath]);
+        assert.equal(lint.success, true, lint.stderr.toString());
       } finally {
         await rm(lintDir, { recursive: true, force: true });
       }
@@ -394,7 +362,7 @@ Deno.test("xml_escape preserves special characters in plist paths", async () => 
   }
 });
 
-Deno.test("launchd preview omits MODEL_RESOLVER when unset", async () => {
+test("launchd preview omits MODEL_RESOLVER when unset", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-no-resolver-"));
   const xdg = join(home, "xdg-isolated");
   await mkdir(xdg, { recursive: true });
@@ -414,7 +382,7 @@ Deno.test("launchd preview omits MODEL_RESOLVER when unset", async () => {
   }
 });
 
-Deno.test("launchd preview omits MODEL_RESOLVER when empty", async () => {
+test("launchd preview omits MODEL_RESOLVER when empty", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-empty-resolver-"));
   const xdg = join(home, "xdg-isolated");
   await mkdir(xdg, { recursive: true });
@@ -435,7 +403,7 @@ Deno.test("launchd preview omits MODEL_RESOLVER when empty", async () => {
   }
 });
 
-Deno.test("launchd preview rejects relative MODEL_RESOLVER override", async () => {
+test("launchd preview rejects relative MODEL_RESOLVER override", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-rel-resolver-"));
   const xdg = join(home, "xdg-isolated");
   await mkdir(xdg, { recursive: true });
@@ -452,7 +420,7 @@ Deno.test("launchd preview rejects relative MODEL_RESOLVER override", async () =
   }
 });
 
-Deno.test("launchd preview rejects missing MODEL_RESOLVER override file", async () => {
+test("launchd preview rejects missing MODEL_RESOLVER override file", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-miss-resolver-"));
   const xdg = join(home, "xdg-isolated");
   await mkdir(xdg, { recursive: true });
@@ -470,7 +438,7 @@ Deno.test("launchd preview rejects missing MODEL_RESOLVER override file", async 
   }
 });
 
-Deno.test("launchd preview xml-escapes MODEL_RESOLVER path in plist", async () => {
+test("launchd preview xml-escapes MODEL_RESOLVER path in plist", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-resolver-xml-"));
   const xdg = join(home, "xdg-isolated");
   const resolverDir = join(home, "resolver&dir");
@@ -499,25 +467,17 @@ Deno.test("launchd preview xml-escapes MODEL_RESOLVER path in plist", async () =
   }
 });
 
-Deno.test("launchd preview rejects comma-containing permission paths", async () => {
-  const out = await new Deno.Command("bash", {
-    args: [SCRIPT],
-    env: {
-      ...Deno.env.toObject(),
-      HOME: "/tmp/comma,path",
-    },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  assert.equal(out.success, false);
-  const err = new TextDecoder().decode(out.stderr);
-  assert.match(err, /comma/);
+test("launchd preview accepts comma-containing paths when shell-quoted", async () => {
+  const home = "/tmp/comma,path";
+  const out = await runPreview({
+    HOME: home,
+    XDG_DATA_HOME: join(home, ".local", "share"),
+  });
+  assert.equal(out.success, true, out.stderr);
+  assert.match(out.stdout, /<string>\/tmp\/comma,path\/\.local\/share\/parallel-review\/jev-audit\/launchd\.log<\/string>/);
 });
 
-Deno.test({
-  name: "launchd plist ProgramArguments run audit offline (empty history)",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("launchd plist ProgramArguments run audit offline (empty history)", async () => {
     const home = await mkdtemp(join(tmpdir(), "jev-plist-empty-"));
     const layout = layoutIsolatedHome(home);
     await mkdir(layout.runsDir, { recursive: true });
@@ -561,14 +521,9 @@ Deno.test({
     } finally {
       await rm(home, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name:
-    "launchd plist ProgramArguments run uses scoped flags after local approve seed",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("launchd plist ProgramArguments run uses Bun after local approve seed", async () => {
     const period = defaultPreviousUtcWeek();
     const createdAt = new Date(
       Date.parse(period.weekStartIso) + 36 * 60 * 60 * 1000,
@@ -685,14 +640,9 @@ Deno.test({
     } finally {
       await rm(home, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name:
-    "launchd plist ProgramArguments run before approve skips model spend (hermetic env)",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("launchd plist ProgramArguments run before approve skips model spend (hermetic env)", async () => {
     const period = defaultPreviousUtcWeek();
     const createdAt = new Date(
       Date.parse(period.weekStartIso) + 36 * 60 * 60 * 1000,
@@ -758,10 +708,9 @@ Deno.test({
     } finally {
       await rm(home, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test("assertNoSpendArtifacts rejects seeded spend markers", async () => {
+test("assertNoSpendArtifacts rejects seeded spend markers", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-spend-neg-"));
   const auditBase = join(root, "audit");
   const weekRoot = join(auditBase, "weeks", "2020-09-28");
@@ -787,7 +736,7 @@ Deno.test("assertNoSpendArtifacts rejects seeded spend markers", async () => {
   }
 });
 
-Deno.test("launchd install script references lint and install gate", async () => {
+test("launchd install script references lint and install gate", async () => {
   const text = await readFile(SCRIPT, "utf8");
   assert.match(text, /--install/);
   assert.match(text, /plutil -lint/);
@@ -795,13 +744,9 @@ Deno.test("launchd install script references lint and install gate", async () =>
   assert.doesNotMatch(text, /chmod 700.*\|\| true/);
 });
 
-Deno.test("launchd --install fails on non-Darwin", async () => {
+test("launchd --install fails on non-Darwin", async () => {
   if (isDarwin) return;
-  const out = await new Deno.Command("bash", {
-    args: [SCRIPT, "--install"],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  const out = runCommand("bash", [SCRIPT, "--install"]);
   assert.equal(out.success, false);
-  assert.match(new TextDecoder().decode(out.stderr), /Darwin/);
+  assert.match(out.stderr.toString(), /Darwin/);
 });

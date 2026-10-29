@@ -61,8 +61,8 @@ require_readable_nonempty_file() {
 	fi
 }
 
-require_deno() {
-	command -v deno >/dev/null 2>&1 || die "deno is required for implementation logging"
+require_bun() {
+	command -v bun >/dev/null 2>&1 || die "bun is required for implementation logging"
 	[[ -f "$EVENTS_HELPER" ]] || die "events helper not found: $EVENTS_HELPER"
 }
 
@@ -178,7 +178,7 @@ main() {
 		shift
 	done
 
-	require_deno
+	require_bun
 
 	[[ -n "$prompt" ]] || die "missing required argument: --prompt"
 	prompt=$(expand_home "$prompt")
@@ -229,31 +229,8 @@ main() {
 	cd "$cwd" || die "working directory not found: $cwd"
 	export PI_CODING_AGENT_DIR="$temp_config_dir" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
 
-	local pi_allow=$impl_bin
-	local runs_allow=$runs_dir_resolved
-	local read_allow="$SCRIPT_DIR,$prompt_path,$SYSTEM_PROMPT,$cwd,$impl_bin"
-	local deno_cache="${XDG_CACHE_HOME:-$HOME/.cache}/deno"
-	local write_allow="$runs_allow,$deno_cache,${TMPDIR:-/tmp},stdout,stderr"
-	local run_allow=$pi_allow
-	local vcs_bin interp
-	for vcs_bin in jj git; do
-		if vcs_bin=$(command -v "$vcs_bin" 2>/dev/null); then
-			run_allow="$run_allow,$vcs_bin"
-		fi
-	done
-	for interp in bash sh env; do
-		if interp=$(command -v "$interp" 2>/dev/null); then
-			run_allow="$run_allow,$interp"
-		fi
-	done
-
 	set +e
-	deno run --no-config --no-prompt \
-		--allow-run="$run_allow" \
-		--allow-read="$read_allow,$runs_allow,$deno_cache" \
-		--allow-write="$write_allow" \
-		--allow-env \
-		"$EVENTS_HELPER" \
+	bun --config=/dev/null --no-env-file --no-install run "$EVENTS_HELPER" \
 		--runs-root "$runs_dir_resolved" \
 		--role "$role" \
 		--model "$resolved_model" \

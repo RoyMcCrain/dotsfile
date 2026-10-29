@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -47,7 +48,7 @@ const writeMetaRun = async (
   return runDir;
 };
 
-Deno.test("duplicate runId excludes all dirs from index", async () => {
+test("duplicate runId excludes all dirs from index", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "jev-locate-dup-"));
   const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   await writeMetaRun(runsDir, "2020-09-29-a", id);
@@ -60,7 +61,7 @@ Deno.test("duplicate runId excludes all dirs from index", async () => {
   await rm(runsDir, { recursive: true, force: true });
 });
 
-Deno.test("symlink metadata.json is rejected", async () => {
+test("symlink metadata.json is rejected", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "jev-locate-sym-"));
   const id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
   const runDir = join(runsDir, "2020-09-29-c");
@@ -74,7 +75,7 @@ Deno.test("symlink metadata.json is rejected", async () => {
   await rm(runsDir, { recursive: true, force: true });
 });
 
-Deno.test("run rejects metadata patchSha256 mismatch with plan", async () => {
+test("run rejects metadata patchSha256 mismatch with plan", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-run-meta-"));
   const runsDir = join(root, "runs");
   const auditBase = join(root, "audit");
@@ -124,7 +125,7 @@ Deno.test("run rejects metadata patchSha256 mismatch with plan", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("invalid metadata.json is not indexed", async () => {
+test("invalid metadata.json is not indexed", async () => {
   const runsDir = await mkdtemp(join(tmpdir(), "jev-locate-bad-"));
   const runDir = join(runsDir, "2020-09-29-bad");
   await mkdir(runDir);

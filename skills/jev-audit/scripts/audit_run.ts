@@ -1,4 +1,4 @@
-import { copyFile } from "node:fs/promises";
+import { chmod, copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { genericPatchFileName, loadCheckedPatch } from "./patch_io.ts";
 import {
@@ -302,7 +302,7 @@ export const runSingleCase = async (options: {
     ({ cwd, promptPath, cleanup } = await prepareIsolatedRun());
     inputInCwd = join(cwd, genericPatchFileName());
     await copyFile(stagedPath, inputInCwd);
-    await Deno.chmod(inputInCwd, 0o600);
+    await chmod(inputInCwd, 0o600);
   } catch {
     if (cleanup) await cleanup();
     return { status: "unavailable", reason: "run_preparation_failed" };

@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   buildFallbackDecision,
@@ -32,7 +33,7 @@ const entry = (
   };
 };
 
-Deno.test("dedupe, <=5 random + <=5 risk, stable plan", () => {
+test("dedupe, <=5 random + <=5 risk, stable plan", () => {
   const patchA = "diff --git a/foo b/foo\n";
   const entries: DecisionHistoryEntry[] = [];
   for (let i = 0; i < 12; i++) {

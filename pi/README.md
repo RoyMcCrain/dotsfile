@@ -103,8 +103,7 @@ Parallel-review uses exactly two Pi headless reviewers, Codex and Claude, at L1/
 New history records explicit offline decisions. Existing Jev/fallback records remain readable for historical evaluation; inspect records offline, including unfinished runs:
 
 ```bash
-deno run --no-config --allow-read --allow-env=HOME,XDG_DATA_HOME \
-  "$HOME/.agents/skills/parallel-review/scripts/review_history.ts" decisions \
+bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/parallel-review/scripts/review_history.ts" decisions \
   --repository "$PWD"
 ```
 
@@ -362,8 +361,7 @@ bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" --prompt /tmp/impl-prompt.m
 - Run metrics persist under `~/.local/share/impl/runs` (or `IMPL_RUNS_DIR` / `run_impl.sh --runs-dir`); offline report:
 
 ```bash
-deno run --no-config --allow-read --allow-env --allow-write="$TMPDIR/impl-report-out" \
-  "$HOME/.agents/skills/impl/scripts/impl_history.ts" report \
+bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/impl/scripts/impl_history.ts" report \
   --out "$TMPDIR/impl-report-out"
 ```
 
@@ -371,8 +369,7 @@ deno run --no-config --allow-read --allow-env --allow-write="$TMPDIR/impl-report
 - `executionStatus: completed` ≠ tests passed; record parent validation:
 
 ```bash
-deno run --no-config --allow-read --allow-write="$RUN_DIR" \
-  "$HOME/.agents/skills/impl/scripts/impl_history.ts" set-validation \
+bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/impl/scripts/impl_history.ts" set-validation \
   --run "$RUN_DIR" --status passed
 ```
 - Deprecated alias skill: `cursor-impl` (`/skill:cursor-impl`) — follow `impl` canonical docs
@@ -556,12 +553,16 @@ Focused regression tests (Node 24):
 node --experimental-vm-modules --test pi/agent/tests/repo-memory-local.node.test.mjs
 ```
 
-`scripts/run_tests.sh` runs `*.node.test.mjs` with this Node flag. Pi `*.test.ts`
-files run with `bun --no-install test` and are not passed to that Node runner.
-That Bun command uses a clean environment and points `HOME`, `TMPDIR`,
-`PI_CODING_AGENT_DIR`, and `XDG_*` at a temporary directory. This does not
-restore Deno's `--allow-net`, `--allow-run`, or path-scoped `--allow-write`
-boundaries. Other skill suites still use scoped Deno permissions.
+Run the full repository checks with `bash scripts/run_tests.sh`. It runs Pi's
+`*.test.ts` and the six migrated shared-skill `*_test.ts` files with Bun,
+`*.node.test.mjs` with Node's test runner, and Bats suites. TypeScript checking
+uses `tsc` for Pi's assertion helper and a focused config covering the six
+migrated skills. Install the local tooling first with `bun install --cwd pi/agent`.
+
+Bun has no runtime permission sandbox equivalent to Deno's `--allow-*` flags.
+The runner uses clean environments and private HOME/TMPDIR/XDG directories, but
+this is not a filesystem or network sandbox; application-level validation and
+secret protections remain in place.
 
 ## Skills
 

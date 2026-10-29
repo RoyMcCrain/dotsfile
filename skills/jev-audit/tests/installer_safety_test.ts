@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   lstat,
@@ -17,12 +18,12 @@ const SCRIPT = join(
   "../scripts/install_weekly_launchd.sh",
 );
 
-const isDarwin = Deno.build.os === "darwin";
+const isDarwin = process.platform === "darwin";
 
 type Tooling = {
   binDir: string;
   launchctlLog: string;
-  deno: string;
+  bun: string;
   jq: string;
   bash: string;
 };
@@ -45,29 +46,25 @@ const seedMinimalTools = async (root: string): Promise<Tooling> => {
   const launchctlLog = join(root, "launchctl.log");
   await writeMockLaunchctl(binDir, launchctlLog);
 
-  const deno = Deno.execPath();
-  await symlink(deno, join(binDir, "deno"));
+  const bun = process.execPath;
+  await symlink(bun, join(binDir, "bun"));
 
-  const which = await new Deno.Command("bash", {
-    args: [
-      "-c",
-      'command -v jq || exit 1; found=""; IFS=: read -r -a dirs <<< "$PATH"; ' +
-      'for dir in "${dirs[@]}"; do [[ -z "$dir" ]] && continue; c="$dir/bash"; ' +
-      '[[ -x "$c" ]] || continue; m=$("$c" -c "echo \\${BASH_VERSINFO[0]}") 2>/dev/null || continue; ' +
-      'if ((m >= 5)); then found="$c"; break; fi; done; [[ -n "$found" ]] || exit 1; echo "$found"',
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  assert.equal(which.success, true, new TextDecoder().decode(which.stderr));
-  const lines = new TextDecoder().decode(which.stdout).trim().split("\n");
+  const which = Bun.spawnSync(["bash", "-c", 'jq=$(command -v jq) || exit 1; found=""; IFS=: read -r -a dirs <<< "$PATH"; for dir in "${dirs[@]}"; do [[ -z "$dir" ]] && continue; c="$dir/bash"; [[ -x "$c" ]] || continue; m=$("$c" -c "echo \\${BASH_VERSINFO[0]}") 2>/dev/null || continue; if ((m >= 5)); then found="$c"; break; fi; done; [[ -n "$found" ]] || exit 1; echo "$jq"; echo "$found"'], { stdout: "pipe", stderr: "pipe" });
+  assert.equal(which.exitCode, 0, which.stderr.toString());
+  const lines = which.stdout.toString().trim().split("\n");
+  assert.equal(lines.length, 2, "expected exactly jq and Bash paths");
   const jq = lines[0];
   const bash = lines[1];
   assert.ok(jq && bash, "need jq and Bash 5+ for install tests");
+  const bashVersion = Bun.spawnSync([bash, "-c", "echo ${BASH_VERSINFO[0]}"]);
+  assert.ok(
+    Number(bashVersion.stdout.toString()) >= 5,
+    "install tests require Bash 5+",
+  );
   await symlink(jq, join(binDir, "jq"));
   await symlink(bash, join(binDir, "bash"));
 
-  return { binDir, launchctlLog, deno, jq, bash };
+  return { binDir, launchctlLog, bun, jq, bash };
 };
 
 const writeFakePi = async (path: string, executable = true) => {
@@ -105,43 +102,23 @@ const runInstall = async (
     env.XDG_DATA_HOME,
     "install tests must use synthetic XDG_DATA_HOME",
   );
-  const out = await new Deno.Command("bash", {
-    args: [SCRIPT, "--install"],
-    env: {
-      ...Deno.env.toObject(),
-      PATH: `${tooling.binDir}:${Deno.env.get("PATH") ?? ""}`,
-      JEV_AUDIT_BASH: tooling.bash,
-      ...env,
-    },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  return {
-    success: out.success,
-    stderr: new TextDecoder().decode(out.stderr),
-    stdout: new TextDecoder().decode(out.stdout),
-  };
+  const out = Bun.spawnSync(["bash", SCRIPT, "--install"], {
+    env: { ...process.env, PATH: `${tooling.binDir}:${process.env.PATH ?? ""}`, JEV_AUDIT_BASH: tooling.bash, ...env },
+    stdout: "pipe", stderr: "pipe",
+  });
+  return { success: out.exitCode === 0, stderr: out.stderr.toString(), stdout: out.stdout.toString() };
 };
 
 const runPreview = async (
   env: Record<string, string>,
 ): Promise<{ success: boolean; stderr: string }> => {
-  const out = await new Deno.Command("bash", {
-    args: [SCRIPT],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  return {
-    success: out.success,
-    stderr: new TextDecoder().decode(out.stderr),
-  };
+  const out = Bun.spawnSync(["bash", SCRIPT], {
+    env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe",
+  });
+  return { success: out.exitCode === 0, stderr: out.stderr.toString() };
 };
 
-Deno.test({
-  name: "install rejects dangling log symlink without creating target",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install rejects dangling log symlink without creating target", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-log-dangle-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -169,13 +146,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "install rejects log symlink to existing file without mutating victim",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install rejects log symlink to existing file without mutating victim", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-log-victim-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -209,13 +182,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "install rejects dangling tmp symlink without creating target",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install rejects dangling tmp symlink without creating target", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-tmp-dangle-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -242,13 +211,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "install rejects tmp symlink without chmod on outside target",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install rejects tmp symlink without chmod on outside target", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-tmp-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -278,10 +243,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test("preview rejects relative explicit XDG_DATA_HOME", async () => {
+test("preview rejects relative explicit XDG_DATA_HOME", async () => {
   const home = await mkdtemp(join(tmpdir(), "jev-rel-xdg-"));
   try {
     const result = await runPreview({
@@ -295,7 +259,7 @@ Deno.test("preview rejects relative explicit XDG_DATA_HOME", async () => {
   }
 });
 
-Deno.test("preview rejects comma in resolved CONFIG_P allow-read path", async () => {
+test("preview accepts comma in resolved CONFIG_P path", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-config-comma-"));
   const home = join(root, "home");
   const commaConfig = join(root, "comma,config-root");
@@ -304,17 +268,13 @@ Deno.test("preview rejects comma in resolved CONFIG_P allow-read path", async ()
     await mkdir(commaConfig, { recursive: true });
     await symlink(commaConfig, join(home, ".config"));
     const result = await runPreview({ HOME: home });
-    assert.equal(result.success, false);
-    assert.match(result.stderr, /comma/);
+    assert.equal(result.success, true, result.stderr);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-Deno.test({
-  name: "install rejects missing PI_REVIEW_BIN without launchctl",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install rejects missing PI_REVIEW_BIN without launchctl", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-pi-miss-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -334,13 +294,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "install rejects non-executable PI_REVIEW_BIN without launchctl",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install rejects non-executable PI_REVIEW_BIN without launchctl", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-pi-nox-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -362,13 +318,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "install succeeds with fake tools and logs launchctl only in fixture",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install succeeds with fake tools and logs launchctl only in fixture", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-ok-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -399,13 +351,9 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });
 
-Deno.test({
-  name: "install rejects symlink ancestor under jev-audit tree",
-  ignore: !isDarwin,
-  fn: async () => {
+test.skipIf(!isDarwin)("install rejects symlink ancestor under jev-audit tree", async () => {
     const root = await mkdtemp(join(tmpdir(), "jev-inst-ancestor-"));
     const tooling = await seedMinimalTools(root);
     const home = join(root, "home");
@@ -432,5 +380,4 @@ Deno.test({
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  },
 });

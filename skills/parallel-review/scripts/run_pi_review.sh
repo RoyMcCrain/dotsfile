@@ -31,7 +31,7 @@ usage() {
 Usage: run_pi_review.sh (--role ROLE | --model MODEL) --prompt PATH --input PATH [--input PATH ...] [--timeout SECONDS] [--retry-timeout SECONDS] [--attempts N] [--cwd PATH] [--events-log PATH]
 
 Runs an isolated Pi headless review. Attempt 1 uses --timeout; attempt >=2 uses --retry-timeout (defaults to --timeout when omitted).
-With --events-log, Pi runs in JSON mode and writes metadata-only diagnostic JSONL (requires deno and jq).
+With --events-log, Pi runs in JSON mode and writes metadata-only diagnostic JSONL (requires bun and jq).
 EOF
 	exit 1
 }
@@ -208,7 +208,7 @@ resolve_events_log_path() {
 }
 
 require_events_log_dependencies() {
-	command -v deno >/dev/null 2>&1 || die "deno is required when --events-log is set"
+	command -v bun >/dev/null 2>&1 || die "bun is required when --events-log is set"
 	command -v jq >/dev/null 2>&1 || die "jq is required when --events-log is set"
 }
 
@@ -272,7 +272,7 @@ events_log_must_not_alias_inputs() {
 build_events_wrapper_cmd() {
 	local attempt="$1"
 	local -a pi_cmd=("${@:2}")
-	local pi_bin helper events_allow pi_allow name
+	local pi_bin helper name
 	local -a events_env_cmd=(env)
 
 	while IFS= read -r name; do
@@ -287,14 +287,9 @@ build_events_wrapper_cmd() {
 	fi
 	helper="$SCRIPT_DIR/pi_review_events.ts"
 	[[ -f "$helper" ]] || die "events helper not found: $helper"
-	events_allow="$events_log_resolved"
-	pi_allow="$pi_bin"
 	review_attempt_cmd=(
 		"${events_env_cmd[@]}"
-		deno run --no-config --no-prompt
-		--allow-run="$pi_allow"
-		--allow-write="$events_allow"
-		"$helper"
+		bun --config=/dev/null --no-env-file --no-install run "$helper"
 		--events-log "$events_log_resolved"
 		--attempt "$attempt"
 		--

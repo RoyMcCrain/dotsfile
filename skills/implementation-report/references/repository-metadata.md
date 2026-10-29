@@ -12,7 +12,7 @@ Stage 0 の隔離出力 **後**（または入力から完全に切り離す）�
 ## スクリプト
 
 ```bash
-deno run --allow-read --allow-write --allow-run \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/implementation-report/scripts/collect_repository_metadata.ts \
   --repo ROOT -o repository.json
 ```
@@ -30,7 +30,7 @@ VCS metadata 収集が成功したら `repository` を **必ず** report.json �
 通常の新規生成で `repository` を省略してはいけない。
 
 ```bash
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/implementation-report/scripts/assemble_report.ts \
   --stage0 result.json \
   --repository repository.json \
@@ -44,7 +44,7 @@ deno run --allow-read --allow-write \
 **理由を伝えずに黙って省略してはいけない**。
 
 ```bash
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/implementation-report/scripts/assemble_report.ts \
   --stage0 result.json \
   --omit-repository \

@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { renderAuditReportHtml } from "../scripts/render_report.ts";
 import type { AuditReport } from "../scripts/report.ts";
@@ -79,7 +80,7 @@ const baseReport = (): AuditReport => ({
   caveats: ["note", "<script>alert(1)</script>"],
 });
 
-Deno.test("HTML includes structured reasons and escapes hostile text", () => {
+test("HTML includes structured reasons and escapes hostile text", () => {
   const html = renderAuditReportHtml(baseReport());
   assert.match(html, /Jev reason/);
   assert.match(html, /監査 reason/);
