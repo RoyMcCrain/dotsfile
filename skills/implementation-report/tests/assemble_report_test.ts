@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { test } from "bun:test";
+import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { validateReport } from "../../review-report/scripts/render_report.ts";
 import { assembleReport } from "../scripts/assemble_report.ts";
@@ -113,20 +116,12 @@ const assemble = (
   });
 
 const runCli = async (args: string[]) => {
-  const command = new Deno.Command(Deno.execPath(), {
-    args: ["run", "--allow-read", "--allow-write", SCRIPT_PATH, ...args],
-    stdout: "piped",
-    stderr: "piped",
-  });
-  const { code, stdout, stderr } = await command.output();
-  return {
-    code,
-    stdout: new TextDecoder().decode(stdout),
-    stderr: new TextDecoder().decode(stderr),
-  };
+  const proc = Bun.spawn([process.execPath, "--config=/dev/null", "--no-env-file", "--no-install", SCRIPT_PATH, ...args], { stdout: "pipe", stderr: "pipe" });
+  const [code, stdout, stderr] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+  return { code, stdout, stderr };
 };
 
-Deno.test("default title is Implementation acceptance report", () => {
+test("default title is Implementation acceptance report", () => {
   const report = assembleReport(stage0(), {
     intent: intent(),
     repository,
@@ -134,7 +129,7 @@ Deno.test("default title is Implementation acceptance report", () => {
   assert.equal(report.title, "Implementation acceptance report");
 });
 
-Deno.test("preserves separately supplied intent and ignores stage0.intent", () => {
+test("preserves separately supplied intent and ignores stage0.intent", () => {
   const supplied = intent({ summary: "Supplied intent summary." });
   const report = assemble(stage0(), { intent: supplied });
   assert.deepEqual(report.intent, supplied);
@@ -144,7 +139,7 @@ Deno.test("preserves separately supplied intent and ignores stage0.intent", () =
   );
 });
 
-Deno.test("ignores leaked analyzer verdict and validations", () => {
+test("ignores leaked analyzer verdict and validations", () => {
   const report = assemble(
     stage0({
       acceptance: acceptanceStage0({
@@ -161,14 +156,14 @@ Deno.test("ignores leaked analyzer verdict and validations", () => {
   assert.deepEqual(acceptance.validations, []);
 });
 
-Deno.test("verdict pass when all checks satisfied and validations passed", () => {
+test("verdict pass when all checks satisfied and validations passed", () => {
   const report = assemble(stage0(), {
     validations: [{ command: "deno test", status: "passed", summary: "ok" }],
   });
   assert.equal((report.acceptance as Record<string, unknown>).verdict, "pass");
 });
 
-Deno.test("verdict fail when check is missing", () => {
+test("verdict fail when check is missing", () => {
   const report = assemble(stage0({
     acceptance: acceptanceStage0({
       checks: [
@@ -184,7 +179,7 @@ Deno.test("verdict fail when check is missing", () => {
   assert.equal((report.acceptance as Record<string, unknown>).verdict, "fail");
 });
 
-Deno.test("verdict fail when check is contradicted", () => {
+test("verdict fail when check is contradicted", () => {
   const report = assemble(stage0({
     acceptance: acceptanceStage0({
       checks: [
@@ -205,14 +200,14 @@ Deno.test("verdict fail when check is contradicted", () => {
   assert.equal((report.acceptance as Record<string, unknown>).verdict, "fail");
 });
 
-Deno.test("verdict fail when validation failed", () => {
+test("verdict fail when validation failed", () => {
   const report = assemble(stage0(), {
     validations: [{ command: "deno test", status: "failed", summary: "boom" }],
   });
   assert.equal((report.acceptance as Record<string, unknown>).verdict, "fail");
 });
 
-Deno.test("verdict needs-confirmation for partial check", () => {
+test("verdict needs-confirmation for partial check", () => {
   const report = assemble(stage0({
     acceptance: acceptanceStage0({
       checks: [
@@ -233,7 +228,7 @@ Deno.test("verdict needs-confirmation for partial check", () => {
   );
 });
 
-Deno.test("verdict needs-confirmation for unverified check", () => {
+test("verdict needs-confirmation for unverified check", () => {
   const report = assemble(stage0({
     acceptance: acceptanceStage0({
       checks: [
@@ -252,7 +247,7 @@ Deno.test("verdict needs-confirmation for unverified check", () => {
   );
 });
 
-Deno.test("verdict needs-confirmation when extras exist", () => {
+test("verdict needs-confirmation when extras exist", () => {
   const report = assemble(stage0({
     acceptance: acceptanceStage0({
       extras: [
@@ -270,7 +265,7 @@ Deno.test("verdict needs-confirmation when extras exist", () => {
   );
 });
 
-Deno.test("verdict needs-confirmation when validation not-run", () => {
+test("verdict needs-confirmation when validation not-run", () => {
   const report = assemble(stage0(), {
     validations: [{
       command: "deno lint",
@@ -284,7 +279,7 @@ Deno.test("verdict needs-confirmation when validation not-run", () => {
   );
 });
 
-Deno.test("forces review.performed=false and drops leaked review fields", () => {
+test("forces review.performed=false and drops leaked review fields", () => {
   const report = assemble();
   assert.deepEqual(report.review, { performed: false, overview: "" });
   const group = (report.groups as Record<string, unknown>[])[0];
@@ -296,13 +291,13 @@ Deno.test("forces review.performed=false and drops leaked review fields", () => 
   assert.deepEqual(group.files, ["src/auth.ts"]);
 });
 
-Deno.test("includes repository and passes validateReport", () => {
+test("includes repository and passes validateReport", () => {
   const report = assemble();
   assert.deepEqual(report.repository, repository);
   assert.deepEqual(validateReport(report), []);
 });
 
-Deno.test("preserves patch-grounded diagrams", () => {
+test("preserves patch-grounded diagrams", () => {
   const diagrams = [
     {
       id: "auth-flow",
@@ -317,7 +312,7 @@ Deno.test("preserves patch-grounded diagrams", () => {
   assert.deepEqual(validateReport(report), []);
 });
 
-Deno.test("omits repository when requested", () => {
+test("omits repository when requested", () => {
   const report = assembleReport(stage0(), {
     intent: intent(),
     omitRepository: true,
@@ -326,7 +321,7 @@ Deno.test("omits repository when requested", () => {
   assert.deepEqual(validateReport(report), []);
 });
 
-Deno.test("does not copy a leaked stage0 plan", () => {
+test("does not copy a leaked stage0 plan", () => {
   const report = assemble(stage0({
     plan: { provided: true, label: "plans/leaked.md" },
   }));
@@ -334,7 +329,7 @@ Deno.test("does not copy a leaked stage0 plan", () => {
   assert.deepEqual(validateReport(report), []);
 });
 
-Deno.test("throws when acceptance.checks is missing", () => {
+test("throws when acceptance.checks is missing", () => {
   assert.throws(
     () =>
       assemble(stage0({
@@ -347,7 +342,7 @@ Deno.test("throws when acceptance.checks is missing", () => {
   );
 });
 
-Deno.test("throws when acceptance.checks is not an array", () => {
+test("throws when acceptance.checks is not an array", () => {
   assert.throws(
     () =>
       assemble(stage0({
@@ -357,7 +352,7 @@ Deno.test("throws when acceptance.checks is not an array", () => {
   );
 });
 
-Deno.test("throws when acceptance.extras is missing", () => {
+test("throws when acceptance.extras is missing", () => {
   assert.throws(
     () =>
       assemble(stage0({
@@ -370,7 +365,7 @@ Deno.test("throws when acceptance.extras is missing", () => {
   );
 });
 
-Deno.test("throws when acceptance.extras is not an array", () => {
+test("throws when acceptance.extras is not an array", () => {
   assert.throws(
     () =>
       assemble(stage0({
@@ -380,7 +375,7 @@ Deno.test("throws when acceptance.extras is not an array", () => {
   );
 });
 
-Deno.test("verdict needs-confirmation when validations are empty", () => {
+test("verdict needs-confirmation when validations are empty", () => {
   const report = assemble(stage0(), { validations: [] });
   assert.equal(
     (report.acceptance as Record<string, unknown>).verdict,
@@ -389,14 +384,14 @@ Deno.test("verdict needs-confirmation when validations are empty", () => {
   assert.deepEqual(validateReport(report), []);
 });
 
-Deno.test("CLI requires --intent", async () => {
-  const dir = await Deno.makeTempDir({ prefix: "assemble-report-no-intent-" });
+test("CLI requires --intent", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assemble-report-no-intent-"))
   try {
     const stage0Path = join(dir, "stage0.json");
     const repositoryPath = join(dir, "repository.json");
     const reportPath = join(dir, "report.json");
-    await Deno.writeTextFile(stage0Path, `${JSON.stringify(stage0())}\n`);
-    await Deno.writeTextFile(
+    await writeFile(stage0Path, `${JSON.stringify(stage0())}\n`);
+    await writeFile(
       repositoryPath,
       `${JSON.stringify(repository)}\n`,
     );
@@ -412,21 +407,21 @@ Deno.test("CLI requires --intent", async () => {
     assert.notEqual(assembled.code, 0);
     assert.match(assembled.stderr, /--intent/);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await rm(dir, { recursive: true });
   }
 });
 
-Deno.test("CLI accepts --validation JSON array", async () => {
-  const dir = await Deno.makeTempDir({ prefix: "assemble-report-validation-" });
+test("CLI accepts --validation JSON array", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assemble-report-validation-"))
   try {
     const stage0Path = join(dir, "stage0.json");
     const intentPath = join(dir, "intent.json");
     const validationPath = join(dir, "validation.json");
     const repositoryPath = join(dir, "repository.json");
     const reportPath = join(dir, "report.json");
-    await Deno.writeTextFile(stage0Path, `${JSON.stringify(stage0())}\n`);
-    await Deno.writeTextFile(intentPath, `${JSON.stringify(intent())}\n`);
-    await Deno.writeTextFile(
+    await writeFile(stage0Path, `${JSON.stringify(stage0())}\n`);
+    await writeFile(intentPath, `${JSON.stringify(intent())}\n`);
+    await writeFile(
       validationPath,
       `${
         JSON.stringify([{
@@ -436,7 +431,7 @@ Deno.test("CLI accepts --validation JSON array", async () => {
         }])
       }\n`,
     );
-    await Deno.writeTextFile(
+    await writeFile(
       repositoryPath,
       `${JSON.stringify(repository)}\n`,
     );
@@ -455,7 +450,7 @@ Deno.test("CLI accepts --validation JSON array", async () => {
     ]);
     assert.equal(assembled.code, 0, assembled.stderr);
 
-    const report = JSON.parse(await Deno.readTextFile(reportPath));
+    const report = JSON.parse(await readFile(reportPath, "utf8"));
     assert.deepEqual(report.acceptance.validations, [{
       command: "deno test",
       status: "passed",
@@ -463,20 +458,18 @@ Deno.test("CLI accepts --validation JSON array", async () => {
     }]);
     assert.deepEqual(validateReport(report), []);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await rm(dir, { recursive: true });
   }
 });
 
-Deno.test("CLI requires repository or explicit omit", async () => {
-  const dir = await Deno.makeTempDir({
-    prefix: "assemble-report-missing-repo-",
-  });
+test("CLI requires repository or explicit omit", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assemble-report-missing-repo-"));
   try {
     const stage0Path = join(dir, "stage0.json");
     const intentPath = join(dir, "intent.json");
     const reportPath = join(dir, "report.json");
-    await Deno.writeTextFile(stage0Path, `${JSON.stringify(stage0())}\n`);
-    await Deno.writeTextFile(intentPath, `${JSON.stringify(intent())}\n`);
+    await writeFile(stage0Path, `${JSON.stringify(stage0())}\n`);
+    await writeFile(intentPath, `${JSON.stringify(intent())}\n`);
 
     const assembled = await runCli([
       "--stage0",
@@ -489,20 +482,20 @@ Deno.test("CLI requires repository or explicit omit", async () => {
     assert.notEqual(assembled.code, 0);
     assert.match(assembled.stderr, /--repository or --omit-repository/);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await rm(dir, { recursive: true });
   }
 });
 
-Deno.test("CLI assemble is valid for --validate-only", async () => {
-  const dir = await Deno.makeTempDir({ prefix: "assemble-report-" });
+test("CLI assemble is valid for --validate-only", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assemble-report-"))
   try {
     const stage0Path = join(dir, "stage0.json");
     const intentPath = join(dir, "intent.json");
     const repositoryPath = join(dir, "repository.json");
     const reportPath = join(dir, "report.json");
-    await Deno.writeTextFile(stage0Path, `${JSON.stringify(stage0())}\n`);
-    await Deno.writeTextFile(intentPath, `${JSON.stringify(intent())}\n`);
-    await Deno.writeTextFile(
+    await writeFile(stage0Path, `${JSON.stringify(stage0())}\n`);
+    await writeFile(intentPath, `${JSON.stringify(intent())}\n`);
+    await writeFile(
       repositoryPath,
       `${JSON.stringify(repository)}\n`,
     );
@@ -523,20 +516,18 @@ Deno.test("CLI assemble is valid for --validate-only", async () => {
       import.meta.dirname!,
       "../../review-report/scripts/render_report.ts",
     );
-    const validated = await new Deno.Command(Deno.execPath(), {
-      args: [
-        "run",
-        "--allow-read",
-        renderer,
-        reportPath,
-        "--validate-only",
-      ],
-      stdout: "piped",
-      stderr: "piped",
-    }).output();
-    assert.equal(validated.code, 0, new TextDecoder().decode(validated.stderr));
-    assert.equal(new TextDecoder().decode(validated.stdout).trim(), "valid");
+    const validated = Bun.spawn([process.execPath, "--config=/dev/null", "--no-env-file", "--no-install", renderer, reportPath, "--validate-only"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [code, stdout, stderr] = await Promise.all([
+      validated.exited,
+      new Response(validated.stdout).text(),
+      new Response(validated.stderr).text(),
+    ]);
+    assert.equal(code, 0, stderr);
+    assert.equal(stdout.trim(), "valid");
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await rm(dir, { recursive: true });
   }
 });

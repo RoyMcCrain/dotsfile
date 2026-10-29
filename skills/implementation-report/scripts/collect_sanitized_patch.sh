@@ -70,11 +70,11 @@ else
 	git -C "$repo" --no-pager -c core.quotePath=false diff --name-status -z -M --no-color HEAD >"$status_file"
 fi
 
-if ! command -v deno >/dev/null 2>&1; then
-	die "deno is required to classify secret paths"
+if ! command -v bun >/dev/null 2>&1; then
+	die "bun is required to classify secret paths"
 fi
 
-deno run --allow-read --allow-write --quiet "$FILTER" \
+bun --config=/dev/null --no-env-file --no-install run "$FILTER" \
 	--format "$format" \
 	--input "$status_file" \
 	--allowed "$out/allowed-paths.txt" \

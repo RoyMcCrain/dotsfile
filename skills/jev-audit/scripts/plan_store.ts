@@ -1,3 +1,4 @@
+import { mkdir, chmod } from "node:fs/promises";
 import { join } from "node:path";
 import type { WeeklyPlan } from "./plan_types.ts";
 import { assertAuditRelativePathSafe } from "./paths.ts";
@@ -22,7 +23,6 @@ export const readPlan = async (
     const raw = await readJsonFile(path);
     return validateWeeklyPlan(raw);
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
     if (
       typeof error === "object" && error !== null && "code" in error &&
       (error as { code: string }).code === "ENOENT"
@@ -60,8 +60,8 @@ export const writePlanImmutable = async (
     "week directory",
   );
   const weekRoot = join(baseReal, "weeks", weekStart);
-  await Deno.mkdir(weekRoot, { recursive: true, mode: 0o700 });
-  await Deno.chmod(weekRoot, 0o700);
+  await mkdir(weekRoot, { recursive: true, mode: 0o700 });
+  await chmod(weekRoot, 0o700);
   const path = join(weekRoot, "plan.json");
   await publishPrivateFileAtomic(path, `${JSON.stringify(plan, null, 2)}\n`, {
     ifExists: "fail",

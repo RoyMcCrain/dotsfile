@@ -1,10 +1,11 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { automaticPreflight } from "../scripts/automatic_preflight.ts";
 
 const scan = (text: string) =>
   automaticPreflight(new TextEncoder().encode(text));
 
-Deno.test("automatic preflight holds common credentials and personal data", () => {
+test("automatic preflight holds common credentials and personal data", () => {
   const unsafe = [
     "AKIA1234567890ABCDEF",
     "AIzaSyD123456789012345678901234567890123",
@@ -22,11 +23,11 @@ Deno.test("automatic preflight holds common credentials and personal data", () =
   for (const value of unsafe) assert.throws(() => scan(value));
 });
 
-Deno.test("automatic preflight allows empty credential literals", () => {
+test("automatic preflight allows empty credential literals", () => {
   scan('{"token":"","password":""}');
 });
 
-Deno.test("automatic preflight scans quoted fields and every credential match", () => {
+test("automatic preflight scans quoted fields and every credential match", () => {
   for (
     const value of [
       '{"api_key":"live-value-not-for-upload"}',
@@ -40,19 +41,19 @@ Deno.test("automatic preflight scans quoted fields and every credential match", 
   ) assert.throws(() => scan(value));
 });
 
-Deno.test("automatic preflight does not treat dates or syntax as phone numbers", () => {
+test("automatic preflight does not treat dates or syntax as phone numbers", () => {
   scan(
     'const date = "2026-10-13"; const id = "123456789012"; handler(400); const ratio = 4 / 400;',
   );
   scan('const note = "+1 "; const status = "(400)";');
 });
 
-Deno.test("automatic preflight catches one-character and quoted surname values", () => {
+test("automatic preflight catches one-character and quoted surname values", () => {
   assert.throws(() => scan(`{ "lastName": "O'Neil" }`));
   assert.throws(() => scan('{"firstName":"李"}'));
 });
 
-Deno.test("automatic preflight accepts dummy contacts and env references", () => {
+test("automatic preflight accepts dummy contacts and env references", () => {
   scan(
     'contact developer@example.com and qa@sample.test; const key = Deno.env.get("API_KEY"); https://example.org/path',
   );

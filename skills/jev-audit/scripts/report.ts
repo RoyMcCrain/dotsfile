@@ -1,4 +1,5 @@
 import { readdir, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { buildComparison, type DepthCandidate } from "./classify.ts";
 import type { AuditResultRecord, PlanCase, WeeklyPlan } from "./plan_types.ts";
@@ -621,20 +622,13 @@ export const writeReportAtomically = async (
     "week directory",
   );
   const weekRoot = join(baseReal, "weeks", weekStart);
-  const jsonTmp = await Deno.makeTempFile({
-    dir: weekRoot,
-    prefix: ".report-json-",
-    suffix: ".tmp",
-  });
-  const htmlTmp = await Deno.makeTempFile({
-    dir: weekRoot,
-    prefix: ".report-html-",
-    suffix: ".tmp",
-  });
+  const jsonTmp = join(weekRoot, `.report-json-${randomUUID()}.tmp`);
+  const htmlTmp = join(weekRoot, `.report-html-${randomUUID()}.tmp`);
   await writeFile(jsonTmp, `${JSON.stringify(report, null, 2)}\n`, {
     mode: 0o600,
+    flag: "wx",
   });
-  await writeFile(htmlTmp, renderAuditReportHtml(report), { mode: 0o600 });
+  await writeFile(htmlTmp, renderAuditReportHtml(report), { mode: 0o600, flag: "wx" });
   const jsonOut = reportJsonPath(weekRoot);
   const htmlOut = reportHtmlPath(weekRoot);
   await rename(jsonTmp, jsonOut);

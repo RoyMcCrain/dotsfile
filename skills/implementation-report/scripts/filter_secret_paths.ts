@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { isSecretPath } from "../../review-report/scripts/render_report.ts";
 
 export type ChangeStatus = "added" | "modified" | "deleted" | "renamed";
@@ -141,7 +142,7 @@ export const relatedPaths = (changes: PathChange[]) => {
 
 const writeLines = (path: string, lines: string[]) => {
   const body = lines.length > 0 ? `${lines.join("\n")}\n` : "";
-  Deno.writeTextFileSync(path, body);
+  writeFileSync(path, body);
 };
 
 const usage = () => {
@@ -187,7 +188,7 @@ export const main = (argv: string[]) => {
 
   let text: string;
   try {
-    text = Deno.readTextFileSync(input);
+    text = readFileSync(input, "utf8");
   } catch (error) {
     console.error(
       `read error: ${error instanceof Error ? error.message : String(error)}`,
@@ -205,5 +206,5 @@ export const main = (argv: string[]) => {
 };
 
 if (import.meta.main) {
-  Deno.exit(main(Deno.args));
+  process.exitCode = main(process.argv.slice(2));
 }

@@ -40,17 +40,14 @@ bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" \
 - オフライン比較レポート（`--runs-dir` 省略時は `IMPL_RUNS_DIR` または XDG/HOME 既定）:
 
 ```bash
-deno run --no-config \
-  --allow-read --allow-env --allow-write="$TMPDIR/impl-report-out" \
-  "$HOME/.agents/skills/impl/scripts/impl_history.ts" report \
+bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/impl/scripts/impl_history.ts" report \
   --out "$TMPDIR/impl-report-out"
 ```
 
 - 親検証の記録（自動ではない）:
 
 ```bash
-deno run --no-config --allow-read --allow-write="$RUN_DIR" \
-  "$HOME/.agents/skills/impl/scripts/impl_history.ts" set-validation \
+bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/impl/scripts/impl_history.ts" set-validation \
   --run "$RUN_DIR" --status passed
 ```
 
@@ -59,7 +56,7 @@ deno run --no-config --allow-read --allow-write="$RUN_DIR" \
 - 既定 role は `impl.default`（`model-roles.json` の `roles["impl.default"].pi`）。別ロールは `--role ROLE`（Pi 向け `.pi` フィールド必須。Cursor 専用 role は不可）
 - モデル ID は skill / runner に書かない。変更はカタログの `.pi` のみ（`resolve-model.sh --list` / `resolve-model.sh impl.default` で確認）
 - 毎回 **新規** 非対話 Pi（`--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp`）。親の settings / packages / SYSTEM.md / 拡張は読まない
-- **隔離はサンドボックスではない**（`--cwd` は作業ルートの指定）。プロンプトで触るファイルを絞る
+- **隔離はサンドボックスではない**（Bun は Deno の `--allow-*` 相当の権限制限を提供しない。`--cwd` は作業ルートの指定にすぎない）。プロンプトで触るファイルを絞る
 - OpenAI Codex 系 provider の認証: `pi auth check --provider openai-codex --json`（**資格情報の内容は出力しない**）
 
 5. **呼び出し元による検証**（必須）: diff 目視、lint、関連する test、型（プロジェクトで型がある場合）、仕様充足、テストの必要性・既存テストとの非重複、**cccc のスコープ分類と受け入れ判定**（下記）。実装側・呼び出し元の双方がスコープ単位で検証する。Pi の `executionStatus: completed` はストリーム完了でありタスク正しさやテスト成功を意味しない。検証後に `set-validation` で親結果を記録する

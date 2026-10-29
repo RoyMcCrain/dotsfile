@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test } from "bun:test";
 import {
   buildChunkFallbackDecision,
   buildExplicitDecision,
@@ -12,7 +16,7 @@ import {
   validateLevelDecision,
 } from "../scripts/select_review_level.ts";
 
-Deno.test("unspecified and auto select offline explicit L1", async () => {
+test("unspecified and auto select offline explicit L1", async () => {
   const patchBytes = new TextEncoder().encode("patch\n");
   for (const levelArg of [undefined, "auto", "1"]) {
     const decision = await selectReviewLevel({
@@ -31,7 +35,7 @@ Deno.test("unspecified and auto select offline explicit L1", async () => {
   }
 });
 
-Deno.test("fixed chunk selection uses raw bytes, newline thresholds and UTF-8 bytes", () => {
+test("fixed chunk selection uses raw bytes, newline thresholds and UTF-8 bytes", () => {
   assert.deepEqual(computeFixedChunkChoice(new Uint8Array(14_999)), "none");
   assert.deepEqual(computeFixedChunkChoice(new Uint8Array(15_000)), "12000");
   assert.deepEqual(computeFixedChunkChoice(new Uint8Array()), "none");
@@ -49,10 +53,11 @@ Deno.test("fixed chunk selection uses raw bytes, newline thresholds and UTF-8 by
   );
 });
 
-Deno.test("CLI accepts explicit L1/L2 and rejects Jev flags", async () => {
-  const path = await Deno.makeTempFile();
+test("CLI accepts explicit L1/L2 and rejects Jev flags", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "select-review-"));
+  const path = join(dir, "patch");
   try {
-    await Deno.writeFile(path, new Uint8Array([0xff]));
+    await writeFile(path, new Uint8Array([0xff]));
     for (const level of ["1", "2"]) {
       const result = await runCli(["--input", path, "--level", level]);
       assert.equal(result.code, 0);
@@ -71,14 +76,15 @@ Deno.test("CLI accepts explicit L1/L2 and rejects Jev flags", async () => {
       assert.deepEqual(result.stdout, "");
     }
   } finally {
-    await Deno.remove(path);
+    await rm(dir, { recursive: true, force: true });
   }
 });
 
-Deno.test("CLI rejects numeric aliases, invalid levels, duplicates, and obsolete options", async () => {
-  const path = await Deno.makeTempFile();
+test("CLI rejects numeric aliases, invalid levels, duplicates, and obsolete options", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "select-review-"));
+  const path = join(dir, "patch");
   try {
-    await Deno.writeTextFile(path, "patch");
+    await writeFile(path, "patch");
     for (const level of ["01", "0", "6", "2.0"]) {
       assert.equal((await runCli(["--input", path, "--level", level])).code, 1);
     }
@@ -91,34 +97,36 @@ Deno.test("CLI rejects numeric aliases, invalid levels, duplicates, and obsolete
       1,
     );
   } finally {
-    await Deno.remove(path);
+    await rm(dir, { recursive: true, force: true });
   }
 });
 
-Deno.test("offline CLI subprocess works with read-only permission and no env/net grants", async () => {
-  const patch = await Deno.makeTempFile();
+test("offline CLI subprocess works with isolated environment", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "select-review-"));
+  const patch = join(dir, "patch");
   try {
-    await Deno.writeTextFile(patch, "patch\n");
+    await writeFile(patch, "patch\n");
     const script =
       new URL("../scripts/select_review_level.ts", import.meta.url).pathname;
     const invoke = async (args: string[]) => {
-      const output = await new Deno.Command(Deno.execPath(), {
-        args: [
-          "run",
-          "--no-config",
-          "--no-prompt",
-          "--allow-read",
-          script,
-          ...args,
-        ],
-        stdout: "piped",
-        stderr: "piped",
-      }).output();
-      return {
-        code: output.code,
-        stdout: new TextDecoder().decode(output.stdout),
-        stderr: new TextDecoder().decode(output.stderr),
-      };
+      const child = Bun.spawn([
+        process.execPath,
+        "--config=/dev/null",
+        "--no-env-file",
+        "--no-install",
+        script,
+        ...args,
+      ], {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { PATH: process.env.PATH, HOME: dir, TMPDIR: dir, XDG_DATA_HOME: dir },
+      });
+      const [stdout, stderr, code] = await Promise.all([
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+        child.exited,
+      ]);
+      return { code, stdout, stderr };
     };
     const help = await invoke(["--help"]);
     assert.equal(help.code, 0, help.stderr);
@@ -131,11 +139,11 @@ Deno.test("offline CLI subprocess works with read-only permission and no env/net
       assert.equal(JSON.parse(result.stdout).level, level === "2" ? 2 : 1);
     }
   } finally {
-    await Deno.remove(patch);
+    await rm(dir, { recursive: true, force: true });
   }
 });
 
-Deno.test("validateLevelDecision enforces fallback and explicit field rules", () => {
+test("validateLevelDecision enforces fallback and explicit field rules", () => {
   const hash = "a".repeat(64).replaceAll("a", "b");
   const explicit = buildExplicitDecision({ level: 2, patchSha256: hash });
   validateLevelDecision(explicit);
@@ -241,7 +249,7 @@ Deno.test("validateLevelDecision enforces fallback and explicit field rules", ()
   );
 });
 
-Deno.test("validateChunkDecision rejects unknown nested keys", () => {
+test("validateChunkDecision rejects unknown nested keys", () => {
   assert.throws(
     () =>
       validateChunkDecision({
@@ -254,7 +262,7 @@ Deno.test("validateChunkDecision rejects unknown nested keys", () => {
   );
 });
 
-Deno.test("chunk schema invariants: fixed/fallback choice and cross-fields", () => {
+test("chunk schema invariants: fixed/fallback choice and cross-fields", () => {
   const hash = "a".repeat(64);
   const patchBytes = new TextEncoder().encode("x\n");
   const jevBase = buildJevDecision({
@@ -352,12 +360,12 @@ Deno.test("chunk schema invariants: fixed/fallback choice and cross-fields", () 
   }
 });
 
-Deno.test("legacy explicit decision without chunking still validates", () => {
+test("legacy explicit decision without chunking still validates", () => {
   const hash = "a".repeat(64);
   validateLevelDecision(buildExplicitDecision({ level: 2, patchSha256: hash }));
 });
 
-Deno.test("validateLevelDecision rejects malformed persisted probabilities", () => {
+test("validateLevelDecision rejects malformed persisted probabilities", () => {
   const hash = "a".repeat(64);
   const base = buildJevDecision({
     level: 3,
@@ -415,7 +423,7 @@ Deno.test("validateLevelDecision rejects malformed persisted probabilities", () 
   );
 });
 
-Deno.test("validateLevelDecision contextSha256 rules", () => {
+test("validateLevelDecision contextSha256 rules", () => {
   const hash = "a".repeat(64);
   const ctxHash = "b".repeat(64);
   const jev = {
@@ -455,7 +463,7 @@ Deno.test("validateLevelDecision contextSha256 rules", () => {
   );
 });
 
-Deno.test("validateLevelDecision httpStatuses rules", () => {
+test("validateLevelDecision httpStatuses rules", () => {
   const hash = "a".repeat(64);
   const jev = {
     ...buildJevDecision({

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { test } from "bun:test";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { Writable } from "node:stream";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
@@ -52,7 +55,7 @@ async function touchEventsLog(path: string): Promise<void> {
   await writeFile(path, "", { mode: 0o600 });
 }
 
-Deno.test("splitJsonlLines splits on LF only with literal U+2028 and U+2029 inside JSON", () => {
+test("splitJsonlLines splits on LF only with literal U+2028 and U+2029 inside JSON", () => {
   const sep2028 = "\u2028";
   const sep2029 = "\u2029";
   const payload =
@@ -67,7 +70,7 @@ Deno.test("splitJsonlLines splits on LF only with literal U+2028 and U+2029 insi
   assert.equal(split.remainder, "");
 });
 
-Deno.test("splitJsonlLines preserves partial UTF-8 remainder", () => {
+test("splitJsonlLines preserves partial UTF-8 remainder", () => {
   const bytes = new TextEncoder().encode('{"type":"session"}\n{"type":"agent');
   const partial = bytes.slice(0, bytes.length - 2);
   const split = splitJsonlLines(new TextDecoder().decode(partial));
@@ -76,7 +79,7 @@ Deno.test("splitJsonlLines preserves partial UTF-8 remainder", () => {
   assert(split.remainder.length > 0);
 });
 
-Deno.test("splitJsonlLines reassembles emoji split mid UTF-8 codepoint", () => {
+test("splitJsonlLines reassembles emoji split mid UTF-8 codepoint", () => {
   const fullStr = '{"type":"session"}\n{"emoji":"😀"}\n';
   const full = new TextEncoder().encode(fullStr);
   let cutAt = -1;
@@ -98,7 +101,7 @@ Deno.test("splitJsonlLines reassembles emoji split mid UTF-8 codepoint", () => {
   assert.equal(emojiLine.emoji.includes("\uFFFD"), false);
 });
 
-Deno.test("extractNumericUsage allowlists SDK keys and nested cost only", () => {
+test("extractNumericUsage allowlists SDK keys and nested cost only", () => {
   const usage = extractNumericUsage({
     input: 1,
     output: 2,
@@ -116,7 +119,7 @@ Deno.test("extractNumericUsage allowlists SDK keys and nested cost only", () => 
   assert.equal(JSON.stringify(usage).includes("secretField"), false);
 });
 
-Deno.test("sanitizePiRecord strips secrets and maps unknown raw enums to unknown", () => {
+test("sanitizePiRecord strips secrets and maps unknown raw enums to unknown", () => {
   const tracker = createStreamTracker();
   const raw = {
     type: "totally_unknown_event",
@@ -148,7 +151,7 @@ Deno.test("sanitizePiRecord strips secrets and maps unknown raw enums to unknown
   assert.equal(serialized.includes("usage"), false);
 });
 
-Deno.test("sanitizePiRecord maps unrecognized stopReason to unknown", () => {
+test("sanitizePiRecord maps unrecognized stopReason to unknown", () => {
   const tracker = createStreamTracker();
   const endEvent = sanitizePiRecord(
     JSON.parse(assistantEnd("x", "providerTimeoutSecret")),
@@ -157,7 +160,7 @@ Deno.test("sanitizePiRecord maps unrecognized stopReason to unknown", () => {
   assert.equal(endEvent.stopReason, "unknown");
 });
 
-Deno.test("sanitizePiRecord preserves known failed stopReason values in metadata", () => {
+test("sanitizePiRecord preserves known failed stopReason values in metadata", () => {
   for (const reason of ["error", "aborted", "pending", "toolUse"] as const) {
     const tracker = createStreamTracker();
     const event = sanitizePiRecord(
@@ -168,7 +171,7 @@ Deno.test("sanitizePiRecord preserves known failed stopReason values in metadata
   }
 });
 
-Deno.test("sanitizePiRecord omits stopReason when absent on message_end", () => {
+test("sanitizePiRecord omits stopReason when absent on message_end", () => {
   const tracker = createStreamTracker();
   const event = sanitizePiRecord(
     JSON.parse(assistantEnd("x")),
@@ -178,7 +181,7 @@ Deno.test("sanitizePiRecord omits stopReason when absent on message_end", () => 
   assert.equal(JSON.stringify(event).includes("stopReason"), false);
 });
 
-Deno.test("sanitizePiRecord emits usage only on assistant message_end", () => {
+test("sanitizePiRecord emits usage only on assistant message_end", () => {
   const tracker = createStreamTracker();
   const update = sanitizePiRecord(
     {
@@ -205,7 +208,7 @@ Deno.test("sanitizePiRecord emits usage only on assistant message_end", () => {
   assert.equal(agentEnd.usage, undefined);
 });
 
-Deno.test("finalizeStreamOutcome rejects provider error stopReason", () => {
+test("finalizeStreamOutcome rejects provider error stopReason", () => {
   const tracker = createStreamTracker();
   processPiJsonLine(assistantEnd("ignored", "error"), lineCtx(1, tracker));
   const outcome = finalizeStreamOutcome(tracker);
@@ -215,7 +218,7 @@ Deno.test("finalizeStreamOutcome rejects provider error stopReason", () => {
   );
 });
 
-Deno.test("classifyProviderFailure maps auth and rate limit without leaking hints", () => {
+test("classifyProviderFailure maps auth and rate limit without leaking hints", () => {
   const auth = classifyProviderFailure({
     stopReason: "error",
     errorMessage: `401 Unauthorized ${CANARY_TOKEN} ${CANARY_URL}`,
@@ -251,7 +254,7 @@ Deno.test("classifyProviderFailure maps auth and rate limit without leaking hint
   assert.equal(unknown.category, "unknown");
 });
 
-Deno.test("classifyProviderFailure ignores incidental digits without HTTP status context", () => {
+test("classifyProviderFailure ignores incidental digits without HTTP status context", () => {
   const requestId429 = classifyProviderFailure({
     stopReason: "error",
     errorMessage: "HTTP 500 internal server error; request id: 429",
@@ -294,7 +297,7 @@ Deno.test("classifyProviderFailure ignores incidental digits without HTTP status
   assert.equal(incidentalReason.httpStatus, undefined);
 });
 
-Deno.test("classifyProviderFailure regression: request id JSON must not override auth or network", () => {
+test("classifyProviderFailure regression: request id JSON must not override auth or network", () => {
   const networkTimeout429 = classifyProviderFailure({
     stopReason: "error",
     errorMessage: 'network timeout; request id: 429 {"trace":"id"}',
@@ -310,7 +313,7 @@ Deno.test("classifyProviderFailure regression: request id JSON must not override
   assert.equal(authOverRequestId429.httpStatus, 401);
 });
 
-Deno.test("classifyProviderFailure prefers real HTTP status over incidental numbers", () => {
+test("classifyProviderFailure prefers real HTTP status over incidental numbers", () => {
   const authOver429 = classifyProviderFailure({
     stopReason: "error",
     errorMessage: `401 Unauthorized ${CANARY_TOKEN}; request id: 429`,
@@ -347,7 +350,7 @@ Deno.test("classifyProviderFailure prefers real HTTP status over incidental numb
   assert.equal(httpVersion401.httpStatus, 401);
 });
 
-Deno.test("classifyProviderFailure text-only auth and rate limit stay without httpStatus", () => {
+test("classifyProviderFailure text-only auth and rate limit stay without httpStatus", () => {
   const oauthOnly = classifyProviderFailure({
     stopReason: "error",
     errorMessage: `OAuth token refresh failed ${CANARY_TOKEN}`,
@@ -363,7 +366,7 @@ Deno.test("classifyProviderFailure text-only auth and rate limit stay without ht
   assert.equal(badToken401.httpStatus, 401);
 });
 
-Deno.test("sanitizePiRecord adds safe errorCategory on failed assistant message_end", () => {
+test("sanitizePiRecord adds safe errorCategory on failed assistant message_end", () => {
   const tracker = createStreamTracker();
   const event = sanitizePiRecord(
     JSON.parse(
@@ -377,7 +380,7 @@ Deno.test("sanitizePiRecord adds safe errorCategory on failed assistant message_
   assert.equal(JSON.stringify(event).includes(CANARY_URL), false);
 });
 
-Deno.test("runPiReviewEventsHelper logs rate_limit without canaries or partial final text", async () => {
+test("runPiReviewEventsHelper logs rate_limit without canaries or partial final text", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "rate.events.jsonl");
   await touchEventsLog(eventsLog);
@@ -398,13 +401,8 @@ printf '%s\\n' '${
     { mode: 0o755 },
   );
 
-  const proc = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const proc = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
       "run",
-      "--no-config",
-      "--no-prompt",
-      `--allow-write=${eventsLog}`,
-      `--allow-run=${fakePi}`,
       fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
       "--events-log",
       eventsLog,
@@ -412,14 +410,12 @@ printf '%s\\n' '${
       "1",
       "--",
       fakePi,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
 
-  assert.notEqual(proc.code, 0);
-  const stdout = new TextDecoder().decode(proc.stdout);
-  const stderr = new TextDecoder().decode(proc.stderr);
+    ], { encoding: "utf8" });
+
+  assert.notEqual(proc.status, 0);
+  const stdout = proc.stdout;
+  const stderr = proc.stderr;
   assert.match(stderr, /assistant response failed \(rate_limit\)/);
   assert.equal(stdout.includes(CANARY_TOKEN), false);
   assert.equal(stdout.includes(CANARY_URL), false);
@@ -440,7 +436,7 @@ printf '%s\\n' '${
   assert.equal(log.includes("partial review"), false);
 });
 
-Deno.test("runPiReviewEventsHelper logs auth category and stderr without canaries", async () => {
+test("runPiReviewEventsHelper logs auth category and stderr without canaries", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "auth.events.jsonl");
   await touchEventsLog(eventsLog);
@@ -459,13 +455,8 @@ printf '%s\\n' '${
     { mode: 0o755 },
   );
 
-  const proc = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const proc = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
       "run",
-      "--no-config",
-      "--no-prompt",
-      `--allow-write=${eventsLog}`,
-      `--allow-run=${fakePi}`,
       fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
       "--events-log",
       eventsLog,
@@ -473,13 +464,11 @@ printf '%s\\n' '${
       "1",
       "--",
       fakePi,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
 
-  assert.notEqual(proc.code, 0);
-  const stderr = new TextDecoder().decode(proc.stderr);
+    ], { encoding: "utf8" });
+
+  assert.notEqual(proc.status, 0);
+  const stderr = proc.stderr;
   assert.match(stderr, /assistant response failed \(authentication\)/);
   assert.equal(stderr.includes(CANARY_TOKEN), false);
   assert.equal(stderr.includes(CANARY_URL), false);
@@ -488,13 +477,13 @@ printf '%s\\n' '${
   assert.equal(log.includes(CANARY_TOKEN), false);
 });
 
-Deno.test("classifyWrapperError maps permission and missing executable", () => {
+test("classifyWrapperError maps permission and missing executable", () => {
   const perm = classifyWrapperError(
-    new Deno.errors.NotCapable("Requires --allow-run permissions"),
+    Object.assign(new Error("denied"), { code: "EACCES" }),
   );
   assert.equal(perm.category, "permission_denied");
 
-  const missing = classifyWrapperError(new Deno.errors.NotFound("missing"));
+  const missing = classifyWrapperError(Object.assign(new Error("missing"), { code: "ENOENT" }));
   assert.equal(missing.category, "executable_not_found");
 
   const internal = classifyWrapperError(new Error(`fail ${CANARY_TOKEN}`));
@@ -502,22 +491,17 @@ Deno.test("classifyWrapperError maps permission and missing executable", () => {
   assert.equal(JSON.stringify(internal).includes(CANARY_TOKEN), false);
 });
 
-Deno.test("runPiReviewEventsHelper spawn denial logs wrapper_error without path canary", async () => {
+test("runPiReviewEventsHelper spawn denial logs wrapper_error without path canary", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "spawn.events.jsonl");
   await touchEventsLog(eventsLog);
   const secretDir = join(work, "CANARY-PATH-LEAK");
-  await Deno.mkdir(secretDir, { recursive: true });
+  await mkdir(secretDir, { recursive: true });
   const secretPath = join(secretDir, "pi.sh");
-  await writeFile(secretPath, "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
+  await writeFile(secretPath, "#!/usr/bin/env bash\nexit 0\n", { mode: 0o600 });
 
-  const proc = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const proc = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
       "run",
-      "--no-config",
-      "--no-prompt",
-      `--allow-write=${eventsLog}`,
-      `--allow-run=${join(work, "allowed-only.sh")}`,
       fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
       "--events-log",
       eventsLog,
@@ -525,13 +509,11 @@ Deno.test("runPiReviewEventsHelper spawn denial logs wrapper_error without path 
       "2",
       "--",
       secretPath,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
 
-  assert.notEqual(proc.code, 0);
-  const stderr = new TextDecoder().decode(proc.stderr);
+    ], { encoding: "utf8" });
+
+  assert.notEqual(proc.status, 0);
+  const stderr = proc.stderr;
   assert.match(stderr, /permission_denied/);
   assert.equal(stderr.includes("CANARY-PATH-LEAK"), false);
   const log = await readFile(eventsLog, "utf8");
@@ -542,19 +524,14 @@ Deno.test("runPiReviewEventsHelper spawn denial logs wrapper_error without path 
   assert.equal(log.includes("CANARY-PATH-LEAK"), false);
 });
 
-Deno.test("runPiReviewEventsHelper missing executable logs executable_not_found", async () => {
+test("runPiReviewEventsHelper missing executable logs executable_not_found", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "missing.events.jsonl");
   await touchEventsLog(eventsLog);
   const missing = join(work, "no-such-pi-CANARY-NAME");
 
-  const proc = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const proc = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
       "run",
-      "--no-config",
-      "--no-prompt",
-      `--allow-write=${eventsLog}`,
-      `--allow-run=${missing}`,
       fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
       "--events-log",
       eventsLog,
@@ -562,13 +539,11 @@ Deno.test("runPiReviewEventsHelper missing executable logs executable_not_found"
       "1",
       "--",
       missing,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
 
-  assert.notEqual(proc.code, 0);
-  const stderr = new TextDecoder().decode(proc.stderr);
+    ], { encoding: "utf8" });
+
+  assert.notEqual(proc.status, 0);
+  const stderr = proc.stderr;
   assert.match(stderr, /executable_not_found/);
   assert.equal(stderr.includes("CANARY-NAME"), false);
   const log = await readFile(eventsLog, "utf8");
@@ -576,7 +551,7 @@ Deno.test("runPiReviewEventsHelper missing executable logs executable_not_found"
   assert.equal(log.includes("CANARY-NAME"), false);
 });
 
-Deno.test("finalizeStreamOutcome rejects aborted pending and toolUse", () => {
+test("finalizeStreamOutcome rejects aborted pending and toolUse", () => {
   for (const reason of ["aborted", "pending", "toolUse"] as const) {
     const tracker = createStreamTracker();
     processPiJsonLine(assistantEnd("t", reason), lineCtx(1, tracker));
@@ -585,21 +560,21 @@ Deno.test("finalizeStreamOutcome rejects aborted pending and toolUse", () => {
   }
 });
 
-Deno.test("finalizeStreamOutcome rejects missing stopReason as incomplete", () => {
+test("finalizeStreamOutcome rejects missing stopReason as incomplete", () => {
   const tracker = createStreamTracker();
   processPiJsonLine(assistantEnd("t"), lineCtx(1, tracker));
   const outcome = finalizeStreamOutcome(tracker);
   assert.equal(outcome.streamError?.includes("incomplete"), true);
 });
 
-Deno.test("finalizeStreamOutcome rejects unrecognized stopReason", () => {
+test("finalizeStreamOutcome rejects unrecognized stopReason", () => {
   const tracker = createStreamTracker();
   processPiJsonLine(assistantEnd("t", "deferred"), lineCtx(1, tracker));
   const outcome = finalizeStreamOutcome(tracker);
   assert.equal(outcome.streamError?.includes("failed"), true);
 });
 
-Deno.test("finalizeStreamOutcome accepts stop and length", () => {
+test("finalizeStreamOutcome accepts stop and length", () => {
   for (const reason of ["stop", "length"]) {
     const tracker = createStreamTracker();
     processPiJsonLine(
@@ -612,7 +587,7 @@ Deno.test("finalizeStreamOutcome accepts stop and length", () => {
   }
 });
 
-Deno.test("finalizeStreamOutcome emits all text blocks", () => {
+test("finalizeStreamOutcome emits all text blocks", () => {
   const tracker = createStreamTracker();
   processPiJsonLine(
     assistantEnd(["block-a", "block-b"], "stop"),
@@ -626,7 +601,7 @@ Deno.test("finalizeStreamOutcome emits all text blocks", () => {
   assert.equal(stdout, "block-a\nblock-b\n");
 });
 
-Deno.test("new assistant message_start clears stale completed text", () => {
+test("new assistant message_start clears stale completed text", () => {
   const tracker = createStreamTracker();
   const ctx = lineCtx(1, tracker);
   processPiJsonLine(assistantEnd("stale", "stop"), ctx);
@@ -638,7 +613,7 @@ Deno.test("new assistant message_start clears stale completed text", () => {
   assert.equal(outcome.streamError?.includes("incomplete"), true);
 });
 
-Deno.test("message_start clears stale error metadata from prior failed message_end", () => {
+test("message_start clears stale error metadata from prior failed message_end", () => {
   const tracker = createStreamTracker();
   const ctx = lineCtx(1, tracker);
   processPiJsonLine(
@@ -654,7 +629,7 @@ Deno.test("message_start clears stale error metadata from prior failed message_e
   assert.equal(tracker.lastHttpStatus, undefined);
 });
 
-Deno.test("successful assistant message_end after failed message_end clears error metadata", () => {
+test("successful assistant message_end after failed message_end clears error metadata", () => {
   const tracker = createStreamTracker();
   const ctx = lineCtx(1, tracker);
   const failEvent = sanitizePiRecord(
@@ -678,7 +653,7 @@ Deno.test("successful assistant message_end after failed message_end clears erro
   assert.equal(outcome.finalTextBlocks[0], "recovered");
 });
 
-Deno.test("agent_end does not override authoritative assistant message_end state", () => {
+test("agent_end does not override authoritative assistant message_end state", () => {
   const tracker = createStreamTracker();
   const ctx = lineCtx(1, tracker);
   processPiJsonLine(assistantEnd("good", "stop"), ctx);
@@ -701,19 +676,19 @@ Deno.test("agent_end does not override authoritative assistant message_end state
   assert.equal(outcome.finalTextBlocks[0], "good");
 });
 
-Deno.test("malformed JSON line fails visibly", () => {
+test("malformed JSON line fails visibly", () => {
   const result = processPiJsonLine("{not json", lineCtx());
   assert.equal(result.error, "pi review stream: malformed event line");
 });
 
-Deno.test("resolveWrapperExitCode prefers child nonzero over stream error", () => {
+test("resolveWrapperExitCode prefers child nonzero over stream error", () => {
   assert.equal(
     resolveWrapperExitCode("pi review stream: malformed event line", 42, null),
     42,
   );
 });
 
-Deno.test("runPiReviewEventsHelper with fake Pi emits metadata-only log and final stdout", async () => {
+test("runPiReviewEventsHelper with fake Pi emits metadata-only log and final stdout", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "run.events.jsonl");
   await touchEventsLog(eventsLog);
@@ -728,13 +703,8 @@ exit 0
 `;
   await writeFile(fakePi, script, { mode: 0o755 });
 
-  const proc = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const proc = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
       "run",
-      "--no-config",
-      "--no-prompt",
-      `--allow-write=${eventsLog}`,
-      `--allow-run=${fakePi}`,
       fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
       "--events-log",
       eventsLog,
@@ -742,13 +712,11 @@ exit 0
       "1",
       "--",
       fakePi,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
 
-  assert.equal(proc.code, 0, new TextDecoder().decode(proc.stderr));
-  const stdout = new TextDecoder().decode(proc.stdout);
+    ], { encoding: "utf8" });
+
+  assert.equal(proc.status, 0, proc.stderr);
+  const stdout = proc.stdout;
   assert.equal(stdout, "review complete\n");
 
   const log = await readFile(eventsLog, "utf8");
@@ -760,7 +728,28 @@ exit 0
   assert.equal(usageLines.length, 1);
 });
 
-Deno.test("runPiReviewEventsHelper ignores agent_end duplicate final message for stdout and usage", async () => {
+test("stdout Writable error returns controlled failure", async () => {
+  const work = await mkdtemp(join(tmpdir(), "pi-events-"));
+  const eventsLog = join(work, "stdout-error.events.jsonl");
+  await touchEventsLog(eventsLog);
+  const fakePi = join(work, "stdout-error.sh");
+  await writeFile(fakePi, `#!/usr/bin/env bash
+printf '%s\\n' '${assistantEnd("review complete", "stop")}'
+`, { mode: 0o755 });
+  const originalStdout = process.stdout;
+  process.stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback(new Error("closed pipe"));
+    },
+  }) as typeof process.stdout;
+  try {
+    assert.equal(await runPiReviewEventsHelper({ eventsLog, attempt: 1, command: [fakePi] }), 1);
+  } finally {
+    process.stdout = originalStdout;
+  }
+});
+
+test("runPiReviewEventsHelper ignores agent_end duplicate final message for stdout and usage", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "dup.events.jsonl");
   await touchEventsLog(eventsLog);
@@ -775,13 +764,8 @@ printf '%s\\n' '{"type":"agent_end","usage":{"input":999},"message":{"role":"ass
     { mode: 0o755 },
   );
 
-  const proc = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const proc = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
       "run",
-      "--no-config",
-      "--no-prompt",
-      `--allow-write=${eventsLog}`,
-      `--allow-run=${fakePi}`,
       fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
       "--events-log",
       eventsLog,
@@ -789,13 +773,11 @@ printf '%s\\n' '{"type":"agent_end","usage":{"input":999},"message":{"role":"ass
       "1",
       "--",
       fakePi,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
 
-  assert.equal(proc.code, 0, new TextDecoder().decode(proc.stderr));
-  assert.equal(new TextDecoder().decode(proc.stdout), "authoritative\n");
+    ], { encoding: "utf8" });
+
+  assert.equal(proc.status, 0, proc.stderr);
+  assert.equal(proc.stdout, "authoritative\n");
   const log = await readFile(eventsLog, "utf8");
   assert.equal(log.includes("duplicate"), false);
   const usageLines = log.split("\n").filter((l) => l.includes('"usage"'));
@@ -803,7 +785,7 @@ printf '%s\\n' '{"type":"agent_end","usage":{"input":999},"message":{"role":"ass
   assert.match(usageLines[0], /"input":10/);
 });
 
-Deno.test("runPiReviewEventsHelper fails on exit0 assistant error stopReason", async () => {
+test("runPiReviewEventsHelper fails on exit0 assistant error stopReason", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "err.events.jsonl");
   await touchEventsLog(eventsLog);
@@ -824,7 +806,7 @@ printf '%s\\n' '${assistantEnd("nope", "error")}'
   assert.equal(code, 1);
 });
 
-Deno.test("runPiReviewEventsHelper returns child 42 with empty stdout", async () => {
+test("runPiReviewEventsHelper returns child 42 with empty stdout", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "empty.events.jsonl");
   await touchEventsLog(eventsLog);
@@ -839,7 +821,18 @@ Deno.test("runPiReviewEventsHelper returns child 42 with empty stdout", async ()
   assert.equal(code, 42);
 });
 
-Deno.test("runPiReviewEventsHelper fails when events log is missing", async () => {
+test("runPiReviewEventsHelper returns POSIX status 143 for SIGTERM child", async () => {
+  const work = await mkdtemp(join(tmpdir(), "pi-events-"));
+  const eventsLog = join(work, "signal.events.jsonl");
+  await touchEventsLog(eventsLog);
+  const fakePi = join(work, "signal.sh");
+  await writeFile(fakePi, `#!/usr/bin/env bash
+kill -TERM $$
+`, { mode: 0o755 });
+  assert.equal(await runPiReviewEventsHelper({ eventsLog, attempt: 1, command: [fakePi] }), 143);
+});
+
+test("runPiReviewEventsHelper fails when events log is missing", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "missing.events.jsonl");
   const fakePi = join(work, "noop.sh");
@@ -851,9 +844,10 @@ Deno.test("runPiReviewEventsHelper fails when events log is missing", async () =
     command: [fakePi],
   });
   assert.equal(code, 1);
+  await assert.rejects(readFile(eventsLog), { code: "ENOENT" });
 });
 
-Deno.test(
+test(
   "runPiReviewEventsHelper drains pipe after malformed line without leaking canaries",
   async () => {
     const work = await mkdtemp(join(tmpdir(), "pi-events-"));
@@ -870,13 +864,8 @@ exit 0
 `;
     await writeFile(fakePi, script, { mode: 0o755 });
 
-    const run = await new Deno.Command(Deno.execPath(), {
-      args: [
-        "run",
-        "--no-config",
-        "--no-prompt",
-        `--allow-write=${eventsLog}`,
-        `--allow-run=${fakePi}`,
+    const run = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
+      "run",
         fileURLToPath(
           new URL("../scripts/pi_review_events.ts", import.meta.url),
         ),
@@ -886,19 +875,17 @@ exit 0
         "1",
         "--",
         fakePi,
-      ],
-      stdout: "piped",
-      stderr: "piped",
-    }).output();
 
-    assert.notEqual(run.code, 0);
+    ], { encoding: "utf8" });
+
+    assert.notEqual(run.status, 0);
     const log = await readFile(eventsLog, "utf8");
     assert.equal(log.includes("CANARY"), false);
     assert.equal(log.includes(filler), false);
   },
 );
 
-Deno.test("runPiReviewEventsHelper emits multiple final text blocks", async () => {
+test("runPiReviewEventsHelper emits multiple final text blocks", async () => {
   const work = await mkdtemp(join(tmpdir(), "pi-events-"));
   const eventsLog = join(work, "multi.events.jsonl");
   await touchEventsLog(eventsLog);
@@ -912,13 +899,8 @@ printf '%s\\n' '${assistantEnd(["alpha", "beta"], "stop")}'
     { mode: 0o755 },
   );
 
-  const proc = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const proc = spawnSync(process.execPath, ["--config=/dev/null", "--no-env-file", "--no-install", 
       "run",
-      "--no-config",
-      "--no-prompt",
-      `--allow-write=${eventsLog}`,
-      `--allow-run=${fakePi}`,
       fileURLToPath(new URL("../scripts/pi_review_events.ts", import.meta.url)),
       "--events-log",
       eventsLog,
@@ -926,11 +908,9 @@ printf '%s\\n' '${assistantEnd(["alpha", "beta"], "stop")}'
       "1",
       "--",
       fakePi,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
 
-  assert.equal(proc.code, 0, new TextDecoder().decode(proc.stderr));
-  assert.equal(new TextDecoder().decode(proc.stdout), "alpha\nbeta\n");
+    ], { encoding: "utf8" });
+
+  assert.equal(proc.status, 0, proc.stderr);
+  assert.equal(proc.stdout, "alpha\nbeta\n");
 });

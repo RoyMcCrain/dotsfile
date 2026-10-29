@@ -1,3 +1,4 @@
+import { readFile, writeFile } from "node:fs/promises";
 import { mergeVerifications, validateReport } from "./render_report.ts";
 
 const usage = () => {
@@ -42,8 +43,8 @@ export const main = async (argv: string[]) => {
   let report: unknown;
   let verification: unknown;
   try {
-    report = JSON.parse(await Deno.readTextFile(reportPath));
-    verification = JSON.parse(await Deno.readTextFile(verificationPath));
+    report = JSON.parse(await readFile(reportPath, "utf8"));
+    verification = JSON.parse(await readFile(verificationPath, "utf8"));
   } catch (error) {
     console.error(
       `read/parse error: ${
@@ -72,7 +73,7 @@ export const main = async (argv: string[]) => {
 
   const outPath = output ?? reportPath;
   try {
-    await Deno.writeTextFile(outPath, JSON.stringify(merged, null, 2) + "\n");
+    await writeFile(outPath, JSON.stringify(merged, null, 2) + "\n");
   } catch (error) {
     console.error(
       `write error: ${error instanceof Error ? error.message : String(error)}`,
@@ -85,5 +86,7 @@ export const main = async (argv: string[]) => {
 };
 
 if (import.meta.main) {
-  Deno.exit(await main(Deno.args));
+  main(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
 }

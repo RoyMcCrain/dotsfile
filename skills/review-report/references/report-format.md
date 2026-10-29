@@ -309,7 +309,7 @@ path 部分を正規化して同一 policy を適用する。
     "extras": [],
     "validations": [
       {
-        "command": "deno test -A tests",
+        "command": "bun test tests",
         "status": "passed",
         "summary": "関連テスト成功。"
       }

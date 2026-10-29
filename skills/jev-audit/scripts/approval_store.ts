@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assertAuditRelativePathSafe, assertInsideBaseLstat } from "./paths.ts";
 import type { ApprovalRecord, PlanCase } from "./plan_types.ts";
@@ -105,8 +105,8 @@ export const approveCase = async (options: {
     options.approvedInputPath,
     "approved input",
   );
-  const inputStat = await Deno.lstat(inputReal);
-  if (!inputStat.isFile) {
+  const inputStat = await lstat(inputReal);
+  if (!inputStat.isFile()) {
     throw new Error("approved input must be a regular file");
   }
   const inputBytes = await readFile(inputReal);
@@ -154,8 +154,8 @@ export const approveCase = async (options: {
       : {}),
   };
 
-  await Deno.mkdir(approvalsRoot, { recursive: true, mode: 0o700 });
-  await Deno.chmod(approvalsRoot, 0o700);
+  await mkdir(approvalsRoot, { recursive: true, mode: 0o700 });
+  await chmod(approvalsRoot, 0o700);
   const path = approvalPath(approvalsRoot, options.runId);
   await publishPrivateFileAtomic(
     path,

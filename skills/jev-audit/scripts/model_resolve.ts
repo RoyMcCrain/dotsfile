@@ -6,39 +6,31 @@ const isNonEmptyString = (value: unknown): value is string =>
 export const resolveModelRole = async (
   role: string,
 ): Promise<string> => {
-  const override = Deno.env.get("MODEL_RESOLVER");
-  const home = Deno.env.get("HOME");
+  const override = process.env["MODEL_RESOLVER"];
+  const home = process.env["HOME"];
   if (!isNonEmptyString(home)) throw new Error("HOME is required");
   const resolver = override ??
     join(home, ".pi", "agent", "resolve-model.sh");
-  const bash = Deno.env.get("JEV_AUDIT_BASH") ?? "bash";
-  const cmd = new Deno.Command(bash, {
-    args: [resolver, role],
-    stdout: "piped",
-    stderr: "null",
-  });
-  const out = await cmd.output();
-  if (!out.success) throw new Error("model resolution failed");
-  const model = new TextDecoder().decode(out.stdout).trim();
+  const bash = process.env["JEV_AUDIT_BASH"] ?? "bash";
+  const cmd = Bun.spawn([bash, resolver, role], { stdout: "pipe", stderr: "ignore" });
+  if (await cmd.exited !== 0) throw new Error("model resolution failed");
+  const model = (await new Response(cmd.stdout).text()).trim();
   if (!isNonEmptyString(model)) throw new Error("empty resolved model");
   return model;
 };
 
 export const resolveRouteReviewId = async (): Promise<string | undefined> => {
-  const override = Deno.env.get("MODEL_RESOLVER");
-  const home = Deno.env.get("HOME");
+  const override = process.env["MODEL_RESOLVER"];
+  const home = process.env["HOME"];
   if (!isNonEmptyString(home)) return undefined;
   const resolver = override ??
     join(home, ".pi", "agent", "resolve-model.sh");
-  const bash = Deno.env.get("JEV_AUDIT_BASH") ?? "bash";
-  const cmd = new Deno.Command(bash, {
-    args: [resolver, "--field", "id", "route.review"],
-    stdout: "piped",
-    stderr: "null",
+  const bash = process.env["JEV_AUDIT_BASH"] ?? "bash";
+  const cmd = Bun.spawn([bash, resolver, "--field", "id", "route.review"], {
+    stdout: "pipe", stderr: "ignore",
   });
-  const out = await cmd.output();
-  if (!out.success) return undefined;
-  const id = new TextDecoder().decode(out.stdout).trim();
+  if (await cmd.exited !== 0) return undefined;
+  const id = (await new Response(cmd.stdout).text()).trim();
   return isNonEmptyString(id) ? id : undefined;
 };
 

@@ -1,30 +1,22 @@
 #!/usr/bin/env bash
-# Run all repo tests (Bun + Deno + Node + bats). Used by the git pre-push hook and manually.
+# Run all repo tests (Bun + Node + bats). Bun has no Deno --allow-* sandbox.
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$REPO_ROOT"
-
 fail=0
 
-# Required tools: missing any of them is a failure, not a silent skip,
-# otherwise the pre-push hook would let untested code through.
-for tool in deno bats fd node bun; do
+for tool in bats fd node bun; do
 	if ! command -v "$tool" >/dev/null 2>&1; then
 		echo "missing required tool: $tool" >&2
 		exit 1
 	fi
 done
 
-pi_agent_test_tmp=$(mktemp -d "${TMPDIR:-/tmp}/pi-agent-tests.XXXXXX")
-pi_agent_test_tmp=$(cd "$pi_agent_test_tmp" && pwd -P)
-node_tests_nul="$pi_agent_test_tmp/node-tests.nul"
-
-cleanup_pi_agent_test_tmp() {
-	rm -rf "$pi_agent_test_tmp"
-}
-trap cleanup_pi_agent_test_tmp EXIT
-
+run_tmp=$(mktemp -d "${TMPDIR:-/tmp}/pi-agent-tests.XXXXXX")
+run_tmp=$(cd "$run_tmp" && pwd -P)
+cleanup_run_tmp() { rm -rf "$run_tmp"; }
+trap cleanup_run_tmp EXIT
 run() {
 	local label=$1
 	shift
@@ -34,133 +26,97 @@ run() {
 		fail=1
 	fi
 }
-
-# Bun tests (pi/agent *.test.ts). *.node.test.mjs run below with Node.
-# Bun cannot express Deno's --allow-net/--allow-run/--allow-write scopes.
-# Keep this invocation off the real home and do not inherit caller secrets.
+private_env() {
+	mkdir -p "$run_tmp/$1/home" "$run_tmp/$1/tmp" "$run_tmp/$1/agent" \
+		"$run_tmp/$1/cache" "$run_tmp/$1/config" "$run_tmp/$1/data" "$run_tmp/$1/state"
+}
+clean_run() {
+	local label=$1 envdir=$2
+	shift 2
+	run "$label" env -i PATH="$PATH" HOME="$run_tmp/$envdir/home" \
+		TMPDIR="$run_tmp/$envdir/tmp" PI_CODING_AGENT_DIR="$run_tmp/$envdir/agent" \
+		XDG_CACHE_HOME="$run_tmp/$envdir/cache" XDG_CONFIG_HOME="$run_tmp/$envdir/config" \
+		XDG_DATA_HOME="$run_tmp/$envdir/data" XDG_STATE_HOME="$run_tmp/$envdir/state" "$@"
+}
 if [[ ! -d "$REPO_ROOT/pi/agent/node_modules" ]]; then
 	echo "missing pi/agent/node_modules; run: bun install --cwd pi/agent" >&2
 	exit 1
 fi
-pi_ts_tests_nul="$pi_agent_test_tmp/pi-ts-tests.nul"
-if ! fd -H -0 -g '*.test.ts' pi/agent/tests >"$pi_ts_tests_nul"; then
-	echo "failed to discover pi/agent TypeScript tests (fd)" >&2
-	exit 1
+for suite in pi-agent skills; do private_env "$suite"; done
+collect() {
+	local out=$1 pattern=$2 label=$3
+	shift 3
+	if ! fd -H -0 -g "$pattern" "$@" >"$out"; then
+		echo "failed to discover $label tests (fd)" >&2
+		fail=1
+		return 1
+	fi
+}
+read_paths() {
+	local input=$1 prefix=${2:-}
+	local path
+	while IFS= read -r -d '' path; do
+		if [[ -n "$prefix" ]]; then REPLY_PATHS+=("$prefix/${path#./}"); else REPLY_PATHS+=("$path"); fi
+	done <"$input"
+}
+REPLY_PATHS=()
+pi_nul="$run_tmp/pi-tests.nul"
+if collect "$pi_nul" '*.test.ts' 'pi/agent' pi/agent/tests; then
+	read_paths "$pi_nul" "$REPO_ROOT"
 fi
-pi_ts_tests=()
-while IFS= read -r -d '' file; do
-	pi_ts_tests+=("$REPO_ROOT/${file#./}")
-done <"$pi_ts_tests_nul"
-if (("${#pi_ts_tests[@]}" == 0)); then
+if ((${#REPLY_PATHS[@]} == 0)); then
 	echo "no pi/agent TypeScript tests found" >&2
-	exit 1
+	fail=1
+else
+	clean_run "bun test (pi/agent)" pi-agent bun --config=/dev/null --no-env-file --no-install test "${REPLY_PATHS[@]}"
 fi
-mkdir -p \
-	"$pi_agent_test_tmp/home" \
-	"$pi_agent_test_tmp/pi-agent" \
-	"$pi_agent_test_tmp/cache" \
-	"$pi_agent_test_tmp/config" \
-	"$pi_agent_test_tmp/data" \
-	"$pi_agent_test_tmp/state"
-run "bun test (pi/agent)" env -i \
-	PATH="$PATH" \
-	HOME="$pi_agent_test_tmp/home" \
-	TMPDIR="$pi_agent_test_tmp" \
-	PI_CODING_AGENT_DIR="$pi_agent_test_tmp/pi-agent" \
-	XDG_CACHE_HOME="$pi_agent_test_tmp/cache" \
-	XDG_CONFIG_HOME="$pi_agent_test_tmp/config" \
-	XDG_DATA_HOME="$pi_agent_test_tmp/data" \
-	XDG_STATE_HOME="$pi_agent_test_tmp/state" \
-	bun --no-install test "${pi_ts_tests[@]}"
-
-run "tsc (pi/agent tests/assert.ts)" \
-	"$REPO_ROOT/pi/agent/node_modules/.bin/tsc" -p "$REPO_ROOT/pi/agent/tsconfig.json"
-
-if ! fd -H -0 -g '*.node.test.mjs' pi/agent/tests >"$node_tests_nul"; then
-	echo "failed to discover pi/agent node tests (fd)" >&2
-	exit 1
+run "tsc (pi/agent tests/assert.ts)" "$REPO_ROOT/pi/agent/node_modules/.bin/tsc" -p "$REPO_ROOT/pi/agent/tsconfig.json"
+run "tsc (migrated skills)" "$REPO_ROOT/pi/agent/node_modules/.bin/tsc" -p "$REPO_ROOT/pi/agent/tsconfig.skills.json"
+REPLY_PATHS=()
+node_nul="$run_tmp/node-tests.nul"
+node_tests=()
+if collect "$node_nul" '*.node.test.mjs' 'pi/agent node' pi/agent/tests; then
+	read_paths "$node_nul"
+	node_tests=("${REPLY_PATHS[@]}")
 fi
-node_agent_tests=()
-while IFS= read -r -d '' file; do
-	node_agent_tests+=("$file")
-done <"$node_tests_nul"
-if ((${#node_agent_tests[@]} > 0)); then
-	run "node test (pi/agent *.node.test.mjs)" node --experimental-vm-modules --test "${node_agent_tests[@]}"
+if ((${#node_tests[@]} == 0)); then
+	echo "no pi/agent Node tests found" >&2
+	fail=1
+else
+	run "node test (pi/agent *.node.test.mjs)" node --experimental-vm-modules --test "${node_tests[@]}"
 fi
 
-# Deno tests (report skills)
-# These are integration tests that spawn git/jj and re-exec deno (via the full
-# Deno.execPath()) and write to temp dirs, so they need broad run/write access.
-run "deno test (report skills)" deno test --allow-read --allow-write --allow-run --quiet \
-	skills/review-report/tests/ \
-	skills/implementation-report/tests/
-
-# Trusted fixtures need filesystem/run access and UID ownership checks.
-# Scrub caller credentials and omit Deno network permission; --allow-run
-# does not sandbox child-process network access.
-mkdir -p \
-	"$pi_agent_test_tmp/deno-home" \
-	"$pi_agent_test_tmp/deno-tmp" \
-	"$pi_agent_test_tmp/deno-xdg-cache" \
-	"$pi_agent_test_tmp/deno-xdg-config" \
-	"$pi_agent_test_tmp/deno-xdg-data" \
-	"$pi_agent_test_tmp/deno-xdg-state"
-run "deno test (review/audit suites)" env -i \
-	PATH="$PATH" \
-	HOME="$pi_agent_test_tmp/deno-home" \
-	TMPDIR="$pi_agent_test_tmp/deno-tmp" \
-	XDG_CACHE_HOME="$pi_agent_test_tmp/deno-xdg-cache" \
-	XDG_CONFIG_HOME="$pi_agent_test_tmp/deno-xdg-config" \
-	XDG_DATA_HOME="$pi_agent_test_tmp/deno-xdg-data" \
-	XDG_STATE_HOME="$pi_agent_test_tmp/deno-xdg-state" \
-	deno test --no-config --no-prompt --allow-read --allow-write --allow-run --allow-env --allow-sys=uid --quiet \
-	skills/parallel-review/tests/ \
-	skills/review-model-eval/tests/ \
-	skills/jev-audit/tests/
-
-impl_deno_tmp="$pi_agent_test_tmp/impl-deno"
-mkdir -p "$impl_deno_tmp"
-impl_deno_tmp=$(cd "$impl_deno_tmp" && pwd -P)
-run "deno test (impl history)" env \
-	IMPL_TEST_SYMLINK=0 \
-	TMPDIR="$impl_deno_tmp" \
-	IMPL_TEST_ROOT="$impl_deno_tmp" \
-	IMPL_RUNS_DIR="$impl_deno_tmp/impl-runs" \
-	HOME="$impl_deno_tmp/home" \
-	deno test --no-prompt --allow-read --allow-write="$impl_deno_tmp" --allow-env --quiet \
-	skills/impl/tests/impl_history_test.ts
-
-# Deno.symlink requires unscoped grants; only these fixture-only cases use them.
-run "deno test (impl history symlink fixtures)" env \
-	TMPDIR="$impl_deno_tmp" \
-	IMPL_TEST_ROOT="$impl_deno_tmp" \
-	IMPL_TEST_SYMLINK=1 \
-	HOME="$impl_deno_tmp/home" \
-	deno test --no-prompt --allow-read --allow-write --allow-env --quiet --filter symlink \
-	skills/impl/tests/impl_history_test.ts
-
-run "deno test (impl stream/events)" env \
-	TMPDIR="$impl_deno_tmp" \
-	IMPL_TEST_ROOT="$impl_deno_tmp" \
-	IMPL_RUNS_DIR="$impl_deno_tmp/impl-runs" \
-	HOME="$impl_deno_tmp/home" \
-	deno test --no-prompt --allow-read --allow-write="$impl_deno_tmp" --allow-run --allow-env --quiet \
-	skills/impl/tests/impl_stream_test.ts \
-	skills/impl/tests/run_impl_events_test.ts
-
-# bats tests
+REPLY_PATHS=()
+for suite in parallel-review implementation-report review-report review-model-eval jev-audit impl; do
+	dir="skills/$suite/tests"
+	nul="$run_tmp/$suite-tests.nul"
+	files=()
+	if collect "$nul" '*_test.ts' "$suite" "$dir"; then
+		REPLY_PATHS=()
+		read_paths "$nul" "$REPO_ROOT"
+		files=("${REPLY_PATHS[@]}")
+	fi
+	if ((${#files[@]} == 0)); then
+		echo "no TypeScript tests found for skills/$suite" >&2
+		fail=1
+		continue
+	fi
+	suite_env=()
+	if [[ "$suite" == impl ]]; then
+		mkdir -p "$run_tmp/skills/impl-runs"
+		suite_env=(IMPL_TEST_ROOT="$run_tmp/skills/tmp" IMPL_RUNS_DIR="$run_tmp/skills/impl-runs" IMPL_TEST_SYMLINK=1)
+	fi
+	clean_run "bun test (skills/$suite)" skills "${suite_env[@]}" bun --config=/dev/null --no-env-file --no-install test "${files[@]}"
+done
 mapfile -d '' -t bats_files < <(fd -H -e bats -0 . pi/agent/tests skills fish/tests scripts/tests)
 if [[ ${#bats_files[@]} -eq 0 ]]; then
 	echo "no bats tests found" >&2
-	exit 1
+	fail=1
+else
+	for f in "${bats_files[@]}"; do run "bats $f" bats "$f"; done
 fi
-for f in "${bats_files[@]}"; do
-	run "bats $f" bats "$f"
-done
-
 if [[ $fail -ne 0 ]]; then
 	echo "Tests failed." >&2
 	exit 1
 fi
-
 echo "All tests passed."

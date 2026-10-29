@@ -1,3 +1,5 @@
+import { spyOn, test } from "bun:test";
+import * as fsPromises from "node:fs/promises";
 import assert from "node:assert/strict";
 import {
   mkdir,
@@ -5,6 +7,7 @@ import {
   readdir,
   readFile,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -19,8 +22,9 @@ import { runSingleCase } from "../scripts/audit_run.ts";
 import type { PlanCase } from "../scripts/plan_types.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 
-const JEV_AUDIT_BASH = Deno.env.get("JEV_AUDIT_BASH") ?? "bash";
+const JEV_AUDIT_BASH = process.env.JEV_AUDIT_BASH ?? "bash";
 
 const writeMockScripts = async (dir: string, piBody: string) => {
   const resolver = join(dir, "resolve-model.sh");
@@ -93,12 +97,10 @@ const runAuditCli = async (
   args: string[],
   expectOk = true,
 ) => {
-  const out = await new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", "--no-config", AUDIT_SCRIPT, ...args],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  const out = await runFixtureProcess(["run", AUDIT_SCRIPT, ...args], {
+    ...process.env,
+    ...env,
+  });
   if (expectOk && !out.success) {
     throw new Error(new TextDecoder().decode(out.stderr));
   }
@@ -112,11 +114,8 @@ const approveCaseCli = async (
   week: string,
   runId: string,
 ) => {
-  const inspectOut = await new Deno.Command(Deno.execPath(), {
-    args: [
+  const inspectOut = await runFixtureProcess([
       "run",
-      "-A",
-      "--no-config",
       AUDIT_SCRIPT,
       "inspect",
       "--run-id",
@@ -128,16 +127,12 @@ const approveCaseCli = async (
       "--week",
       week,
     ],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+    { ...process.env, ...env },
+  );
   if (!inspectOut.success) {
     throw new Error(new TextDecoder().decode(inspectOut.stderr));
   }
-  const inspected = JSON.parse(
-    new TextDecoder().decode(inspectOut.stdout),
-  ) as { stagedPath: string };
+  const inspected = JSON.parse(inspectOut.stdoutText) as { stagedPath: string };
   await runAuditCli(env, [
     "approve",
     "--run-id",
@@ -153,7 +148,7 @@ const approveCaseCli = async (
   ]);
 };
 
-Deno.test("run continues after corrupt peer result and writes honest report", async () => {
+test("run continues after corrupt peer result and writes honest report", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-exec-stale-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -304,7 +299,7 @@ const runSingleCaseReady = async (
   return { weekRoot, planCase };
 };
 
-Deno.test("isolated preparation fault leaves no attempt markers and retries once", async () => {
+test("isolated preparation fault leaves no attempt markers and retries once", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-exec-prepfail-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -325,7 +320,9 @@ Deno.test("isolated preparation fault leaves no attempt markers and retries once
     MODEL_RESOLVER: mocks.resolver,
     PI_REVIEW_BIN: mocks.pi,
     JEV_AUDIT_BASH,
+    TMPDIR: join(root, "blocked-tmp"),
   };
+  await writeFile(env.TMPDIR, "not a directory");
   const week = "2020-09-28";
   const { weekRoot, planCase } = await runSingleCaseReady(
     runsDir,
@@ -336,25 +333,19 @@ Deno.test("isolated preparation fault leaves no attempt markers and retries once
     env,
   );
   const prevEnv: Record<string, string | undefined> = {
-    HOME: Deno.env.get("HOME"),
-    XDG_DATA_HOME: Deno.env.get("XDG_DATA_HOME"),
-    MODEL_RESOLVER: Deno.env.get("MODEL_RESOLVER"),
-    PI_REVIEW_BIN: Deno.env.get("PI_REVIEW_BIN"),
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH"),
+    HOME: process.env.HOME,
+    XDG_DATA_HOME: process.env.XDG_DATA_HOME,
+    MODEL_RESOLVER: process.env.MODEL_RESOLVER,
+    PI_REVIEW_BIN: process.env.PI_REVIEW_BIN,
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH,
+    TMPDIR: process.env.TMPDIR,
   };
-  for (const [key, value] of Object.entries(env)) Deno.env.set(key, value);
+  for (const [key, value] of Object.entries(env)) process.env[key] = value;
   const restoreEnv = () => {
     for (const [key, value] of Object.entries(prevEnv)) {
-      if (value === undefined) Deno.env.delete(key);
-      else Deno.env.set(key, value);
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
-  };
-  const origMakeTempDir = Deno.makeTempDir;
-  Deno.makeTempDir = (options) => {
-    if (options?.prefix === "jev-audit-cwd-") {
-      return Promise.reject(new Error("injected isolated cwd failure"));
-    }
-    return origMakeTempDir.call(Deno, options);
   };
   try {
     const failed = await runSingleCase({
@@ -370,10 +361,11 @@ Deno.test("isolated preparation fault leaves no attempt markers and retries once
     await assertNoAttemptMarkers(auditDir, weekRoot, runId);
     assert.equal(await readInvokeCount(mocks.countFile), 0);
   } finally {
-    Deno.makeTempDir = origMakeTempDir;
+    await rm(env.TMPDIR);
+    await mkdir(env.TMPDIR);
     restoreEnv();
   }
-  for (const [key, value] of Object.entries(env)) Deno.env.set(key, value);
+  for (const [key, value] of Object.entries(env)) process.env[key] = value;
   try {
     const retry = await runSingleCase({
       auditBase: auditDir,
@@ -383,7 +375,11 @@ Deno.test("isolated preparation fault leaves no attempt markers and retries once
       runsDir,
       resolvedAuditorModel: "mock/auditor-model",
     });
-    assert.equal(retry.status, "audited");
+    assert.equal(
+      retry.status,
+      "audited",
+      retry.status === "unavailable" ? retry.reason : undefined,
+    );
     assert.equal(await readInvokeCount(mocks.countFile), 1);
   } finally {
     restoreEnv();
@@ -391,7 +387,7 @@ Deno.test("isolated preparation fault leaves no attempt markers and retries once
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("marker creation failure cleans isolated cwd and leaves no attempt markers", async () => {
+test("marker creation failure cleans isolated cwd and leaves no attempt markers", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-exec-markfail-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -423,36 +419,36 @@ Deno.test("marker creation failure cleans isolated cwd and leaves no attempt mar
     env,
   );
   const prevEnv: Record<string, string | undefined> = {
-    HOME: Deno.env.get("HOME"),
-    XDG_DATA_HOME: Deno.env.get("XDG_DATA_HOME"),
-    MODEL_RESOLVER: Deno.env.get("MODEL_RESOLVER"),
-    PI_REVIEW_BIN: Deno.env.get("PI_REVIEW_BIN"),
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH"),
+    HOME: process.env.HOME,
+    XDG_DATA_HOME: process.env.XDG_DATA_HOME,
+    MODEL_RESOLVER: process.env.MODEL_RESOLVER,
+    PI_REVIEW_BIN: process.env.PI_REVIEW_BIN,
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH,
   };
-  for (const [key, value] of Object.entries(env)) Deno.env.set(key, value);
+  for (const [key, value] of Object.entries(env)) process.env[key] = value;
   const restoreEnv = () => {
     for (const [key, value] of Object.entries(prevEnv)) {
-      if (value === undefined) Deno.env.delete(key);
-      else Deno.env.set(key, value);
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
   };
   let isolatedCwd: string | undefined;
   let isolatedCwdCreates = 0;
-  const origMakeTempDir = Deno.makeTempDir;
-  Deno.makeTempDir = (options) => {
-    if (options?.prefix === "jev-audit-cwd-") {
-      isolatedCwdCreates++;
-      return origMakeTempDir.call(Deno, options).then(async (cwd) => {
+  const originalMkdtemp = fsPromises.mkdtemp;
+  const mkdtempSpy = spyOn(fsPromises, "mkdtemp").mockImplementation(
+    (async (prefix: string) => {
+      const cwd = await originalMkdtemp(prefix);
+      if (String(prefix).includes("jev-audit-cwd-")) {
+        isolatedCwdCreates++;
         isolatedCwd = cwd;
         await mkdir(join(auditDir, "cache"), { recursive: true });
         await writeFile(join(auditDir, "cache", "attempts"), "block", {
           mode: 0o600,
         });
-        return cwd;
-      });
-    }
-    return origMakeTempDir.call(Deno, options);
-  };
+      }
+      return cwd;
+    }) as typeof originalMkdtemp,
+  );
   try {
     await assert.rejects(
       () =>
@@ -470,21 +466,20 @@ Deno.test("marker creation failure cleans isolated cwd and leaves no attempt mar
     assert.ok(isolatedCwd);
     let isolatedStillPresent = false;
     try {
-      await Deno.stat(isolatedCwd!);
+      await stat(isolatedCwd!);
       isolatedStillPresent = true;
     } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     assert.equal(isolatedStillPresent, false);
     await assertNoAttemptMarkers(auditDir, weekRoot, runId);
     assert.equal(await readInvokeCount(mocks.countFile), 0);
-    await rm(join(auditDir, "cache", "attempts"));
-    await mkdir(join(auditDir, "cache", "attempts"), { recursive: true });
+    await rm(join(auditDir, "cache", "attempts"), { recursive: true, force: true });
   } finally {
-    Deno.makeTempDir = origMakeTempDir;
+    mkdtempSpy.mockRestore();
     restoreEnv();
   }
-  for (const [key, value] of Object.entries(env)) Deno.env.set(key, value);
+  for (const [key, value] of Object.entries(env)) process.env[key] = value;
   try {
     const retry = await runSingleCase({
       auditBase: auditDir,
@@ -494,7 +489,11 @@ Deno.test("marker creation failure cleans isolated cwd and leaves no attempt mar
       runsDir,
       resolvedAuditorModel: "mock/auditor-model",
     });
-    assert.equal(retry.status, "audited");
+    assert.equal(
+      retry.status,
+      "audited",
+      retry.status === "unavailable" ? retry.reason : undefined,
+    );
     assert.equal(await readInvokeCount(mocks.countFile), 1);
   } finally {
     restoreEnv();
@@ -502,7 +501,7 @@ Deno.test("marker creation failure cleans isolated cwd and leaves no attempt mar
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("run_not_found leaves no attempt markers before spend", async () => {
+test("run_not_found leaves no attempt markers before spend", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-exec-nomarker-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -577,7 +576,7 @@ Deno.test("run_not_found leaves no attempt markers before spend", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("reconstructs missing global cache from independent week result", async () => {
+test("reconstructs missing global cache from independent week result", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-exec-cachefix-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -674,7 +673,7 @@ Deno.test("reconstructs missing global cache from independent week result", asyn
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("reconstructs missing global cache for independent failure week result", async () => {
+test("reconstructs missing global cache for independent failure week result", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-exec-cachefail-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -766,7 +765,7 @@ Deno.test("reconstructs missing global cache for independent failure week result
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("conflicting global success cache blocks reuse without model calls", async () => {
+test("conflicting global success cache blocks reuse without model calls", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-exec-cacheconflict-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -857,7 +856,7 @@ Deno.test("conflicting global success cache blocks reuse without model calls", a
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("assertAuditorIndependent fail-closed and historical jev checks", async () => {
+test("assertAuditorIndependent fail-closed and historical jev checks", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-model-resolve-"));
   const noRoute = join(root, "no-route.sh");
   await writeFile(
@@ -865,9 +864,9 @@ Deno.test("assertAuditorIndependent fail-closed and historical jev checks", asyn
     '#!/usr/bin/env bash\nif [[ "${1:-}" == "--field" ]]; then exit 1; fi\necho mock/auditor-role\n',
     { mode: 0o700 },
   );
-  const prev = Deno.env.get("MODEL_RESOLVER");
-  Deno.env.set("MODEL_RESOLVER", noRoute);
-  Deno.env.set("HOME", root);
+  const prev = process.env.MODEL_RESOLVER;
+  process.env.MODEL_RESOLVER = noRoute;
+  process.env.HOME = root;
   try {
     await assert.rejects(
       () => assertAuditorIndependent("mock/auditor-role", undefined),
@@ -882,8 +881,8 @@ Deno.test("assertAuditorIndependent fail-closed and historical jev checks", asyn
       "route/known-jev-model",
     );
   } finally {
-    if (prev === undefined) Deno.env.delete("MODEL_RESOLVER");
-    else Deno.env.set("MODEL_RESOLVER", prev);
+    if (prev === undefined) delete process.env.MODEL_RESOLVER;
+    else process.env.MODEL_RESOLVER = prev;
   }
   await rm(root, { recursive: true, force: true });
 });

@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node", "bun"]
+  },
+  "files": [],
+  "include": [
+    "../../skills/parallel-review/scripts/**/*.ts",
+    "../../skills/parallel-review/tests/**/*.ts",
+    "../../skills/implementation-report/scripts/**/*.ts",
+    "../../skills/implementation-report/tests/**/*.ts",
+    "../../skills/review-report/scripts/**/*.ts",
+    "../../skills/review-report/tests/**/*.ts",
+    "../../skills/review-model-eval/scripts/**/*.ts",
+    "../../skills/review-model-eval/tests/**/*.ts",
+    "../../skills/jev-audit/scripts/**/*.ts",
+    "../../skills/jev-audit/tests/**/*.ts",
+    "../../skills/impl/scripts/**/*.ts",
+    "../../skills/impl/tests/**/*.ts"
+  ]
+}

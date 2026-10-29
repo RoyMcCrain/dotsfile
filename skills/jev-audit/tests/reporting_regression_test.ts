@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -41,7 +42,7 @@ const validAuditor = {
   concerns: [] as string[],
 };
 
-Deno.test("deriveCaseState rejects mismatched approval bindings", async () => {
+test("deriveCaseState rejects mismatched approval bindings", async () => {
   const week = "2020-09-28";
   const ph = promptHash();
   const pc = planCase();
@@ -137,7 +138,7 @@ Deno.test("deriveCaseState rejects mismatched approval bindings", async () => {
   }
 });
 
-Deno.test("deriveCaseState rejects approval promptHash mismatch against stored result", async () => {
+test("deriveCaseState rejects approval promptHash mismatch against stored result", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-report-appr-ph-"));
   const week = "2020-09-28";
   const pc = planCase();
@@ -177,7 +178,7 @@ Deno.test("deriveCaseState rejects approval promptHash mismatch against stored r
   await rm(auditBase, { recursive: true, force: true });
 });
 
-Deno.test("deriveCaseState keeps historical audited result when approval prompt differs from live prompt", async () => {
+test("deriveCaseState keeps historical audited result when approval prompt differs from live prompt", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-report-hist-"));
   const week = "2020-09-28";
   const pc = planCase();
@@ -250,7 +251,7 @@ const basePlan = (): WeeklyPlan => ({
   selected: [planCase()],
 });
 
-Deno.test("buildReport uses no_prior_week only when prior report is absent", async () => {
+test("buildReport uses no_prior_week only when prior report is absent", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-report-prior-miss-"));
   const plan = basePlan();
   const ph = promptHash();
@@ -285,7 +286,7 @@ Deno.test("buildReport uses no_prior_week only when prior report is absent", asy
   await rm(auditBase, { recursive: true, force: true });
 });
 
-Deno.test("buildReport marks invalid_prior_report when prior report is corrupt", async () => {
+test("buildReport marks invalid_prior_report when prior report is corrupt", async () => {
   const auditBase = await mkdtemp(join(tmpdir(), "jev-report-prior-bad-"));
   const plan = basePlan();
   const priorRoot = join(auditBase, "weeks", "2020-09-21");

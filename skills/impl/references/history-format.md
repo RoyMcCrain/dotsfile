@@ -72,15 +72,10 @@ Matched cases share `promptSha256`, `systemPromptSha256`, and comparable `codePr
 bash skills/impl/scripts/run_impl.sh --prompt PATH [--cwd PATH] [--role ROLE] [--runs-dir PATH]
 
 # Offline report (read-only history root)
-deno run --no-config \
-  --allow-read="$RUNS_DIR,$REPO/skills/impl/scripts" \
-  skills/impl/scripts/impl_history.ts report --runs-dir "$RUNS_DIR" --out report.json
+bun --config=/dev/null --no-env-file --no-install run skills/impl/scripts/impl_history.ts report --runs-dir "$RUNS_DIR" --out report.json
 
 # Record caller validation (read/write run metadata)
-deno run --no-config \
-  --allow-read="$RUNS_DIR,$REPO/skills/impl/scripts" \
-  --allow-write="$RUNS_DIR" \
-  skills/impl/scripts/impl_history.ts set-validation --run "$RUN_DIR" --status passed
+bun --config=/dev/null --no-env-file --no-install run skills/impl/scripts/impl_history.ts set-validation --run "$RUN_DIR" --status passed
 ```
 
 Catalog cost figures in reports are **estimated USD**, not subscription billing.

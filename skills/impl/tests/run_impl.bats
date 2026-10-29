@@ -117,6 +117,7 @@ jq -n \
 		pi_skip_version_check: $skip,
 		pi_telemetry: $telem,
 		cwd: $pwd,
+		dotenv_canary_present: (env | has("DOTSFILE_DOTENV_CANARY")),
 		auth_link: $auth_link,
 		models_link: $models_link,
 		auth_present: $auth_present,
@@ -279,12 +280,12 @@ args_at_prompt() {
 	[[ "$output" == *"hello-impl"* ]]
 }
 
-@test "run_impl: rejects missing deno without calling Pi" {
+@test "run_impl: rejects missing bun without calling Pi" {
 	local filtered_path=""
 	local part
 	IFS=':' read -r -a path_parts <<<"$PATH"
 	for part in "${path_parts[@]}"; do
-		[[ -n "$part" && -x "$part/deno" ]] && continue
+		[[ -n "$part" && -x "$part/bun" ]] && continue
 		filtered_path+="${part}:"
 	done
 	run env PATH="${filtered_path%:}" "$RUNNER" --prompt "$PROMPT"
@@ -387,6 +388,23 @@ args_at_prompt() {
 	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$shared"
 	[ "$status" -eq 0 ]
 	[[ "$(stat -f '%Lp' "$shared" 2>/dev/null || stat -c '%a' "$shared")" == "755" ]]
+}
+
+@test "run_impl isolates cwd Bun config while preserving the requested cwd" {
+	local cwd="$TEST_ROOT/work"
+	printf '%s\\n' 'DOTSFILE_DOTENV_CANARY=from-dotenv' >"$cwd/.env"
+	cat >"$cwd/bunfig.toml" <<EOF
+preload = ["./preload.js"]
+EOF
+	cat >"$cwd/preload.js" <<'EOF'
+await Bun.write(process.env.BUN_PRELOAD_MARKER, "loaded");
+EOF
+	export BUN_PRELOAD_MARKER="$TEST_ROOT/preload-marker"
+	run "$RUNNER" --prompt "$PROMPT" --cwd "$cwd"
+	[ "$status" -eq 0 ]
+	[ ! -e "$BUN_PRELOAD_MARKER" ]
+	jq -e --arg cwd "$(cd "$cwd" && pwd -P)" '.cwd == $cwd and .dotenv_canary_present == false' "$ENV_LOG" >/dev/null
+	unset BUN_PRELOAD_MARKER
 }
 
 @test "run_impl: relative IMPL_RUNS_DIR resolves from invocation cwd" {

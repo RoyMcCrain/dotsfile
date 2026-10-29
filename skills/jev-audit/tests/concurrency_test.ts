@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -8,6 +9,7 @@ import {
 } from "../../parallel-review/scripts/select_review_level.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 const PATCH = "diff --git a/x b/x\n+2\n";
 
 const LOCK_ERRORS = [
@@ -58,27 +60,13 @@ const runAuditRun = async (
   auditDir: string,
   week: string,
 ) => {
-  return await new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "-A",
-      "--no-config",
-      AUDIT_SCRIPT,
-      "run",
-      "--runs-dir",
-      runsDir,
-      "--audit-dir",
-      auditDir,
-      "--week",
-      week,
-    ],
-    env: { ...Deno.env.toObject(), ...env },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  return await runFixtureProcess(
+    ["run", AUDIT_SCRIPT, "run", "--runs-dir", runsDir, "--audit-dir", auditDir, "--week", week],
+    { ...process.env, ...env },
+  );
 };
 
-Deno.test("parallel run across weeks performs at most one Pi invocation", async () => {
+test("parallel run across weeks performs at most one Pi invocation", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-conc-"));
   const runsDir = join(root, "runs");
   const auditDir = join(root, "audit");
@@ -111,30 +99,15 @@ Deno.test("parallel run across weeks performs at most one Pi invocation", async 
     XDG_DATA_HOME: join(root, "xdg"),
     MODEL_RESOLVER: resolver,
     PI_REVIEW_BIN: pi,
-    JEV_AUDIT_BASH: Deno.env.get("JEV_AUDIT_BASH") ?? "bash",
+    JEV_AUDIT_BASH: process.env.JEV_AUDIT_BASH ?? "bash",
   };
   const approveWeek = async (week: string, runId: string) => {
-    await new Deno.Command(Deno.execPath(), {
-      args: [
+    await runFixtureProcess(
+      ["run", AUDIT_SCRIPT, "prepare", "--runs-dir", runsDir, "--audit-dir", auditDir, "--week", week],
+      { ...process.env, ...env },
+    );
+    const inspectOut = await runFixtureProcess([
         "run",
-        "-A",
-        "--no-config",
-        AUDIT_SCRIPT,
-        "prepare",
-        "--runs-dir",
-        runsDir,
-        "--audit-dir",
-        auditDir,
-        "--week",
-        week,
-      ],
-      env: { ...Deno.env.toObject(), ...env },
-    }).output();
-    const inspectOut = await new Deno.Command(Deno.execPath(), {
-      args: [
-        "run",
-        "-A",
-        "--no-config",
         AUDIT_SCRIPT,
         "inspect",
         "--run-id",
@@ -146,21 +119,16 @@ Deno.test("parallel run across weeks performs at most one Pi invocation", async 
         "--week",
         week,
       ],
-      env: { ...Deno.env.toObject(), ...env },
-      stdout: "piped",
-    }).output();
+      { ...process.env, ...env },
+    );
     assert.equal(
       inspectOut.success,
       true,
       new TextDecoder().decode(inspectOut.stderr),
     );
-    const staged = JSON.parse(new TextDecoder().decode(inspectOut.stdout))
-      .stagedPath as string;
-    const approved = await new Deno.Command(Deno.execPath(), {
-      args: [
+    const staged = JSON.parse(inspectOut.stdoutText).stagedPath as string;
+    const approved = await runFixtureProcess([
         "run",
-        "-A",
-        "--no-config",
         AUDIT_SCRIPT,
         "approve",
         "--run-id",
@@ -174,9 +142,8 @@ Deno.test("parallel run across weeks performs at most one Pi invocation", async 
         "--week",
         week,
       ],
-      env: { ...Deno.env.toObject(), ...env },
-      stderr: "piped",
-    }).output();
+      { ...process.env, ...env },
+    );
     assert.equal(
       approved.success,
       true,

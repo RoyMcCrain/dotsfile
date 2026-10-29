@@ -6,7 +6,7 @@ export type RunLock = {
 };
 
 const tryAcquireLockFile = async (lockFile: string): Promise<boolean> => {
-  const payload = `${Deno.pid}\n${new Date().toISOString()}\n`;
+  const payload = `${process.pid}\n${new Date().toISOString()}\n`;
   try {
     await writeFile(lockFile, payload, { flag: "wx", mode: 0o600 });
     return true;

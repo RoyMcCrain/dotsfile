@@ -178,7 +178,7 @@ const cmdPrepare = async (opts: GlobalOpts) => {
       reportHtml: paths.htmlPath,
       counts: report.counts,
     };
-    await Deno.stdout.write(
+    await process.stdout.write(
       new TextEncoder().encode(`${JSON.stringify(out)}\n`),
     );
   } finally {
@@ -229,7 +229,7 @@ const cmdApprove = async (opts: GlobalOpts, rest: string[]) => {
       runsDir: opts.runsDir,
       jevModel: planCase.jevModel,
     });
-    await Deno.stdout.write(
+    await process.stdout.write(
       new TextEncoder().encode(`${JSON.stringify({ approved: record })}\n`),
     );
   } finally {
@@ -266,7 +266,7 @@ const cmdInspect = async (opts: GlobalOpts, rest: string[]) => {
     if ("error" in staged) {
       throw new Error(staged.error);
     }
-    await Deno.stdout.write(
+    await process.stdout.write(
       new TextEncoder().encode(
         `${
           JSON.stringify({
@@ -485,7 +485,7 @@ const cmdRun = async (opts: GlobalOpts, autoApprove: boolean) => {
       period.weekStart,
       report,
     );
-    await Deno.stdout.write(
+    await process.stdout.write(
       new TextEncoder().encode(
         `${
           JSON.stringify({
@@ -523,7 +523,7 @@ const cmdReport = async (opts: GlobalOpts) => {
       period.weekStart,
       report,
     );
-    await Deno.stdout.write(
+    await process.stdout.write(
       new TextEncoder().encode(
         `${JSON.stringify({ reportJson: paths.jsonPath })}\n`,
       ),
@@ -547,9 +547,9 @@ const printHelp = () => {
 };
 
 const main = async () => {
-  const args = Deno.args;
+  const args = process.argv.slice(2);
   if (args.includes("--help") || args.includes("-h")) {
-    await Deno.stdout.write(new TextEncoder().encode(printHelp()));
+    await process.stdout.write(new TextEncoder().encode(printHelp()));
     return;
   }
   const { cmd, rest, opts } = parseGlobal(args);
@@ -574,6 +574,6 @@ const main = async () => {
 if (import.meta.main) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : "audit failed");
-    Deno.exit(1);
+    process.exit(1);
   });
 }

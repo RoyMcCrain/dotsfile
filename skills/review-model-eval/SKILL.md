@@ -21,14 +21,14 @@ description: parallel-review の採用履歴からモデル評価レポートを
 ```bash
 SKILL="$HOME/.agents/skills/review-model-eval/scripts/evaluate_models.ts"
 
-deno run --no-config --allow-read --allow-write --allow-env=HOME,XDG_DATA_HOME \
+bun --config=/dev/null --no-env-file --no-install run \
   "$SKILL"
 ```
 
 パスを明示する例:
 
 ```bash
-deno run --no-config --allow-read --allow-write --allow-env=HOME,XDG_DATA_HOME \
+bun --config=/dev/null --no-env-file --no-install run \
   "$SKILL" \
   --runs-dir "$HOME/.local/share/parallel-review/runs" \
   --out "/tmp/model-eval-$(date -u +%F)-manual"

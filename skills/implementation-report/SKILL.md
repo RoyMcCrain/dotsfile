@@ -76,7 +76,7 @@ skills/implementation-report/scripts/collect_sanitized_patch.sh \
 # 4. Stage 0 → $WORK/stage0.json
 #    詳細: references/stage0.md
 
-if deno run --allow-read --allow-write --allow-run \
+if bun --config=/dev/null --no-env-file --no-install run \
   skills/implementation-report/scripts/collect_repository_metadata.ts \
   --repo "$ROOT" -o "$WORK/repository.json"; then
   repo_args=(--repository "$WORK/repository.json")
@@ -85,7 +85,7 @@ else
   repo_args=(--omit-repository)
 fi
 
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/implementation-report/scripts/assemble_report.ts \
   --stage0 "$WORK/stage0.json" \
   --intent "$WORK/intent.json" \
@@ -93,11 +93,11 @@ deno run --allow-read --allow-write \
   "${repo_args[@]}" \
   -o "$WORK/report.json"
 
-deno run --allow-read \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/review-report/scripts/render_report.ts \
   "$WORK/report.json" --validate-only
 
-deno run --allow-read --allow-write \
+bun --config=/dev/null --no-env-file --no-install run \
   skills/review-report/scripts/render_report.ts \
   "$WORK/report.json" -o "$WORK/report.html"
 

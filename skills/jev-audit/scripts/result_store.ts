@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { chmod, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { auditorPromptFingerprint } from "./auditor_prompt.ts";
 import type {
@@ -43,7 +43,6 @@ export const readGlobalCache = async (
     const raw = await readJsonFile(path);
     return validateAuditResultRecord(raw);
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
     if (
       typeof error === "object" && error !== null && "code" in error &&
       (error as { code: string }).code === "ENOENT"
@@ -75,7 +74,7 @@ export const writeGlobalCache = async (
   await assertAuditRelativePathSafe(baseReal, ["cache"], "cache directory");
   const cacheRoot = join(baseReal, "cache");
   await mkdir(cacheRoot, { recursive: true, mode: 0o700 });
-  await Deno.chmod(cacheRoot, 0o700);
+  await chmod(cacheRoot, 0o700);
   const path = join(cacheRoot, `${key}.json`);
   await publishPrivateFileAtomic(path, `${JSON.stringify(record, null, 2)}\n`, {
     ifExists: "ignore",
@@ -96,7 +95,7 @@ export const writeGlobalAttemptMarker = async (
   );
   const attemptsRoot = globalAttemptsDir(baseReal);
   await mkdir(attemptsRoot, { recursive: true, mode: 0o700 });
-  await Deno.chmod(attemptsRoot, 0o700);
+  await chmod(attemptsRoot, 0o700);
   const path = join(attemptsRoot, `${key}.json`);
   const outcome = await publishPrivateFileAtomic(
     path,
@@ -127,7 +126,6 @@ export const readGlobalAttemptMarker = async (
     await readJsonFile(path);
     return true;
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return false;
     if (
       typeof error === "object" && error !== null && "code" in error &&
       (error as { code: string }).code === "ENOENT"
@@ -154,7 +152,6 @@ export const readWeekResult = async (
     const raw = await readJsonFile(path);
     return validateAuditResultRecord(raw);
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
     if (
       typeof error === "object" && error !== null && "code" in error &&
       (error as { code: string }).code === "ENOENT"
@@ -184,7 +181,7 @@ export const writeWeekResult = async (
   );
   const resultsPath = join(baseReal, "weeks", weekStart, "results");
   await mkdir(resultsPath, { recursive: true, mode: 0o700 });
-  await Deno.chmod(resultsPath, 0o700);
+  await chmod(resultsPath, 0o700);
   const path = join(resultsPath, `${record.runId}.json`);
   await publishPrivateFileAtomic(path, `${JSON.stringify(record, null, 2)}\n`, {
     ifExists: "fail",
@@ -229,7 +226,6 @@ export const hasAttemptMarker = async (
     await readJsonFile(path);
     return true;
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return false;
     if (
       typeof error === "object" && error !== null && "code" in error &&
       (error as { code: string }).code === "ENOENT"

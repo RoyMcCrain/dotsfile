@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, realpath } from "node:fs/promises";
+import { chmod, lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { assertAuditRelativePathSafe } from "./paths.ts";
 import { assertRegularDir, replacePrivateFileAtomic } from "./state_io.ts";
@@ -16,11 +16,11 @@ export const readPatchFromRun = async (
 ): Promise<Uint8Array> => {
   const runReal = await realpath(runDir);
   const patchPath = join(runDir, PATCH_REL);
-  const patchLstat = await Deno.lstat(patchPath);
-  if (patchLstat.isSymlink) {
+  const patchLstat = await lstat(patchPath);
+  if (patchLstat.isSymbolicLink()) {
     throw new Error("patch must not be a symlink");
   }
-  if (!patchLstat.isFile) throw new Error("patch missing");
+  if (!patchLstat.isFile()) throw new Error("patch missing");
   const patchReal = await realpath(patchPath);
   const rel = relative(runReal, patchReal);
   if (rel.startsWith("..") || rel === "..") {
@@ -46,14 +46,14 @@ export const stagePrivatePatch = async (
     ["weeks", weekStart, "staging", runId],
     "staging directory",
   );
-  await Deno.mkdir(dir, { recursive: true, mode: 0o700 });
-  await Deno.chmod(dir, 0o700);
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  await chmod(dir, 0o700);
   const path = join(dir, GENERIC_PATCH_NAME);
   await replacePrivateFileAtomic(path, content);
   return path;
 };
 
-const resolveBash = (): string => Deno.env.get("JEV_AUDIT_BASH") ?? "bash";
+const resolveBash = (): string => process.env["JEV_AUDIT_BASH"] ?? "bash";
 
 export const validatePatchFileLocal = async (
   patchPath: string,
@@ -62,14 +62,10 @@ export const validatePatchFileLocal = async (
     import.meta.dirname!,
     "validate_patch.sh",
   );
-  const cmd = new Deno.Command(resolveBash(), {
-    args: [script, patchPath],
-    stdin: "null",
-    stdout: "null",
-    stderr: "null",
+  const cmd = Bun.spawn([resolveBash(), script, patchPath], {
+    stdin: "ignore", stdout: "ignore", stderr: "ignore",
   });
-  const out = await cmd.output();
-  if (!out.success) throw new Error("patch validation failed");
+  if (await cmd.exited !== 0) throw new Error("patch validation failed");
 };
 
 export const conservativeTokenScan = (content: Uint8Array): void => {

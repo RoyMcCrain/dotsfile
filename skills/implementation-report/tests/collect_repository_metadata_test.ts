@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { test } from "bun:test";
+import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   classifyChanges,
@@ -7,28 +11,36 @@ import {
 } from "../scripts/filter_secret_paths.ts";
 import {
   collectRepositoryMetadata,
+  runCommand,
   uniqueNonSecretPaths,
 } from "../scripts/collect_repository_metadata.ts";
 
 const decoder = new TextDecoder();
 
 const run = async (bin: string, args: string[], cwd: string) => {
-  const result = await new Deno.Command(bin, {
-    args,
-    cwd,
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  const result = await new Promise<{ code: number; stdout: Buffer; stderr: Buffer }>(
+    (resolve, reject) => {
+      const child = spawn(bin, args, { cwd });
+      const stdout: Buffer[] = [];
+      const stderr: Buffer[] = [];
+      child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+      child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+      child.once("error", reject);
+      child.once("close", (code) => {
+        resolve({ code: code ?? 1, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
+      });
+    },
+  );
   assert.equal(
-    result.success,
-    true,
+    result.code,
+    0,
     `${bin} ${args.join(" ")}: ${decoder.decode(result.stderr)}`,
   );
   return decoder.decode(result.stdout);
 };
 
 const initGitRepo = async (repo: string) => {
-  await Deno.mkdir(repo, { recursive: true });
+  await mkdir(repo, { recursive: true });
   await run("git", ["init", "-q"], repo);
   await run("git", ["config", "user.email", "test@example.com"], repo);
   await run("git", ["config", "user.name", "test"], repo);
@@ -42,13 +54,30 @@ const writeAndCommit = async (
   message: string,
 ) => {
   const full = join(repo, path);
-  await Deno.mkdir(join(full, ".."), { recursive: true });
-  await Deno.writeTextFile(full, content);
+  await mkdir(join(full, ".."), { recursive: true });
+  await writeFile(full, content);
   await run("git", ["add", "--", path], repo);
   await run("git", ["commit", "-q", "-m", message], repo);
 };
 
-Deno.test("parseGitNameStatus maps statuses and rename previousPath", () => {
+test("runCommand captures output larger than one mebibyte", async () => {
+  const root = await mkdtemp(join(tmpdir(), "impl-meta-output-"));
+  const script = join(root, "large-output.js");
+  try {
+    await writeFile(script, 'process.stdout.write("x".repeat(2 * 1024 * 1024));');
+    const output = await runCommand(
+      process.execPath,
+      ["--config=/dev/null", "--no-env-file", "--no-install", "run", script],
+      root,
+    );
+    assert.equal(output.length, 2 * 1024 * 1024);
+    assert.equal(output, "x".repeat(2 * 1024 * 1024));
+  } finally {
+    await rm(root, { recursive: true });
+  }
+});
+
+test("parseGitNameStatus maps statuses and rename previousPath", () => {
   const changes = parseGitNameStatus([
     "M\tsrc/a.ts",
     "A\tsrc/b.ts",
@@ -65,7 +94,7 @@ Deno.test("parseGitNameStatus maps statuses and rename previousPath", () => {
   ]);
 });
 
-Deno.test("parseGitNameStatus maps NUL-delimited output", () => {
+test("parseGitNameStatus maps NUL-delimited output", () => {
   const changes = parseGitNameStatus(
     [
       "M",
@@ -82,7 +111,7 @@ Deno.test("parseGitNameStatus maps NUL-delimited output", () => {
   ]);
 });
 
-Deno.test("parseJjTemplateStatus maps statuses and rename previousPath", () => {
+test("parseJjTemplateStatus maps statuses and rename previousPath", () => {
   const changes = parseJjTemplateStatus([
     "modified\tsrc/a.ts\tsrc/a.ts",
     "added\t\tsrc/b.ts",
@@ -99,14 +128,14 @@ Deno.test("parseJjTemplateStatus maps statuses and rename previousPath", () => {
   ]);
 });
 
-Deno.test("parseJjTemplateStatus rejects unknown statuses", () => {
+test("parseJjTemplateStatus rejects unknown statuses", () => {
   assert.throws(
     () => parseJjTemplateStatus("weird\tsrc/a.ts\tsrc/a.ts\n"),
     /unknown jj status/,
   );
 });
 
-Deno.test("classifyChanges drops secret current or previous paths", () => {
+test("classifyChanges drops secret current or previous paths", () => {
   const { allowed, excluded } = classifyChanges([
     { path: "src/app.ts", status: "modified" },
     { path: ".env", status: "modified" },
@@ -121,21 +150,21 @@ Deno.test("classifyChanges drops secret current or previous paths", () => {
   assert.equal(excluded.length, 3);
 });
 
-Deno.test("uniqueNonSecretPaths drops secrets and empties", () => {
+test("uniqueNonSecretPaths drops secrets and empties", () => {
   assert.deepEqual(
     uniqueNonSecretPaths(["src/a.ts", ".env", "src/a.ts", "id_ed25519", ""]),
     ["src/a.ts"],
   );
 });
 
-Deno.test("collectRepositoryMetadata from a git repo excludes secrets and keeps rename", async () => {
-  const repo = await Deno.makeTempDir({ prefix: "impl-meta-git-" });
+test("collectRepositoryMetadata from a git repo excludes secrets and keeps rename", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "impl-meta-git-"))
   try {
     await initGitRepo(repo);
     await writeAndCommit(repo, "src/a.ts", "one\n", "add a");
     await writeAndCommit(repo, "src/old.ts", "old\n", "add old");
     await writeAndCommit(repo, ".env", "SECRET=1\n", "add env");
-    await Deno.writeTextFile(join(repo, "src/a.ts"), "two\n");
+    await writeFile(join(repo, "src/a.ts"), "two\n");
     await run("git", ["mv", "src/old.ts", "src/new.ts"], repo);
 
     const metadata = await collectRepositoryMetadata(repo);
@@ -153,22 +182,22 @@ Deno.test("collectRepositoryMetadata from a git repo excludes secrets and keeps 
     assert.equal(byPath["src/new.ts"]?.previousPath, "src/old.ts");
     assert.equal(byPath[".env"], undefined);
   } finally {
-    await Deno.remove(repo, { recursive: true });
+    await rm(repo, { recursive: true });
   }
 });
 
-Deno.test("collectRepositoryMetadata from a jj repo maps statuses", async () => {
-  const repo = await Deno.makeTempDir({ prefix: "impl-meta-jj-" });
+test("collectRepositoryMetadata from a jj repo maps statuses", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "impl-meta-jj-"))
   try {
     await run("jj", ["git", "init", "--colocate"], repo);
-    await Deno.mkdir(join(repo, "src"), { recursive: true });
-    await Deno.writeTextFile(join(repo, "src/a.ts"), "one\n");
-    await Deno.writeTextFile(join(repo, "src/old.ts"), "old\n");
-    await Deno.writeTextFile(join(repo, ".env"), "SECRET=1\n");
+    await mkdir(join(repo, "src"), { recursive: true });
+    await writeFile(join(repo, "src/a.ts"), "one\n");
+    await writeFile(join(repo, "src/old.ts"), "old\n");
+    await writeFile(join(repo, ".env"), "SECRET=1\n");
     await run("jj", ["describe", "-m", "init"], repo);
     await run("jj", ["new"], repo);
-    await Deno.writeTextFile(join(repo, "src/a.ts"), "two\n");
-    await Deno.rename(join(repo, "src/old.ts"), join(repo, "src/new.ts"));
+    await writeFile(join(repo, "src/a.ts"), "two\n");
+    await rename(join(repo, "src/old.ts"), join(repo, "src/new.ts"));
 
     const metadata = await collectRepositoryMetadata(repo);
     assert.ok(metadata.trackedFiles.includes("src/a.ts"));
@@ -181,6 +210,6 @@ Deno.test("collectRepositoryMetadata from a jj repo maps statuses", async () => 
     assert.equal(byPath["src/new.ts"]?.previousPath, "src/old.ts");
     assert.equal(byPath[".env"], undefined);
   } finally {
-    await Deno.remove(repo, { recursive: true });
+    await rm(repo, { recursive: true });
   }
 });

@@ -60,7 +60,7 @@ jq -n \
 	--arg skip_update "${PI_SKIP_VERSION_CHECK:-}" \
 	--argjson retry_enabled "$retry_enabled" \
 	--argjson attempt "$attempt" \
-	'{config:$config, skip_update:$skip_update, retry_enabled:$retry_enabled, attempt:$attempt, ld_dyld_present:(env | has("LD_DYLD_PATH")), ld_library_path_present:(env | has("LD_LIBRARY_PATH")), dyld_disable_dock_present:(env | has("DYLD_DISABLE_DOCK")), unrelated_canary_present:(env | has("PARALLEL_REVIEW_UNRELATED_CANARY"))}' \
+	'{config:$config, cwd:env.PWD, skip_update:$skip_update, retry_enabled:$retry_enabled, attempt:$attempt, ld_dyld_present:(env | has("LD_DYLD_PATH")), ld_library_path_present:(env | has("LD_LIBRARY_PATH")), dyld_disable_dock_present:(env | has("DYLD_DISABLE_DOCK")), unrelated_canary_present:(env | has("PARALLEL_REVIEW_UNRELATED_CANARY")), dotenv_canary_present:(env | has("DOTSFILE_DOTENV_CANARY"))}' \
 	>"$FAKE_PI_ENV"
 
 should_sleep=0
@@ -891,7 +891,7 @@ EOF
 	[[ "$output" == *assistant\ response\ failed* ]]
 }
 
-@test "--events-log timeout kills deno helper process group" {
+@test "--events-log timeout kills Bun helper process group" {
 	mkdir -p "$TEST_ROOT/logs"
 	EVENTS_LOG="$TEST_ROOT/logs/kill.events.jsonl"
 	apply_runner_env
@@ -1064,6 +1064,23 @@ EOF
 	[ "$status" -eq 1 ]
 	run rg -q 'parallel-review-ld-library-canary' <<<"$runner_output"
 	[ "$status" -eq 1 ]
+}
+
+@test "review runner isolates cwd Bun config while preserving the requested cwd" {
+	printf '%s\n' 'DOTSFILE_DOTENV_CANARY=from-project-dotenv' >"$TEST_ROOT/.env"
+	cat >"$TEST_ROOT/bunfig.toml" <<EOF
+preload = ["./preload.js"]
+EOF
+	cat >"$TEST_ROOT/preload.js" <<'EOF'
+await Bun.write(process.env.BUN_PRELOAD_MARKER, "loaded");
+EOF
+	export BUN_PRELOAD_MARKER="$TEST_ROOT/preload-marker"
+	apply_runner_env
+	run "$RUNNER" --model provider/model:medium --prompt "$PROMPT" --input "$PATCH" --timeout 5 --cwd "$TEST_ROOT" --events-log "$EVENTS_LOG"
+	[ "$status" -eq 0 ]
+	[ ! -e "$BUN_PRELOAD_MARKER" ]
+	jq -e --arg cwd "$(cd "$TEST_ROOT" && pwd -P)" '.dotenv_canary_present == false and .skip_update == "1" and .cwd == $cwd' "$ENV_LOG" >/dev/null
+	unset BUN_PRELOAD_MARKER
 }
 
 @test "non-events runner does not strip LD_DYLD_PATH from Pi child env" {

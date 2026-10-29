@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { test } from "bun:test";
+import { chmod, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { Writable } from "node:stream";
 import {
   resolveCodeProvenance,
   runImplEventsHelper,
@@ -8,23 +11,23 @@ import {
 
 async function scaffoldRun(root: string, piScript: string) {
   const fakePi = join(root, "pi.sh");
-  await Deno.writeTextFile(fakePi, piScript);
-  await Deno.chmod(fakePi, 0o755);
+  await writeFile(fakePi, piScript);
+  await chmod(fakePi, 0o755);
   const prompt = join(root, "prompt.md");
   const system = join(root, "system.md");
-  await Deno.writeTextFile(prompt, "task\n");
-  await Deno.writeTextFile(system, "system\n");
+  await writeFile(prompt, "task\n");
+  await writeFile(system, "system\n");
   const runs = join(root, "runs");
-  await Deno.mkdir(runs);
+  await mkdir(runs);
   return { fakePi, prompt, system, runs };
 }
 
-Deno.test("runImplEventsHelper completes with synthetic json pi", async () => {
-  const base = Deno.env.get("IMPL_TEST_ROOT");
+test("runImplEventsHelper completes with synthetic json pi", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
   if (!base) {
     throw new Error("IMPL_TEST_ROOT is required for impl events tests");
   }
-  const root = await Deno.makeTempDir({ dir: base });
+  const root = await mkdtemp(join(base, "test-"));
   const { fakePi, prompt, system, runs } = await scaffoldRun(
     root,
     `#!/usr/bin/env bash
@@ -44,10 +47,41 @@ exit 0
   assert.equal(code, 0);
 });
 
-Deno.test("initial metadata omits elapsedMs and exitCode while running shape", async () => {
-  const base = Deno.env.get("IMPL_TEST_ROOT");
+test("stdout Writable error returns controlled failure", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
   if (!base) throw new Error("IMPL_TEST_ROOT is required");
-  const root = await Deno.makeTempDir({ dir: base });
+  const root = await mkdtemp(join(base, "test-"));
+  const { fakePi, prompt, system, runs } = await scaffoldRun(
+    root,
+    `#!/usr/bin/env bash
+printf '%s\\n' '{"type":"message_end","message":{"role":"assistant","stopReason":"stop","content":[{"type":"text","text":"ok"}]}}' '{"type":"agent_settled","aborted":false}'
+`,
+  );
+  const originalStdout = process.stdout;
+  process.stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback(new Error("closed pipe"));
+    },
+  }) as typeof process.stdout;
+  try {
+    assert.equal(await runImplEventsHelper({
+      runsRoot: runs,
+      role: "impl.default",
+      resolvedModel: "provider/model:high",
+      promptPath: prompt,
+      systemPromptPath: system,
+      repositoryPath: root,
+      command: [fakePi],
+    }), 1);
+  } finally {
+    process.stdout = originalStdout;
+  }
+});
+
+test("initial metadata omits elapsedMs and exitCode while running shape", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
+  if (!base) throw new Error("IMPL_TEST_ROOT is required");
+  const root = await mkdtemp(join(base, "test-"));
   const { fakePi, prompt, system, runs } = await scaffoldRun(
     root,
     `#!/usr/bin/env bash
@@ -67,26 +101,26 @@ exit 0
   });
   await new Promise((r) => setTimeout(r, 300));
   const entries = [];
-  for await (const e of Deno.readDir(runs)) {
-    if (e.isDirectory) entries.push(e.name);
+  for (const e of await readdir(runs, { withFileTypes: true })) {
+    if (e.isDirectory()) entries.push(e.name);
   }
   assert.equal(entries.length, 1);
   const runDir = join(runs, entries[0]!);
   const meta = JSON.parse(
-    await Deno.readTextFile(join(runDir, "metadata.json")),
+    await readFile(join(runDir, "metadata.json"), "utf8"),
   ) as RunMetadata;
   assert.equal(meta.executionStatus, "running");
   assert.equal("elapsedMs" in meta, false);
   assert.equal("exitCode" in meta, false);
   assert.equal("finishedAt" in meta, false);
-  await Deno.readTextFile(join(runDir, "events.jsonl"));
+  await readFile(join(runDir, "events.jsonl"), "utf8");
   await helperPromise;
 });
 
-Deno.test("child exit 17 marks metadata failed and preserves exit code", async () => {
-  const base = Deno.env.get("IMPL_TEST_ROOT");
+test("child exit 17 marks metadata failed and preserves exit code", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
   if (!base) throw new Error("IMPL_TEST_ROOT is required");
-  const root = await Deno.makeTempDir({ dir: base });
+  const root = await mkdtemp(join(base, "test-"));
   const { fakePi, prompt, system, runs } = await scaffoldRun(
     root,
     `#!/usr/bin/env bash
@@ -106,19 +140,46 @@ exit 17
   assert.equal(code, 17);
   const runDir = join(
     runs,
-    (await Array.fromAsync(Deno.readDir(runs)))[0]!.name,
+    (await readdir(runs))[0]!,
   );
   const meta = JSON.parse(
-    await Deno.readTextFile(join(runDir, "metadata.json")),
+    await readFile(join(runDir, "metadata.json"), "utf8"),
   ) as RunMetadata;
   assert.equal(meta.exitCode, 17);
   assert.equal(meta.executionStatus, "failed");
 });
 
-Deno.test("invalid stream after valid terminal events fails with child exit 0", async () => {
-  const base = Deno.env.get("IMPL_TEST_ROOT");
+test("SIGTERM child returns and records POSIX status 143", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
   if (!base) throw new Error("IMPL_TEST_ROOT is required");
-  const root = await Deno.makeTempDir({ dir: base });
+  const root = await mkdtemp(join(base, "test-"));
+  const { fakePi, prompt, system, runs } = await scaffoldRun(
+    root,
+    `#!/usr/bin/env bash
+kill -TERM $$
+`,
+  );
+  const code = await runImplEventsHelper({
+    runsRoot: runs,
+    role: "impl.default",
+    resolvedModel: "provider/model:high",
+    promptPath: prompt,
+    systemPromptPath: system,
+    repositoryPath: root,
+    command: [fakePi],
+  });
+  assert.equal(code, 143);
+  const meta = JSON.parse(
+    await readFile(join(runs, (await readdir(runs))[0]!, "metadata.json"), "utf8"),
+  ) as RunMetadata;
+  assert.equal(meta.exitCode, 143);
+  assert.equal(meta.executionStatus, "failed");
+});
+
+test("invalid stream after valid terminal events fails with child exit 0", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
+  if (!base) throw new Error("IMPL_TEST_ROOT is required");
+  const root = await mkdtemp(join(base, "test-"));
   const bigChar = "\u{1F4A9}";
   const repeat = Math.ceil((1_048_577) / bigChar.length) + 1;
   const bigLine = `{"type":"message_update","x":"${bigChar.repeat(repeat)}"}`;
@@ -143,14 +204,14 @@ exit 0
   assert.equal(code, 1);
   const runDir = join(
     runs,
-    (await Array.fromAsync(Deno.readDir(runs)))[0]!.name,
+    (await readdir(runs))[0]!,
   );
   const meta = JSON.parse(
-    await Deno.readTextFile(join(runDir, "metadata.json")),
+    await readFile(join(runDir, "metadata.json"), "utf8"),
   ) as RunMetadata;
   assert.equal(meta.exitCode, 0);
   assert.equal(meta.executionStatus, "failed");
-  const eventsBlob = await Deno.readTextFile(join(runDir, "events.jsonl"));
+  const eventsBlob = await readFile(join(runDir, "events.jsonl"), "utf8");
   assert.equal(eventsBlob.includes("not-json"), false);
   assert.equal(eventsBlob.includes("survived"), false);
 });
@@ -158,10 +219,10 @@ exit 0
 export const IMPL_EVENTS_PRIVACY_CANARY = "CANARY-IMPL-PRIV-7c4e2f91";
 const PRIVACY_CANARY = IMPL_EVENTS_PRIVACY_CANARY;
 
-Deno.test("artifacts exclude canaries; final assistant text only on stdout", async () => {
-  const base = Deno.env.get("IMPL_TEST_ROOT");
+test("artifacts exclude canaries; final assistant text only on stdout", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
   if (!base) throw new Error("IMPL_TEST_ROOT is required");
-  const root = await Deno.makeTempDir({ dir: base });
+  const root = await mkdtemp(join(base, "test-"));
   const canary = PRIVACY_CANARY;
   const { fakePi, prompt, system, runs } = await scaffoldRun(
     root,
@@ -177,14 +238,15 @@ printf '%s\\n' "stderr-${canary}" >&2
 exit 0
 `,
   );
-  await Deno.writeTextFile(prompt, `prompt-${canary}\n`);
-  await Deno.writeTextFile(system, `system-${canary}\n`);
+  await writeFile(prompt, `prompt-${canary}\n`);
+  await writeFile(system, `system-${canary}\n`);
   const stdoutChunks: string[] = [];
-  const origWrite = Deno.stdout.write.bind(Deno.stdout);
-  Deno.stdout.write = (data: Uint8Array) => {
+  const origWrite = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((data: Uint8Array, callback?: (error?: Error | null) => void) => {
     stdoutChunks.push(new TextDecoder().decode(data));
-    return Promise.resolve(data.length);
-  };
+    callback?.();
+    return true;
+  }) as typeof process.stdout.write;
   try {
     const code = await runImplEventsHelper({
       runsRoot: runs,
@@ -197,7 +259,7 @@ exit 0
     });
     assert.equal(code, 0);
   } finally {
-    Deno.stdout.write = origWrite;
+    process.stdout.write = origWrite;
   }
   const stdoutText = stdoutChunks.join("");
   assert.equal(stdoutText, "PUBLIC_OUT\n");
@@ -205,10 +267,10 @@ exit 0
 
   const runDir = join(
     runs,
-    (await Array.fromAsync(Deno.readDir(runs)))[0]!.name,
+    (await readdir(runs))[0]!,
   );
-  const metaRaw = await Deno.readTextFile(join(runDir, "metadata.json"));
-  const eventsRaw = await Deno.readTextFile(join(runDir, "events.jsonl"));
+  const metaRaw = await readFile(join(runDir, "metadata.json"), "utf8");
+  const eventsRaw = await readFile(join(runDir, "events.jsonl"), "utf8");
   for (const blob of [metaRaw, eventsRaw]) {
     assert.equal(blob.includes(canary), false);
     assert.equal(blob.includes("PUBLIC_OUT"), false);
@@ -224,10 +286,10 @@ exit 0
   assert.equal(typeof meta.promptSha256, "string");
 });
 
-Deno.test("trailing invalid utf-8 after settled fails with child exit 0", async () => {
-  const base = Deno.env.get("IMPL_TEST_ROOT");
+test("trailing invalid utf-8 after settled fails with child exit 0", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
   if (!base) throw new Error("IMPL_TEST_ROOT is required");
-  const root = await Deno.makeTempDir({ dir: base });
+  const root = await mkdtemp(join(base, "test-"));
   const { fakePi, prompt, system, runs } = await scaffoldRun(
     root,
     `#!/usr/bin/env bash
@@ -248,28 +310,28 @@ exit 0
   assert.equal(code, 1);
   const runDir = join(
     runs,
-    (await Array.fromAsync(Deno.readDir(runs)))[0]!.name,
+    (await readdir(runs))[0]!,
   );
   const meta = JSON.parse(
-    await Deno.readTextFile(join(runDir, "metadata.json")),
+    await readFile(join(runDir, "metadata.json"), "utf8"),
   ) as RunMetadata;
   assert.equal(meta.exitCode, 0);
   assert.equal(meta.executionStatus, "failed");
 });
 
-Deno.test("resolveCodeProvenance returns unknown when jj and git unavailable", async () => {
-  const base = Deno.env.get("IMPL_TEST_ROOT");
+test("resolveCodeProvenance returns unknown when jj and git unavailable", async () => {
+  const base = process.env.IMPL_TEST_ROOT;
   if (!base) throw new Error("IMPL_TEST_ROOT is required");
-  const root = await Deno.makeTempDir({ dir: base });
+  const root = await mkdtemp(join(base, "test-"));
   const path = join(root, "nowhere");
-  await Deno.mkdir(path);
-  const prevPath = Deno.env.get("PATH") ?? "";
-  Deno.env.set("PATH", "/usr/bin:/bin");
+  await mkdir(path);
+  const prevPath = process.env.PATH ?? "";
+  process.env.PATH = "/usr/bin:/bin";
   try {
     const prov = await resolveCodeProvenance(path);
     assert.equal(prov.revisionKind, "unknown");
     assert.equal(prov.startRevision, undefined);
   } finally {
-    Deno.env.set("PATH", prevPath);
+    process.env.PATH = prevPath;
   }
 });

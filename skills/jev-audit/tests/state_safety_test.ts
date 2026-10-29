@@ -1,5 +1,6 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readPlan } from "../scripts/plan_store.ts";
@@ -8,8 +9,9 @@ import { readWeekResult } from "../scripts/result_store.ts";
 import { SAFE_JSON_ERROR } from "../scripts/state_io.ts";
 
 const AUDIT_SCRIPT = join(import.meta.dirname!, "../scripts/audit.ts");
+import { runFixtureProcess } from "./fixture_process.ts";
 
-Deno.test("corrupted plan JSON yields safe error without invoking runner", async () => {
+test("corrupted plan JSON yields safe error without invoking runner", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-state-"));
   const weekRoot = join(root, "weeks", "2026-09-21");
   await mkdir(weekRoot, { recursive: true, mode: 0o700 });
@@ -24,32 +26,21 @@ Deno.test("corrupted plan JSON yields safe error without invoking runner", async
     return true;
   });
   const countPath = join(root, "invoke.count");
-  const result = await new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "-A",
-      "--no-config",
-      AUDIT_SCRIPT,
-      "run",
-      "--audit-dir",
-      root,
-      "--week",
-      "2026-09-21",
-    ],
-    env: {
-      ...Deno.env.toObject(),
+  const result = await runFixtureProcess(
+    ["run", AUDIT_SCRIPT, "run", "--audit-dir", root, "--week", "2026-09-21"],
+    {
+      ...process.env,
       HOME: root,
       PI_REVIEW_BIN: join(root, "missing-pi"),
       JEV_AUDIT_INVOKE_COUNT: countPath,
     },
-    stderr: "piped",
-  }).output();
+  );
   assert.equal(result.success, false);
-  await assert.rejects(() => Deno.stat(countPath));
+  await assert.rejects(() => stat(countPath));
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("symlink approval file is rejected", async () => {
+test("symlink approval file is rejected", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-symlink-"));
   const approvals = join(root, "approvals");
   await mkdir(approvals, { recursive: true });
@@ -70,7 +61,7 @@ Deno.test("symlink approval file is rejected", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-Deno.test("traversal runId rejected at result read", async () => {
+test("traversal runId rejected at result read", async () => {
   const root = await mkdtemp(join(tmpdir(), "jev-runid-"));
   const weekRoot = join(root, "week");
   await mkdir(join(weekRoot, "results"), { recursive: true });

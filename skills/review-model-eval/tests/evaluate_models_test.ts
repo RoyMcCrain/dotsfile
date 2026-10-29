@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { readdir, stat } from "node:fs/promises";
+import { test } from "bun:test";
+import { runFixtureProcess } from "./fixture_process.ts";
 import {
   mkdir,
   mkdtemp,
@@ -95,26 +98,12 @@ const runHistoryCli = async (
   args: string[],
   env: Record<string, string>,
 ): Promise<{ code: number; stdout: string; stderr: string }> => {
-  const cmd = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "--no-config",
-      "--allow-read",
-      "--allow-write",
-      "--allow-env=HOME,XDG_DATA_HOME",
-      HISTORY_SCRIPT,
-      ...args,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-    env: { ...Deno.env.toObject(), ...env },
+  return runFixtureProcess(process.execPath, [HISTORY_SCRIPT, ...args], {
+    PATH: process.env.PATH,
+    HOME: env.HOME,
+    TMPDIR: env.HOME,
+    XDG_DATA_HOME: env.XDG_DATA_HOME,
   });
-  const out = await cmd.output();
-  return {
-    code: out.code,
-    stdout: new TextDecoder().decode(out.stdout),
-    stderr: new TextDecoder().decode(out.stderr),
-  };
 };
 
 type RunsEnv = { home: string; xdg: string };
@@ -235,28 +224,15 @@ const withTempRuns = async (
 
 const runCli = async (
   args: string[],
-  env?: Record<string, string>,
+  env: Record<string, string> = {},
 ): Promise<{ code: number; stdout: string; stderr: string }> => {
-  const cmd = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "--no-config",
-      "--allow-read",
-      "--allow-write",
-      "--allow-env=HOME,XDG_DATA_HOME",
-      EVAL_SCRIPT,
-      ...args,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-    env: { ...Deno.env.toObject(), ...env },
+  const home = env.HOME ?? tmpdir();
+  return runFixtureProcess(process.execPath, [EVAL_SCRIPT, ...args], {
+    PATH: process.env.PATH,
+    HOME: home,
+    TMPDIR: home,
+    XDG_DATA_HOME: env.XDG_DATA_HOME ?? join(home, "xdg"),
   });
-  const out = await cmd.output();
-  return {
-    code: out.code,
-    stdout: new TextDecoder().decode(out.stdout),
-    stderr: new TextDecoder().decode(out.stderr),
-  };
 };
 
 const runEvalCliWithWatchdog = async (
@@ -266,20 +242,23 @@ const runEvalCliWithWatchdog = async (
 ): Promise<
   { code: number; stdout: string; stderr: string; timedOut: boolean }
 > => {
-  const child = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "--no-config",
-      "--allow-read",
-      "--allow-write",
-      "--allow-env=HOME,XDG_DATA_HOME",
-      EVAL_SCRIPT,
-      ...args,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-    env: { ...Deno.env.toObject(), ...env },
-  }).spawn();
+  const child = Bun.spawn([
+    process.execPath,
+    "--config=/dev/null",
+    "--no-env-file",
+    "--no-install",
+    EVAL_SCRIPT,
+    ...args,
+  ], {
+    stdout: "pipe",
+    stderr: "pipe",
+    env: {
+      PATH: process.env.PATH,
+      HOME: env.HOME,
+      TMPDIR: env.HOME,
+      XDG_DATA_HOME: env.XDG_DATA_HOME,
+    },
+  });
 
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -292,25 +271,47 @@ const runEvalCliWithWatchdog = async (
   }, timeoutMs);
 
   try {
-    const [status, stdout, stderr] = await Promise.all([
-      child.status,
+    const [code, stdout, stderr] = await Promise.all([
+      child.exited,
       new Response(child.stdout).text(),
       new Response(child.stderr).text(),
     ]);
-    return { code: status.code, stdout, stderr, timedOut };
+    return { code, stdout, stderr, timedOut };
   } finally {
     clearTimeout(timer);
-    if (!timedOut) {
-      try {
-        await child.status;
-      } catch {
-        // already reaped
-      }
-    }
   }
 };
 
-Deno.test("validateSnapshot rejects duplicate executions, missing reviews, runId mismatch", () => {
+test("EPERM while reading runs reports a permission diagnostic", async () => {
+  const source = `
+    import { mock } from "bun:test";
+    const fs = await import("node:fs/promises");
+    mock.module("node:fs/promises", () => ({
+      ...fs,
+      readdir: async () => { throw Object.assign(new Error("denied"), { code: "EPERM" }); },
+    }));
+    const { loadSelectedRuns } = await import(${JSON.stringify(EVAL_SCRIPT)});
+    try { await loadSelectedRuns("/private/test-runs"); }
+    catch (error) { console.log(error.message); }
+  `;
+  const child = Bun.spawn([
+    process.execPath,
+    "--config=/dev/null",
+    "--no-env-file",
+    "--no-install",
+    "-e",
+    source,
+  ], { stdout: "pipe", stderr: "pipe" });
+  const [code, stdout, stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
+  assert.equal(code, 0, stderr);
+  assert.equal(stdout.trim(), "runs directory unreadable: /private/test-runs");
+});
+
+test("validateSnapshot rejects duplicate executions, missing reviews, runId mismatch", () => {
   const baseExec = {
     id: "whole-r01",
     backend: "pi",
@@ -388,7 +389,7 @@ Deno.test("validateSnapshot rejects duplicate executions, missing reviews, runId
   );
 });
 
-Deno.test("latest snapshot by savedAt supersedes earlier accepted with later rejected", async () => {
+test("latest snapshot by savedAt supersedes earlier accepted with later rejected", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -410,8 +411,8 @@ Deno.test("latest snapshot by savedAt supersedes earlier accepted with later rej
     });
 
     const snapDir = join(runDir, "snapshots");
-    for await (const entry of Deno.readDir(snapDir)) {
-      await rm(join(snapDir, entry.name));
+    for (const name of await readdir(snapDir)) {
+      await rm(join(snapDir, name));
     }
     const { snapshotPath } = await saveAssessment({
       runDir,
@@ -462,7 +463,7 @@ Deno.test("latest snapshot by savedAt supersedes earlier accepted with later rej
   });
 });
 
-Deno.test("deduplicates issueKey per model and keeps separate models and runs", async () => {
+test("deduplicates issueKey per model and keeps separate models and runs", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const execA = minimalExecution({
       id: "c001-r01",
@@ -554,7 +555,7 @@ Deno.test("deduplicates issueKey per model and keeps separate models and runs", 
   });
 });
 
-Deno.test("conflicts excluded from rates; pending deferred unverified and accepted not fixed", async () => {
+test("conflicts excluded from rates; pending deferred unverified and accepted not fixed", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -640,7 +641,7 @@ Deno.test("conflicts excluded from rates; pending deferred unverified and accept
   });
 });
 
-Deno.test("execution stats distinguish timeout unfinished unparsed no_findings", async () => {
+test("execution stats distinguish timeout unfinished unparsed no_findings", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const executions: ExecutionRecord[] = [
       minimalExecution({ id: "whole-r01", exitCode: 0 }),
@@ -725,7 +726,7 @@ Deno.test("execution stats distinguish timeout unfinished unparsed no_findings",
   });
 });
 
-Deno.test("separates level actor backend effort and coverage comparability", async () => {
+test("separates level actor backend effort and coverage comparability", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const baseline = {
       backend: "pi" as const,
@@ -821,7 +822,7 @@ Deno.test("separates level actor backend effort and coverage comparability", asy
   });
 });
 
-Deno.test("scale2, legacy, and 5-level runs with same numeric level stay separate", async () => {
+test("scale2, legacy, and 5-level runs with same numeric level stay separate", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const model = "provider/model-a:high";
     const actor = { kind: "agent" as const, id: "cursor/integrator:default" };
@@ -926,7 +927,7 @@ Deno.test("scale2, legacy, and 5-level runs with same numeric level stay separat
   });
 });
 
-Deno.test("invalid snapshot in same run excludes entire run without fallback", async () => {
+test("invalid snapshot in same run excludes entire run without fallback", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -957,7 +958,7 @@ Deno.test("invalid snapshot in same run excludes entire run without fallback", a
   });
 });
 
-Deno.test("unsupported schemaVersion in same run excludes entire run", async () => {
+test("unsupported schemaVersion in same run excludes entire run", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -989,7 +990,7 @@ Deno.test("unsupported schemaVersion in same run excludes entire run", async () 
   });
 });
 
-Deno.test("symlink snapshot in same run excludes entire run", async () => {
+test("symlink snapshot in same run excludes entire run", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -1016,7 +1017,7 @@ Deno.test("symlink snapshot in same run excludes entire run", async () => {
   });
 });
 
-Deno.test("comparableForQuality requires same-run peer with matching coverage", async () => {
+test("comparableForQuality requires same-run peer with matching coverage", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const execA = minimalExecution({
       id: "c001-r01",
@@ -1104,7 +1105,7 @@ Deno.test("comparableForQuality requires same-run peer with matching coverage", 
   });
 });
 
-Deno.test("corruption tie duplicate runId symlinks surfaced without stale fallback", async () => {
+test("corruption tie duplicate runId symlinks surfaced without stale fallback", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const healthyExec = minimalExecution();
     const { runDir: healthyRun, runId: healthyRunId } = await setupRunDir(
@@ -1217,7 +1218,7 @@ Deno.test("corruption tie duplicate runId symlinks surfaced without stale fallba
   });
 });
 
-Deno.test("identical duplicate runId across directories counts once", async () => {
+test("identical duplicate runId across directories counts once", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir, runId, metadata } = await setupRunDir({ home, xdg }, [
@@ -1258,7 +1259,7 @@ Deno.test("identical duplicate runId across directories counts once", async () =
   });
 });
 
-Deno.test("empty history produces honest no-data report", async () => {
+test("empty history produces honest no-data report", async () => {
   await withTempRuns(async ({ runsRoot }) => {
     const loaded = await loadSelectedRuns(runsRoot);
     const report = buildReport(loaded, runsRoot);
@@ -1269,7 +1270,7 @@ Deno.test("empty history produces honest no-data report", async () => {
   });
 });
 
-Deno.test("HTML escapes injection strings and omits finding original text", async () => {
+test("HTML escapes injection strings and omits finding original text", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution({
       model: "<script>alert(1)</script>",
@@ -1314,7 +1315,7 @@ Deno.test("HTML escapes injection strings and omits finding original text", asyn
   });
 });
 
-Deno.test("default CLI first invocation with missing history writes no-data report", async () => {
+test("default CLI first invocation with missing history writes no-data report", async () => {
   const home = await mkdtemp(join(tmpdir(), "rme-first-"));
   const xdg = join(home, "data");
   try {
@@ -1323,8 +1324,8 @@ Deno.test("default CLI first invocation with missing history writes no-data repo
     const cliJson = JSON.parse(result.stdout);
     assert.equal(cliJson.selectedRuns, 0);
     assert.equal(cliJson.modelGroups, 0);
-    assert.ok(await Deno.stat(cliJson.jsonPath));
-    assert.ok(await Deno.stat(cliJson.htmlPath));
+    assert.ok(await stat(cliJson.jsonPath));
+    assert.ok(await stat(cliJson.htmlPath));
     const report = JSON.parse(
       await readFile(cliJson.jsonPath, "utf8"),
     ) as EvaluationReport;
@@ -1333,7 +1334,7 @@ Deno.test("default CLI first invocation with missing history writes no-data repo
     assert.match(html, /評価用の履歴がありません/);
     let runsExists = true;
     try {
-      await Deno.stat(join(xdg, "parallel-review", "runs"));
+      await stat(join(xdg, "parallel-review", "runs"));
     } catch {
       runsExists = false;
     }
@@ -1343,7 +1344,7 @@ Deno.test("default CLI first invocation with missing history writes no-data repo
   }
 });
 
-Deno.test("CLI rejects dotdot-named child under runs and symlink alias into runs", async () => {
+test("CLI rejects dotdot-named child under runs and symlink alias into runs", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -1386,7 +1387,7 @@ Deno.test("CLI rejects dotdot-named child under runs and symlink alias into runs
   });
 });
 
-Deno.test("CLI rejects duplicate flags and flag used as value", async () => {
+test("CLI rejects duplicate flags and flag used as value", async () => {
   await withTempRuns(async ({ runsRoot }) => {
     const dup = await runCli(["--runs-dir", runsRoot, "--runs-dir", runsRoot]);
     assert.notEqual(dup.code, 0);
@@ -1398,7 +1399,7 @@ Deno.test("CLI rejects duplicate flags and flag used as value", async () => {
   });
 });
 
-Deno.test("CLI integration writes report refuses existing out and out-under-runs", async () => {
+test("CLI integration writes report refuses existing out and out-under-runs", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -1437,8 +1438,8 @@ Deno.test("CLI integration writes report refuses existing out and out-under-runs
     const cliJson = JSON.parse(good.stdout);
     assert.equal(cliJson.selectedRuns, 1);
     assert.equal(cliJson.modelGroups, 1);
-    assert.ok(await Deno.stat(cliJson.jsonPath));
-    assert.ok(await Deno.stat(cliJson.htmlPath));
+    assert.ok(await stat(cliJson.jsonPath));
+    assert.ok(await stat(cliJson.htmlPath));
     const report = JSON.parse(
       await readFile(cliJson.jsonPath, "utf8"),
     ) as EvaluationReport;
@@ -1448,7 +1449,7 @@ Deno.test("CLI integration writes report refuses existing out and out-under-runs
   });
 });
 
-Deno.test("median elapsed omitted when no successful executions", async () => {
+test("median elapsed omitted when no successful executions", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution({ exitCode: 124, endedAt: ISO_END });
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -1470,7 +1471,7 @@ Deno.test("median elapsed omitted when no successful executions", async () => {
   });
 });
 
-Deno.test("FIFO snapshot candidate excludes run without hanging evaluation child", async () => {
+test("FIFO snapshot candidate excludes run without hanging evaluation child", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir({ home, xdg }, [exec]);
@@ -1483,12 +1484,13 @@ Deno.test("FIFO snapshot candidate excludes run without hanging evaluation child
       }],
     });
     const fifoPath = join(runDir, "snapshots", "blocked.json");
-    const mkfifo = await new Deno.Command("mkfifo", {
-      args: [fifoPath],
-      stdout: "piped",
-      stderr: "piped",
-    }).output();
-    assert.equal(mkfifo.code, 0, new TextDecoder().decode(mkfifo.stderr));
+    const mkfifo = await runFixtureProcess("mkfifo", [fifoPath], {
+      PATH: process.env.PATH,
+      HOME: home,
+      TMPDIR: home,
+      XDG_DATA_HOME: xdg,
+    });
+    assert.equal(mkfifo.code, 0, mkfifo.stderr);
 
     const outDir = join(home, "fifo-eval-out");
     const result = await runEvalCliWithWatchdog(
@@ -1535,7 +1537,7 @@ const metadataWithNestedAltOrder = (
   level: metadata.level,
 });
 
-Deno.test("reordered metadata keys compare structurally for ties and duplicate runId", async () => {
+test("reordered metadata keys compare structurally for ties and duplicate runId", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir, runId, metadata } = await setupRunDir({ home, xdg }, [
@@ -1551,8 +1553,8 @@ Deno.test("reordered metadata keys compare structurally for ties and duplicate r
     });
     const canonical = JSON.parse(await readFile(snapPath, "utf8"));
     const snapDir = join(runDir, "snapshots");
-    for await (const entry of Deno.readDir(snapDir)) {
-      await rm(join(snapDir, entry.name));
+    for (const name of await readdir(snapDir)) {
+      await rm(join(snapDir, name));
     }
 
     const tieSavedAt = ISO_MS1;
@@ -1631,7 +1633,7 @@ Deno.test("reordered metadata keys compare structurally for ties and duplicate r
   });
 });
 
-Deno.test("valid snapshot symlink target still excluded while regular file loads", async () => {
+test("valid snapshot symlink target still excluded while regular file loads", async () => {
   await withTempRuns(async ({ home, xdg, runsRoot }) => {
     const exec = minimalExecution();
     const { runDir: regularRun } = await setupRunDir({ home, xdg }, [exec]);

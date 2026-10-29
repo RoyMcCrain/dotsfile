@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { test } from "bun:test";
+import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   computeAcceptanceVerdict,
@@ -242,45 +246,49 @@ const evalClientHelpers = (
 };
 
 const runCli = async (args: string[]) => {
-  const command = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "--allow-read",
-      "--allow-write",
-      SCRIPT_PATH,
-      ...args,
-    ],
-    stdout: "piped",
-    stderr: "piped",
+  const child = spawn(process.execPath, [
+    "--config=/dev/null",
+    "--no-env-file",
+    "--no-install",
+    "run",
+    SCRIPT_PATH,
+    ...args,
+  ]);
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+  child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+  child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+  const code = await new Promise<number>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (exitCode) => resolve(exitCode ?? 1));
   });
-  const { code, stdout, stderr } = await command.output();
   return {
     code,
-    stdout: new TextDecoder().decode(stdout),
-    stderr: new TextDecoder().decode(stderr),
+    stdout: Buffer.concat(stdout).toString("utf8"),
+    stderr: Buffer.concat(stderr).toString("utf8"),
   };
 };
 
-Deno.test("test_valid_sample_passes", () => {
+test("test_valid_sample_passes", () => {
   const errors = validateReport(structuredClone(SAMPLE_REPORT));
   assert.deepEqual(errors, []);
 });
 
-Deno.test("test_unknown_risk_is_error", () => {
+test("test_unknown_risk_is_error", () => {
   const errors = validateReport({
     groups: [minimalGroup({ risk: "extreme" })],
   });
   assert.ok(errors.some((e) => e.includes("risk must be one of")));
 });
 
-Deno.test("test_missing_risk_reason_is_error", () => {
+test("test_missing_risk_reason_is_error", () => {
   const group = minimalGroup();
   delete (group as Record<string, unknown>).riskReason;
   const errors = validateReport({ groups: [group] });
   assert.ok(errors.some((e) => e.includes("riskReason")));
 });
 
-Deno.test("test_duplicate_ids_are_errors", () => {
+test("test_duplicate_ids_are_errors", () => {
   const report = {
     groups: [
       minimalGroup({
@@ -298,7 +306,7 @@ Deno.test("test_duplicate_ids_are_errors", () => {
   assert.ok(errors.some((e) => e.includes("duplicate finding id")));
 });
 
-Deno.test("test_malformed_types_return_errors_not_crash", () => {
+test("test_malformed_types_return_errors_not_crash", () => {
   const report = {
     reportId: 123,
     title: ["bad"],
@@ -322,21 +330,21 @@ Deno.test("test_malformed_types_return_errors_not_crash", () => {
   assert.ok(errors.some((e) => e.includes("plan must be an object")));
 });
 
-Deno.test("test_nan_risk_score_rejected", () => {
+test("test_nan_risk_score_rejected", () => {
   const errors = validateReport({
     groups: [minimalGroup({ riskScore: NaN })],
   });
   assert.ok(errors.some((e) => e.includes("finite number")));
 });
 
-Deno.test("test_bool_risk_score_rejected", () => {
+test("test_bool_risk_score_rejected", () => {
   const errors = validateReport({
     groups: [minimalGroup({ riskScore: true })],
   });
   assert.ok(errors.some((e) => e.includes("riskScore must be numeric")));
 });
 
-Deno.test("test_diff_explanation_required_unless_needs_improvement", () => {
+test("test_diff_explanation_required_unless_needs_improvement", () => {
   const errors = validateReport({
     groups: [
       minimalGroup({
@@ -349,7 +357,7 @@ Deno.test("test_diff_explanation_required_unless_needs_improvement", () => {
   );
 });
 
-Deno.test("test_diff_needs_improvement_requires_reason", () => {
+test("test_diff_needs_improvement_requires_reason", () => {
   const errors = validateReport({
     groups: [
       minimalGroup({
@@ -364,14 +372,14 @@ Deno.test("test_diff_needs_improvement_requires_reason", () => {
   assert.ok(errors.some((e) => e.includes("improvementReason")));
 });
 
-Deno.test("test_group_needs_improvement_requires_reason", () => {
+test("test_group_needs_improvement_requires_reason", () => {
   const errors = validateReport({
     groups: [minimalGroup({ needsImprovement: true, improvementReason: "" })],
   });
   assert.ok(errors.some((e) => e.includes("needsImprovement=true requires")));
 });
 
-Deno.test("test_finding_required_fields", () => {
+test("test_finding_required_fields", () => {
   const errors = validateReport({
     groups: [
       minimalGroup({
@@ -391,7 +399,7 @@ Deno.test("test_finding_required_fields", () => {
   );
 });
 
-Deno.test("test_blind_plan_only_rejected", () => {
+test("test_blind_plan_only_rejected", () => {
   const errors = validateReport({
     groups: [
       minimalGroup({
@@ -403,7 +411,7 @@ Deno.test("test_blind_plan_only_rejected", () => {
   assert.equal(planOnlyErrors.length, 1);
 });
 
-Deno.test("test_unhashable_risk_source_severity_do_not_crash", () => {
+test("test_unhashable_risk_source_severity_do_not_crash", () => {
   const errors = validateReport({
     groups: [
       minimalGroup({
@@ -417,7 +425,7 @@ Deno.test("test_unhashable_risk_source_severity_do_not_crash", () => {
   assert.ok(errors.some((e) => e.includes(".severity must be one of")));
 });
 
-Deno.test("test_plan_required_fields_when_plan_present", () => {
+test("test_plan_required_fields_when_plan_present", () => {
   let errors = validateReport({ plan: {}, groups: [minimalGroup()] });
   assert.ok(
     errors.some((e) => e.includes("plan missing required field: provided")),
@@ -434,7 +442,7 @@ Deno.test("test_plan_required_fields_when_plan_present", () => {
   assert.ok(errors.some((e) => e.includes("plan.label must be a string")));
 });
 
-Deno.test("test_null_diffs_and_findings_rejected", () => {
+test("test_null_diffs_and_findings_rejected", () => {
   const errors = validateReport({
     groups: [minimalGroup({ diffs: null, findings: null })],
   });
@@ -442,7 +450,7 @@ Deno.test("test_null_diffs_and_findings_rejected", () => {
   assert.ok(errors.some((e) => e.includes("findings must be an array")));
 });
 
-Deno.test("test_secret_path_rejected_monkey_allowed", () => {
+test("test_secret_path_rejected_monkey_allowed", () => {
   const errorsSecret = validateReport({
     groups: [minimalGroup({ files: ["config/.env.local"] })],
   });
@@ -455,7 +463,7 @@ Deno.test("test_secret_path_rejected_monkey_allowed", () => {
   assert.ok(!errorsOk.some((e) => e.includes("secret path")));
 });
 
-Deno.test("test_secret_suffix_paths_rejected", () => {
+test("test_secret_suffix_paths_rejected", () => {
   const errors = validateReport({
     groups: [
       minimalGroup({ diffs: [minimalDiff({ file: "certs/server.pem" })] }),
@@ -464,7 +472,7 @@ Deno.test("test_secret_suffix_paths_rejected", () => {
   assert.ok(errors.some((e) => e.includes("secret path")));
 });
 
-Deno.test("test_risk_order_then_score_then_input_order", () => {
+test("test_risk_order_then_score_then_input_order", () => {
   const sorted = sortGroups(SAMPLE_REPORT.groups);
   assert.deepEqual(
     sorted.map((g) => g.id),
@@ -472,7 +480,7 @@ Deno.test("test_risk_order_then_score_then_input_order", () => {
   );
 });
 
-Deno.test("test_same_risk_sorts_by_risk_score_desc", () => {
+test("test_same_risk_sorts_by_risk_score_desc", () => {
   const groups = [
     { id: "a", risk: "high", riskScore: 10 },
     { id: "b", risk: "high", riskScore: 99 },
@@ -481,7 +489,7 @@ Deno.test("test_same_risk_sorts_by_risk_score_desc", () => {
   assert.deepEqual(sorted.map((g) => g.id), ["b", "a"]);
 });
 
-Deno.test("test_severity_order_then_input_order", () => {
+test("test_severity_order_then_input_order", () => {
   const findings = [
     minimalFinding({ id: "low", severity: "low" }),
     minimalFinding({ id: "critical", severity: "critical" }),
@@ -495,19 +503,19 @@ Deno.test("test_severity_order_then_input_order", () => {
   );
 });
 
-Deno.test("test_explicit_report_id_preserved", () => {
+test("test_explicit_report_id_preserved", () => {
   const report = reportWithoutId({ reportId: "custom-id" });
   assert.equal(defaultReportId(report), "custom-id");
 });
 
-Deno.test("test_deep_copy_same_id", () => {
+test("test_deep_copy_same_id", () => {
   const report = reportWithoutId();
   const copyA = structuredClone(report);
   const copyB = structuredClone(report);
   assert.equal(defaultReportId(copyA), defaultReportId(copyB));
 });
 
-Deno.test("test_review_enrichment_keeps_generated_id", () => {
+test("test_review_enrichment_keeps_generated_id", () => {
   const implementation = implementationOnlyReport();
   const reviewed = {
     ...structuredClone(implementation),
@@ -535,7 +543,7 @@ Deno.test("test_review_enrichment_keeps_generated_id", () => {
   assert.equal(defaultReportId(implementation), defaultReportId(reviewed));
 });
 
-Deno.test("test_review_content_change_keeps_generated_id", () => {
+test("test_review_content_change_keeps_generated_id", () => {
   const base = reportWithoutId({
     groups: [
       minimalGroup({
@@ -549,14 +557,14 @@ Deno.test("test_review_content_change_keeps_generated_id", () => {
   assert.equal(defaultReportId(base), defaultReportId(changed));
 });
 
-Deno.test("test_implementation_content_change_changes_generated_id", () => {
+test("test_implementation_content_change_changes_generated_id", () => {
   const base = implementationOnlyReport();
   const changed = structuredClone(base);
   changed.groups[0].intent = "Changed implementation intent.";
   assert.notEqual(defaultReportId(base), defaultReportId(changed));
 });
 
-Deno.test("test_findings_sorted_by_severity", () => {
+test("test_findings_sorted_by_severity", () => {
   const normalized = normalizeReport({
     groups: [
       minimalGroup({
@@ -573,7 +581,7 @@ Deno.test("test_findings_sorted_by_severity", () => {
   );
 });
 
-Deno.test("test_script_breakout_characters_are_escaped", () => {
+test("test_script_breakout_characters_are_escaped", () => {
   const payload = {
     title: "</script><img src=x onerror=alert(1)>",
     amp: "a&b",
@@ -587,11 +595,11 @@ Deno.test("test_script_breakout_characters_are_escaped", () => {
   assert.equal(parsed.title, payload.title);
 });
 
-Deno.test("test_monkey_ts_allowed", () => {
+test("test_monkey_ts_allowed", () => {
   assert.equal(isSecretPath("src/monkey.ts"), false);
 });
 
-Deno.test("test_env_and_key_suffixes", () => {
+test("test_env_and_key_suffixes", () => {
   assert.equal(isSecretPath(".env"), true);
   assert.equal(isSecretPath("config/.env.local"), true);
   assert.equal(isSecretPath("config/.ENV.LOCAL"), true);
@@ -601,15 +609,17 @@ Deno.test("test_env_and_key_suffixes", () => {
   assert.equal(isSecretPath("home/.ENVRC"), true);
 });
 
-Deno.test("test_env_local_uppercase_rejected_in_validation", () => {
+test("test_env_local_uppercase_rejected_in_validation", () => {
   const errors = validateReport({
     groups: [minimalGroup({ files: ["config/.ENV.LOCAL"] })],
   });
   assert.ok(errors.some((e) => e.includes("secret path")));
 });
 
-Deno.test("test_html_contains_required_ui_labels", () => {
+test("test_html_contains_required_ui_labels", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
+  assert.ok(html.includes("<h2 id=\"implementation-heading\">変更グループ</h2>"));
+  assert.ok(html.includes("<button type=\"button\" id=\"generate-feedback\">フィードバックを生成</button>"));
   for (
     const label of [
       "採用",
@@ -655,7 +665,7 @@ Deno.test("test_html_contains_required_ui_labels", () => {
   }
 });
 
-Deno.test("test_html_typography_and_heading_styles", () => {
+test("test_html_typography_and_heading_styles", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
 
   assert.ok(html.includes('"Hiragino Sans"'));
@@ -727,7 +737,7 @@ Deno.test("test_html_typography_and_heading_styles", () => {
   assert.ok(html.includes("@media (max-width: 640px)"));
 });
 
-Deno.test("test_html_escapes_title", () => {
+test("test_html_escapes_title", () => {
   const report = structuredClone(SAMPLE_REPORT);
   report.title = "<script>alert(1)</script>";
   const html = renderHtml(report);
@@ -735,7 +745,7 @@ Deno.test("test_html_escapes_title", () => {
   assert.ok(html.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
 });
 
-Deno.test("test_placeholder_collision_safety", () => {
+test("test_placeholder_collision_safety", () => {
   const report = structuredClone(SAMPLE_REPORT);
   report.title = "Report __REPORT_JSON__ title";
   const html = renderHtml(report);
@@ -747,7 +757,7 @@ Deno.test("test_placeholder_collision_safety", () => {
   assert.ok(!html.includes("__TITLE__"));
 });
 
-Deno.test("test_initial_comment_state_seeding_present", () => {
+test("test_initial_comment_state_seeding_present", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("createInitialState"));
   assert.ok(html.includes("Object.create(null)"));
@@ -758,25 +768,25 @@ Deno.test("test_initial_comment_state_seeding_present", () => {
   assert.ok(!html.includes("else if (typeof group.initialComment"));
 });
 
-Deno.test("test_finding_cards_map_not_css_selector", () => {
+test("test_finding_cards_map_not_css_selector", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("findingCards"));
   assert.ok(!html.includes("data-finding-id=\"' + findingId"));
 });
 
-Deno.test("test_fallback_copy_try_catch", () => {
+test("test_fallback_copy_try_catch", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("function fallbackCopy(text)"));
   assert.ok(html.includes("} catch (_) {"));
   assert.ok(html.includes("return false;"));
 });
 
-Deno.test("test_copy_regenerates_from_current_state", () => {
+test("test_copy_regenerates_from_current_state", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("const text = generateFeedbackMarkdown()"));
 });
 
-Deno.test("test_empty_groups_and_findings_render", () => {
+test("test_empty_groups_and_findings_render", () => {
   const report = {
     groups: [
       minimalGroup({
@@ -792,7 +802,7 @@ Deno.test("test_empty_groups_and_findings_render", () => {
   assert.ok(html.includes("フィードバックを生成"));
 });
 
-Deno.test("test_request_framing_is_anti_sycophancy", () => {
+test("test_request_framing_is_anti_sycophancy", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(
     html.includes("忖度なしで妥当かどうか精査してください"),
@@ -802,14 +812,14 @@ Deno.test("test_request_framing_is_anti_sycophancy", () => {
   assert.ok(!html.includes("妥当なものを修正してください"));
 });
 
-Deno.test("test_investigate_decision_present", () => {
+test("test_investigate_decision_present", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("investigate: '要調査'"));
   assert.ok(html.includes("'accepted', 'investigate', 'rejected', 'pending'"));
   assert.ok(html.includes("accepted-investigate-pending"));
 });
 
-Deno.test("test_severity_labels_present", () => {
+test("test_severity_labels_present", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("SEVERITY_LABELS"));
   for (const label of ["[重大]", "[警告]", "[注意]", "[情報]"]) {
@@ -817,14 +827,14 @@ Deno.test("test_severity_labels_present", () => {
   }
 });
 
-Deno.test("test_feedback_field_labels_present", () => {
+test("test_feedback_field_labels_present", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("変更グループの意図:"));
   assert.ok(html.includes("場所:"));
   assert.ok(html.includes("改善案:"));
 });
 
-Deno.test("test_overview_section_renders_from_groups", () => {
+test("test_overview_section_renders_from_groups", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes('id="summary-section"'));
   assert.ok(html.includes("function renderSummary()"));
@@ -835,7 +845,7 @@ Deno.test("test_overview_section_renders_from_groups", () => {
   assert.ok(html.includes("finding-location"));
 });
 
-Deno.test("test_mermaid_diagram_support_present", () => {
+test("test_mermaid_diagram_support_present", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("buildOverviewMermaid"));
   assert.ok(html.includes("renderMermaidDiagrams"));
@@ -855,14 +865,14 @@ Deno.test("test_mermaid_diagram_support_present", () => {
   );
 });
 
-Deno.test("test_light_mode_only", () => {
+test("test_light_mode_only", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("color-scheme: light;"));
   assert.ok(!html.includes("prefers-color-scheme: dark"));
   assert.ok(!html.includes("color-scheme: light dark"));
 });
 
-Deno.test("test_custom_diagrams_validated_and_embedded", () => {
+test("test_custom_diagrams_validated_and_embedded", () => {
   const report = {
     ...structuredClone(SAMPLE_REPORT),
     diagrams: [
@@ -879,7 +889,7 @@ Deno.test("test_custom_diagrams_validated_and_embedded", () => {
   assert.ok(html.includes("flowchart LR"));
 });
 
-Deno.test("test_diagrams_require_mermaid", () => {
+test("test_diagrams_require_mermaid", () => {
   const errors = validateReport({
     ...structuredClone(SAMPLE_REPORT),
     diagrams: [{ title: "missing mermaid" }],
@@ -887,7 +897,7 @@ Deno.test("test_diagrams_require_mermaid", () => {
   assert.ok(errors.some((e) => e.includes("mermaid")));
 });
 
-Deno.test("test_diagrams_are_limited_to_two_for_acceptance_reports", () => {
+test("test_diagrams_are_limited_to_two_for_acceptance_reports", () => {
   const errors = validateReport({
     ...acceptanceReport(),
     diagrams: ["one", "two", "three"].map((id) => ({
@@ -903,7 +913,7 @@ Deno.test("test_diagrams_are_limited_to_two_for_acceptance_reports", () => {
   );
 });
 
-Deno.test("test_legacy_report_allows_three_diagrams", () => {
+test("test_legacy_report_allows_three_diagrams", () => {
   const errors = validateReport({
     ...structuredClone(SAMPLE_REPORT),
     diagrams: ["one", "two", "three"].map((id) => ({
@@ -915,7 +925,7 @@ Deno.test("test_legacy_report_allows_three_diagrams", () => {
   assert.deepEqual(errors, []);
 });
 
-Deno.test("test_verifications_validated_and_rendered", () => {
+test("test_verifications_validated_and_rendered", () => {
   const report = {
     ...structuredClone(SAMPLE_REPORT),
     verifications: [
@@ -934,7 +944,7 @@ Deno.test("test_verifications_validated_and_rendered", () => {
   assert.ok(html.includes("裏取り:"));
 });
 
-Deno.test("test_verification_unknown_finding_rejected", () => {
+test("test_verification_unknown_finding_rejected", () => {
   const errors = validateReport({
     ...structuredClone(SAMPLE_REPORT),
     verifications: [
@@ -949,7 +959,7 @@ Deno.test("test_verification_unknown_finding_rejected", () => {
   assert.ok(errors.some((e) => e.includes("unknown finding")));
 });
 
-Deno.test("test_merge_verifications_overrides_by_finding_id", () => {
+test("test_merge_verifications_overrides_by_finding_id", () => {
   const report = {
     ...structuredClone(SAMPLE_REPORT),
     verifications: [
@@ -979,7 +989,7 @@ Deno.test("test_merge_verifications_overrides_by_finding_id", () => {
   );
 });
 
-Deno.test("test_overview_text_field_is_optional", () => {
+test("test_overview_text_field_is_optional", () => {
   const withOverview: Record<string, unknown> = {
     ...structuredClone(SAMPLE_REPORT),
     overview: "認証リネームの独立検証結果。",
@@ -989,24 +999,24 @@ Deno.test("test_overview_text_field_is_optional", () => {
   assert.ok(html.includes("認証リネームの独立検証結果。"));
 });
 
-Deno.test("test_validate_only_success", async () => {
-  const tmp = await Deno.makeTempDir();
+test("test_validate_only_success", async () => {
+  const tmp = await mkdtemp(join(tmpdir(), "report-test-"));
   try {
     const path = join(tmp, "report.json");
-    await Deno.writeTextFile(path, JSON.stringify(SAMPLE_REPORT));
+    await writeFile(path, JSON.stringify(SAMPLE_REPORT));
     const result = await runCli([path, "--validate-only"]);
     assert.equal(result.code, 0);
     assert.ok(result.stdout.includes("valid"));
   } finally {
-    await Deno.remove(tmp, { recursive: true });
+    await rm(tmp, { recursive: true });
   }
 });
 
-Deno.test("test_invalid_input_returns_nonzero", async () => {
-  const tmp = await Deno.makeTempDir();
+test("test_invalid_input_returns_nonzero", async () => {
+  const tmp = await mkdtemp(join(tmpdir(), "report-test-"));
   try {
     const path = join(tmp, "bad.json");
-    await Deno.writeTextFile(
+    await writeFile(
       path,
       JSON.stringify({ groups: [minimalGroup({ risk: "unknown" })] }),
     );
@@ -1014,32 +1024,32 @@ Deno.test("test_invalid_input_returns_nonzero", async () => {
     assert.notEqual(result.code, 0);
     assert.ok(!result.stderr.includes("Traceback"));
   } finally {
-    await Deno.remove(tmp, { recursive: true });
+    await rm(tmp, { recursive: true });
   }
 });
 
-Deno.test("test_missing_file_no_traceback", async () => {
+test("test_missing_file_no_traceback", async () => {
   const result = await runCli(["/nonexistent/report.json", "--validate-only"]);
   assert.notEqual(result.code, 0);
   assert.ok(result.stderr.includes("file not found"));
   assert.ok(!result.stderr.includes("Traceback"));
 });
 
-Deno.test("test_malformed_json_no_traceback", async () => {
-  const tmp = await Deno.makeTempDir();
+test("test_malformed_json_no_traceback", async () => {
+  const tmp = await mkdtemp(join(tmpdir(), "report-test-"));
   try {
     const path = join(tmp, "bad.json");
-    await Deno.writeTextFile(path, "{not json");
+    await writeFile(path, "{not json");
     const result = await runCli([path, "--validate-only"]);
     assert.notEqual(result.code, 0);
     assert.ok(result.stderr.includes("invalid JSON"));
     assert.ok(!result.stderr.includes("Traceback"));
   } finally {
-    await Deno.remove(tmp, { recursive: true });
+    await rm(tmp, { recursive: true });
   }
 });
 
-Deno.test("test_parse_unified_diff_standard_hunk", () => {
+test("test_parse_unified_diff_standard_hunk", () => {
   const patch = [
     "diff --git a/src/app.ts b/src/app.ts",
     "index abc..def 100644",
@@ -1068,7 +1078,7 @@ Deno.test("test_parse_unified_diff_standard_hunk", () => {
   assert.equal(lines[8].newNum, 3);
 });
 
-Deno.test("test_parse_unified_diff_omitted_counts_and_zero", () => {
+test("test_parse_unified_diff_omitted_counts_and_zero", () => {
   const patch = "@@ -1 +1 @@\n-old\n+new\n@@ -5,0 +6,2 @@\n+one\n+two";
   const lines = parseUnifiedDiff(patch);
   assert.equal(lines[0].kind, "hunk");
@@ -1083,7 +1093,7 @@ Deno.test("test_parse_unified_diff_omitted_counts_and_zero", () => {
   assert.equal(lines[5].newNum, 7);
 });
 
-Deno.test("test_parse_unified_diff_crlf_trailing_newline_empty", () => {
+test("test_parse_unified_diff_crlf_trailing_newline_empty", () => {
   assert.deepEqual(splitPatchLines(""), []);
   assert.deepEqual(splitPatchLines("a\r\nb\r\nc\n"), ["a", "b", "c"]);
   assert.deepEqual(splitPatchLines("line\n"), ["line"]);
@@ -1093,7 +1103,7 @@ Deno.test("test_parse_unified_diff_crlf_trailing_newline_empty", () => {
   assert.equal(lines[2].kind, "add");
 });
 
-Deno.test("test_parse_unified_diff_malformed_hunk_and_no_newline", () => {
+test("test_parse_unified_diff_malformed_hunk_and_no_newline", () => {
   const patch = [
     "@@ truncated hunk",
     "+still add",
@@ -1111,7 +1121,7 @@ Deno.test("test_parse_unified_diff_malformed_hunk_and_no_newline", () => {
   assert.equal(lines[4].kind, "meta");
 });
 
-Deno.test("test_parse_unified_diff_file_headers_not_changes", () => {
+test("test_parse_unified_diff_file_headers_not_changes", () => {
   const patch = "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new";
   const lines = parseUnifiedDiff(patch);
   assert.equal(lines[0].kind, "meta");
@@ -1124,7 +1134,7 @@ Deno.test("test_parse_unified_diff_file_headers_not_changes", () => {
   assert.equal(stats.deletions, 1);
 });
 
-Deno.test("test_parse_unified_diff_file_headers_after_completed_hunk_are_meta", () => {
+test("test_parse_unified_diff_file_headers_after_completed_hunk_are_meta", () => {
   const patch = [
     "@@ -1 +1 @@",
     "-old",
@@ -1145,7 +1155,7 @@ Deno.test("test_parse_unified_diff_file_headers_after_completed_hunk_are_meta", 
   assert.equal(stats.deletions, 1);
 });
 
-Deno.test("test_parse_unified_diff_zero_and_one_sided_hunk_line_numbering", () => {
+test("test_parse_unified_diff_zero_and_one_sided_hunk_line_numbering", () => {
   const deletionOnly = parseUnifiedDiff("@@ -4,2 +4,0 @@\n-one\n-two");
   assert.equal(deletionOnly[0].kind, "hunk");
   assert.equal(deletionOnly[1].kind, "del");
@@ -1171,7 +1181,7 @@ Deno.test("test_parse_unified_diff_zero_and_one_sided_hunk_line_numbering", () =
   assert.equal(emptyHunk[2].kind, "meta");
 });
 
-Deno.test("test_parse_unified_diff_inconsistent_overrun_degrades_to_blank_numbers", () => {
+test("test_parse_unified_diff_inconsistent_overrun_degrades_to_blank_numbers", () => {
   const patch = [
     "@@ -1,1 +1,2 @@",
     "-only-old",
@@ -1195,7 +1205,7 @@ Deno.test("test_parse_unified_diff_inconsistent_overrun_degrades_to_blank_number
   assert.equal(lines[5].newNum, null);
 });
 
-Deno.test("test_html_diff_stats_always_show_both_counts_for_nonempty_patch", () => {
+test("test_html_diff_stats_always_show_both_counts_for_nonempty_patch", () => {
   const report = {
     groups: [
       minimalGroup({
@@ -1220,7 +1230,7 @@ Deno.test("test_html_diff_stats_always_show_both_counts_for_nonempty_patch", () 
   assert.ok(!html.includes("stats.additions > 0 || stats.deletions > 0"));
 });
 
-Deno.test("test_html_diff_view_labels_and_no_raw_patch_pre", () => {
+test("test_html_diff_view_labels_and_no_raw_patch_pre", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   for (
     const label of [
@@ -1249,7 +1259,7 @@ Deno.test("test_html_diff_view_labels_and_no_raw_patch_pre", () => {
   assert.ok(!html.includes("pre', 'patch"));
 });
 
-Deno.test("test_html_diff_empty_patch_renders_card", () => {
+test("test_html_diff_empty_patch_renders_card", () => {
   const report = {
     groups: [
       minimalGroup({
@@ -1265,12 +1275,12 @@ Deno.test("test_html_diff_empty_patch_renders_card", () => {
   assert.ok(html.includes("empty.ts"));
 });
 
-Deno.test("test_implementation_only_validates_without_review_fields", () => {
+test("test_implementation_only_validates_without_review_fields", () => {
   const errors = validateReport(implementationOnlyReport());
   assert.deepEqual(errors, []);
 });
 
-Deno.test("test_implementation_only_rejects_nonempty_verifications", () => {
+test("test_implementation_only_rejects_nonempty_verifications", () => {
   const errors = validateReport({
     ...implementationOnlyReport(),
     verifications: [
@@ -1287,7 +1297,7 @@ Deno.test("test_implementation_only_rejects_nonempty_verifications", () => {
   );
 });
 
-Deno.test("test_implementation_only_rejects_malformed_verifications", () => {
+test("test_implementation_only_rejects_malformed_verifications", () => {
   const errors = validateReport({
     ...implementationOnlyReport(),
     verifications: "invalid",
@@ -1295,7 +1305,7 @@ Deno.test("test_implementation_only_rejects_malformed_verifications", () => {
   assert.ok(errors.some((e) => e.includes("verifications must be an array")));
 });
 
-Deno.test("test_performed_review_requires_review_fields", () => {
+test("test_performed_review_requires_review_fields", () => {
   const group = implementationGroup();
   const errors = validateReport({
     review: { performed: true },
@@ -1308,19 +1318,19 @@ Deno.test("test_performed_review_requires_review_fields", () => {
   assert.ok(errors.some((e) => e.includes("missing required field: findings")));
 });
 
-Deno.test("test_legacy_validates_and_normalizes_performed_true", () => {
+test("test_legacy_validates_and_normalizes_performed_true", () => {
   const report = reportWithoutId();
   assert.deepEqual(validateReport(report), []);
   const normalized = normalizeReport(report);
   assert.deepEqual(normalized.review, { performed: true });
 });
 
-Deno.test("test_implementation_only_normalizes_performed_false", () => {
+test("test_implementation_only_normalizes_performed_false", () => {
   const normalized = normalizeReport(implementationOnlyReport());
   assert.deepEqual(normalized.review, { performed: false });
 });
 
-Deno.test("test_html_has_separate_section_ids_and_headings", () => {
+test("test_html_has_separate_section_ids_and_headings", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes('id="summary-section"'));
   assert.ok(html.includes('id="implementation-flow-section"'));
@@ -1336,21 +1346,21 @@ Deno.test("test_html_has_separate_section_ids_and_headings", () => {
   );
 });
 
-Deno.test("test_implementation_only_hides_review_section_and_footer", () => {
+test("test_implementation_only_hides_review_section_and_footer", () => {
   const html = renderHtml(implementationOnlyReport());
   assert.ok(html.includes("reviewSection.hidden = true"));
   assert.ok(html.includes("reviewActions.hidden = true"));
   assert.ok(html.includes("navReviewItem.hidden = true"));
 });
 
-Deno.test("test_reviewed_exposes_review_section_and_footer", () => {
+test("test_reviewed_exposes_review_section_and_footer", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   assert.ok(html.includes("reviewSection.hidden = false"));
   assert.ok(html.includes("reviewActions.hidden = false"));
   assert.ok(html.includes("navReviewItem.hidden = false"));
 });
 
-Deno.test("test_reviewed_zero_findings_shows_no_findings_label", () => {
+test("test_reviewed_zero_findings_shows_no_findings_label", () => {
   const html = renderHtml({
     review: { performed: true },
     groups: [minimalGroup({ findings: [] })],
@@ -1361,7 +1371,7 @@ Deno.test("test_reviewed_zero_findings_shows_no_findings_label", () => {
   assert.ok(reviewBlock.includes("指摘なし"));
 });
 
-Deno.test("test_implementation_and_review_cards_are_separated", () => {
+test("test_implementation_and_review_cards_are_separated", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   const implBlock = html.match(
     /function renderImplementationGroups\(\)[\s\S]*?function renderReviewGroups\(\)/,
@@ -1384,7 +1394,7 @@ Deno.test("test_implementation_and_review_cards_are_separated", () => {
   assert.ok(!reviewBlock.includes("diff-block"));
 });
 
-Deno.test("test_verification_reviewed_behavior_remains", () => {
+test("test_verification_reviewed_behavior_remains", () => {
   const report = {
     ...structuredClone(SAMPLE_REPORT),
     review: { performed: true },
@@ -1404,7 +1414,7 @@ Deno.test("test_verification_reviewed_behavior_remains", () => {
   assert.ok(html.includes("裏取り:"));
 });
 
-Deno.test("test_explicit_report_id_unchanged_after_adding_review", () => {
+test("test_explicit_report_id_unchanged_after_adding_review", () => {
   const implementation = implementationOnlyReport({
     reportId: "custom-id",
     groups: [
@@ -1435,7 +1445,7 @@ Deno.test("test_explicit_report_id_unchanged_after_adding_review", () => {
   assert.equal(defaultReportId(enriched), "custom-id");
 });
 
-Deno.test("test_implementation_only_renders_patch_grounded_diagrams", () => {
+test("test_implementation_only_renders_patch_grounded_diagrams", () => {
   const report = {
     ...implementationOnlyReport(),
     diagrams: [
@@ -1465,7 +1475,7 @@ Deno.test("test_implementation_only_renders_patch_grounded_diagrams", () => {
   assert.ok(!summaryBlock.includes("buildOverviewMermaid"));
 });
 
-Deno.test("test_valid_repository_metadata_passes", () => {
+test("test_valid_repository_metadata_passes", () => {
   const errors = validateReport({
     ...structuredClone(SAMPLE_REPORT),
     repository: minimalRepository(),
@@ -1473,7 +1483,7 @@ Deno.test("test_valid_repository_metadata_passes", () => {
   assert.deepEqual(errors, []);
 });
 
-Deno.test("test_repository_deleted_path_not_in_tracked_files", () => {
+test("test_repository_deleted_path_not_in_tracked_files", () => {
   const errors = validateReport({
     ...structuredClone(SAMPLE_REPORT),
     repository: minimalRepository({
@@ -1484,7 +1494,7 @@ Deno.test("test_repository_deleted_path_not_in_tracked_files", () => {
   assert.deepEqual(errors, []);
 });
 
-Deno.test("test_repository_malformed_types_return_errors", () => {
+test("test_repository_malformed_types_return_errors", () => {
   const errors = validateReport({
     groups: [minimalGroup()],
     repository: {
@@ -1502,7 +1512,7 @@ Deno.test("test_repository_malformed_types_return_errors", () => {
   );
 });
 
-Deno.test("test_repository_invalid_status_is_error", () => {
+test("test_repository_invalid_status_is_error", () => {
   const errors = validateReport({
     groups: [minimalGroup()],
     repository: minimalRepository({
@@ -1516,7 +1526,7 @@ Deno.test("test_repository_invalid_status_is_error", () => {
   );
 });
 
-Deno.test("test_repository_duplicate_tracked_files_is_error", () => {
+test("test_repository_duplicate_tracked_files_is_error", () => {
   const errors = validateReport({
     groups: [minimalGroup()],
     repository: minimalRepository({
@@ -1526,7 +1536,7 @@ Deno.test("test_repository_duplicate_tracked_files_is_error", () => {
   assert.ok(errors.some((e) => e.includes("duplicate tracked file path")));
 });
 
-Deno.test("test_repository_duplicate_change_paths_is_error", () => {
+test("test_repository_duplicate_change_paths_is_error", () => {
   const errors = validateReport({
     groups: [minimalGroup()],
     repository: minimalRepository({
@@ -1539,7 +1549,7 @@ Deno.test("test_repository_duplicate_change_paths_is_error", () => {
   assert.ok(errors.some((e) => e.includes("duplicate change path")));
 });
 
-Deno.test("test_repository_secret_paths_rejected", () => {
+test("test_repository_secret_paths_rejected", () => {
   const errors = validateReport({
     groups: [minimalGroup()],
     repository: minimalRepository({
@@ -1549,7 +1559,7 @@ Deno.test("test_repository_secret_paths_rejected", () => {
   assert.ok(errors.some((e) => e.includes("secret path")));
 });
 
-Deno.test("test_repository_renamed_requires_previous_path", () => {
+test("test_repository_renamed_requires_previous_path", () => {
   const errors = validateReport({
     groups: [minimalGroup()],
     repository: minimalRepository({
@@ -1566,7 +1576,7 @@ Deno.test("test_repository_renamed_requires_previous_path", () => {
   );
 });
 
-Deno.test("test_repository_metadata_does_not_change_generated_id", () => {
+test("test_repository_metadata_does_not_change_generated_id", () => {
   const base = reportWithoutId();
   const withRepo = {
     ...structuredClone(base),
@@ -1584,14 +1594,14 @@ Deno.test("test_repository_metadata_does_not_change_generated_id", () => {
   assert.equal(defaultReportId(base), defaultReportId(changedRepo));
 });
 
-Deno.test("test_report_without_repository_remains_valid", () => {
+test("test_report_without_repository_remains_valid", () => {
   assert.deepEqual(validateReport(reportWithoutId()), []);
   const html = renderHtml(reportWithoutId());
   assert.ok(html.includes('id="repository-map-section"'));
   assert.ok(html.includes("repositoryMapSection.hidden = true"));
 });
 
-Deno.test("test_html_report_shell_and_navigation", () => {
+test("test_html_report_shell_and_navigation", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   for (
     const marker of [
@@ -1612,7 +1622,7 @@ Deno.test("test_html_report_shell_and_navigation", () => {
   }
 });
 
-Deno.test("test_html_summary_conclusion_first", () => {
+test("test_html_summary_conclusion_first", () => {
   const report = {
     ...structuredClone(SAMPLE_REPORT),
     overview: "認証リネームを中心に API と呼び出し側を移行。",
@@ -1629,7 +1639,7 @@ Deno.test("test_html_summary_conclusion_first", () => {
   assert.ok(html.includes("レビュー済み"));
 });
 
-Deno.test("test_html_repository_map_when_present", () => {
+test("test_html_repository_map_when_present", () => {
   const report = {
     ...structuredClone(SAMPLE_REPORT),
     repository: minimalRepository({
@@ -1660,7 +1670,7 @@ Deno.test("test_html_repository_map_when_present", () => {
   assert.ok(!mapBlock.includes("paths[change.previousPath]"));
 });
 
-Deno.test("test_implementation_flow_is_hidden_without_diagrams", () => {
+test("test_implementation_flow_is_hidden_without_diagrams", () => {
   const html = renderHtml(implementationOnlyReport());
   assert.ok(!html.includes("function buildImplementationFlowMermaid()"));
   assert.ok(!html.includes("レポート生成フロー"));
@@ -1681,14 +1691,14 @@ Deno.test("test_implementation_flow_is_hidden_without_diagrams", () => {
   assert.ok(flowBlock.includes("if (!diagrams.length) return"));
 });
 
-Deno.test("test_client_script_source_compiles", () => {
+test("test_client_script_source_compiles", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   const source = extractClientScript(html);
   assert.ok(source.length > 0);
   new Function(source);
 });
 
-Deno.test("test_group_anchor_ids_avoid_normalized_collision", () => {
+test("test_group_anchor_ids_avoid_normalized_collision", () => {
   const report = {
     groups: [
       implementationGroup({ id: "a/b", title: "Slash group" }),
@@ -1711,7 +1721,7 @@ Deno.test("test_group_anchor_ids_avoid_normalized_collision", () => {
   assert.equal(groupAnchorId("a/b"), slashAnchor);
 });
 
-Deno.test("test_repository_helpers_renamed_previous_path_not_tree_leaf", () => {
+test("test_repository_helpers_renamed_previous_path_not_tree_leaf", () => {
   const repository = {
     name: "repo",
     trackedFiles: ["src/new.ts"],
@@ -1747,7 +1757,7 @@ Deno.test("test_repository_helpers_renamed_previous_path_not_tree_leaf", () => {
   assert.deepEqual(treePaths, ["src/new.ts"]);
 });
 
-Deno.test("test_repository_helpers_node_matches_filter", () => {
+test("test_repository_helpers_node_matches_filter", () => {
   const repository = {
     name: "repo",
     trackedFiles: ["src/a.ts", "src/b.ts", "lib/c.ts"],
@@ -1809,7 +1819,7 @@ Deno.test("test_repository_helpers_node_matches_filter", () => {
   assert.equal(srcModified.matches, true);
 });
 
-Deno.test("test_group_file_index_deduplicates_group_refs", () => {
+test("test_group_file_index_deduplicates_group_refs", () => {
   const multiGroupReport = {
     groups: [
       implementationGroup({
@@ -1864,7 +1874,7 @@ Deno.test("test_group_file_index_deduplicates_group_refs", () => {
   assert.equal(singleIndex["shared.ts"][0].id, "g1");
 });
 
-Deno.test("test_html_group_cards_collapsed_with_stable_ids", () => {
+test("test_html_group_cards_collapsed_with_stable_ids", () => {
   const html = renderHtml(structuredClone(SAMPLE_REPORT));
   const implBlock = html.match(
     /function renderImplementationGroups\(\)[\s\S]*?function renderReviewGroups\(\)/,
@@ -1879,11 +1889,11 @@ Deno.test("test_html_group_cards_collapsed_with_stable_ids", () => {
   assert.ok(!implBlock.includes("section.classList.add('expanded')"));
 });
 
-Deno.test("test_valid_acceptance_report_passes", () => {
+test("test_valid_acceptance_report_passes", () => {
   assert.deepEqual(validateReport(acceptanceReport()), []);
 });
 
-Deno.test("test_legacy_report_hides_acceptance_section", () => {
+test("test_legacy_report_hides_acceptance_section", () => {
   const errors = validateReport(implementationOnlyReport());
   assert.deepEqual(errors, []);
   const html = renderHtml(implementationOnlyReport());
@@ -1892,7 +1902,7 @@ Deno.test("test_legacy_report_hides_acceptance_section", () => {
   assert.ok(html.includes("navAcceptanceItem.hidden = true"));
 });
 
-Deno.test("test_only_intent_or_acceptance_rejected", () => {
+test("test_only_intent_or_acceptance_rejected", () => {
   const intentOnly = {
     ...implementationOnlyReport(),
     intent: minimalIntent(),
@@ -1913,7 +1923,7 @@ Deno.test("test_only_intent_or_acceptance_rejected", () => {
   );
 });
 
-Deno.test("test_intent_empty_or_duplicate_requirements_rejected", () => {
+test("test_intent_empty_or_duplicate_requirements_rejected", () => {
   const emptyReqs = validateReport(acceptanceReport({
     intent: minimalIntent({ requirements: [] }),
   }));
@@ -1946,7 +1956,7 @@ Deno.test("test_intent_empty_or_duplicate_requirements_rejected", () => {
   );
 });
 
-Deno.test("test_acceptance_check_coverage_rejected", () => {
+test("test_acceptance_check_coverage_rejected", () => {
   const missingCheck = validateReport(acceptanceReport({
     acceptance: minimalAcceptance({ checks: [] }),
   }));
@@ -1999,7 +2009,7 @@ Deno.test("test_acceptance_check_coverage_rejected", () => {
   );
 });
 
-Deno.test("test_acceptance_invalid_status_kind_verdict_validation_rejected", () => {
+test("test_acceptance_invalid_status_kind_verdict_validation_rejected", () => {
   assert.ok(
     validateReport(acceptanceReport({
       intent: minimalIntent({
@@ -2048,7 +2058,7 @@ Deno.test("test_acceptance_invalid_status_kind_verdict_validation_rejected", () 
   );
 });
 
-Deno.test("test_inconsistent_acceptance_verdict_rejected", () => {
+test("test_inconsistent_acceptance_verdict_rejected", () => {
   const errors = validateReport(acceptanceReport({
     acceptance: minimalAcceptance({ verdict: "fail" }),
   }));
@@ -2057,7 +2067,7 @@ Deno.test("test_inconsistent_acceptance_verdict_rejected", () => {
   );
 });
 
-Deno.test("test_acceptance_missing_or_unverified_requires_evidence_array", () => {
+test("test_acceptance_missing_or_unverified_requires_evidence_array", () => {
   for (const status of ["missing", "unverified"] as const) {
     const omitted = validateReport(acceptanceReport({
       acceptance: minimalAcceptance({
@@ -2090,7 +2100,7 @@ Deno.test("test_acceptance_missing_or_unverified_requires_evidence_array", () =>
   }
 });
 
-Deno.test("test_acceptance_evidence_requirement_and_secret_path_rejected", () => {
+test("test_acceptance_evidence_requirement_and_secret_path_rejected", () => {
   const missingEvidence = validateReport(acceptanceReport({
     acceptance: minimalAcceptance({
       checks: [{
@@ -2131,7 +2141,7 @@ Deno.test("test_acceptance_evidence_requirement_and_secret_path_rejected", () =>
   assert.ok(secretExtra.some((e) => e.includes("secret path")));
 });
 
-Deno.test("test_acceptance_section_renders_verdict_requirements_extras_validations", () => {
+test("test_acceptance_section_renders_verdict_requirements_extras_validations", () => {
   const report = acceptanceReport({
     acceptance: minimalAcceptance({
       verdict: "needs-confirmation",
@@ -2179,7 +2189,7 @@ Deno.test("test_acceptance_section_renders_verdict_requirements_extras_validatio
   assert.ok(html.includes("acceptanceSection.hidden = false"));
 });
 
-Deno.test("test_intent_acceptance_change_report_id_review_enrichment_does_not", () => {
+test("test_intent_acceptance_change_report_id_review_enrichment_does_not", () => {
   const base = acceptanceReport();
   const changedIntent = acceptanceReport({
     intent: minimalIntent({ summary: "Changed intent summary." }),
@@ -2201,7 +2211,7 @@ Deno.test("test_intent_acceptance_change_report_id_review_enrichment_does_not", 
   assert.equal(defaultReportId(base), defaultReportId(reviewed));
 });
 
-Deno.test("test_diagram_evidence_secret_paths_rejected", () => {
+test("test_diagram_evidence_secret_paths_rejected", () => {
   for (
     const evidence of [
       ".env:1",
@@ -2234,7 +2244,7 @@ Deno.test("test_diagram_evidence_secret_paths_rejected", () => {
   assert.deepEqual(ok, []);
 });
 
-Deno.test("test_compute_acceptance_verdict_malformed_elements", () => {
+test("test_compute_acceptance_verdict_malformed_elements", () => {
   assert.equal(
     computeAcceptanceVerdict([null], [], []),
     "needs-confirmation",
@@ -2253,7 +2263,7 @@ Deno.test("test_compute_acceptance_verdict_malformed_elements", () => {
   );
 });
 
-Deno.test("test_compute_acceptance_verdict_empty_validations", () => {
+test("test_compute_acceptance_verdict_empty_validations", () => {
   assert.equal(
     computeAcceptanceVerdict(
       [{ status: "satisfied" }],
@@ -2280,7 +2290,7 @@ Deno.test("test_compute_acceptance_verdict_empty_validations", () => {
   );
 });
 
-Deno.test("test_malformed_acceptance_arrays_return_errors_not_throw", () => {
+test("test_malformed_acceptance_arrays_return_errors_not_throw", () => {
   const malformedChecks = validateReport(acceptanceReport({
     acceptance: minimalAcceptance({ checks: [null] }),
   }));
@@ -2306,7 +2316,7 @@ Deno.test("test_malformed_acceptance_arrays_return_errors_not_throw", () => {
   );
 });
 
-Deno.test("test_diagram_summary_and_evidence_render", () => {
+test("test_diagram_summary_and_evidence_render", () => {
   const report = acceptanceReport({
     diagrams: [{
       id: "flow",

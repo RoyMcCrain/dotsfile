@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
+import { test } from "bun:test";
 import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rm,
+  stat,
   symlink,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { runFixtureProcess } from "./history_fixture_process.ts";
 import {
   getLevelScale,
   parseLevel,
@@ -27,7 +31,8 @@ import {
 
 const SCRIPT_PATH = join(import.meta.dirname!, "../scripts/review_history.ts");
 const SKILL_PATH = join(import.meta.dirname!, "../SKILL.md");
-const REAL_HOME = Deno.env.get("HOME") ?? "";
+const REAL_HOME = process.env.HOME ?? "";
+const processEnv = (): Record<string, string | undefined> => process.env;
 
 type ExecutionRecord = {
   id: string;
@@ -219,21 +224,10 @@ const runCli = async (
   args: string[],
   env?: Record<string, string>,
 ): Promise<{ code: number; stdout: string; stderr: string }> => {
-  const cmd = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "--no-config",
-      "--allow-read",
-      "--allow-write",
-      "--allow-env=HOME,XDG_DATA_HOME",
-      SCRIPT_PATH,
-      ...args,
-    ],
-    stdout: "piped",
-    stderr: "piped",
-    env: { ...Deno.env.toObject(), ...env },
+  const out = await runFixtureProcess(process.execPath, {
+    args: [SCRIPT_PATH, ...args],
+    env: { ...processEnv(), ...env },
   });
-  const out = await cmd.output();
   return {
     code: out.code,
     stdout: new TextDecoder().decode(out.stdout),
@@ -267,17 +261,15 @@ const devboxBashEnv = (): Record<string, string> => {
     REAL_HOME,
     ".local/share/devbox/global/default/.devbox/nix/profile/default/bin",
   );
-  return { PATH: `${devboxBin}:${Deno.env.get("PATH") ?? ""}` };
+  return { PATH: `${devboxBin}:${process.env.PATH ?? ""}` };
 };
 
 const findBash5 = async (): Promise<string> => {
-  const env = { ...Deno.env.toObject(), ...devboxBashEnv() };
-  const out = await new Deno.Command("bash", {
+  const env = { ...processEnv(), ...devboxBashEnv() };
+  const out = await runFixtureProcess("bash", {
     args: ["-c", "echo ${BASH_VERSINFO[0]}"],
-    stdout: "piped",
-    stderr: "piped",
     env,
-  }).output();
+  });
   if (out.code !== 0) {
     throw new Error("bash required for SKILL integration test");
   }
@@ -306,43 +298,43 @@ const extractBashBlock = (markdown: string, marker: string): string => {
 
 const checkBashBlock = async (bash5: string, script: string): Promise<void> => {
   const path = join(tmpdir(), `pr-bash-${crypto.randomUUID()}.sh`);
-  const env = { ...Deno.env.toObject(), ...devboxBashEnv() };
+  const env = { ...processEnv(), ...devboxBashEnv() };
   const wrapped = `#!/usr/bin/env bash\nset -euo pipefail\n${script}\n`;
   await writeFile(path, wrapped, { mode: 0o755 });
   try {
-    const syntax = await new Deno.Command(bash5, {
+    const syntax = await runFixtureProcess(bash5, {
       args: ["-n", path],
       stdout: "piped",
       stderr: "piped",
       env,
-    }).output();
+    });
     assert.equal(syntax.code, 0, new TextDecoder().decode(syntax.stderr));
 
-    const shellcheck = await new Deno.Command("shellcheck", {
+    const shellcheck = await runFixtureProcess("shellcheck", {
       args: ["-x", path],
       stdout: "piped",
       stderr: "piped",
       env,
-    }).output();
+    });
     assert.equal(
       shellcheck.code,
       0,
       new TextDecoder().decode(shellcheck.stderr),
     );
 
-    const shfmt = await new Deno.Command("shfmt", {
+    const shfmt = await runFixtureProcess("shfmt", {
       args: ["-d", path],
       stdout: "piped",
       stderr: "piped",
       env,
-    }).output();
+    });
     assert.equal(shfmt.code, 0, new TextDecoder().decode(shfmt.stdout));
   } finally {
     await rm(path, { force: true });
   }
 };
 
-Deno.test("init creates private run dir with metadata context", async () => {
+test("init creates private run dir with metadata context", async () => {
   await withTempHome(async (home, xdg) => {
     const runsBase = join(xdg, "parallel-review", "runs");
 
@@ -365,8 +357,8 @@ Deno.test("init creates private run dir with metadata context", async () => {
     );
     assert.match(first.runDir, /\/\d{4}-\d{2}-\d{2}-[0-9a-f-]+$/);
 
-    const stat = await Deno.stat(first.runDir);
-    assert.equal(stat.mode! & 0o777, 0o700);
+    const runStat = await stat(first.runDir);
+    assert.equal(runStat.mode & 0o777, 0o700);
 
     const metaRaw = await readFile(join(first.runDir, "metadata.json"), "utf8");
     const meta = JSON.parse(metaRaw);
@@ -381,12 +373,12 @@ Deno.test("init creates private run dir with metadata context", async () => {
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
     );
 
-    const metaStat = await Deno.stat(join(first.runDir, "metadata.json"));
-    assert.equal(metaStat.mode! & 0o777, 0o600);
+    const metaStat = await stat(join(first.runDir, "metadata.json"));
+    assert.equal(metaStat.mode & 0o777, 0o600);
   });
 });
 
-Deno.test("init rejects invalid level and relative XDG_DATA_HOME", async () => {
+test("init rejects invalid level and relative XDG_DATA_HOME", async () => {
   await withTempHome(async (home, xdg) => {
     for (const level of [0, 6]) {
       const out = await runCli([
@@ -444,7 +436,7 @@ Deno.test("init rejects invalid level and relative XDG_DATA_HOME", async () => {
   }
 });
 
-Deno.test("init treats empty XDG_DATA_HOME as absent", async () => {
+test("init treats empty XDG_DATA_HOME as absent", async () => {
   const home = await mkdtemp(join(tmpdir(), "pr-empty-xdg-"));
   try {
     const out = await runCli([
@@ -499,19 +491,12 @@ console.log(JSON.stringify({ runDir, createdAt: metadata.createdAt }));
     { mode: 0o600 },
   );
   try {
-    const out = await new Deno.Command(Deno.execPath(), {
-      args: [
-        "run",
-        "--no-config",
-        "--allow-read",
-        "--allow-write",
-        "--allow-env=HOME,XDG_DATA_HOME",
-        scriptPath,
-      ],
+    const out = await runFixtureProcess(process.execPath, {
+      args: [scriptPath],
       stdout: "piped",
       stderr: "piped",
-      env: { ...Deno.env.toObject(), ...childEnv(home, xdg) },
-    }).output();
+      env: { ...processEnv(), ...childEnv(home, xdg) },
+    });
     assert.equal(out.code, 0, new TextDecoder().decode(out.stderr));
     const parsed = JSON.parse(new TextDecoder().decode(out.stdout).trim()) as {
       runDir: string;
@@ -523,7 +508,7 @@ console.log(JSON.stringify({ runDir, createdAt: metadata.createdAt }));
   }
 };
 
-Deno.test("init and save preserve millisecond precision in ISO UTC timestamps", async () => {
+test("init and save preserve millisecond precision in ISO UTC timestamps", async () => {
   await withTempHome(async (home, xdg) => {
     const fixedInit = await runInitWithFixedDate(home, xdg, ISO_MS);
     assert.equal(fixedInit.createdAt, ISO_MS);
@@ -548,7 +533,7 @@ Deno.test("init and save preserve millisecond precision in ISO UTC timestamps", 
   });
 });
 
-Deno.test("pending execution progresses to running and completed; regression rejected", async () => {
+test("pending execution progresses to running and completed; regression rejected", async () => {
   await withTempHome(async (home, xdg) => {
     let exec = minimalExecution({
       status: "pending",
@@ -603,12 +588,9 @@ Deno.test("pending execution progresses to running and completed; regression rej
     assert.equal(last.executions[0].status, "completed");
 
     const snapDir = join(runDir, "snapshots");
-    const snapPaths = [];
-    for await (const entry of Deno.readDir(snapDir)) {
-      snapPaths.push(join(snapDir, entry.name));
-    }
+    const snapPaths = (await readdir(snapDir)).map((name) => join(snapDir, name));
     snapPaths.sort();
-    const jqLatest = await new Deno.Command("jq", {
+    const jqLatest = await runFixtureProcess("jq", {
       args: [
         "-nr",
         "[inputs | {path: input_filename, savedAt}] | max_by(.savedAt) | .path",
@@ -616,14 +598,14 @@ Deno.test("pending execution progresses to running and completed; regression rej
       ],
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     assert.equal(jqLatest.code, 0, new TextDecoder().decode(jqLatest.stderr));
     assert.equal(
       new TextDecoder().decode(jqLatest.stdout).trim(),
       completedSave.snapshotPath,
     );
 
-    const jqAgg = await new Deno.Command("jq", {
+    const jqAgg = await runFixtureProcess("jq", {
       args: [
         "-r",
         `.executions as $execs |
@@ -636,7 +618,7 @@ Deno.test("pending execution progresses to running and completed; regression rej
       ],
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     assert.equal(jqAgg.code, 0, new TextDecoder().decode(jqAgg.stderr));
     const agg = JSON.parse(new TextDecoder().decode(jqAgg.stdout));
     assert.equal(agg.model, "provider/model-a:high");
@@ -644,7 +626,7 @@ Deno.test("pending execution progresses to running and completed; regression rej
   });
 });
 
-Deno.test("save preserves patch/model hashes and accepted/rejected findings", async () => {
+test("save preserves patch/model hashes and accepted/rejected findings", async () => {
   await withTempHome(async (home, xdg) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir(home, xdg, [exec]);
@@ -690,7 +672,7 @@ Deno.test("save preserves patch/model hashes and accepted/rejected findings", as
   });
 });
 
-Deno.test("save enforces verdict rules for exit codes", async () => {
+test("save enforces verdict rules for exit codes", async () => {
   await withTempHome(async (home, xdg) => {
     const ok = minimalExecution({ id: "whole-r01", exitCode: 0 });
     const fail = minimalExecution({
@@ -728,7 +710,7 @@ Deno.test("save enforces verdict rules for exit codes", async () => {
   });
 });
 
-Deno.test("save rejects missing duplicate and unknown execution IDs", async () => {
+test("save rejects missing duplicate and unknown execution IDs", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await setupRunDir(home, xdg, [minimalExecution()]);
     const base = minimalAssessment("whole-r01", "no_findings");
@@ -777,7 +759,7 @@ Deno.test("save rejects missing duplicate and unknown execution IDs", async () =
   });
 });
 
-Deno.test("save rejects duplicate finding ids and findings on non-findings verdict", async () => {
+test("save rejects duplicate finding ids and findings on non-findings verdict", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await setupRunDir(home, xdg, [minimalExecution()]);
     const finding = {
@@ -812,7 +794,7 @@ Deno.test("save rejects duplicate finding ids and findings on non-findings verdi
   });
 });
 
-Deno.test("save rejects path traversal and symlink escapes on log reads", async () => {
+test("save rejects path traversal and symlink escapes on log reads", async () => {
   await withTempHome(async (home, xdg) => {
     const exec = minimalExecution({
       stdoutLog: "../outside.stdout.log",
@@ -848,7 +830,7 @@ Deno.test("save rejects path traversal and symlink escapes on log reads", async 
   });
 });
 
-Deno.test("save rejects symlink escapes for metadata execution and snapshot JSON reads", async () => {
+test("save rejects symlink escapes for metadata execution and snapshot JSON reads", async () => {
   await withTempHome(async (home, xdg) => {
     const exec = minimalExecution();
     const { runDir } = await setupRunDir(home, xdg, [exec]);
@@ -898,8 +880,7 @@ Deno.test("save rejects symlink escapes for metadata execution and snapshot JSON
       assessment: minimalAssessment("whole-r01", "no_findings"),
     });
     const snapshotsDir = join(runDir3, "snapshots");
-    const snapshotName = (await Array.fromAsync(Deno.readDir(snapshotsDir)))[0]
-      .name;
+    const snapshotName = (await readdir(snapshotsDir))[0];
     const outsideSnapshot = join(home, "outside-snapshot.json");
     await writeFile(
       outsideSnapshot,
@@ -920,7 +901,7 @@ Deno.test("save rejects symlink escapes for metadata execution and snapshot JSON
   });
 });
 
-Deno.test("save preserves prior snapshot and rejects identity tampering", async () => {
+test("save preserves prior snapshot and rejects identity tampering", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await setupRunDir(home, xdg, [minimalExecution()]);
     const finding = {
@@ -955,10 +936,7 @@ Deno.test("save preserves prior snapshot and rejects identity tampering", async 
 
     assert.notEqual(first.snapshotPath, second.snapshotPath);
     const snapshotsDir = join(runDir, "snapshots");
-    const entries = [];
-    for await (const entry of Deno.readDir(snapshotsDir)) {
-      entries.push(entry.name);
-    }
+    const entries = await readdir(snapshotsDir);
     assert.equal(entries.length, 2);
 
     await assert.rejects(
@@ -1016,7 +994,7 @@ Deno.test("save preserves prior snapshot and rejects identity tampering", async 
   });
 });
 
-Deno.test("save rejects tampering completed no_findings execution", async () => {
+test("save rejects tampering completed no_findings execution", async () => {
   await withTempHome(async (home, xdg) => {
     const execA = minimalExecution({ id: "whole-r01" });
     const execB = minimalExecution({
@@ -1054,7 +1032,7 @@ Deno.test("save rejects tampering completed no_findings execution", async () => 
   });
 });
 
-Deno.test("save rejects removed execution after prior snapshot", async () => {
+test("save rejects removed execution after prior snapshot", async () => {
   await withTempHome(async (home, xdg) => {
     const execA = minimalExecution({ id: "whole-r01" });
     const execB = minimalExecution({
@@ -1087,7 +1065,7 @@ Deno.test("save rejects removed execution after prior snapshot", async () => {
   });
 });
 
-Deno.test("save rejects metadata level and revision changes across snapshots", async () => {
+test("save rejects metadata level and revision changes across snapshots", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await setupRunDir(home, xdg, [minimalExecution()]);
     await saveAssessment({
@@ -1122,7 +1100,7 @@ Deno.test("save rejects metadata level and revision changes across snapshots", a
   });
 });
 
-Deno.test("save requires evidence for confirmed/contradicted and fixed action", async () => {
+test("save requires evidence for confirmed/contradicted and fixed action", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await setupRunDir(home, xdg, [minimalExecution()]);
     const baseFinding = {
@@ -1162,7 +1140,7 @@ Deno.test("save requires evidence for confirmed/contradicted and fixed action", 
   });
 });
 
-Deno.test("save rejects malformed execution and assessment fields", async () => {
+test("save rejects malformed execution and assessment fields", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await setupRunDir(home, xdg, [minimalExecution()]);
 
@@ -1237,7 +1215,7 @@ Deno.test("save rejects malformed execution and assessment fields", async () => 
   });
 });
 
-Deno.test("save rejects malformed numeric and enum coercion inputs", async () => {
+test("save rejects malformed numeric and enum coercion inputs", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await setupRunDir(home, xdg, [minimalExecution()]);
     const unavailable = minimalAssessment("whole-r01", "unavailable");
@@ -1372,7 +1350,7 @@ Deno.test("save rejects malformed numeric and enum coercion inputs", async () =>
   });
 });
 
-Deno.test("save rejects empty executions", async () => {
+test("save rejects empty executions", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await initRunViaCli(home, xdg, {
       repository: "/tmp/r",
@@ -1392,7 +1370,7 @@ Deno.test("save rejects empty executions", async () => {
   });
 });
 
-Deno.test("save combined snapshot covers all chunk executions with issueKey overlap", async () => {
+test("save combined snapshot covers all chunk executions with issueKey overlap", async () => {
   await withTempHome(async (home, xdg) => {
     const whole = minimalExecution({
       id: "whole-r01",
@@ -1550,7 +1528,7 @@ Deno.test("save combined snapshot covers all chunk executions with issueKey over
   });
 });
 
-Deno.test("CLI rejects unknown duplicate and positional args", async () => {
+test("CLI rejects unknown duplicate and positional args", async () => {
   await withTempHome(async (home, xdg) => {
     const unknown = await runCli([
       "init",
@@ -1619,7 +1597,7 @@ Deno.test("CLI rejects unknown duplicate and positional args", async () => {
   });
 });
 
-Deno.test("parseLevel accepts 1-5 and rejects coercion", () => {
+test("parseLevel accepts 1-5 and rejects coercion", () => {
   for (const n of [1, 2, 3, 4, 5]) {
     assert.equal(parseLevel(n), n);
     assert.equal(parseLevel(String(n)), n);
@@ -1629,7 +1607,7 @@ Deno.test("parseLevel accepts 1-5 and rejects coercion", () => {
   }
 });
 
-Deno.test("getLevelScale and metadata levelScale validation", () => {
+test("getLevelScale and metadata levelScale validation", () => {
   assert.equal(getLevelScale({}), 3);
   assert.equal(getLevelScale({ levelScale: 3 }), 3);
   assert.equal(getLevelScale({ levelScale: 5 }), 5);
@@ -1641,7 +1619,7 @@ Deno.test("getLevelScale and metadata levelScale validation", () => {
   }
 });
 
-Deno.test("validateSnapshot rejects legacy level 4/5 and scale mismatches", () => {
+test("validateSnapshot rejects legacy level 4/5 and scale mismatches", () => {
   const baseExec = {
     id: "whole-r01",
     backend: "pi",
@@ -1739,7 +1717,7 @@ Deno.test("validateSnapshot rejects legacy level 4/5 and scale mismatches", () =
   }
 });
 
-Deno.test("CLI init and save smoke", async () => {
+test("CLI init and save smoke", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir, metadata } = await initRunViaCli(home, xdg, {
       repository: "/tmp/repo",
@@ -1765,7 +1743,7 @@ Deno.test("CLI init and save smoke", async () => {
   });
 });
 
-Deno.test("CLI init and save for level 4 and 5 embeds levelScale 5 in metadata and snapshot", async () => {
+test("CLI init and save for level 4 and 5 embeds levelScale 5 in metadata and snapshot", async () => {
   for (const level of [4, 5] as const) {
     await withTempHome(async (home, xdg) => {
       const { runDir, metadata } = await initRunViaCli(home, xdg, {
@@ -1797,7 +1775,7 @@ Deno.test("CLI init and save for level 4 and 5 embeds levelScale 5 in metadata a
   }
 });
 
-Deno.test("legacy metadata without levelScale survives saves and rejects levelScale mutation", async () => {
+test("legacy metadata without levelScale survives saves and rejects levelScale mutation", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await initRunViaCli(home, xdg, {
       repository: "/tmp/repo",
@@ -1893,13 +1871,13 @@ printf 'CHUNK_ID=%s\\n' "\${CHUNK_ID:-}"
 printf 'CHUNK_FILE=%s\\n' "\${CHUNK_FILE:-}"
 ${chunksReport}`;
   await writeFile(scriptPath, script, { mode: 0o755 });
-  const env = { ...Deno.env.toObject(), ...devboxBashEnv() };
-  const out = await new Deno.Command(bash5, {
+  const env = { ...processEnv(), ...devboxBashEnv() };
+  const out = await runFixtureProcess(bash5, {
     args: [scriptPath],
     stdout: "piped",
     stderr: "piped",
     env,
-  }).output();
+  });
   try {
     return {
       code: out.code,
@@ -1921,7 +1899,7 @@ const buildLargeTwoFilePatch = (sectionPayloadBytes: number): Uint8Array => {
   return new TextEncoder().encode(section("a.txt") + section("b.txt"));
 };
 
-Deno.test("SKILL chunk split block: splitter failure exits before using paths", async () => {
+test("SKILL chunk split block: splitter failure exits before using paths", async () => {
   const work = await mkdtemp(join(tmpdir(), "pr-chunk-fail-"));
   const reviewDir = join(work, "review");
   await mkdir(join(reviewDir, "chunks"), { recursive: true });
@@ -1949,7 +1927,7 @@ Deno.test("SKILL chunk split block: splitter failure exits before using paths", 
   }
 });
 
-Deno.test("SKILL chunk split block: numeric passes max-bytes, none skips splitter", async () => {
+test("SKILL chunk split block: numeric passes max-bytes, none skips splitter", async () => {
   const work = await mkdtemp(join(tmpdir(), "pr-chunk-args-"));
   const reviewDir = join(work, "review");
   await mkdir(reviewDir, { recursive: true });
@@ -1999,7 +1977,7 @@ Deno.test("SKILL chunk split block: numeric passes max-bytes, none skips splitte
   }
 });
 
-Deno.test("SKILL chunk split block: unknown choice fails before splitter", async () => {
+test("SKILL chunk split block: unknown choice fails before splitter", async () => {
   const work = await mkdtemp(join(tmpdir(), "pr-chunk-bad-"));
   const reviewDir = join(work, "review");
   await mkdir(reviewDir, { recursive: true });
@@ -2023,7 +2001,7 @@ Deno.test("SKILL chunk split block: unknown choice fails before splitter", async
   }
 });
 
-Deno.test("SKILL chunk split block: real splitter two ~9KB sections", async () => {
+test("SKILL chunk split block: real splitter two ~9KB sections", async () => {
   const work = await mkdtemp(join(tmpdir(), "pr-chunk-real-"));
   const reviewDir = join(work, "review");
   await mkdir(reviewDir, { recursive: true });
@@ -2063,7 +2041,7 @@ Deno.test("SKILL chunk split block: real splitter two ~9KB sections", async () =
   }
 });
 
-Deno.test("SKILL bash blocks pass bash -n shellcheck and shfmt", async () => {
+test("SKILL bash blocks pass bash -n shellcheck and shfmt", async () => {
   const skill = await readFile(SKILL_PATH, "utf8");
   const bash5 = await findBash5();
   const blocks = [
@@ -2078,7 +2056,7 @@ Deno.test("SKILL bash blocks pass bash -n shellcheck and shfmt", async () => {
   }
 });
 
-Deno.test("SKILL bash loop integration with fake resolver and runner", async () => {
+test("SKILL bash loop integration with fake resolver and runner", async () => {
   await withTempHome(async (home, xdg) => {
     const work = await mkdtemp(join(tmpdir(), "pr-work-"));
     const bin = join(work, "bin");
@@ -2145,10 +2123,10 @@ esac
       mode: 0o600,
     });
 
-    const resolverOut = await new Deno.Command(fakeResolver, {
+    const resolverOut = await runFixtureProcess(fakeResolver, {
       args: ["--review-level", "2"],
       stdout: "piped",
-    }).output();
+    });
     assert.equal(resolverOut.code, 0);
     const reviewers = new TextDecoder().decode(resolverOut.stdout).trim();
     assert.match(reviewers, /provider\/model-a:high/);
@@ -2166,7 +2144,7 @@ esac
     );
 
     const bash5 = await findBash5();
-    const bashEnv = { ...Deno.env.toObject(), ...devboxBashEnv() };
+    const bashEnv = { ...processEnv(), ...devboxBashEnv() };
 
     const runChunk = async (chunkId: string, chunkFile: string) => {
       const script = `#!/usr/bin/env bash
@@ -2180,20 +2158,20 @@ ${loopSnippet}
       const scriptPath = join(work, `run-${chunkId}.sh`);
       await writeFile(scriptPath, script, { mode: 0o755 });
 
-      const syntax = await new Deno.Command(bash5, {
+      const syntax = await runFixtureProcess(bash5, {
         args: ["-n", scriptPath],
         stdout: "piped",
         stderr: "piped",
         env: bashEnv,
-      }).output();
+      });
       assert.equal(syntax.code, 0, new TextDecoder().decode(syntax.stderr));
 
-      const run = await new Deno.Command(bash5, {
+      const run = await runFixtureProcess(bash5, {
         args: [scriptPath],
         stdout: "piped",
         stderr: "piped",
         env: bashEnv,
-      }).output();
+      });
       return {
         code: run.code,
         stderr: new TextDecoder().decode(run.stderr),
@@ -2285,12 +2263,12 @@ ${loopSnippet}
 `;
     const refusePath = join(work, "refuse-rerun.sh");
     await writeFile(refusePath, refuseScript, { mode: 0o755 });
-    const refuse = await new Deno.Command(bash5, {
+    const refuse = await runFixtureProcess(bash5, {
       args: [refusePath],
       stdout: "piped",
       stderr: "piped",
       env: bashEnv,
-    }).output();
+    });
     assert.notEqual(refuse.code, 0);
     assert.match(
       new TextDecoder().decode(refuse.stderr),
@@ -2305,7 +2283,7 @@ ${loopSnippet}
     const boundaryRun = await runChunk(boundaryChunk, "changes.patch");
     assert.equal(boundaryRun.code, 0, boundaryRun.stderr);
     assert.ok(
-      await Deno.stat(
+      await stat(
         join(reviewDir, "executions", `${boundaryChunk}-r01.json`),
       ),
     );
@@ -2316,13 +2294,13 @@ ${loopSnippet}
     assert.match(tooLongRun.stderr, /execution ID too long/);
     assert.doesNotMatch(tooLongRun.stderr, /review-a-/);
     assert.equal(
-      await Deno.stat(join(reviewDir, "executions", `${tooLongChunk}-r01.json`))
+      await stat(join(reviewDir, "executions", `${tooLongChunk}-r01.json`))
         .then(() => true)
         .catch(() => false),
       false,
     );
     assert.equal(
-      await Deno.stat(join(reviewDir, "logs", `${tooLongChunk}-r01.stdout.log`))
+      await stat(join(reviewDir, "logs", `${tooLongChunk}-r01.stdout.log`))
         .then(() => true)
         .catch(() => false),
       false,
@@ -2355,12 +2333,12 @@ exit 9
 `;
     const manyPath = join(work, "many-reviewers.sh");
     await writeFile(manyPath, manyScript, { mode: 0o755 });
-    const manyRun = await new Deno.Command(bash5, {
+    const manyRun = await runFixtureProcess(bash5, {
       args: [manyPath],
       stdout: "piped",
       stderr: "piped",
       env: bashEnv,
-    }).output();
+    });
     assert.notEqual(manyRun.code, 0);
     assert.match(
       new TextDecoder().decode(manyRun.stderr),
@@ -2375,7 +2353,7 @@ exit 9
   });
 });
 
-Deno.test("extractBashBlock rejects missing marker opening and closing fences", () => {
+test("extractBashBlock rejects missing marker opening and closing fences", () => {
   const skill = "# heading\n\n```bash\necho ok\n```\n";
   assert.throws(
     () => extractBashBlock(skill, "## missing"),
@@ -2393,10 +2371,7 @@ Deno.test("extractBashBlock rejects missing marker opening and closing fences", 
 });
 
 const listSnapshotDirEntries = async (snapDir: string): Promise<string[]> => {
-  const names: string[] = [];
-  for await (const entry of Deno.readDir(snapDir)) {
-    names.push(entry.name);
-  }
+  const names = await readdir(snapDir);
   return names.sort();
 };
 
@@ -2419,7 +2394,7 @@ const runSaveUnderFileLimit = async (
   options: { ignoreSigxfsz: boolean },
 ): Promise<{ code: number; stderr: string }> => {
   const bash5 = await findBash5();
-  const bashEnv = { ...Deno.env.toObject(), ...devboxBashEnv() };
+  const bashEnv = { ...processEnv(), ...devboxBashEnv() };
   const failScript = join(tmpdir(), `pr-ulimit-${crypto.randomUUID()}.sh`);
   const sigTrap = options.ignoreSigxfsz ? "trap '' SIGXFSZ" : "";
   await writeFile(
@@ -2430,22 +2405,20 @@ ulimit -c 0
 ulimit -f 8
 ${sigTrap}
 exec ${
-      JSON.stringify(Deno.execPath())
-    } run --no-config --allow-read --allow-write --allow-env=HOME,XDG_DATA_HOME ${
-      JSON.stringify(SCRIPT_PATH)
-    } save --dir ${JSON.stringify(runDir)} --input ${
+      JSON.stringify(process.execPath)
+    } ${JSON.stringify(SCRIPT_PATH)} save --dir ${JSON.stringify(runDir)} --input ${
       JSON.stringify(assessmentPath)
     }
 `,
     { mode: 0o755 },
   );
   try {
-    const failed = await new Deno.Command(bash5, {
+    const failed = await runFixtureProcess(bash5, {
       args: [failScript],
       stdout: "piped",
       stderr: "piped",
       env: { ...bashEnv, ...childEnv(home, xdg) },
-    }).output();
+    });
     return {
       code: failed.code,
       stderr: new TextDecoder().decode(failed.stderr),
@@ -2455,7 +2428,7 @@ exec ${
   }
 };
 
-Deno.test("save publishes snapshots atomically when write is interrupted", async () => {
+test("save publishes snapshots atomically when write is interrupted", async () => {
   await withTempHome(async (home, xdg) => {
     const execA = minimalExecution({ id: "whole-r01" });
     const execB = minimalExecution({
@@ -2486,9 +2459,9 @@ Deno.test("save publishes snapshots atomically when write is interrupted", async
     });
     const firstBytes = await readFile(first.snapshotPath);
     const snapDir = join(runDir, "snapshots");
-    const snapStat = await Deno.stat(snapDir);
+    const snapStat = await stat(snapDir);
     assert.equal(snapStat.mode! & 0o777, 0o700);
-    const firstFileStat = await Deno.stat(first.snapshotPath);
+    const firstFileStat = await stat(first.snapshotPath);
     assert.equal(firstFileStat.mode! & 0o777, 0o600);
 
     const enlargedAssessment = multiAssessment([
@@ -2570,12 +2543,12 @@ Deno.test("save publishes snapshots atomically when write is interrupted", async
       new TextDecoder().decode(await readFile(first.snapshotPath)),
       new TextDecoder().decode(firstBytes),
     );
-    const secondStat = await Deno.stat(second.snapshotPath);
+    const secondStat = await stat(second.snapshotPath);
     assert.equal(secondStat.mode! & 0o777, 0o600);
   });
 });
 
-Deno.test("scale2 init CLI roundtrip preserves decision and snapshot metadata", async () => {
+test("scale2 init CLI roundtrip preserves decision and snapshot metadata", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("scale2 patch\n");
     const patchPath = join(home, "staging.patch");
@@ -2624,7 +2597,7 @@ Deno.test("scale2 init CLI roundtrip preserves decision and snapshot metadata", 
   });
 });
 
-Deno.test("scale2 init CLI rejects out-of-range and noncanonical scales", async () => {
+test("scale2 init CLI rejects out-of-range and noncanonical scales", async () => {
   await withTempHome(async (home, xdg) => {
     const run = (level: string, scale: string) =>
       runCli([
@@ -2649,13 +2622,13 @@ Deno.test("scale2 init CLI rejects out-of-range and noncanonical scales", async 
     assert.notEqual(unsupported.code, 0);
     assert.match(unsupported.stderr, /level-scale must be 2, 3, or 5/);
     await assert.rejects(
-      () => Deno.stat(join(xdg, "parallel-review")),
-      Deno.errors.NotFound,
+      () => stat(join(xdg, "parallel-review")),
+      (error: NodeJS.ErrnoException) => error.code === "ENOENT",
     );
   });
 });
 
-Deno.test("levelDecision: init CLI roundtrip and snapshot preservation", async () => {
+test("levelDecision: init CLI roundtrip and snapshot preservation", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff for decision\n");
     const patchPath = join(home, "staging.patch");
@@ -2703,7 +2676,7 @@ Deno.test("levelDecision: init CLI roundtrip and snapshot preservation", async (
   });
 });
 
-Deno.test("levelDecision: rejects mismatch at init and save", async () => {
+test("levelDecision: rejects mismatch at init and save", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("same patch\n");
     const decision = buildExplicitDecision({
@@ -2757,7 +2730,7 @@ Deno.test("levelDecision: rejects mismatch at init and save", async () => {
   });
 });
 
-Deno.test("validateSnapshot rejects levelDecision patch hash mismatch", () => {
+test("validateSnapshot rejects levelDecision patch hash mismatch", () => {
   const patchSha = "d".repeat(64);
   const otherSha = "e".repeat(64);
   const decision = buildExplicitDecision({
@@ -2816,7 +2789,7 @@ Deno.test("validateSnapshot rejects levelDecision patch hash mismatch", () => {
   );
 });
 
-Deno.test("validateSnapshot rejects null levelDecision and metadata level mismatch", () => {
+test("validateSnapshot rejects null levelDecision and metadata level mismatch", () => {
   const patchSha = "a".repeat(64);
   const base = {
     schemaVersion: 1,
@@ -2900,7 +2873,7 @@ Deno.test("validateSnapshot rejects null levelDecision and metadata level mismat
   );
 });
 
-Deno.test("save rejects metadata level mismatch with levelDecision", async () => {
+test("save rejects metadata level mismatch with levelDecision", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("patch\n");
     const patchSha = sha256Bytes(patchBytes);
@@ -2964,15 +2937,15 @@ Deno.test("save rejects metadata level mismatch with levelDecision", async () =>
     const snapshotsDir = join(runDir, "snapshots");
     try {
       let snapshotCount = 0;
-      for await (const _ of Deno.readDir(snapshotsDir)) snapshotCount++;
+      snapshotCount = (await readdir(snapshotsDir)).length;
       assert.equal(snapshotCount, 0);
     } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
   });
 });
 
-Deno.test("low_confidence levelDecision history roundtrip", async () => {
+test("low_confidence levelDecision history roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");
     const decision = buildFallbackDecision({
@@ -3021,7 +2994,7 @@ Deno.test("low_confidence levelDecision history roundtrip", async () => {
   });
 });
 
-Deno.test("levelDecision chunking: init and snapshot roundtrip", async () => {
+test("levelDecision chunking: init and snapshot roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff for chunking\n");
     const decision = buildExplicitDecision({
@@ -3070,7 +3043,7 @@ Deno.test("levelDecision chunking: init and snapshot roundtrip", async () => {
   });
 });
 
-Deno.test("levelDecision chunking: mixed depth jev and chunk fallback roundtrip", async () => {
+test("levelDecision chunking: mixed depth jev and chunk fallback roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");
     const decision = {
@@ -3130,7 +3103,7 @@ Deno.test("levelDecision chunking: mixed depth jev and chunk fallback roundtrip"
   });
 });
 
-Deno.test("levelDecision rejects invalid nested chunking at init", async () => {
+test("levelDecision rejects invalid nested chunking at init", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("x\n");
     const decision = {
@@ -3164,7 +3137,7 @@ Deno.test("levelDecision rejects invalid nested chunking at init", async () => {
   });
 });
 
-Deno.test("legacy metadata without levelDecision still validates", async () => {
+test("legacy metadata without levelDecision still validates", async () => {
   await withTempHome(async (home, xdg) => {
     const { runDir } = await initRunViaCli(home, xdg, {
       repository: "/tmp/repo",
@@ -3214,23 +3187,13 @@ const runDecisionsCli = async (
   args: string[],
   env?: Record<string, string>,
 ): Promise<{ code: number; stdout: string; stderr: string }> => {
-  const permissions = args.some((a) => a === "--runs-dir")
-    ? ["--allow-read"]
-    : ["--allow-read", "--allow-env=HOME,XDG_DATA_HOME"];
-  const cmd = new Deno.Command(Deno.execPath(), {
-    args: [
-      "run",
-      "--no-config",
-      ...permissions,
-      SCRIPT_PATH,
-      "decisions",
-      ...args,
-    ],
+  const cmd = runFixtureProcess(process.execPath, {
+    args: [SCRIPT_PATH, "decisions", ...args],
     stdout: "piped",
     stderr: "piped",
-    env: { ...Deno.env.toObject(), ...env },
+    env: { ...processEnv(), ...env },
   });
-  const out = await cmd.output();
+  const out = await cmd;
   return {
     code: out.code,
     stdout: new TextDecoder().decode(out.stdout),
@@ -3238,7 +3201,7 @@ const runDecisionsCli = async (
   };
 };
 
-Deno.test("levelDecision contextSha256 init and snapshot roundtrip", async () => {
+test("levelDecision contextSha256 init and snapshot roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");
     const ctxHash = "c".repeat(64);
@@ -3304,7 +3267,7 @@ Deno.test("levelDecision contextSha256 init and snapshot roundtrip", async () =>
   });
 });
 
-Deno.test("levelDecision probabilities init and snapshot roundtrip", async () => {
+test("levelDecision probabilities init and snapshot roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");
     const decision = buildJevDecision({
@@ -3352,7 +3315,7 @@ Deno.test("levelDecision probabilities init and snapshot roundtrip", async () =>
   });
 });
 
-Deno.test("levelDecision httpStatuses init, snapshot, and decisions roundtrip", async () => {
+test("levelDecision httpStatuses init, snapshot, and decisions roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff for status trace\n");
     const decision = {
@@ -3418,7 +3381,7 @@ Deno.test("levelDecision httpStatuses init, snapshot, and decisions roundtrip", 
   });
 });
 
-Deno.test("low_confidence probabilities preserved in metadata without snapshot", async () => {
+test("low_confidence probabilities preserved in metadata without snapshot", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");
     const decision = buildFallbackDecision({
@@ -3464,7 +3427,7 @@ Deno.test("low_confidence probabilities preserved in metadata without snapshot",
   });
 });
 
-Deno.test("decisions command lists unfinished runs and filters repository exactly", async () => {
+test("decisions command lists unfinished runs and filters repository exactly", async () => {
   await withTempHome(async (home, xdg) => {
     const probs = { "1": 0, "2": 0, "3": 1, "4": 0, "5": 0 };
     const decision = buildJevDecision({
@@ -3528,7 +3491,7 @@ Deno.test("decisions command lists unfinished runs and filters repository exactl
   });
 });
 
-Deno.test("decisions empty root and skips legacy metadata without levelDecision", async () => {
+test("decisions empty root and skips legacy metadata without levelDecision", async () => {
   await withTempHome(async (home, xdg) => {
     const missingRoot = join(home, "no-such-runs");
     const empty = await readDecisionHistory({ runsDir: missingRoot });
@@ -3550,7 +3513,7 @@ Deno.test("decisions empty root and skips legacy metadata without levelDecision"
   });
 });
 
-Deno.test("decisions warns on invalid metadata and symlink paths without leaking canaries", async () => {
+test("decisions warns on invalid metadata and symlink paths without leaking canaries", async () => {
   await withTempHome(async (home, xdg) => {
     const CANARY = "pr-decisions-canary-9e2b1c4d-do-not-leak";
     const runsRoot = runsRootFor(xdg);
@@ -3598,7 +3561,7 @@ Deno.test("decisions warns on invalid metadata and symlink paths without leaking
       model: "typesafe/jev-1.13",
       confidence: 0.91,
     });
-    await writeBareRunMetadata(
+    const goodDir = await writeBareRunMetadata(
       xdg,
       "44444444-4444-4444-8444-444444444444",
       {
@@ -3613,15 +3576,40 @@ Deno.test("decisions warns on invalid metadata and symlink paths without leaking
       },
     );
 
+    const metadataBefore = await Promise.all(
+      [badDir, goodDir].map((dir) => readFile(join(dir, "metadata.json"), "utf8")),
+    );
+    const entriesBefore = (await readdir(runsRoot)).sort();
+    const bogusXdg = join(home, "bogus-xdg");
+    const bogusRuns = runsRootFor(bogusXdg);
+    await writeBareRunMetadata(bogusXdg, "55555555-5555-4555-8555-555555555555", {
+      schemaVersion: 1,
+      runId: "55555555-5555-4555-8555-555555555555",
+      createdAt: ISO_MS,
+      repository: "/tmp/bogus-home-repo",
+      revision: "must-not-be-read",
+      level: 1,
+      levelScale: 5,
+      levelDecision: buildExplicitDecision({ level: 1, patchSha256: "c".repeat(64) }),
+    });
+    assert.equal((await readdir(bogusRuns)).length, 1);
     const out = await runDecisionsCli(
       ["--runs-dir", runsRoot],
-      childEnv(home, xdg),
+      childEnv(home, bogusXdg),
     );
     assert.equal(out.code, 0, out.stderr);
     assert.doesNotMatch(out.stdout, new RegExp(CANARY));
     assert.doesNotMatch(out.stderr, new RegExp(CANARY));
     const parsed = JSON.parse(out.stdout);
     assert.equal(parsed.decisions.length, 1);
+    assert.equal(parsed.decisions[0].repository, "/tmp/repo");
+    assert.deepEqual((await readdir(runsRoot)).sort(), entriesBefore);
+    assert.deepEqual(
+      await Promise.all(
+        [badDir, goodDir].map((dir) => readFile(join(dir, "metadata.json"), "utf8")),
+      ),
+      metadataBefore,
+    );
     assert.ok(
       parsed.warnings.some((w: { reason: string }) =>
         w.reason === "invalid_level_decision" || w.reason === "invalid_metadata"
@@ -3635,7 +3623,7 @@ Deno.test("decisions warns on invalid metadata and symlink paths without leaking
   });
 });
 
-Deno.test("decisions CLI rejects unknown and duplicate flags", async () => {
+test("decisions CLI rejects unknown and duplicate flags", async () => {
   await withTempHome(async (home, xdg) => {
     const runsRoot = runsRootFor(xdg);
     const unknown = await runDecisionsCli([
@@ -3658,7 +3646,7 @@ Deno.test("decisions CLI rejects unknown and duplicate flags", async () => {
   });
 });
 
-Deno.test("decisions CLI rejects empty runs-dir and repository values", async () => {
+test("decisions CLI rejects empty runs-dir and repository values", async () => {
   await withTempHome(async (home, xdg) => {
     const runsRoot = runsRootFor(xdg);
     for (
@@ -3682,7 +3670,7 @@ Deno.test("decisions CLI rejects empty runs-dir and repository values", async ()
   });
 });
 
-Deno.test("decisions warns on symlink runs root and symlink metadata", async () => {
+test("decisions warns on symlink runs root and symlink metadata", async () => {
   await withTempHome(async (home, xdg) => {
     const realRuns = join(home, "real-runs");
     await mkdir(realRuns, { recursive: true, mode: 0o700 });
@@ -3731,7 +3719,7 @@ Deno.test("decisions warns on symlink runs root and symlink metadata", async () 
   });
 });
 
-Deno.test("low_confidence probabilities survive init and save snapshot", async () => {
+test("low_confidence probabilities survive init and save snapshot", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff\n");
     const decision = buildFallbackDecision({
@@ -3784,7 +3772,7 @@ Deno.test("low_confidence probabilities survive init and save snapshot", async (
   });
 });
 
-Deno.test("decisions warns on duplicate runId", async () => {
+test("decisions warns on duplicate runId", async () => {
   await withTempHome(async (_home, xdg) => {
     const runId = "55555555-5555-4555-8555-555555555555";
     const decision = buildExplicitDecision({

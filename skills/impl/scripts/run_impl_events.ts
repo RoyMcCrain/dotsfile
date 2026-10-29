@@ -1,3 +1,7 @@
+import { createHash, randomUUID } from "node:crypto";
+import { chmod, mkdir, mkdtemp, readFile, rename, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { constants as osConstants } from "node:os";
 import { join } from "node:path";
 import {
   createImplStreamState,
@@ -58,9 +62,9 @@ const HEX_HASH = /^[0-9a-f]{64}$/i;
 const FULL_REVISION = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 
 async function sha256File(path: string): Promise<string> {
-  const bytes = await Deno.readFile(path);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
+  const bytes = await readFile(path);
+  const digest = createHash("sha256").update(bytes).digest();
+  return Array.from(digest)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
@@ -71,19 +75,13 @@ async function runCommand(
   env?: Record<string, string>,
 ): Promise<{ code: number; stdout: string }> {
   try {
-    const proc = new Deno.Command(cmd[0], {
-      args: cmd.slice(1),
+    const out = spawnSync(cmd[0], cmd.slice(1), {
       cwd,
-      stdout: "piped",
-      stderr: "null",
-      stdin: "null",
-      env: env ? { ...Deno.env.toObject(), ...env } : undefined,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      env: { ...process.env, ...env },
     });
-    const out = await proc.output();
-    return {
-      code: out.code ?? 1,
-      stdout: new TextDecoder().decode(out.stdout).trim(),
-    };
+    return { code: out.status ?? 1, stdout: (out.stdout ?? "").trim() };
   } catch {
     return { code: 1, stdout: "" };
   }
@@ -143,25 +141,23 @@ export async function resolveCodeProvenance(
 export async function prepareRunDirectory(
   runsRoot: string,
 ): Promise<{ runDir: string; runId: string }> {
-  await Deno.mkdir(runsRoot, { recursive: true, mode: 0o700 });
-  const runId = crypto.randomUUID();
-  const runDir = await Deno.makeTempDir({ dir: runsRoot, prefix: `${runId}-` });
-  await Deno.chmod(runDir, 0o700);
+  await mkdir(runsRoot, { recursive: true, mode: 0o700 });
+  const runId = randomUUID();
+  const runDir = await mkdtemp(join(runsRoot, `${runId}-`));
+  await chmod(runDir, 0o700);
   return { runDir, runId };
 }
 
 async function writeJsonAtomic(path: string, value: unknown) {
   const tmp = `${path}.tmp`;
-  await Deno.writeTextFile(tmp, `${JSON.stringify(value, null, 2)}\n`, {
-    mode: 0o600,
-  });
-  await Deno.rename(tmp, path);
-  await Deno.chmod(path, 0o600);
+  await writeFile(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  await rename(tmp, path);
+  await chmod(path, 0o600);
 }
 
 async function ensureEmptyEventsFile(eventsPath: string) {
-  await Deno.writeTextFile(eventsPath, "", { mode: 0o600 });
-  await Deno.chmod(eventsPath, 0o600);
+  await writeFile(eventsPath, "", { mode: 0o600 });
+  await chmod(eventsPath, 0o600);
 }
 
 async function appendEventLine(
@@ -169,7 +165,7 @@ async function appendEventLine(
   event: Record<string, unknown>,
 ) {
   const line = `${JSON.stringify(event)}\n`;
-  await Deno.writeTextFile(eventsPath, line, { append: true, mode: 0o600 });
+  await writeFile(eventsPath, line, { flag: "a", mode: 0o600 });
 }
 
 export type RunImplEventsOptions = {
@@ -227,7 +223,7 @@ async function processJsonlFrames(
 }
 
 async function advanceOversizeDiscard(
-  proc: Deno.ChildProcess,
+  proc: ReturnType<typeof spawn>,
   state: ReturnType<typeof createImplStreamState>,
   chunk: Uint8Array,
   ctx: StdoutDrainCtx,
@@ -283,17 +279,17 @@ async function finalizePiStdoutCarry(
   }
 }
 
-async function terminateOwnedChild(proc: Deno.ChildProcess) {
-  try {
-    proc.kill("SIGTERM");
-  } catch { /* already exited */ }
-  try {
-    await proc.status;
-  } catch { /* ignore */ }
+async function terminateOwnedChild(proc: ReturnType<typeof spawn>) {
+  if (proc.pid === undefined) return;
+  if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGTERM");
+  await new Promise<void>((resolve) => {
+    if (proc.exitCode !== null || proc.signalCode !== null) resolve();
+    else proc.once("close", () => resolve());
+  });
 }
 
 async function drainPiStdout(
-  proc: Deno.ChildProcess,
+  proc: ReturnType<typeof spawn>,
   state: ReturnType<typeof createImplStreamState>,
   eventsPath: string,
   startedMono: number,
@@ -303,10 +299,7 @@ async function drainPiStdout(
     discardingOversize: false,
     discardedWithoutNl: 0,
   };
-  const reader = proc.stdout.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  for await (const value of proc.stdout!) {
     let chunk: Uint8Array = value;
     if (ctx.discardingOversize) {
       const next = await advanceOversizeDiscard(proc, state, chunk, ctx);
@@ -363,11 +356,15 @@ async function finishRun(
     startedWallMs: number;
     state: ReturnType<typeof createImplStreamState>;
     initial: RunMetadata;
-    proc: Deno.ChildProcess;
+    proc: ReturnType<typeof spawn>;
   },
 ): Promise<number> {
-  const status = await ctx.proc.status;
-  const childCode = status.code;
+  const status = ctx.proc.exitCode !== null || ctx.proc.signalCode !== null
+    ? { code: ctx.proc.exitCode, signal: ctx.proc.signalCode }
+    : await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+      ctx.proc.once("close", (code, signal) => resolve({ code, signal }));
+    });
+  const childCode = normalizeChildExitCode(status.code, status.signal);
   const outcome = finalizeImplStream(ctx.state);
   const streamError = outcome.streamError;
   const exitCode = resolveImplExitCode(
@@ -391,7 +388,7 @@ async function finishRun(
     return exitCode;
   }
   const stdoutOk = await writeAll(
-    Deno.stdout,
+    process.stdout,
     formatFinalStdout(outcome.finalTextBlocks),
   );
   if (!stdoutOk) {
@@ -411,7 +408,7 @@ export async function runImplEventsHelper(
   let metadataPath = "";
   let eventsPath = "";
   let initial: RunMetadata | undefined;
-  let proc: Deno.ChildProcess | undefined;
+  let proc: ReturnType<typeof spawn> | undefined;
 
   try {
     const prep = await prepareRunDirectory(options.runsRoot);
@@ -449,12 +446,8 @@ export async function runImplEventsHelper(
     const state = createImplStreamState();
     const [bin, ...piArgs] = options.command;
     try {
-      proc = new Deno.Command(bin, {
-        args: piArgs,
-        stdin: "null",
-        stdout: "piped",
-        stderr: "inherit",
-      }).spawn();
+      proc = spawn(bin, piArgs, { stdio: ["ignore", "pipe", "inherit"] });
+      proc.on("error", () => {});
     } catch {
       console.error("impl events: failed to spawn pi");
       await finalizeMetadata({
@@ -480,9 +473,6 @@ export async function runImplEventsHelper(
     });
   } catch (err) {
     console.error("impl events: internal failure");
-    if (err instanceof Deno.errors.NotCapable) {
-      console.error("impl events: permission denied");
-    }
     if (proc) await terminateOwnedChild(proc);
     if (metadataPath && initial) {
       try {
@@ -538,17 +528,40 @@ async function finalizeMetadata(params: FinalizeParams) {
   await writeJsonAtomic(params.metadataPath, meta);
 }
 
+function normalizeChildExitCode(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+): number {
+  const signalNumber = signal ? osConstants.signals[signal] : undefined;
+  return code ?? (signalNumber ? 128 + signalNumber : 1);
+}
+
 async function writeAll(
-  writer: { write(p: Uint8Array): Promise<number | null> },
+  writer: NodeJS.WriteStream,
   bytes: Uint8Array,
 ): Promise<boolean> {
-  let offset = 0;
-  while (offset < bytes.length) {
-    const written = await writer.write(bytes.subarray(offset));
-    if (written === null || written <= 0) return false;
-    offset += written;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => writer.removeListener("error", onError);
+      const finish = (error?: Error | null) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (error) reject(error);
+        else resolve();
+      };
+      const onError = (error: Error) => finish(error);
+      writer.once("error", onError);
+      writer.write(bytes, (error) => {
+        if (!error) finish();
+        else setImmediate(() => finish(error));
+      });
+    });
+    return true;
+  } catch {
+    return false;
   }
-  return true;
 }
 
 const CLI_OPTION_KEYS: Record<string, keyof RunImplEventsOptions> = {
@@ -599,12 +612,12 @@ function parseCliArgs(args: string[]): RunImplEventsOptions {
 async function main() {
   let parsed: RunImplEventsOptions;
   try {
-    parsed = parseCliArgs(Deno.args);
+    parsed = parseCliArgs(process.argv.slice(2));
   } catch {
     console.error("impl events: invalid command line");
-    Deno.exit(1);
+    process.exit(1);
   }
-  Deno.exit(await runImplEventsHelper(parsed));
+  process.exit(await runImplEventsHelper(parsed));
 }
 
 if (import.meta.main) {

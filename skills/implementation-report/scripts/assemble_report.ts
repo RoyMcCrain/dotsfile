@@ -1,3 +1,4 @@
+import { readFile, writeFile } from "node:fs/promises";
 import {
   computeAcceptanceVerdict,
   defaultReportId,
@@ -142,7 +143,7 @@ const usage = () => {
 };
 
 const readJson = async (path: string): Promise<unknown> => {
-  const text = await Deno.readTextFile(path);
+  const text = await readFile(path, "utf8");
   return JSON.parse(text);
 };
 
@@ -240,7 +241,7 @@ export const main = async (argv: string[]) => {
   }
 
   try {
-    await Deno.writeTextFile(output, `${JSON.stringify(report, null, 2)}\n`);
+    await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
   } catch (error) {
     console.error(
       `write error: ${error instanceof Error ? error.message : String(error)}`,
@@ -253,5 +254,7 @@ export const main = async (argv: string[]) => {
 };
 
 if (import.meta.main) {
-  Deno.exit(await main(Deno.args));
+  main(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
 }
