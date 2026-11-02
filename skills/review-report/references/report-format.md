@@ -264,9 +264,9 @@ Renderer は `title` / `overview` 欠落時に legacy fallback
 
 ## Secret path rejection
 
-validation で拒否: `.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`,
+validation で拒否: `.env.example` / `.env.example.*` のサンプル basename を除く `.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`,
 `*.key`, `*.p12`, `*.pfx`, `id_rsa`, `id_ed25519`（path component / suffix
-ベース）。`monkey.ts` 等は許可。`diagrams[].evidence[]` の `file:line` 参照も
+ベース）。サンプル basename は末尾 component に限り、secret な親がない場合のみ許可する（ただし `.pem` / `.key` / `.p12` / `.pfx` suffix は引き続き秘密）。含まれる実 credential は秘密として扱う。`monkey.ts` 等は許可。`diagrams[].evidence[]` の `file:line` 参照も
 path 部分を正規化して同一 policy を適用する。
 
 ## Implementation-only minimal example

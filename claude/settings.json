@@ -17,7 +17,6 @@
       "Read(~/.config/gh/**)",
       "Read(**/.env)",
       "Read(**/.env.local)",
-      "Read(**/.env.*.local)",
       "Read(**/.envrc.local)"
     ],
     "defaultMode": "bypassPermissions"
@@ -25,7 +24,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Read",
         "hooks": [
           {
             "type": "command",

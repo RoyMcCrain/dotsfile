@@ -10,7 +10,7 @@ Claude を、再帰起動しない隔離済み Pi headless で実行する。
 ## 手順
 
 1. 対象を決める。指定なしなら現在の作業コピー差分。
-2. 呼び出し元が changed paths を先に取得し、秘密パターン（`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` 等）を除外する。
+2. 呼び出し元が changed paths を先に取得し、`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` を除外する。ただし末尾の basename が `.env.example` または `.env.example.*` で secret な親がなければ許可（ただし `.pem` / `.key` / `.p12` / `.pfx` suffix は引き続き秘密）し、example 内の実 credential も秘密として扱う。
 3. allowed paths だけから `$REVIEW_DIR/changes.patch` を一度生成し、秘密値・private key marker がないか目視/検索する。子 Pi に `jj diff` / `git diff` を再実行させない。
 4. `parallel-review` と同じ patch-only prompt（Preflight 手順4）を `$REVIEW_DIR/prompt.md` に保存して runner を実行する。
 

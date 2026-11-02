@@ -53,7 +53,7 @@ review_fnmatch_part() {
 
 review_is_secret_path() {
 	local value="$1"
-	local cleaned part pattern
+	local cleaned part pattern basename lower_basename
 	cleaned="${value#"${value%%[![:space:]]*}"}"
 	cleaned="${cleaned%"${cleaned##*[![:space:]]}"}"
 	cleaned="${cleaned#\"}"
@@ -64,6 +64,17 @@ review_is_secret_path() {
 	case "$cleaned" in
 	b/*) cleaned="${cleaned#b/}" ;;
 	esac
+	basename="${cleaned##*/}"
+	lower_basename=$(printf '%s' "$basename" | tr '[:upper:]' '[:lower:]')
+	if [[ "$lower_basename" == *.pem || "$lower_basename" == *.key || "$lower_basename" == *.p12 || "$lower_basename" == *.pfx ]]; then
+		return 0
+	fi
+	if [[ "$lower_basename" == .env.example || "$lower_basename" == .env.example.* ]]; then
+		case "$cleaned" in
+		*/*) cleaned="${cleaned%/*}" ;;
+		*) cleaned='' ;;
+		esac
+	fi
 
 	local IFS='/'
 	local part

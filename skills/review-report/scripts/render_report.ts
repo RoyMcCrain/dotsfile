@@ -210,16 +210,14 @@ const isFiniteNumber = (value: unknown): value is number =>
 
 export const isSecretPath = (path: unknown) => {
   const text = String(path ?? "").replace(/\\/g, "/");
-  if (!text) return false;
   const parts = text.split("/").filter(Boolean);
   const basename = parts.length ? parts[parts.length - 1] : text;
+  if (/^\.env\.example(?:\.|$)/i.test(basename)) parts.pop();
   for (const part of parts) {
     const lower = part.toLowerCase();
     if (SECRET_COMPONENTS.has(lower)) return true;
     if (lower.startsWith(".env")) return true;
-    if (lower.startsWith("credentials") || lower.startsWith("secrets")) {
-      return true;
-    }
+    if (/^(credentials|secrets)/.test(lower)) return true;
   }
   const lowerBase = basename.toLowerCase();
   return SECRET_SUFFIXES.some((suffix) => lowerBase.endsWith(suffix));

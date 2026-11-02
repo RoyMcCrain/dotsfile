@@ -498,14 +498,40 @@ EOF
 }
 
 @test "rejects symlink to secret input path" {
-	SECRET="$TEST_ROOT/.env.local"
-	SAFE_LINK="$TEST_ROOT/safe.patch"
+	SECRET="$TEST_ROOT/.env"
+	SAFE_LINK="$TEST_ROOT/.env.example"
 	printf '%s\n' 'SECRET=value' >"$SECRET"
-	ln -s .env.local "$SAFE_LINK"
+	ln -s .env "$SAFE_LINK"
 
 	run_runner 5 provider/model:medium "$SAFE_LINK"
 	[ "$status" -ne 0 ]
 	[[ "$output" == *secret\ input\ path* ]]
+}
+
+@test "accepts env example family patch paths" {
+	printf '%s\n' 'diff --git a/.env.example.local b/.env.example.local' '--- a/.env.example.local' '+++ b/.env.example.local' \
+		'diff --git a/config/.ENV.EXAMPLE.BAK b/config/.ENV.EXAMPLE.BAK' '--- a/config/.ENV.EXAMPLE.BAK' '+++ b/config/.ENV.EXAMPLE.BAK' >"$PATCH"
+
+	run_runner
+	[ "$status" -eq 0 ]
+}
+
+@test "accepts a direct env example input file" {
+	EXAMPLE="$TEST_ROOT/.env.example.local"
+	printf '%s\n' 'EXAMPLE_VALUE=replace-me' >"$EXAMPLE"
+
+	run_runner 5 provider/model:medium "$EXAMPLE"
+	[ "$status" -eq 0 ]
+}
+
+@test "rejects env example suffixes and secret parents in patch" {
+	for path in '.env.example.local/.env.example.bak' '.env.example-secret' '.env.examples.local' '.env.example.pem' '.env.example/file.ts' 'secrets/.env.example.local'; do
+		printf 'diff --git a/%s b/%s\n--- a/%s\n+++ b/%s\n' "$path" "$path" "$path" "$path" >"$PATCH"
+
+		run_runner
+		[ "$status" -ne 0 ]
+		[[ "$output" == *secret\ path\ in\ patch* ]]
+	done
 }
 
 @test "rejects secret path inside patch" {
