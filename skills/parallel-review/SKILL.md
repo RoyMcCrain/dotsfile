@@ -27,7 +27,7 @@ L1/L2 のみで Codex + Claude の固定2 reviewer を `model-roles.json` の `r
 
 1. 実際のレビュー依頼か確認する。単体 reviewer / report 系の明示依頼はそちらを優先する。
 2. 対象 revision を確定し、repo 外に `umask 077; STAGING=$(mktemp -d) || exit 1` で private staging を一度だけ作る。
-3. changed paths を取得し、`.env*`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` を除外する。
+3. changed paths を取得し、`.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519` を除外する。ただし末尾の basename が `.env.example` または `.env.example.*` で secret な親がなければ許可（ただし `.pem` / `.key` / `.p12` / `.pfx` suffix は引き続き秘密）し、example 内の実 credential も秘密として扱う。
 4. allowed paths だけから sanitized `changes.patch` を一度生成し、秘密値/private key marker を検査する。疑いがあれば中止する。
 5. offline level/chunk を一度選び、resolver 出力を検証・保存してから履歴を init する。
 6. 既定 prompt と security prompt supplement を保存する。明示 security review は観点のみ security に限定する。

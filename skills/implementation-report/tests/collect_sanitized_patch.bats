@@ -33,9 +33,15 @@ commit_file() {
 	init_git_repo
 	commit_file "src/app.ts" "export const ok = 1;"
 	commit_file ".env" "SUPER_SECRET_VALUE=1"
+	commit_file ".env.example" "SAFE_EXAMPLE=value"
+	commit_file ".env.example.local" "SAFE_LOCAL=replace-me"
+	commit_file ".env.example.bak" "SAFE_BACKUP=replace-me"
 	commit_file "id_ed25519" "ssh-secret"
 	printf '%s\n' "export const ok = 2;" >"$REPO/src/app.ts"
 	printf '%s\n' "SUPER_SECRET_VALUE=2" >"$REPO/.env"
+	printf '%s\n' "SAFE_EXAMPLE=updated" >"$REPO/.env.example"
+	printf '%s\n' "SAFE_LOCAL=updated" >"$REPO/.env.example.local"
+	printf '%s\n' "SAFE_BACKUP=updated" >"$REPO/.env.example.bak"
 	printf '%s\n' "ssh-secret-2" >"$REPO/id_ed25519"
 
 	# Act
@@ -44,9 +50,15 @@ commit_file() {
 	# Assert
 	[ "$status" -eq 0 ]
 	[[ "$(cat "$OUT/allowed-paths.txt")" == *src/app.ts* ]]
+	[[ "$(cat "$OUT/allowed-paths.txt")" == *.env.example* ]]
+	[[ "$(cat "$OUT/allowed-paths.txt")" == *.env.example.local* ]]
+	[[ "$(cat "$OUT/allowed-paths.txt")" == *.env.example.bak* ]]
 	[[ "$(cat "$OUT/excluded-paths.txt")" == *.env* ]]
 	[[ "$(cat "$OUT/excluded-paths.txt")" == *id_ed25519* ]]
 	[[ "$(cat "$OUT/sanitized.patch")" == *src/app.ts* ]]
+	[[ "$(cat "$OUT/sanitized.patch")" == *.env.example* ]]
+	[[ "$(cat "$OUT/sanitized.patch")" == *.env.example.local* ]]
+	[[ "$(cat "$OUT/sanitized.patch")" == *.env.example.bak* ]]
 	[[ "$(cat "$OUT/sanitized.patch")" != *SUPER_SECRET_VALUE* ]]
 	[[ "$(cat "$OUT/sanitized.patch")" != *id_ed25519* ]]
 }
@@ -74,8 +86,10 @@ commit_file() {
 	# Arrange
 	init_git_repo
 	commit_file "id_ed25519" "ssh-secret"
+	commit_file "config/.env" "SUPER_SECRET_VALUE=1"
 	commit_file "readme.txt" "hello"
 	git -C "$REPO" mv id_ed25519 published-key.txt
+	git -C "$REPO" mv config/.env config/.env.example.local
 	git -C "$REPO" mv readme.txt .env
 
 	# Act
@@ -85,8 +99,11 @@ commit_file() {
 	[ "$status" -eq 0 ]
 	[[ "$(cat "$OUT/excluded-paths.txt")" == *published-key.txt* ]]
 	[[ "$(cat "$OUT/excluded-paths.txt")" == *.env* ]]
+	[[ "$(cat "$OUT/excluded-paths.txt")" == *config/.env.example.local* ]]
 	[[ "$(cat "$OUT/sanitized.patch")" != *published-key.txt* ]]
 	[[ "$(cat "$OUT/sanitized.patch")" != *ssh-secret* ]]
+	[[ "$(cat "$OUT/sanitized.patch")" != *.env.example.local* ]]
+	[[ "$(cat "$OUT/sanitized.patch")" != *SUPER_SECRET_VALUE* ]]
 }
 
 @test "empty diff exits 0 and writes an empty sanitized patch" {

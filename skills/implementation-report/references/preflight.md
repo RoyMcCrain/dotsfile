@@ -6,9 +6,7 @@
 ## 手順
 
 1. **VCS**: リポジトリ root に `.jj` があれば git ではなく jj。
-2. **秘密除外**: 次を patch / subagent / report に含めない。 `.env*`, `.envrc`,
-   `credentials*`, `secrets*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa`,
-   `id_ed25519`
+2. **秘密除外**: 末尾の basename が `.env.example` または `.env.example.*` の場合だけ、secret な親がなければ許可する（ただし `.pem` / `.key` / `.p12` / `.pfx` suffix は引き続き秘密）。それ以外の `.env*`, `.envrc`, `credentials*`, `secrets*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa`, `id_ed25519` は patch / subagent / report に含めない。example 内の実 credential も秘密として扱う。
    - 先に **changed path 一覧だけ** 取得し、old/new のどちらかが secret
      なら除外する。
    - **unsanitized full patch を先に生成・保存して後から redact

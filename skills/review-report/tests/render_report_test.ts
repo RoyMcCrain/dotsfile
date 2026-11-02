@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { test } from "bun:test";
-import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -609,11 +609,36 @@ test("test_env_and_key_suffixes", () => {
   assert.equal(isSecretPath("home/.ENVRC"), true);
 });
 
+test("test_env_example_exempts_only_the_final_sample_basename", () => {
+  assert.equal(isSecretPath(".env.example"), false);
+  assert.equal(isSecretPath("config/.ENV.EXAMPLE"), false);
+  assert.equal(isSecretPath(".env.example.local"), false);
+  assert.equal(isSecretPath(".env.example.bak"), false);
+  assert.equal(isSecretPath(".ENV.EXAMPLE.LOCAL"), false);
+  assert.equal(isSecretPath(".env.example.pem"), true);
+  assert.equal(isSecretPath(".env.example.key"), true);
+  assert.equal(isSecretPath(".env.example.p12"), true);
+  assert.equal(isSecretPath(".env.example.pfx"), true);
+  assert.equal(isSecretPath(".env.production.example"), true);
+  assert.equal(isSecretPath(".env.example/file.ts"), true);
+  assert.equal(isSecretPath("secrets/.env.example"), true);
+  assert.equal(isSecretPath("config\\.ENV.EXAMPLE.LOCAL"), false);
+  assert.equal(isSecretPath(".env.example.local/.env.example.bak"), true);
+  assert.equal(isSecretPath(".env.example.local/src.ts"), true);
+});
+
 test("test_env_local_uppercase_rejected_in_validation", () => {
   const errors = validateReport({
     groups: [minimalGroup({ files: ["config/.ENV.LOCAL"] })],
   });
   assert.ok(errors.some((e) => e.includes("secret path")));
+});
+
+test("test_env_examples_are_allowed_in_report_validation", () => {
+  const errors = validateReport({
+    groups: [minimalGroup({ files: ["nested/.env.example.local", "nested/.env.example.bak"] })],
+  });
+  assert.ok(!errors.some((e) => e.includes("secret path")));
 });
 
 test("test_html_contains_required_ui_labels", () => {
