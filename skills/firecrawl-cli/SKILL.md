@@ -1,7 +1,7 @@
 ---
 name: firecrawl
 description: |
-  Search, scrape, and interact with the web via Firecrawl. Use for web search/discovery, URL content retrieval, JS pages, multi-page work, crawling, or page interaction. A simple fetch of a known public official raw-Markdown URL uses ax first; Firecrawl handles failures/non-Markdown fallback. Do NOT trigger for local file operations, git, deployments, or code editing. Classify cross-research first: multi-source, technical/design/dependency decisions, recent variable facts, or likely contradictions escalate to `/cross-research` (Firecrawl + agy + Grok X Search).
+  Use Firecrawl to verify/fetch official source bodies, fill research gaps, handle JS pages, multi-page work, crawling, structured extraction, or explicit Firecrawl requests. Ordinary Web search/discovery defaults to `/grok-search`; do not trigger this skill as the generic search default. A simple fetch of a known public official raw-Markdown URL uses ax first; Firecrawl handles failures/non-Markdown fallback. Do NOT trigger for local file operations, git, deployments, or code editing. Classify cross-research first: multi-source, technical/design/dependency decisions, recent variable facts, or likely contradictions escalate to `/cross-research` (Grok Web Search + targeted Firecrawl + agy).
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
@@ -9,9 +9,9 @@ allowed-tools:
 
 # Firecrawl CLI
 
-Search, scrape, and interact with the web. Returns clean markdown optimized for LLM context windows.
+Use Firecrawl to fetch and verify source bodies, supplement Grok Web Search, and handle complex site extraction.
 
-Before checking Firecrawl prerequisites or making verification requests, classify cross-research escalation under Web Research Rules. For a simple one-off retrieval from a known public official raw-Markdown URL, use ax HTTP/body mode first; validate HTTP success, final URL, and usable Markdown body. If it fails or returns incomplete/non-Markdown content (including HTML, login, or error pages), stop retrying and use Firecrawl on the corresponding official HTML page or official-site search. Unknown URLs, discovery, JS pages, multi-page research, and all cross-research Firecrawl lanes remain Firecrawl. Reuse adequate `.firecrawl/` cache regardless of backend, preserving real source and fetch/cache date. No Firecrawl status/auth/install check is needed solely for an ax-qualifying fetch.
+Before checking Firecrawl prerequisites or making verification requests, classify cross-research escalation under Web Research Rules. Ordinary search/discovery defaults to `/grok-search`; use Firecrawl for cited official-page verification, gaps, JS pages, multi-page research, map/crawl, structured extraction, explicit requests, or disclosed Grok-failure fallback. For a simple one-off retrieval from a known public official raw-Markdown URL, use ax HTTP/body mode first; validate HTTP success, final URL, and usable Markdown body. If it fails or returns incomplete/non-Markdown content (including HTML, login, or error pages), stop retrying and use Firecrawl on the corresponding official HTML page or official-site search. Reuse adequate `.firecrawl/` cache regardless of backend, preserving real source and fetch/cache date. No Firecrawl status/auth/install check is needed solely for an ax-qualifying fetch.
 
 Run `firecrawl --help` or `firecrawl <command> --help` for full option details.
 
@@ -52,7 +52,7 @@ firecrawl search "query" --scrape --limit 3
 
 ## Workflow
 
-Follow this escalation pattern:
+When Firecrawl supplementation is needed, follow this escalation pattern (ordinary discovery starts with `grok-search`):
 
 1. **Search** - No specific URL yet. Find pages, answer questions, discover sources.
 2. **Scrape** - Have a URL. Extract its content directly.
@@ -216,7 +216,7 @@ Use `modes: ["json", "git-diff"]` for **mixed mode**: you get both `diff.json` (
 
 ## When to Load References
 
-- **Searching the web or finding sources first** -> [firecrawl-search](../firecrawl-search/SKILL.md)
+- **Ordinary Web search or finding sources first** -> [grok-search](../grok-search/SKILL.md); use [firecrawl-search](../firecrawl-search/SKILL.md) for explicit Firecrawl search, gaps, or fallback
 - **Scraping a known URL** -> [firecrawl-scrape](../firecrawl-scrape/SKILL.md) (except qualifying raw-Markdown one-off; ax first)
 - **Finding URLs on a known site** -> [firecrawl-map](../firecrawl-map/SKILL.md)
 - **Bulk extraction from a docs section or site** -> [firecrawl-crawl](../firecrawl-crawl/SKILL.md)

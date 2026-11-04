@@ -2,7 +2,7 @@
 
 ## 重要: WebSearch禁止
 
-ClaudeのWebSearchツールは使用禁止。cross-research の昇格基準を必ず先に判定し、大きいタスクは **Firecrawl + agy + Grok X Search で並行精査**する。通常の検索・調査は Firecrawl が基本だが、既知の公開公式 raw-Markdown URLを単純に1回取得する場合だけ ax を優先する。
+ClaudeのWebSearchツールは使用禁止。cross-research の昇格基準を必ず先に判定し、大きいタスクは **Grok Web Search + Firecrawl + agy** で並行精査する。通常のWeb検索・発見・初期要約は Grok の `web_search` を使い、Firecrawl は公式ページ・本文の裏取りや不足補完に使う。既知の公開公式 raw-Markdown URLを単純に1回取得する場合だけ ax を優先する。
 WebSearch は `claude/settings.json` の `permissions.deny` で機械的にもブロック済み（ルールと二重化）。
 
 > Gemini CLI は 2026-06-18 に個人/無料枠のリクエスト処理を停止し Antigravity CLI (`agy`) に統合された。
@@ -11,15 +11,16 @@ WebSearch は `claude/settings.json` の `permissions.deny` で機械的にも�
 
 | 状況 | 使うもの |
 |------|----------|
-| WebSearch（検索クエリ） | **禁止** → firecrawl |
+| WebSearch（検索クエリ） | **禁止** → grok-search skill |
 | 既知の公開公式 raw-Markdown URLを1回取得 | ax HTTP/body（失敗・非Markdownなら公式ページをFirecrawl） |
 | その他の単一既知URLを1回読むだけ | WebFetch 可（軽量・即時） |
-| 検索・複数URL・SPA・scrape/crawl・構造化抽出 | firecrawl skill |
-| 大きい／確証が要る調査（後述の昇格基準） | `/cross-research`（Firecrawl + agy + Grok X Search 並行精査） |
+| 通常の検索・発見・初期要約 | `/grok-search`（Grok `web_search`） |
+| 公式ページ本文確認、JS/SPA、複数ページ、map/crawl、構造化抽出、明示依頼 | Firecrawl skill |
+| 大きい／確証が要る調査（後述の昇格基準） | `/cross-research`（Grok Web Search + Firecrawl + agy の3レーン並行） |
 
 ## cross-research への昇格基準
 
-次の**どれか1つでも該当**したら firecrawl 単独で終えず `/cross-research` に上げる（二値判定）:
+次の**どれか1つでも該当**したら単独検索で終えず `/cross-research` に上げる（二値判定）:
 
 - [ ] コード/設計/依存選定に影響する
 - [ ] 独立した情報源 2件以上の裏取りが要る
@@ -32,49 +33,46 @@ WebSearch は `claude/settings.json` の `permissions.deny` で機械的にも�
 
 ## 基本方針
 
-1. **デフォルト = firecrawl（昇格基準の判定後）**
-   - Web検索・URL discovery・scrape/crawl/構造化抽出は firecrawl skill を使う（`/firecrawl` ほか firecrawl-* skill）。単純な既知公開公式 raw-Markdown の1回取得だけ ax HTTP/body を優先し、実際のHTTP成功・最終URL・本文を確認する。失敗・不完全・HTML/ログイン/エラー本文なら反復せず対応する公式HTMLまたは公式サイト検索を Firecrawl で取得する。
-   - 実URLの一次ソースが取れる。WebSearch の代替はこれ（その他の単一既知URLの即時取得だけは WebFetch 可）。キャッシュの出典・版・鮮度が十分なら再利用し、実際の取得／確認日を保つ。
+1. **デフォルト = Grok Web Search（昇格基準の判定後）**
+   - `/grok-search` を使う。出力は毎回新しい `.firecrawl/` 配下の結果ディレクトリに保存し、クエリ・引用URL・実際の取得時刻を対応付ける。実際の `web_search` で公式ソース優先、URL付きの事実と推論を分けて初期調査する。
+   - Grokの未引用要約を確証扱いせず、出典と実際の本文を確認する。必要な公式ページや重要な事実は Firecrawl で補足・検証する。通常の質問ごとに重複したFirecrawl検索はしない。
+   - 既知の公開公式 raw-Markdown の単純な1回取得だけ ax HTTP/body を優先し、実際のHTTP成功・最終URL・本文を確認する。失敗・不完全・HTML/ログイン/エラー本文なら反復せず対応する公式HTMLまたは公式サイト検索を Firecrawl で取得する。
+   - キャッシュの出典・版・鮮度が十分なら再利用し、実際の取得／確認日を保つ。
 2. **大きいタスク = 3レーン並行（ax例外より優先）**
-   - 昇格基準に当たる調査は `/cross-research` で **Firecrawl + agy + Grok X Search** を**並行実行して突き合わせ精査**
-   - **Firecrawl** = canonical Web ドキュメント（主根拠）
-   - **Grok X Search** = X 上の一次発表・公開議論（公式 X 投稿は発表の補助。一般反応はソーシャルシグナルのみ）
-   - **agy** = 横断調査・推論・トレンド要約（確証単独不可。他レーンと突合）
+   - `/cross-research` で **Grok Web Search（発見・統合の主導）+ targeted Firecrawl（公式ソース/本文の確認）+ agy（補助推論）** を並行実行する。
+   - 並行作業は独立する範囲で維持する。同じURLを複数レーンが取得したことやモデル間の合意を独立した裏取りとして数えない。
+   - 情報源の権威は取得プロバイダーではなく、実際の公式ソースと本文で判断する。Xの噂や引用のない合成を事実扱いしない。
 3. **agy 単独**（任意）
    - 純粋に横断要約だけでよければ `/antigravity-research`（agy のみ、`agy -p "..."`）
-   - ただし agy 単独はハルシネーションがそのまま出る。**結論に使う事実は確証扱いせず**、重要なら cross-research で裏取りする
+   - ただし agy 単独はハルシネーションがそのまま出る。**結論に使う事実は確証扱いせず**、重要なら cross-research で裏取りする。
 
 ## レーン別フォールバック
 
-### firecrawl が制限中
+### Grok Web Search が失敗
 
-firecrawl が使えない時（**クレジット枯渇 / レート制限(429) / API エラー / 未認証**）は **agy + Grok X Search** にフォールバックする。状態は `firecrawl --status` で確認（credits 表示）。
+- 適切なら Firecrawl で検索・確認にフォールバックし、Grok失敗とフォールバックを報告する。
+- cross-research では Firecrawl + agy を続行し、「Grok Web Search 欠落」を明記する。
 
-- `/cross-research` 中なら → Firecrawl レーンを省略し、報告に「canonical 一次ソース未裏取り（firecrawl 制限中）」を明記。**X は公式ドキュメントの代替にならない**
-- クレジット回復（サイクル更新）を待つ選択もあるが、待つ場合はユーザーに確認する
+### Firecrawl が制限中
 
-### Grok X Search が失敗
-
-- Firecrawl + agy で続行し、報告に「X シグナル欠落」を明記
-- X 単独では canonical Web ドキュメントを置き換えられない
+- `firecrawl --status` で状態を確認し、`.firecrawl/` の出典・版・鮮度が十分なキャッシュを再利用する。なければ Grok + agy で続行し、「公式一次ソース本文未裏取り（Firecrawl制限中）」を明記する。
+- 同一の出典URLや合意を独立証拠と扱わない。必要なら取得可能になるまで保留し、ユーザーに確認する。
 
 ### agy が失敗
 
-- Firecrawl + Grok X Search で続行し、報告に「agy 欠落（横断推論なし）」を明記
+- Grok Web Search + Firecrawl で続行し、報告に「agy 欠落（横断推論なし）」を明記する。
 
-## firecrawl 主要コマンド
+## Firecrawl 主要コマンド
 
-- `firecrawl search` 検索＋本文 / `firecrawl scrape` URL取得 / `firecrawl map` URL探索
-- `firecrawl crawl` サイト網羅 / `firecrawl agent` 構造化抽出(JSON)
-- 結果は `.firecrawl/` に保存（再取得回避）
-- クレジット（実測・無料プラン ~1,000/サイクル）: プレーン検索=**2固定**、`--scrape` は **+1/件**（`--scrape --limit 3`≈5）。`firecrawl search-feedback <id>` で1credit返金
+- `firecrawl scrape` URL本文取得 / `firecrawl map` URL探索 / `firecrawl crawl` サイト網羅 / `firecrawl agent` 構造化抽出(JSON)
+- 必要に応じ `firecrawl search` で補助検索（Grok失敗時または明示依頼など）
+- 結果は `.firecrawl/` に保存（再取得回避）。従量課金・トークン費用に留意。
 
-## Grok X Search
+## Grok Web Search
 
-- ヘルパー: `~/.agents/skills/cross-research/scripts/grok-x-search.sh --query "..." --output .firecrawl/cross-research-grok-x.json`
-- モデル: `research.xai` ロール（`pi/agent/model-roles.json`）
-- コスト: **$5 / 1,000 X Search 呼び出し** + モデルトークン
-- 認証: `XAI_API_KEY` 優先、なければ `pi auth print-bearer-token --provider xai`
+- 詳細な実行例、出力の一意割り当て、クエリと実取得時刻の記録は `/grok-search` を参照。
+- 明示的なX調査のみ `--mode x` を使い、一般Web検索には使わない。
+- モデル: `research.xai` ロール（`pi/agent/model-roles.json`）。認証は `XAI_API_KEY` 優先、なければ `pi auth print-bearer-token --provider xai`。
 
 ## 委譲結果の保存
 

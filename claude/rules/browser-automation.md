@@ -14,5 +14,6 @@
   same task.
 - This routing does not replace the host's web-research policy. Follow its
   cross-research-first routing, including the narrow ax HTTP/body exception for
-  a simple fetch of a known public official raw-Markdown URL; other searching,
-  scraping, crawling, and multi-page research use the designated Firecrawl workflow.
+  a simple fetch of a known public official raw-Markdown URL. Use Grok Web Search
+  for ordinary Web search/discovery and Firecrawl for official-page/body
+  verification, JS, scraping, crawling, and multi-page research.

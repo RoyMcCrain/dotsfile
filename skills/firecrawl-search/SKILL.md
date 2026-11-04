@@ -1,7 +1,7 @@
 ---
 name: firecrawl-search
 description: |
-  Web search with full page content extraction. Use this skill whenever the user asks to search the web, find articles, research a topic, look something up, find recent news, discover sources, or says "search for", "find me", "look up", "what are people saying about", or "find articles about". Returns real search results with optional full-page markdown — not just snippets. Provides capabilities beyond the host's built-in web search. However, when the research needs multi-source verification, affects a technical/design/dependency decision, or recency matters, do not finish here — escalate to `/cross-research` (parallel Firecrawl + agy + Grok X Search cross-checking).
+  Supplemental Firecrawl Web search with full page content extraction. Use for explicit Firecrawl search requests, to fill gaps, or as a disclosed fallback when Grok Web Search fails; ordinary Web search/discovery defaults to `/grok-search`. When multi-source verification, technical/design/dependency decisions, recent variable facts, or likely contradictions matter, escalate to `/cross-research` (Grok Web Search + targeted Firecrawl + agy).
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)
@@ -13,8 +13,9 @@ Web search with optional content scraping. Returns search results as JSON, optio
 
 ## When to use
 
-- You don't have a specific URL yet
-- You need to find pages, answer questions, or discover sources
+- The user explicitly requests Firecrawl search
+- Grok Web Search failed and Firecrawl is an appropriate disclosed fallback
+- You need supplemental search to fill source gaps or find relevant pages
 - First step in the [workflow escalation pattern](firecrawl-cli): search → scrape → map → crawl → interact
 
 ## Quick start

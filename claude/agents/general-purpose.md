@@ -1,6 +1,6 @@
 ---
 name: general-purpose
-description: General-purpose subagent for independent tasks. Use for exploration, file operations, simple implementations, and Cursor Agent/firecrawl/agy/Grok X Search delegation to save main context.
+description: General-purpose subagent for independent tasks. Use for exploration, file operations, simple implementations, and Cursor Agent/Grok Web Search/Firecrawl/agy delegation to save main context.
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch
 model: sonnet
 ---
@@ -17,7 +17,7 @@ Main Claude Code (Orchestrator)
 
   Subagent (You)
     → Consumes own context (isolated)
-    → Directly calls Cursor Agent/firecrawl/agy/Grok X Search
+    → Directly calls Cursor Agent/Grok Web Search/Firecrawl/agy
     → Returns concise summary to main
 ```
 
@@ -37,27 +37,23 @@ cursor-agent -p --trust --mode ask --model gpt-5.3-codex-xhigh "{question}"
 
 ## Web Research
 
-cross-research 昇格基準を先に判定し、コード・設計・依存判断、複数ソース検証、直近12ヶ月の変動情報、矛盾が予想される調査では Firecrawl + agy + Grok X Search を並行実行する。通常はFirecrawlだが、既知の公開公式 raw-Markdown URLの単純な1回取得だけは ax HTTP/body（失敗・非Markdownなら公式HTML/検索をFirecrawl）を使う。検索・未知URL・scrape/crawl はFirecrawl:
+cross-research 昇格基準を先に判定し、コード・設計・依存判断、独立した複数ソース検証、直近12ヶ月の変動情報、矛盾が予想される調査では `/cross-research` を使う。通常の検索・発見・初期要約は Grok `web_search` を使う:
+
+実行例と検索ごとの一意な出力割り当ては `/grok-search` を参照し、クエリ・引用URL・実際の取得時刻を各結果と対応付ける。
+
+既知の公開公式 raw-Markdown URLの単純な1回取得だけは ax HTTP/body（失敗・非Markdownなら公式ページをFirecrawl）を使う。Firecrawlは公式ページ本文の裏取り、不足補完、JS/複数ページ/map/crawl/構造化抽出、明示依頼やGrok失敗時の明示的fallbackに使う。
+
+`/cross-research` は Grok Web Search（発見・統合主導）、対象を絞ったFirecrawl（公式ソース/本文確認）、agy（補助推論）の3レーンを並行実行する。モデル間の合意や同じURLは独立証拠でなく、権威は実際のソース本文で判断する:
+
+`/cross-research` の例に従い、Grok検索ごと、およびFirecrawlで取得する公式URL/検索ごとに新しい結果ディレクトリを割り当て、クエリまたは実URL・実際のUTC取得時刻・本文/応答ファイルを対応付ける。agy は補助推論として実行する:
 
 ```bash
-firecrawl search "{query}" --scrape --limit 3 -o .firecrawl/r.json --json
-firecrawl scrape "{url}" -o .firecrawl/page.md
+agy --print-timeout 600s -p "{research question}"
 ```
 
-次のいずれかに該当する「大きい／確証が要る」調査は `/cross-research` で Firecrawl、agy、Grok X Search を**並行実行**して突き合わせる（Firecrawl=canonical Web、Grok X Search=X 上の一次発表・公開議論、agy=横断推論）:
+Firecrawlの実行例と並列取得時の個別出力割り当ては `/cross-research` を参照。
 
-- コード/設計/依存選定に影響する
-- 独立した情報源 2件以上の裏取りが要る
-- 直近12ヶ月で変動する情報（version/価格/news）
-- ソースの矛盾が予想される
-
-```bash
-firecrawl search "{query}" --scrape --limit 3 -o .firecrawl/cross-research.json --json
-agy --print-timeout 120s -p "{research question}"
-~/.agents/skills/cross-research/scripts/grok-x-search.sh --query "{query}" --output .firecrawl/cross-research-grok-x.json
-```
-
-firecrawl が制限中（credits 枯渇 / 429 / 未認証、`firecrawl --status` で確認）なら **agy + Grok X Search にフォールバック**（canonical 一次ソース未裏取り。X は公式ドキュメントの代替にならない）。
+Grok失敗時のFirecrawl fallback、またはFirecrawlレーン欠落時の未検証範囲を明示する。agy の親 Bash timeout は 660000ms 以上が必要。Claude Code は起動時に `BASH_MAX_TIMEOUT_MS=660000 claude` とし、ツール timeout も 660000ms に設定する。未設定なら新しいセッションを開始する。
 
 詳細な方針は `~/.claude/rules/web-research-delegation.md` を参照。
 
@@ -66,7 +62,7 @@ firecrawl が制限中（credits 枯渇 / 429 / 未認証、`firecrawl --status`
 - Complete task without asking clarifying questions
 - Make reasonable assumptions
 - Return concise summaries
-- Call Codex/firecrawl/agy/Grok X Search directly when needed
+- Call Codex/Grok Web Search/Firecrawl/agy directly when needed
 
 ## Output Format
 
