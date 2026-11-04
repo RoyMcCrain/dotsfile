@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Query xAI Grok with the x_search tool; save raw JSON and print a normalized summary.
+# Query xAI Grok with the web_search or x_search tool; save raw JSON and print a normalized summary.
 set -euo pipefail
 
 die() {
@@ -9,7 +9,8 @@ die() {
 
 usage() {
 	cat <<'EOF'
-Usage: grok-x-search.sh --query TEXT --output PATH
+Usage: grok-x-search.sh [--mode web|x] --query TEXT --output PATH
+  --mode MODE  Search mode: web or x (default: x)
 EOF
 }
 
@@ -37,10 +38,17 @@ get_bearer_token() {
 }
 
 parse_args() {
+	mode='x'
 	query=''
 	output=''
 	while (($# > 0)); do
 		case "$1" in
+		--mode)
+			shift
+			[[ $# -gt 0 && -n "$1" ]] || die "missing value for --mode (expected web or x)"
+			mode=$1
+			[[ "$mode" == web || "$mode" == x ]] || die "invalid --mode: $mode (expected web or x)"
+			;;
 		--query)
 			shift
 			[[ $# -gt 0 ]] || {
@@ -134,25 +142,29 @@ print_normalized() {
 main() {
 	parse_args "$@"
 
-	local resolved api_model token payload http_code
+	local resolved api_model token payload http_code search_prompt search_tool
 	resolved=$(resolve_role research.xai) || exit 1
 	[[ -n "$resolved" ]] || die "research.xai resolved to empty model id"
 	[[ "$resolved" == xai/* ]] || die "research.xai must resolve to xai/* model, got: $resolved"
 	api_model="${resolved#xai/}"
 
 	token=$(get_bearer_token)
+	if [[ "$mode" == web ]]; then
+		search_prompt='Search the Web, prioritizing official first-party sources. Provide source URLs and distinguish verified facts from inference; do not treat uncited claims or rumors as established facts.'
+		search_tool='web_search'
+	else
+		search_prompt='Search X for relevant first-party announcements and public discussion. Distinguish official posts from general reactions and cite the X posts used.'
+		search_tool='x_search'
+	fi
 	payload=$(jq -n \
 		--arg model "$api_model" \
 		--arg query "$query" \
+		--arg prompt "$search_prompt" \
+		--arg tool "$search_tool" \
 		'{
 			model: $model,
-			input: (
-				"Search X for relevant first-party announcements and public discussion. "
-				+ "Distinguish official posts from general reactions and cite the X posts used.\n\n"
-				+ "Research question:\n"
-				+ $query
-			),
-			tools: [{type: "x_search"}]
+			input: ($prompt + "\n\nResearch question:\n" + $query),
+			tools: [{type: $tool}]
 		}')
 
 	http_code=$(fetch_response "$token" "$payload" "$output")

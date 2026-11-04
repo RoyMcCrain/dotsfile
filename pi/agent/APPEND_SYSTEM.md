@@ -116,9 +116,9 @@
 
 ## Web Research Rules
 
-- cross-research の昇格基準をルート選択より先に判定する。コード・設計・依存判断、複数ソース検証、直近12ヶ月で変動する事実、矛盾の予想があれば `cross-research` が優先で、既存の Firecrawl / agy / Grok X Search レーンを維持する。既知 Markdown URL は免除にならない。
-- それ以外の単純な1回の取得で、既知の公開公式 raw-Markdown URLに限り `ax` のHTTP/bodyモードを優先する（`--md` ではない）。HTTP成功・最終URL・実際の本文を検査し、失敗、不完全、HTML/ログイン/エラー本文なら反復せず公式HTMLページまたは公式サイト検索を Firecrawl で取得する。
-- URL発見・検索、複数URL、SPA、crawl、構造化抽出は `firecrawl` / `firecrawl-*` skill を使う。既存の `.firecrawl/` キャッシュは出典・版・鮮度が十分なら再利用し、実際の出典と取得／キャッシュ日を保つ。
+- cross-research の昇格基準をルート選択より先に判定する。コード・設計・依存判断、独立した複数ソース検証、直近12ヶ月で変動する事実、矛盾の予想があれば `cross-research` が優先。3レーンは Grok Web Search が発見・統合を主導し、Firecrawl が対象公式ソース/本文を検証、agy が補助推論する。既知 Markdown URL は免除にならない。
+- それ以外の通常のWeb検索・URL発見・初期要約は `grok-search`（実際の Grok `web_search`）を使う。Firecrawlは公式ページ本文・重要事実の裏取り、不足補完、JS/SPA/複数ページ/map/crawl/構造化抽出、明示依頼に使い、通常質問ごとの重複検索はしない。Grok失敗時のFirecrawl fallbackは明示する。
+- 単純な1回の取得で、既知の公開公式 raw-Markdown URLに限り `ax` のHTTP/bodyモードを優先する（`--md` ではない）。HTTP成功・最終URL・実際の本文を検査し、失敗、不完全、HTML/ログイン/エラー本文なら反復せず公式HTMLページまたは公式サイト検索を Firecrawl で取得する。既存 `.firecrawl/` キャッシュは出典・版・鮮度が十分なら再利用し、実際の出典と取得／キャッシュ日を保つ。
 
 次のどれか1つでも該当したら `cross-research` に昇格する:
 
@@ -128,7 +128,7 @@
 - ソースの矛盾が予想される。
 
 - 純粋な横断要約だけでよい場合は `antigravity-research` skill を使ってよい。
-- `agy` 単独の結果は確証扱いせず、重要な事実は firecrawl または `cross-research`（Firecrawl + agy + Grok X Search）で裏取りする。
+- `agy` 単独やGrokの未引用合成は確証扱いせず、重要な事実は公式ソース本文で裏取りする。複数レーンの合意や同一URLは独立証拠ではなく、権威は取得者でなく実ソース/本文による。
 - 判断に迷ったら `cross-research` に昇格する。
-- firecrawl がクレジット枯渇、rate limit、API error、未認証で使えない場合は `firecrawl --status` で状態を確認し、`agy` と Grok X Search にフォールバックして canonical 一次ソース未裏取りであることを明記する（X は公式ドキュメントの代替にならない）。
-- firecrawl の取得結果は `.firecrawl/` の既存保存結果を再利用し、不要な再取得を避ける。
+- Grok失敗時にFirecrawlへフォールバックしたら明記する。Firecrawlが使えない場合は `firecrawl --status` で状態を確認する。出典・版・鮮度が十分なキャッシュがなければ公式本文未裏取りと明記し、推測を確証扱いしない。
+- Firecrawlの取得結果は `.firecrawl/` の既存保存結果を再利用し、不要な再取得を避ける。

@@ -1,7 +1,7 @@
 ---
 name: firecrawl-scrape
 description: |
-  Extract clean markdown with Firecrawl from URLs, including JS-rendered SPAs. Use when a URL's content is needed, including searched pages, JS pages, or multiple URLs. A simple fetch of a known public official raw-Markdown URL uses ax first; use Firecrawl for fallback. For other single known static URLs, the host's web retrieval tool is fine.
+  Extract clean markdown with Firecrawl from URLs, including JS-rendered SPAs. Grok Web Search is the default for discovery; use Firecrawl to retrieve/verify cited page bodies, including JS pages or multiple URLs. A simple fetch of a known public official raw-Markdown URL uses ax first; use Firecrawl for fallback. For other single known static URLs, the host's web retrieval tool is fine.
 allowed-tools:
   - Bash(firecrawl *)
   - Bash(npx firecrawl *)

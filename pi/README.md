@@ -632,9 +632,10 @@ exposure is controlled by which runtime directory links the skill.
 | Skill | Invoke | Notes |
 | ----- | ------ | ----- |
 | `ax` | `/skill:ax` | Simple known public official raw-Markdown fetch only; classify cross-research first, validate response, Firecrawl fallback |
-| `firecrawl` | `/skill:firecrawl` | Search/discovery, unknown URLs, JS, scrape/crawl, multi-page; source dir: `skills/firecrawl-cli` |
+| `grok-search` | `/skill:grok-search` | Ordinary Web search/discovery with Grok `web_search`; canonical source: `skills/grok-search` |
+| `firecrawl` | `/skill:firecrawl` | Official-page/body verification, gaps, JS, scrape/crawl, multi-page; source dir: `skills/firecrawl-cli` |
 | `firecrawl-agent` | `/skill:firecrawl-agent` | structured extraction |
-| `cross-research` | `/skill:cross-research` | Firecrawl + agy + Grok X Search 並列検証 |
+| `cross-research` | `/skill:cross-research` | Grok Web Search lead + targeted Firecrawl + agy 並列検証 |
 | `antigravity-research` | `/skill:antigravity-research` | agy のみ（未検証サマリ） |
 
 **cmux** (20 skills): `cmux`, `cmux-architecture`, … — all under `skills/`

@@ -111,7 +111,7 @@ assert_token_not_in_argv() {
 	fi
 }
 
-@test "uses XAI_API_KEY and payload has stripped model plus x_search tool" {
+@test "uses XAI_API_KEY and payload has stripped model plus x_search tool by default" {
 	export XAI_API_KEY="super-secret-api-key"
 	export FAKE_CURL_BODY='{"output":[{"content":[{"type":"output_text","text":"hello"}]}]}'
 
@@ -126,6 +126,41 @@ assert_token_not_in_argv() {
 	assert_token_not_in_argv "super-secret-api-key"
 	rg -Fq 'Authorization: Bearer super-secret-api-key' "$STDIN_LOG"
 	[[ "$output" == *hello* ]]
+}
+
+@test "web mode uses web_search and preserves query and citations" {
+	export XAI_API_KEY="token"
+	export FAKE_CURL_BODY='{"output":[{"content":[{"type":"output_text","text":"Official result","annotations":[{"type":"url_citation","url":"https://example.com/docs"}]}]}]}'
+
+	run "$SCRIPT" --mode web --query "current API" --output "$OUTPUT_PATH"
+	[ "$status" -eq 0 ]
+	jq -e '.tools == [{"type":"web_search"}]' "$PAYLOAD_LOG" >/dev/null
+	jq -e '.input | contains("current API") and contains("official")' "$PAYLOAD_LOG" >/dev/null
+	[[ "$output" == *"Official result"* ]]
+	[[ "$output" == *"https://example.com/docs"* ]]
+	[ "$(jq -r '.output[0].content[0].text' "$OUTPUT_PATH")" = "Official result" ]
+}
+
+@test "invalid and missing mode fail before auth or network" {
+	run "$SCRIPT" --mode invalid --query test --output "$OUTPUT_PATH"
+	[ "$status" -ne 0 ]
+	[ ! -e "$FAKE_PI_ARGS" ]
+	[ ! -e "$ARGS_LOG" ]
+
+	run "$SCRIPT" --query test --output "$OUTPUT_PATH" --mode
+	[ "$status" -ne 0 ]
+	[ ! -e "$FAKE_PI_ARGS" ]
+	[ ! -e "$ARGS_LOG" ]
+}
+
+@test "explicit x mode preserves X search behavior" {
+	export XAI_API_KEY="token"
+	export FAKE_CURL_BODY='{"output":[]}'
+
+	run "$SCRIPT" --mode x --query "X announcement" --output "$OUTPUT_PATH"
+	[ "$status" -eq 0 ]
+	jq -e '.tools == [{"type":"x_search"}]' "$PAYLOAD_LOG" >/dev/null
+	jq -e '.input | contains("Search X") and contains("X announcement")' "$PAYLOAD_LOG" >/dev/null
 }
 
 @test "oauth fallback invokes pi auth print-bearer-token --provider xai" {
