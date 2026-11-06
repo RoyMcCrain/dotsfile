@@ -34,29 +34,42 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
             if string match -q '*/.jj' $marker; and test -f $marker/repo
                 continue
             end
-            dirname $marker
+            string replace -r '/[^/]+$' '' -- $marker
         end <$marker_file | sort -u >$repos_file
 
-        # jj workspace (.jj/repo がファイルで親を参照しているもの)
+        # jj workspace の生存確認は bounded parallel で行い、結果は個別ファイルに保存する
+        set -l jj_jobs (mktemp)
+        set -l jj_result_dir (mktemp -d)
+        set -l job_index 0
         while read -l marker
-            if not string match -q '*/.jj' $marker
-                continue
+            if string match -q '*/.jj' $marker; and test -f $marker/repo
+                set job_index (math $job_index + 1)
+                printf '%s\0%s\0' $marker "$jj_result_dir/$job_index" >>$jj_jobs
             end
-            if not test -f $marker/repo
-                continue
+        end <$marker_file
+        if test -s $jj_jobs
+            xargs -0 -n2 -P8 /bin/sh -c '
+                marker=$1
+                result_file=$2
+                ws_path=${marker%/.jj}
+                ws_alive=$(jj workspace list --ignore-working-copy -R "$ws_path" 2>/dev/null)
+                [ -n "$ws_alive" ] || exit 0
+                parent_jj=$(cat "$marker/repo") || exit 0
+                parent_path=${parent_jj%/.jj/repo}
+                printf "%s\\0%s\\0" "$ws_path" "$parent_path" >"$result_file"
+            ' _ <$jj_jobs
+        end
+        while read -lz marker; and read -lz result_file
+            if test -s "$result_file"
+                while read -lz ws_path; and read -lz parent_path
+                    echo $ws_path
+                    printf "%s\t%s\n" $ws_path $parent_path >>$jj_parent_file
+                end <$result_file >>$jj_file
             end
-            set -l ws_path (dirname $marker)
-            # forget済み(jj workspace listが空)なworkspaceは除外
-            set -l ws_alive (jj workspace list -R $ws_path 2>/dev/null)
-            if test -z "$ws_alive"
-                continue
-            end
-            set -l parent_jj (cat $marker/repo)
-            set -l parent_path (dirname (dirname $parent_jj))
-            echo $ws_path
-            # workspace と親のマッピングを保存
-            printf "%s\t%s\n" $ws_path $parent_path >>$jj_parent_file
-        end <$marker_file >$jj_file
+            rm -f "$result_file"
+        end <$jj_jobs
+        rm -f $jj_jobs
+        rmdir $jj_result_dir
 
         # 通常リポジトリを先、linked jj workspace を後にまとめてソート
         begin
@@ -143,7 +156,8 @@ function ghq-fzf --description 'Select ghq repository with fzf and change direct
         set preview_command "ls -l"
     end
 
-    set -l src (cat $cache_file | fzf --ansi --no-sort --color=fg:-1 --with-nth=1 --nth=1 --delimiter='\t' --preview "$preview_command $ghq_root/{2}")
+    set -lx GHQ_FZF_ROOT $ghq_root
+    set -l src (cat $cache_file | fzf --ansi --no-sort --color=fg:-1 --with-nth=1 --nth=1 --delimiter='\t' --with-shell '/bin/sh -c' --preview "$preview_command \"\$GHQ_FZF_ROOT\"/{2}")
 
     if test -n "$src"
         set -l path (string split \t $src)[2]

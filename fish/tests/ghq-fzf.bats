@@ -6,8 +6,9 @@ FISH_BIN="$(command -v fish)"
 FD_BIN="$(command -v fd)"
 SHASUM_BIN="$(command -v shasum)"
 SD_BIN="$(command -v sd)"
+JQ_BIN="$(command -v jq)"
 REAL_FZF_BIN="$(command -v fzf)"
-TOOL_PATH="$(dirname "$FD_BIN"):$(dirname "$SHASUM_BIN"):$(dirname "$SD_BIN"):/usr/bin:/bin"
+TOOL_PATH="$(dirname "$FD_BIN"):$(dirname "$SHASUM_BIN"):$(dirname "$SD_BIN"):$(dirname "$JQ_BIN"):/usr/bin:/bin"
 
 setup() {
 	TEST_ROOT="$BATS_TEST_TMPDIR/ghq-fzf-test"
@@ -16,13 +17,26 @@ setup() {
 	STUB_BIN="$TEST_ROOT/stub-bin"
 	FZF_LOG="$TEST_ROOT/fzf-args.log"
 	FZF_STDIN_LOG="$TEST_ROOT/fzf-stdin.log"
+	JJ_LOG="$TEST_ROOT/jj-args.log"
 	CD_LOG="$TEST_ROOT/cd.log"
 	mkdir -p "$HOME/.cache" "$HOME/.config/fish" "$STUB_BIN"
-	export HOME USER="${USER:-testuser}" GHQ_ROOT FZF_LOG FZF_STDIN_LOG CD_LOG
+	export HOME USER="${USER:-testuser}" GHQ_ROOT FZF_LOG FZF_STDIN_LOG JJ_LOG CD_LOG
 	write_stubs
 }
 
 write_stubs() {
+	cat >"$STUB_BIN/xargs" <<'EOF'
+#!/bin/sh
+capture=$(mktemp)
+"${REAL_XARGS_BIN:-/usr/bin/xargs}" "$@" >"$capture"
+# Model split writes without relying on process timing.
+jq -jRs '
+    split("\u0000")[:-1]
+    | if length == 4 then [.[0], .[2], .[1], .[3]] else . end
+    | if length == 0 then "" else join("\u0000") + "\u0000" end
+' "$capture"
+rm -f "$capture"
+EOF
 	cat >"$STUB_BIN/ghq" <<EOF
 #!/bin/sh
 case "\$1" in
@@ -32,6 +46,7 @@ esac
 EOF
 	cat >"$STUB_BIN/jj" <<'EOF'
 #!/bin/sh
+printf '%s\n' "$*" >>"${JJ_LOG:-/dev/null}"
 case "$1" in
 workspace)
 	shift
@@ -65,16 +80,34 @@ if [ -n "${FZF_STDIN_LOG:-}" ]; then
 else
 	cat >/dev/null
 fi
+if [ -n "${TEST_PREVIEW_PATH:-}" ]; then
+	while [ "$#" -gt 0 ]; do
+		if [ "$1" = --preview ]; then
+			shift
+			preview=$1
+			break
+		fi
+		shift
+	done
+	quoted=$(jq -nr --arg path "$TEST_PREVIEW_PATH" '$path|@sh')
+	preview=$(printf '%s' "$preview" | sd -F '{2}' "$quoted")
+	/bin/sh -c "$preview"
+fi
 if [ -n "${TEST_FZF_SELECT:-}" ]; then
 	printf '%s\n' "$TEST_FZF_SELECT"
 fi
 exit 0
 EOF
+	cat >"$STUB_BIN/eza" <<'EOF'
+#!/bin/sh
+for arg do last=$arg; done
+printf '%s\n' "$last" >"$PREVIEW_PATH_LOG"
+EOF
 	cat >"$STUB_BIN/commandline" <<'EOF'
 #!/bin/sh
 exit 0
 EOF
-	chmod +x "$STUB_BIN"/{ghq,jj,fzf,commandline}
+	chmod +x "$STUB_BIN"/{xargs,ghq,jj,fzf,eza,commandline}
 }
 
 run_ghq_fzf() {
@@ -88,8 +121,11 @@ run_ghq_fzf() {
 		GHQ_ROOT="$GHQ_ROOT" \
 		FZF_LOG="$FZF_LOG" \
 		FZF_STDIN_LOG="$FZF_STDIN_LOG" \
+		JJ_LOG="$JJ_LOG" \
 		CD_LOG="$CD_LOG" \
 		TEST_FZF_SELECT="${TEST_FZF_SELECT:-}" \
+		TEST_PREVIEW_PATH="${TEST_PREVIEW_PATH:-}" \
+		PREVIEW_PATH_LOG="${PREVIEW_PATH_LOG:-}" \
 		"$FISH_BIN" --no-config -c "
 		function cd
 			printf '%s\n' \"\$argv\" >>'$CD_LOG'
@@ -154,6 +190,66 @@ file_mtime() {
 	[ -n "$github_after_ws" ]
 	acme_after_ws="$(printf '%s\n' "$body" | awk -v ws="$ws_line" 'NR > ws && /^── acme ──/ { print NR; exit }')"
 	[ -n "$acme_after_ws" ]
+}
+
+@test "validates linked workspaces read-only and previews paths with shell-safe quoting" {
+	GHQ_ROOT="$HOME/ghq root's"
+	export GHQ_ROOT
+	mkdir -p "$GHQ_ROOT/github.com/acme/parent/.jj/repo"
+	mkdir -p "$GHQ_ROOT/github.com/acme/work space's/.jj"
+	printf '%s\n' "$GHQ_ROOT/github.com/acme/parent/.jj/repo" >"$GHQ_ROOT/github.com/acme/work space's/.jj/repo"
+	export PREVIEW_PATH_LOG="$TEST_ROOT/preview-path.log" TEST_PREVIEW_PATH="github.com/acme/work space's"
+
+	run run_ghq_fzf
+
+	[ "$status" -eq 0 ]
+	run rg -F -- 'workspace list --ignore-working-copy -R' "$JJ_LOG"
+	[ "$status" -eq 0 ]
+	run rg -F -- "--with-shell /bin/sh -c" "$FZF_LOG"
+	[ "$status" -eq 0 ]
+	[ "$(cat "$PREVIEW_PATH_LOG")" = "$GHQ_ROOT/$TEST_PREVIEW_PATH" ]
+}
+
+@test "collects and sorts every linked workspace across parent repositories" {
+	mkdir -p "$GHQ_ROOT/github.com/acme/parent-a/.jj/repo"
+	mkdir -p "$GHQ_ROOT/github.com/acme/parent-b/.jj/repo"
+	for workspace in ws-z ws-a; do
+		mkdir -p "$GHQ_ROOT/github.com/acme/$workspace/.jj"
+		printf '%s\n' "$GHQ_ROOT/github.com/acme/parent-a/.jj/repo" >"$GHQ_ROOT/github.com/acme/$workspace/.jj/repo"
+	done
+	mkdir -p "$GHQ_ROOT/github.com/acme/ws-b/.jj"
+	printf '%s\n' "$GHQ_ROOT/github.com/acme/parent-b/.jj/repo" >"$GHQ_ROOT/github.com/acme/ws-b/.jj/repo"
+
+	run run_ghq_fzf
+
+	[ "$status" -eq 0 ]
+	mapfile -t paths < <(cache_data_paths)
+	[ "${#paths[@]}" -eq 5 ]
+	[ "${paths[0]}" = "github.com/acme/parent-a" ]
+	[ "${paths[1]}" = "github.com/acme/parent-b" ]
+	[ "${paths[2]}" = "github.com/acme/ws-a" ]
+	[ "${paths[3]}" = "github.com/acme/ws-z" ]
+	[ "${paths[4]}" = "github.com/acme/ws-b" ]
+	[ "$(printf '%s\n' "${paths[@]}" | sort -u | wc -l | tr -d ' ')" -eq 5 ]
+}
+
+@test "keeps workspace parents paired when parallel results are interleaved" {
+	parent_a="$GHQ_ROOT/github.com/acme/$(printf '%0200d' 1)"
+	parent_b="$GHQ_ROOT/github.com/acme/$(printf '%0200d' 2)"
+	workspace_a="$GHQ_ROOT/github.com/acme/$(printf '%0200d' 3)"
+	workspace_b="$GHQ_ROOT/github.com/acme/$(printf '%0200d' 4)"
+	mkdir -p "$parent_a/.jj/repo" "$parent_b/.jj/repo" "$workspace_a/.jj" "$workspace_b/.jj"
+	printf '%s\n' "$parent_a/.jj/repo" >"$workspace_a/.jj/repo"
+	printf '%s\n' "$parent_b/.jj/repo" >"$workspace_b/.jj/repo"
+
+	run run_ghq_fzf
+
+	[ "$status" -eq 0 ]
+	body="$(cache_body)"
+	[[ "$body" == *"$(basename "$parent_a")/$(basename "$workspace_a")"* ]]
+	[[ "$body" == *"$(basename "$parent_b")/$(basename "$workspace_b")"* ]]
+	[[ "$body" != *"$(basename "$parent_a")/$(basename "$workspace_b")"* ]]
+	[[ "$body" != *"$(basename "$parent_b")/$(basename "$workspace_a")"* ]]
 }
 
 @test "deduplicates main jj root when both .git and .jj markers exist" {
