@@ -12,6 +12,10 @@ Hard requirements (not preferences). Canonical: `~/.claude/rules/required-tools.
 - MUST use non-interactive machine-readable commands; do NOT use `fzf` unless the user asks.
 - Exception only when the required tool is unavailable.
 
+## GitHub PR Screenshot Attachments
+
+For requested GitHub PR screenshot attachments, use `gh pr create ... --attach <file>` or `gh pr edit <number> --attach <file>` (repeat `--attach` for multiple files). Do not use browser upload unless explicitly requested; if CLI attachment is unavailable or fails, report it rather than falling back. Canonical shared policy: `claude/rules/browser-automation.md`.
+
 ## 得意領域
 
 - コード実装（auto-editモード: ファイル編集自動、コマンドは確認）
