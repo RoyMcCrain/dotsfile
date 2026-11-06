@@ -20,6 +20,10 @@ Hard requirements for every agent in this environment (not Pi-only). Canonical c
 - MUST prefer non-interactive, machine-readable commands in automated agent workflows. Do NOT use interactive tools such as `fzf` unless the user explicitly requests them.
 - MUST NOT re-read the same vendor bundle (`node_modules/**/dist/*.mjs` 等) or large file across multiple turns in one session; once read, note the relevant API/lines and reuse that instead of reading again.
 
+## GitHub PR Screenshot Attachments
+
+When a user requests screenshot attachments on a GitHub PR, use the installed `gh` CLI: `gh pr create ... --attach './screenshot.png#UI state'` for a new PR or `gh pr edit <number> --attach './screenshot.png#UI state'` for an existing PR. Do not use cmux-browser or Playwright for GitHub upload unless explicitly requested; if CLI attachment is unavailable or fails, report it rather than falling back to browser upload. See the canonical shared policy: `claude/rules/browser-automation.md`.
+
 ## Commands
 
 ### Environment Setup

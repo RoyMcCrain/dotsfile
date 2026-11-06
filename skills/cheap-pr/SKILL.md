@@ -86,7 +86,7 @@ flowchart TD
    - git: `git push -u origin HEAD`。
    - force-push は明示依頼がある場合だけ。失敗したら理由を伝え、勝手に `--force` しない。
 8. **PR作成**
-   - 同じ head の PR が既にあれば新規作成せず、push 結果と既存 URL を返す。
+   - 同じ head の PR が既にあれば新規作成せず、push 結果と既存 URL を返す。ただしスクリーンショット添付の依頼があれば、その PR を `gh pr edit <number> --attach <file>` で更新する。
    - 無ければ作成する。`--base` は省略し、リポジトリのデフォルトブランチに任せる。
 
 ```bash
@@ -95,6 +95,17 @@ gh pr create --head <name> --title "..." --body "$(cat <<'EOF'
 EOF
 )"
 ```
+
+### スクリーンショット添付
+
+- 新規 PR: `gh pr create ... --attach './screenshot.png#UI state'`。
+- 既存 PR: `gh pr edit <number> --attach './screenshot.png#UI state'`。本文を差し替えずに添付を追加できる。
+- 複数ファイルは `--attach` を繰り返す。
+- 添付のために cmux-browser / Playwright で GitHub を開かない。撮影には既存のブラウザールールを使う。CLI が未対応・失敗したら報告し、ブラウザー添付はユーザーが明示した場合に限る。
+- 作成・更新が非ゼロ終了でも PR が成功している場合がある。作成を再試行する前に出力された URL や既存 PR を確認し、重複作成を避ける。
+- PR が作成済みなら `gh pr view <number> --json body` で添付状況を確認し、未添付と確認できたファイルだけを `gh pr edit <number> --attach <file>` で追加する。確認できない・再試行でも失敗する場合は PR URL と「添付未完了」を明示し、添付完了とは報告しない。
+
+共通ルール: `claude/rules/browser-automation.md`。
 
 完了時は PR URL を返す。
 
