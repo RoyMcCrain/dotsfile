@@ -1,5 +1,13 @@
 # Browser Automation Routing
 
+- **GitHub PR screenshot attachments**: Upload requested screenshots with the
+  installed `gh` CLI using `gh pr create ... --attach <file>` or
+  `gh pr edit <number> --attach <file>`. Do not use cmux-browser or Playwright to
+  open GitHub for upload. This exception is for uploading only: `cmux-browser`
+  remains preferred for application UI inspection and capturing screenshots.
+  If CLI attachment is unavailable or fails, report the issue; do not silently
+  fall back to browser upload. Use browser upload only when the user explicitly
+  requests it.
 - MUST prefer the `cmux-browser` skill for routine UI inspection, screenshots,
   navigation, form interaction, and data extraction when running inside cmux and
   WKWebView capabilities are sufficient.
