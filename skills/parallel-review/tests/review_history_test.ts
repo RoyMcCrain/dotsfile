@@ -3,8 +3,8 @@ import { test } from "bun:test";
 import {
   mkdir,
   mkdtemp,
-  readFile,
   readdir,
+  readFile,
   rm,
   stat,
   symlink,
@@ -14,17 +14,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runFixtureProcess } from "./history_fixture_process.ts";
 import {
-  getLevelScale,
-  parseLevel,
   readDecisionHistory,
   saveAssessment,
   validateSnapshot,
 } from "../scripts/review_history.ts";
 import {
-  buildChunkFallbackDecision,
   buildExplicitDecision,
-  buildFallbackDecision,
-  buildJevDecision,
   sha256Bytes,
   validateLevelDecision,
 } from "../scripts/select_review_level.ts";
@@ -220,6 +215,60 @@ const prepareRunForSave = async (
   await writeFile(join(runDir, exec.stderrLog), "err\n", { mode: 0o600 });
 };
 
+const runSkillChunkSplitBlock = async (options: {
+  reviewDir: string;
+  chunkChoice: string;
+  splitter?: string;
+}): Promise<{ code: number; stdout: string; stderr: string }> => {
+  const skill = await readFile(SKILL_PATH, "utf8");
+  const block = extractBashBlock(skill, "## 大きい patch（分割レビュー）");
+  const bash5 = await findBash5();
+  const work = await mkdtemp(join(tmpdir(), "pr-chunk-block-"));
+  const scriptPath = join(work, "run.sh");
+  const splitterLine = options.splitter
+    ? `SPLITTER=${JSON.stringify(options.splitter)}\n`
+    : "";
+  const chunksReport = "if ((${#CHUNKS[@]} > 0)); then\n" +
+    "  printf 'CHUNKS=%s\\n' \"${CHUNKS[*]}\"\n" +
+    "fi\n";
+  const script = `#!/usr/bin/env bash
+set -euo pipefail
+declare -a CHUNKS=()
+REVIEW_DIR=${JSON.stringify(options.reviewDir)}
+CHUNK_CHOICE=${JSON.stringify(options.chunkChoice)}
+${splitterLine}${block}
+printf 'CHUNK_ID=%s\\n' "\${CHUNK_ID:-}"
+printf 'CHUNK_FILE=%s\\n' "\${CHUNK_FILE:-}"
+${chunksReport}`;
+  await writeFile(scriptPath, script, { mode: 0o755 });
+  const env = { ...processEnv(), ...devboxBashEnv() };
+  const out = await runFixtureProcess(bash5, {
+    args: [scriptPath],
+    stdout: "piped",
+    stderr: "piped",
+    env,
+  });
+  try {
+    return {
+      code: out.code,
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+    };
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+};
+
+const buildLargeTwoFilePatch = (sectionPayloadBytes: number): Uint8Array => {
+  const section = (name: string): string => {
+    const header =
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n@@ -0,0 +1,1 @@\n`;
+    const padLen = Math.max(0, sectionPayloadBytes - header.length - 2);
+    return header + "+" + "x".repeat(padLen) + "\n";
+  };
+  return new TextEncoder().encode(section("a.txt") + section("b.txt"));
+};
+
 const runCli = async (
   args: string[],
   env?: Record<string, string>,
@@ -367,7 +416,7 @@ test("init creates private run dir with metadata context", async () => {
     assert.equal(meta.repository, "/Users/roy/project");
     assert.equal(meta.revision, "abc123");
     assert.equal(meta.level, 1);
-    assert.equal(meta.levelScale, 5);
+    assert.equal(meta.levelScale, 2);
     assert.match(
       meta.createdAt,
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
@@ -391,7 +440,7 @@ test("init rejects invalid level and relative XDG_DATA_HOME", async () => {
         String(level),
       ], childEnv(home, xdg));
       assert.notEqual(out.code, 0);
-      assert.match(out.stderr, /level must be 1, 2, 3, 4, or 5/);
+      assert.match(out.stderr, /level must be 1 or 2/);
     }
     const noRepo = await runCli([
       "init",
@@ -588,7 +637,9 @@ test("pending execution progresses to running and completed; regression rejected
     assert.equal(last.executions[0].status, "completed");
 
     const snapDir = join(runDir, "snapshots");
-    const snapPaths = (await readdir(snapDir)).map((name) => join(snapDir, name));
+    const snapPaths = (await readdir(snapDir)).map((name) =>
+      join(snapDir, name)
+    );
     snapPaths.sort();
     const jqLatest = await runFixtureProcess("jq", {
       args: [
@@ -1075,7 +1126,7 @@ test("save rejects metadata level and revision changes across snapshots", async 
 
     const metaPath = join(runDir, "metadata.json");
     const meta = JSON.parse(await readFile(metaPath, "utf8"));
-    meta.level = 3;
+    meta.level = 1;
     await writeFile(metaPath, JSON.stringify(meta, null, 2), { mode: 0o600 });
     await assert.rejects(
       () =>
@@ -1086,7 +1137,7 @@ test("save rejects metadata level and revision changes across snapshots", async 
       /metadata changed across snapshots/,
     );
 
-    meta.level = 2;
+    meta.level = 1;
     meta.revision = "deadbeef999999";
     await writeFile(metaPath, JSON.stringify(meta, null, 2), { mode: 0o600 });
     await assert.rejects(
@@ -1581,7 +1632,7 @@ test("CLI rejects unknown duplicate and positional args", async () => {
       "nope",
     ], childEnv(home, xdg));
     assert.notEqual(badLevel.code, 0);
-    assert.match(badLevel.stderr, /level must be 1, 2, 3, 4, or 5/);
+    assert.match(badLevel.stderr, /level must be 1 or 2/);
 
     const coercedLevel = await runCli([
       "init",
@@ -1593,128 +1644,8 @@ test("CLI rejects unknown duplicate and positional args", async () => {
       "01",
     ], childEnv(home, xdg));
     assert.notEqual(coercedLevel.code, 0);
-    assert.match(coercedLevel.stderr, /level must be 1, 2, 3, 4, or 5/);
+    assert.match(coercedLevel.stderr, /level must be 1 or 2/);
   });
-});
-
-test("parseLevel accepts 1-5 and rejects coercion", () => {
-  for (const n of [1, 2, 3, 4, 5]) {
-    assert.equal(parseLevel(n), n);
-    assert.equal(parseLevel(String(n)), n);
-  }
-  for (const bad of [0, 6, true, "01", "4.0", null]) {
-    assert.throws(() => parseLevel(bad), /level must be 1, 2, 3, 4, or 5/);
-  }
-});
-
-test("getLevelScale and metadata levelScale validation", () => {
-  assert.equal(getLevelScale({}), 3);
-  assert.equal(getLevelScale({ levelScale: 3 }), 3);
-  assert.equal(getLevelScale({ levelScale: 5 }), 5);
-  for (const bad of ["3", 4, true, null]) {
-    assert.throws(
-      () => getLevelScale({ levelScale: bad }),
-      /metadata.levelScale must be 2, 3, or 5/,
-    );
-  }
-});
-
-test("validateSnapshot rejects legacy level 4/5 and scale mismatches", () => {
-  const baseExec = {
-    id: "whole-r01",
-    backend: "pi",
-    model: "provider/model-a:high",
-    chunk: "changes.patch",
-    timeout: 600,
-    retryTimeout: 600,
-    maxAttempts: 2,
-    status: "completed",
-    startedAt: ISO,
-    endedAt: ISO_END,
-    exitCode: 0,
-    stdoutLog: "logs/whole-r01.stdout.log",
-    stderrLog: "logs/whole-r01.stderr.log",
-    files: {
-      chunk: { path: "changes.patch", sha256: "a".repeat(64) },
-      stdoutLog: { path: "logs/whole-r01.stdout.log", sha256: "b".repeat(64) },
-      stderrLog: { path: "logs/whole-r01.stderr.log", sha256: "c".repeat(64) },
-    },
-  };
-  const review = {
-    executionId: "whole-r01",
-    verdict: "no_findings",
-    findings: [],
-  };
-  const snapshotBase = {
-    schemaVersion: 1,
-    runId: "00000000-0000-4000-8000-000000000001",
-    savedAt: ISO_MS,
-    actor: { kind: "agent", id: "cursor/test:default" },
-    files: {
-      patch: { path: "changes.patch", sha256: "d".repeat(64) },
-      prompt: { path: "prompt.md", sha256: "e".repeat(64) },
-    },
-    executions: [baseExec],
-    reviews: [review],
-  };
-
-  const meta = (
-    metadata: Record<string, unknown>,
-  ) => ({
-    schemaVersion: 1,
-    runId: snapshotBase.runId,
-    createdAt: ISO_MS,
-    repository: "/tmp/r",
-    revision: "abc",
-    ...metadata,
-  });
-
-  for (const level of [4, 5]) {
-    assert.throws(
-      () =>
-        validateSnapshot({
-          ...snapshotBase,
-          metadata: meta({ level }),
-        }),
-      new RegExp(`legacy 3-level metadata does not support level ${level}`),
-    );
-  }
-
-  assert.throws(
-    () =>
-      validateSnapshot({
-        ...snapshotBase,
-        metadata: meta({ level: 4, levelScale: 3 }),
-      }),
-    /metadata.level exceeds levelScale 3/,
-  );
-
-  assert.throws(
-    () =>
-      validateSnapshot({
-        ...snapshotBase,
-        metadata: meta({ level: 5, levelScale: 3 }),
-      }),
-    /metadata.level exceeds levelScale 3/,
-  );
-
-  for (const badScale of [4, "5", true]) {
-    assert.throws(
-      () =>
-        validateSnapshot({
-          ...snapshotBase,
-          metadata: meta({ level: 2, levelScale: badScale }),
-        }),
-      /metadata.levelScale must be 2, 3, or 5/,
-    );
-  }
-
-  for (const level of [4, 5]) {
-    validateSnapshot({
-      ...snapshotBase,
-      metadata: meta({ level, levelScale: 5 }),
-    });
-  }
 });
 
 test("CLI init and save smoke", async () => {
@@ -1722,10 +1653,10 @@ test("CLI init and save smoke", async () => {
     const { runDir, metadata } = await initRunViaCli(home, xdg, {
       repository: "/tmp/repo",
       revision: "deadbeef",
-      level: 3,
+      level: 2,
     });
     assert.match(runDir, new RegExp(`^${xdg.replaceAll("/", "\\/")}`));
-    assert.equal(metadata.levelScale, 5);
+    assert.equal(metadata.levelScale, 2);
 
     await prepareRunForSave(runDir);
     const snapshotPath = await saveRunViaCli(
@@ -1738,166 +1669,10 @@ test("CLI init and save smoke", async () => {
     const snapshot = validateSnapshot(
       JSON.parse(await readFile(snapshotPath, "utf8")),
     );
-    assert.equal(snapshot.metadata.level, 3);
-    assert.equal(snapshot.metadata.levelScale, 5);
+    assert.equal(snapshot.metadata.level, 2);
+    assert.equal(snapshot.metadata.levelScale, 2);
   });
 });
-
-test("CLI init and save for level 4 and 5 embeds levelScale 5 in metadata and snapshot", async () => {
-  for (const level of [4, 5] as const) {
-    await withTempHome(async (home, xdg) => {
-      const { runDir, metadata } = await initRunViaCli(home, xdg, {
-        repository: "/tmp/repo",
-        revision: "cafebabe",
-        level,
-      });
-      assert.equal(metadata.level, level);
-      assert.equal(metadata.levelScale, 5);
-
-      await prepareRunForSave(runDir);
-      const snapshotPath = await saveRunViaCli(
-        home,
-        xdg,
-        runDir,
-        minimalAssessment("whole-r01", "no_findings"),
-      );
-      const snapshot = validateSnapshot(
-        JSON.parse(await readFile(snapshotPath, "utf8")),
-      );
-      assert.equal(snapshot.metadata.level, level);
-      assert.equal(snapshot.metadata.levelScale, 5);
-      assert.equal(
-        JSON.parse(await readFile(join(runDir, "metadata.json"), "utf8"))
-          .levelScale,
-        5,
-      );
-    });
-  }
-});
-
-test("legacy metadata without levelScale survives saves and rejects levelScale mutation", async () => {
-  await withTempHome(async (home, xdg) => {
-    const { runDir } = await initRunViaCli(home, xdg, {
-      repository: "/tmp/repo",
-      revision: "legacyrev",
-      level: 2,
-    });
-    const metaPath = join(runDir, "metadata.json");
-    const meta = JSON.parse(await readFile(metaPath, "utf8"));
-    delete meta.levelScale;
-    const legacyMetaBytes = `${JSON.stringify(meta, null, 2)}\n`;
-    await writeFile(metaPath, legacyMetaBytes, { mode: 0o600 });
-
-    await prepareRunForSave(runDir);
-    const snap1Path = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      minimalAssessment("whole-r01", "no_findings"),
-    );
-    const metaAfterFirst = await readFile(metaPath, "utf8");
-    const snap1Bytes = await readFile(snap1Path);
-    assert.equal(metaAfterFirst, legacyMetaBytes);
-    assert.equal(
-      JSON.parse(await readFile(snap1Path, "utf8")).metadata.levelScale,
-      undefined,
-    );
-
-    const snap2Path = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      multiAssessment([
-        {
-          executionId: "whole-r01",
-          verdict: "findings",
-          findings: [{
-            id: "f1",
-            issueKey: "k1",
-            severity: "low",
-            location: "a.ts:1",
-            original: "note",
-            decision: "accepted",
-            reason: "ok",
-          }],
-        },
-      ]),
-    );
-    assert.notEqual(snap2Path, snap1Path);
-    assert.equal(await readFile(metaPath, "utf8"), metaAfterFirst);
-    assert.deepEqual(await readFile(snap1Path), snap1Bytes);
-
-    const explicitLegacy = JSON.parse(await readFile(metaPath, "utf8"));
-    explicitLegacy.levelScale = 3;
-    await writeFile(
-      metaPath,
-      `${JSON.stringify(explicitLegacy, null, 2)}\n`,
-      { mode: 0o600 },
-    );
-    await assert.rejects(
-      () =>
-        saveAssessment({
-          runDir,
-          assessment: minimalAssessment("whole-r01", "no_findings"),
-        }),
-      /metadata changed across snapshots/,
-    );
-  });
-});
-
-const runSkillChunkSplitBlock = async (options: {
-  reviewDir: string;
-  chunkChoice: string;
-  splitter?: string;
-}): Promise<{ code: number; stdout: string; stderr: string }> => {
-  const skill = await readFile(SKILL_PATH, "utf8");
-  const block = extractBashBlock(skill, "## 大きい patch（分割レビュー）");
-  const bash5 = await findBash5();
-  const work = await mkdtemp(join(tmpdir(), "pr-chunk-block-"));
-  const scriptPath = join(work, "run.sh");
-  const splitterLine = options.splitter
-    ? `SPLITTER=${JSON.stringify(options.splitter)}\n`
-    : "";
-  const chunksReport = "if ((${#CHUNKS[@]} > 0)); then\n" +
-    "  printf 'CHUNKS=%s\\n' \"${CHUNKS[*]}\"\n" +
-    "fi\n";
-  const script = `#!/usr/bin/env bash
-set -euo pipefail
-declare -a CHUNKS=()
-REVIEW_DIR=${JSON.stringify(options.reviewDir)}
-CHUNK_CHOICE=${JSON.stringify(options.chunkChoice)}
-${splitterLine}${block}
-printf 'CHUNK_ID=%s\\n' "\${CHUNK_ID:-}"
-printf 'CHUNK_FILE=%s\\n' "\${CHUNK_FILE:-}"
-${chunksReport}`;
-  await writeFile(scriptPath, script, { mode: 0o755 });
-  const env = { ...processEnv(), ...devboxBashEnv() };
-  const out = await runFixtureProcess(bash5, {
-    args: [scriptPath],
-    stdout: "piped",
-    stderr: "piped",
-    env,
-  });
-  try {
-    return {
-      code: out.code,
-      stdout: new TextDecoder().decode(out.stdout),
-      stderr: new TextDecoder().decode(out.stderr),
-    };
-  } finally {
-    await rm(work, { recursive: true, force: true });
-  }
-};
-
-const buildLargeTwoFilePatch = (sectionPayloadBytes: number): Uint8Array => {
-  const section = (name: string): string => {
-    const header =
-      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n@@ -0,0 +1,1 @@\n`;
-    const padLen = Math.max(0, sectionPayloadBytes - header.length - 2);
-    return header + "+" + "x".repeat(padLen) + "\n";
-  };
-  return new TextEncoder().encode(section("a.txt") + section("b.txt"));
-};
 
 test("SKILL chunk split block: splitter failure exits before using paths", async () => {
   const work = await mkdtemp(join(tmpdir(), "pr-chunk-fail-"));
@@ -2404,9 +2179,9 @@ set -euo pipefail
 ulimit -c 0
 ulimit -f 8
 ${sigTrap}
-exec ${
-      JSON.stringify(process.execPath)
-    } ${JSON.stringify(SCRIPT_PATH)} save --dir ${JSON.stringify(runDir)} --input ${
+exec ${JSON.stringify(process.execPath)} ${
+      JSON.stringify(SCRIPT_PATH)
+    } save --dir ${JSON.stringify(runDir)} --input ${
       JSON.stringify(assessmentPath)
     }
 `,
@@ -2614,13 +2389,13 @@ test("scale2 init CLI rejects out-of-range and noncanonical scales", async () =>
 
     const tooHigh = await run("3", "2");
     assert.notEqual(tooHigh.code, 0);
-    assert.match(tooHigh.stderr, /level exceeds levelScale 2/);
+    assert.match(tooHigh.stderr, /level must be 1 or 2/);
     const noncanonical = await run("2", "02");
     assert.notEqual(noncanonical.code, 0);
-    assert.match(noncanonical.stderr, /level-scale must be 2, 3, or 5/);
+    assert.match(noncanonical.stderr, /level-scale must be 2/);
     const unsupported = await run("2", "4");
     assert.notEqual(unsupported.code, 0);
-    assert.match(unsupported.stderr, /level-scale must be 2, 3, or 5/);
+    assert.match(unsupported.stderr, /level-scale must be 2/);
     await assert.rejects(
       () => stat(join(xdg, "parallel-review")),
       (error: NodeJS.ErrnoException) => error.code === "ENOENT",
@@ -2634,7 +2409,7 @@ test("levelDecision: init CLI roundtrip and snapshot preservation", async () => 
     const patchPath = join(home, "staging.patch");
     await writeFile(patchPath, patchBytes, { mode: 0o600 });
     const decision = buildExplicitDecision({
-      level: 3,
+      level: 2,
       patchSha256: sha256Bytes(patchBytes),
     });
     const decisionPath = join(home, "decision.json");
@@ -2647,7 +2422,7 @@ test("levelDecision: init CLI roundtrip and snapshot preservation", async () => 
       "--revision",
       "deadbeef",
       "--level",
-      "3",
+      "2",
       "--level-decision",
       decisionPath,
     ], childEnv(home, xdg));
@@ -2657,7 +2432,7 @@ test("levelDecision: init CLI roundtrip and snapshot preservation", async () => 
       await readFile(join(runDir, "metadata.json"), "utf8"),
     );
     assert.deepEqual(metadata.levelDecision, decision);
-    assert.equal(metadata.level, 3);
+    assert.equal(metadata.level, 2);
 
     await prepareRunForSave(runDir);
     await writeFile(join(runDir, "changes.patch"), patchBytes, {
@@ -2693,7 +2468,7 @@ test("levelDecision: rejects mismatch at init and save", async () => {
       "--revision",
       "rev1",
       "--level",
-      "3",
+      "1",
       "--level-decision",
       decisionPath,
     ], childEnv(home, xdg));
@@ -2734,7 +2509,7 @@ test("validateSnapshot rejects levelDecision patch hash mismatch", () => {
   const patchSha = "d".repeat(64);
   const otherSha = "e".repeat(64);
   const decision = buildExplicitDecision({
-    level: 3,
+    level: 2,
     patchSha256: otherSha,
   });
   const baseExec = {
@@ -2768,8 +2543,8 @@ test("validateSnapshot rejects levelDecision patch hash mismatch", () => {
       createdAt: ISO_MS,
       repository: "/tmp/r",
       revision: "abc",
-      level: 3,
-      levelScale: 5,
+      level: 2,
+      levelScale: 2,
       levelDecision: decision,
     },
     files: {
@@ -2842,8 +2617,8 @@ test("validateSnapshot rejects null levelDecision and metadata level mismatch", 
           createdAt: ISO_MS,
           repository: "/tmp/r",
           revision: "abc",
-          level: 3,
-          levelScale: 5,
+          level: 2,
+          levelScale: 2,
           levelDecision: null,
         },
       }),
@@ -2864,8 +2639,8 @@ test("validateSnapshot rejects null levelDecision and metadata level mismatch", 
           createdAt: ISO_MS,
           repository: "/tmp/r",
           revision: "abc",
-          level: 3,
-          levelScale: 5,
+          level: 1,
+          levelScale: 2,
           levelDecision: level2Decision,
         },
       }),
@@ -2904,7 +2679,7 @@ test("save rejects metadata level mismatch with levelDecision", async () => {
     const metadata = JSON.parse(
       await readFile(join(runDir, "metadata.json"), "utf8"),
     );
-    metadata.level = 3;
+    metadata.level = 1;
     await writeFile(
       join(runDir, "metadata.json"),
       JSON.stringify(metadata),
@@ -2945,60 +2720,11 @@ test("save rejects metadata level mismatch with levelDecision", async () => {
   });
 });
 
-test("low_confidence levelDecision history roundtrip", async () => {
-  await withTempHome(async (home, xdg) => {
-    const patchBytes = new TextEncoder().encode("diff\n");
-    const decision = buildFallbackDecision({
-      requestedLevel: "auto",
-      reason: "low_confidence",
-      patchSha256: sha256Bytes(patchBytes),
-      minConfidence: 0.71,
-      confidence: 0.7,
-      suggestedLevel: 2,
-      model: "typesafe/jev-1.13-20260917",
-      costUsd: 0.00001,
-    });
-    const decisionPath = join(home, "decision.json");
-    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
-
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "rev",
-      "--level",
-      "3",
-      "--level-decision",
-      decisionPath,
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
-    await prepareRunForSave(runDir);
-    await writeFile(join(runDir, "changes.patch"), patchBytes, { mode: 0o600 });
-    const snapshotPath = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      minimalAssessment("whole-r01", "no_findings"),
-    );
-    const snapshot = validateSnapshot(
-      JSON.parse(await readFile(snapshotPath, "utf8")),
-    );
-    const ld = snapshot.metadata.levelDecision as {
-      reason?: string;
-      confidence?: number;
-    };
-    assert.equal(ld.reason, "low_confidence");
-    assert.equal(ld.confidence, 0.7);
-  });
-});
-
 test("levelDecision chunking: init and snapshot roundtrip", async () => {
   await withTempHome(async (home, xdg) => {
     const patchBytes = new TextEncoder().encode("diff for chunking\n");
     const decision = buildExplicitDecision({
-      level: 3,
+      level: 2,
       patchSha256: sha256Bytes(patchBytes),
       patchBytes,
     });
@@ -3013,7 +2739,7 @@ test("levelDecision chunking: init and snapshot roundtrip", async () => {
       "--revision",
       "rev-chunk",
       "--level",
-      "3",
+      "2",
       "--level-decision",
       decisionPath,
     ], childEnv(home, xdg));
@@ -3040,66 +2766,6 @@ test("levelDecision chunking: init and snapshot roundtrip", async () => {
       reason: "explicit_level",
       choice: "none",
     });
-  });
-});
-
-test("levelDecision chunking: mixed depth jev and chunk fallback roundtrip", async () => {
-  await withTempHome(async (home, xdg) => {
-    const patchBytes = new TextEncoder().encode("diff\n");
-    const decision = {
-      ...buildJevDecision({
-        level: 4,
-        patchSha256: sha256Bytes(patchBytes),
-        minConfidence: 0.7,
-        model: "typesafe/jev-1.13-20260917",
-        confidence: 0.85,
-      }),
-      chunking: buildChunkFallbackDecision({
-        reason: "low_confidence",
-        patchBytes,
-        minConfidence: 0.7,
-        confidence: 0.65,
-        suggestedChoice: "24000",
-        model: "typesafe/jev-1.13-20260917",
-      }),
-    };
-    validateLevelDecision(decision);
-    const decisionPath = join(home, "decision.json");
-    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
-
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "rev-mixed",
-      "--level",
-      "4",
-      "--level-decision",
-      decisionPath,
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
-    await prepareRunForSave(runDir);
-    await writeFile(join(runDir, "changes.patch"), patchBytes, {
-      mode: 0o600,
-    });
-    const snapshotPath = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      minimalAssessment("whole-r01", "no_findings"),
-    );
-    const snapshot = validateSnapshot(
-      JSON.parse(await readFile(snapshotPath, "utf8")),
-    );
-    const ld = snapshot.metadata.levelDecision as {
-      source?: string;
-      chunking?: { source?: string; reason?: string };
-    };
-    assert.equal(ld.source, "jev");
-    assert.equal(ld.chunking?.source, "fallback");
-    assert.equal(ld.chunking?.reason, "low_confidence");
   });
 });
 
@@ -3133,7 +2799,7 @@ test("levelDecision rejects invalid nested chunking at init", async () => {
       decisionPath,
     ], childEnv(home, xdg));
     assert.notEqual(initOut.code, 0);
-    assert.match(initOut.stderr, /fixed chunk decision must not include model/);
+    assert.match(initOut.stderr, /invalid chunking decision/);
   });
 });
 
@@ -3201,242 +2867,11 @@ const runDecisionsCli = async (
   };
 };
 
-test("levelDecision contextSha256 init and snapshot roundtrip", async () => {
-  await withTempHome(async (home, xdg) => {
-    const patchBytes = new TextEncoder().encode("diff\n");
-    const ctxHash = "c".repeat(64);
-    const decision = {
-      ...buildJevDecision({
-        level: 3,
-        patchSha256: sha256Bytes(patchBytes),
-        minConfidence: 0.7,
-        model: "typesafe/jev-1.13-20260917",
-        confidence: 0.9,
-      }),
-      contextSha256: ctxHash,
-    };
-    validateLevelDecision(decision);
-    const decisionPath = join(home, "decision.json");
-    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "rev-ctx-hash",
-      "--level",
-      "3",
-      "--level-decision",
-      decisionPath,
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
-    await prepareRunForSave(runDir);
-    await writeFile(join(runDir, "changes.patch"), patchBytes, {
-      mode: 0o600,
-    });
-    const snapshotPath = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      minimalAssessment("whole-r01", "no_findings"),
-    );
-    const snapshot = validateSnapshot(
-      JSON.parse(await readFile(snapshotPath, "utf8")),
-    );
-    assert.equal(
-      (snapshot.metadata.levelDecision as { contextSha256?: string })
-        .contextSha256,
-      ctxHash,
-    );
-
-    const history = await readDecisionHistory({ runsDir: runsRootFor(xdg) });
-    assert.equal(history.decisions.length, 1);
-    assert.equal(
-      history.decisions[0].levelDecision.contextSha256,
-      ctxHash,
-    );
-
-    const cliOut = await runDecisionsCli([], childEnv(home, xdg));
-    assert.equal(cliOut.code, 0, cliOut.stderr);
-    const cliParsed = JSON.parse(cliOut.stdout) as {
-      decisions: Array<{ levelDecision: { contextSha256?: string } }>;
-    };
-    assert.equal(cliParsed.decisions.length, 1);
-    assert.equal(cliParsed.decisions[0].levelDecision.contextSha256, ctxHash);
-  });
-});
-
-test("levelDecision probabilities init and snapshot roundtrip", async () => {
-  await withTempHome(async (home, xdg) => {
-    const patchBytes = new TextEncoder().encode("diff\n");
-    const decision = buildJevDecision({
-      level: 4,
-      patchSha256: sha256Bytes(patchBytes),
-      minConfidence: 0.7,
-      model: "typesafe/jev-1.13-20260917",
-      confidence: 0.88,
-      probabilities: { "1": 0.01, "2": 0.04, "3": 0.15, "4": 0.5, "5": 0.3 },
-    });
-    validateLevelDecision(decision);
-    const decisionPath = join(home, "decision.json");
-    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "rev-prob",
-      "--level",
-      "4",
-      "--level-decision",
-      decisionPath,
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
-    await prepareRunForSave(runDir);
-    await writeFile(join(runDir, "changes.patch"), patchBytes, {
-      mode: 0o600,
-    });
-    const snapshotPath = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      minimalAssessment("whole-r01", "no_findings"),
-    );
-    const snapshot = validateSnapshot(
-      JSON.parse(await readFile(snapshotPath, "utf8")),
-    );
-    assert.deepEqual(
-      (snapshot.metadata.levelDecision as { probabilities?: unknown })
-        .probabilities,
-      decision.probabilities,
-    );
-  });
-});
-
-test("levelDecision httpStatuses init, snapshot, and decisions roundtrip", async () => {
-  await withTempHome(async (home, xdg) => {
-    const patchBytes = new TextEncoder().encode("diff for status trace\n");
-    const decision = {
-      ...buildJevDecision({
-        level: 3,
-        patchSha256: sha256Bytes(patchBytes),
-        minConfidence: 0.7,
-        model: "typesafe/jev-1.13-20260917",
-        confidence: 0.91,
-      }),
-      httpStatuses: [503, 200],
-    };
-    validateLevelDecision(decision);
-    const decisionPath = join(home, "decision.json");
-    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "rev-http-statuses",
-      "--level",
-      "3",
-      "--level-decision",
-      decisionPath,
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
-    const metadata = JSON.parse(
-      await readFile(join(runDir, "metadata.json"), "utf8"),
-    );
-    assert.deepEqual(metadata.levelDecision.httpStatuses, [503, 200]);
-
-    await prepareRunForSave(runDir);
-    await writeFile(join(runDir, "changes.patch"), patchBytes, {
-      mode: 0o600,
-    });
-    const snapshotPath = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      minimalAssessment("whole-r01", "no_findings"),
-    );
-    const snapshot = validateSnapshot(
-      JSON.parse(await readFile(snapshotPath, "utf8")),
-    );
-    assert.deepEqual(
-      (snapshot.metadata.levelDecision as { httpStatuses?: number[] })
-        .httpStatuses,
-      [503, 200],
-    );
-
-    const out = await runDecisionsCli([], childEnv(home, xdg));
-    assert.equal(out.code, 0, out.stderr);
-    const parsed = JSON.parse(out.stdout) as {
-      decisions: Array<{ levelDecision: { httpStatuses?: number[] } }>;
-    };
-    assert.equal(parsed.decisions.length, 1);
-    assert.deepEqual(parsed.decisions[0].levelDecision.httpStatuses, [
-      503,
-      200,
-    ]);
-  });
-});
-
-test("low_confidence probabilities preserved in metadata without snapshot", async () => {
-  await withTempHome(async (home, xdg) => {
-    const patchBytes = new TextEncoder().encode("diff\n");
-    const decision = buildFallbackDecision({
-      requestedLevel: "auto",
-      reason: "low_confidence",
-      patchSha256: sha256Bytes(patchBytes),
-      minConfidence: 0.71,
-      confidence: 0.65,
-      suggestedLevel: 2,
-      model: "typesafe/jev-1.13-20260917",
-      probabilities: { "1": 0.1, "2": 0.35, "3": 0.3, "4": 0.15, "5": 0.1 },
-    });
-    const decisionPath = join(home, "decision.json");
-    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "rev-low-prob",
-      "--level",
-      "3",
-      "--level-decision",
-      decisionPath,
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
-    const out = await runDecisionsCli([], childEnv(home, xdg));
-    assert.equal(out.code, 0, out.stderr);
-    const parsed = JSON.parse(out.stdout);
-    assert.equal(parsed.decisions.length, 1);
-    assert.deepEqual(
-      parsed.decisions[0].levelDecision.probabilities,
-      decision.probabilities,
-    );
-    assert.equal(
-      parsed.decisions[0].runId,
-      JSON.parse(
-        await readFile(join(runDir, "metadata.json"), "utf8"),
-      ).runId,
-    );
-    assert.equal(parsed.warnings.length, 0);
-  });
-});
-
 test("decisions command lists unfinished runs and filters repository exactly", async () => {
   await withTempHome(async (home, xdg) => {
-    const probs = { "1": 0, "2": 0, "3": 1, "4": 0, "5": 0 };
-    const decision = buildJevDecision({
-      level: 3,
+    const decision = buildExplicitDecision({
+      level: 2,
       patchSha256: "a".repeat(64),
-      minConfidence: 0.7,
-      model: "typesafe/jev-1.13",
-      confidence: 0.9,
-      probabilities: probs,
     });
     await writeBareRunMetadata(xdg, "11111111-1111-4111-8111-111111111111", {
       schemaVersion: 1,
@@ -3444,8 +2879,8 @@ test("decisions command lists unfinished runs and filters repository exactly", a
       createdAt: "2026-09-25T10:00:00.123Z",
       repository: "/tmp/repo-a",
       revision: "rev-a",
-      level: 3,
-      levelScale: 5,
+      level: 2,
+      levelScale: 2,
       levelDecision: decision,
     });
     await writeBareRunMetadata(xdg, "22222222-2222-4222-8222-222222222222", {
@@ -3454,8 +2889,8 @@ test("decisions command lists unfinished runs and filters repository exactly", a
       createdAt: "2026-09-25T11:00:00.123Z",
       repository: "/tmp/repo-b",
       revision: "rev-b",
-      level: 3,
-      levelScale: 5,
+      level: 2,
+      levelScale: 2,
       levelDecision: decision,
     });
 
@@ -3504,7 +2939,7 @@ test("decisions empty root and skips legacy metadata without levelDecision", asy
       repository: "/tmp/repo",
       revision: "legacy",
       level: 2,
-      levelScale: 5,
+      levelScale: 2,
     });
     const runsRoot = runsRootFor(xdg);
     const result = await readDecisionHistory({ runsDir: runsRoot });
@@ -3532,12 +2967,12 @@ test("decisions warns on invalid metadata and symlink paths without leaking cana
         createdAt: ISO_MS,
         repository: "/tmp/repo",
         revision: "rev",
-        level: 3,
-        levelScale: 5,
+        level: 2,
+        levelScale: 2,
         levelDecision: {
           schemaVersion: 1,
           requestedLevel: "auto",
-          level: 3,
+          level: 2,
           source: "jev",
           reason: "jev_ok",
           patchSha256: "a".repeat(64),
@@ -3554,12 +2989,9 @@ test("decisions warns on invalid metadata and symlink paths without leaking cana
     const linkDir = join(runsRoot, "2026-09-25-link-run");
     await symlink("/tmp", linkDir);
 
-    const goodDecision = buildJevDecision({
+    const goodDecision = buildExplicitDecision({
       level: 2,
       patchSha256: "b".repeat(64),
-      minConfidence: 0.7,
-      model: "typesafe/jev-1.13",
-      confidence: 0.91,
     });
     const goodDir = await writeBareRunMetadata(
       xdg,
@@ -3571,27 +3003,36 @@ test("decisions warns on invalid metadata and symlink paths without leaking cana
         repository: "/tmp/repo",
         revision: "good",
         level: 2,
-        levelScale: 5,
+        levelScale: 2,
         levelDecision: goodDecision,
       },
     );
 
     const metadataBefore = await Promise.all(
-      [badDir, goodDir].map((dir) => readFile(join(dir, "metadata.json"), "utf8")),
+      [badDir, goodDir].map((dir) =>
+        readFile(join(dir, "metadata.json"), "utf8")
+      ),
     );
     const entriesBefore = (await readdir(runsRoot)).sort();
     const bogusXdg = join(home, "bogus-xdg");
     const bogusRuns = runsRootFor(bogusXdg);
-    await writeBareRunMetadata(bogusXdg, "55555555-5555-4555-8555-555555555555", {
-      schemaVersion: 1,
-      runId: "55555555-5555-4555-8555-555555555555",
-      createdAt: ISO_MS,
-      repository: "/tmp/bogus-home-repo",
-      revision: "must-not-be-read",
-      level: 1,
-      levelScale: 5,
-      levelDecision: buildExplicitDecision({ level: 1, patchSha256: "c".repeat(64) }),
-    });
+    await writeBareRunMetadata(
+      bogusXdg,
+      "55555555-5555-4555-8555-555555555555",
+      {
+        schemaVersion: 1,
+        runId: "55555555-5555-4555-8555-555555555555",
+        createdAt: ISO_MS,
+        repository: "/tmp/bogus-home-repo",
+        revision: "must-not-be-read",
+        level: 1,
+        levelScale: 2,
+        levelDecision: buildExplicitDecision({
+          level: 1,
+          patchSha256: "c".repeat(64),
+        }),
+      },
+    );
     assert.equal((await readdir(bogusRuns)).length, 1);
     const out = await runDecisionsCli(
       ["--runs-dir", runsRoot],
@@ -3606,7 +3047,9 @@ test("decisions warns on invalid metadata and symlink paths without leaking cana
     assert.deepEqual((await readdir(runsRoot)).sort(), entriesBefore);
     assert.deepEqual(
       await Promise.all(
-        [badDir, goodDir].map((dir) => readFile(join(dir, "metadata.json"), "utf8")),
+        [badDir, goodDir].map((dir) =>
+          readFile(join(dir, "metadata.json"), "utf8")
+        ),
       ),
       metadataBefore,
     );
@@ -3688,12 +3131,9 @@ test("decisions warns on symlink runs root and symlink metadata", async () => {
     const metaRun = join(runsRoot, "2026-09-27-meta-symlink");
     await mkdir(metaRun, { recursive: true, mode: 0o700 });
     const outsideMeta = join(home, "outside-meta.json");
-    const decision = buildJevDecision({
-      level: 3,
+    const decision = buildExplicitDecision({
+      level: 2,
       patchSha256: "d".repeat(64),
-      minConfidence: 0.7,
-      model: "typesafe/jev-1.13",
-      confidence: 0.9,
     });
     await writeFile(
       outsideMeta,
@@ -3703,8 +3143,8 @@ test("decisions warns on symlink runs root and symlink metadata", async () => {
         createdAt: ISO_MS,
         repository: "/tmp/repo",
         revision: "rev",
-        level: 3,
-        levelScale: 5,
+        level: 2,
+        levelScale: 2,
         levelDecision: decision,
       }),
       { mode: 0o600 },
@@ -3719,64 +3159,11 @@ test("decisions warns on symlink runs root and symlink metadata", async () => {
   });
 });
 
-test("low_confidence probabilities survive init and save snapshot", async () => {
-  await withTempHome(async (home, xdg) => {
-    const patchBytes = new TextEncoder().encode("diff\n");
-    const decision = buildFallbackDecision({
-      requestedLevel: "auto",
-      reason: "low_confidence",
-      patchSha256: sha256Bytes(patchBytes),
-      minConfidence: 0.71,
-      confidence: 0.65,
-      suggestedLevel: 2,
-      model: "typesafe/jev-1.13-20260917",
-      probabilities: { "1": 0.1, "2": 0.35, "3": 0.3, "4": 0.15, "5": 0.1 },
-    });
-    const decisionPath = join(home, "decision.json");
-    await writeFile(decisionPath, JSON.stringify(decision), { mode: 0o600 });
-    const initOut = await runCli([
-      "init",
-      "--repository",
-      "/tmp/repo",
-      "--revision",
-      "rev-low-save",
-      "--level",
-      "3",
-      "--level-decision",
-      decisionPath,
-    ], childEnv(home, xdg));
-    assert.equal(initOut.code, 0, initOut.stderr);
-    const runDir = initOut.stdout.trim();
-    await prepareRunForSave(runDir);
-    await writeFile(join(runDir, "changes.patch"), patchBytes, {
-      mode: 0o600,
-    });
-    const snapshotPath = await saveRunViaCli(
-      home,
-      xdg,
-      runDir,
-      minimalAssessment("whole-r01", "no_findings"),
-    );
-    const snapshot = validateSnapshot(
-      JSON.parse(await readFile(snapshotPath, "utf8")),
-    );
-    assert.deepEqual(
-      (snapshot.metadata.levelDecision as { probabilities?: unknown })
-        .probabilities,
-      decision.probabilities,
-    );
-    assert.equal(
-      (snapshot.metadata.levelDecision as { confidence?: number }).confidence,
-      decision.confidence,
-    );
-  });
-});
-
 test("decisions warns on duplicate runId", async () => {
   await withTempHome(async (_home, xdg) => {
     const runId = "55555555-5555-4555-8555-555555555555";
     const decision = buildExplicitDecision({
-      level: 3,
+      level: 2,
       patchSha256: "c".repeat(64),
     });
     const meta = {
@@ -3785,8 +3172,8 @@ test("decisions warns on duplicate runId", async () => {
       createdAt: "2026-09-25T12:00:00.123Z",
       repository: "/tmp/repo",
       revision: "rev",
-      level: 3,
-      levelScale: 5,
+      level: 2,
+      levelScale: 2,
       levelDecision: decision,
     };
     await writeBareRunMetadata(xdg, runId, meta, "2026-09-25");

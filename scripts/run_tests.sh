@@ -87,7 +87,7 @@ else
 fi
 
 REPLY_PATHS=()
-for suite in parallel-review implementation-report review-report review-model-eval jev-audit impl; do
+for suite in parallel-review implementation-report review-report review-model-eval impl; do
 	dir="skills/$suite/tests"
 	nul="$run_tmp/$suite-tests.nul"
 	files=()

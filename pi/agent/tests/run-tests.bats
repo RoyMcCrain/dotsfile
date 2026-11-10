@@ -14,7 +14,7 @@ setup() {
 	RUN_BASH=$BASH
 	mkdir -p "$STUB_BIN" "$TEST_REPO/scripts" "$TEST_REPO/pi/agent/tests" \
 		"$TEST_REPO/pi/agent/node_modules/.bin" "$TEST_REPO/fish/tests"
-	for suite in parallel-review implementation-report review-report review-model-eval jev-audit impl; do
+	for suite in parallel-review implementation-report review-report review-model-eval impl; do
 		mkdir -p "$TEST_REPO/skills/$suite/tests"
 		: >"$TEST_REPO/skills/$suite/tests/sample_test.ts"
 	done
@@ -100,7 +100,7 @@ assert_private_dirs_cleaned() {
 	[ "$status" -eq 0 ]
 	[[ "$(<"$NODE_LOG")" == *"--experimental-vm-modules --test"* ]]
 	[[ "$(<"$NODE_LOG")" == *"space name.node.test.mjs"* ]]
-	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 6 ]
+	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 5 ]
 	[ "$(rg -c '^ARGS:.*pi/agent/tests/sample.test.ts' "$BUN_LOG")" -eq 1 ]
 	if rg -q 'Deno|--allow-' "$BUN_LOG"; then false; fi
 	while IFS= read -r keyline; do
@@ -114,7 +114,7 @@ assert_private_dirs_cleaned() {
 		esac
 	done < <(rg '^(HOME|TMPDIR|PI_CODING_AGENT_DIR|XDG_CACHE_HOME|XDG_CONFIG_HOME|XDG_DATA_HOME|XDG_STATE_HOME|PI_REVIEW_SENTINEL):' "$BUN_LOG")
 	if rg -q 'caller-secret' "$BUN_LOG"; then false; fi
-	[ "$(rg -c '^PRIVATE_DIRS_EXIST:0$' "$BUN_LOG")" -eq 7 ]
+	[ "$(rg -c '^PRIVATE_DIRS_EXIST:0$' "$BUN_LOG")" -eq 6 ]
 	[[ "$(<"$TEST_REPO/tsc.log")" == *"tsconfig.skills.json"* ]]
 	assert_private_dirs_cleaned
 }
@@ -131,7 +131,7 @@ assert_private_dirs_cleaned() {
 	[ "$(<"$caller_agent/sentinel")" = keep ]
 	[[ "$(<"$caller_tmp/sentinel")" == keep ]]
 	if rg -Fqx "TMPDIR:$caller_tmp" "$BUN_LOG" || rg -Fqx "PI_CODING_AGENT_DIR:$caller_agent" "$BUN_LOG" || rg -q 'caller-secret' "$BUN_LOG"; then false; fi
-	[ "$(rg -c '^PRIVATE_DIRS_EXIST:0$' "$BUN_LOG")" -eq 7 ]
+	[ "$(rg -c '^PRIVATE_DIRS_EXIST:0$' "$BUN_LOG")" -eq 6 ]
 	assert_private_dirs_cleaned
 }
 
@@ -167,7 +167,7 @@ EOF
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"FAILED: node test (pi/agent *.node.test.mjs)"* ]]
-	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 6 ]
+	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 5 ]
 }
 
 @test "runner reports fd discovery failure" {
@@ -182,7 +182,7 @@ EOF
 	run_copied_run_tests
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"FAILED: bun test (skills/parallel-review)"* ]]
-	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 6 ]
+	[ "$(rg -c '^ARGS:.*skills/' "$BUN_LOG")" -eq 5 ]
 	[ -s "$BATS_LOG" ]
 	assert_private_dirs_cleaned
 }

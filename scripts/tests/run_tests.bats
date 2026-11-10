@@ -10,13 +10,13 @@ setup() {
 	mkdir -p "$REPO/scripts/tests" "$REPO/pi/agent/node_modules/.bin" "$BIN"
 	cp "$BATS_TEST_DIRNAME/../run_tests.sh" "$REPO/scripts/run_tests.sh"
 	chmod +x "$REPO/scripts/run_tests.sh"
-	for dir in skills/review-report/tests skills/implementation-report/tests skills/impl/tests skills/parallel-review/tests skills/review-model-eval/tests skills/jev-audit/tests pi/agent/tests fish/tests; do
+	for dir in skills/review-report/tests skills/implementation-report/tests skills/impl/tests skills/parallel-review/tests skills/review-model-eval/tests pi/agent/tests fish/tests; do
 		mkdir -p "$REPO/$dir"
 	done
 	: >"$REPO/pi/agent/tests/fixture.test.ts"
 	: >"$REPO/pi/agent/tests/fixture.node.test.mjs"
 	: >"$REPO/scripts/tests/fixture.bats"
-	for suite in parallel-review implementation-report review-report review-model-eval jev-audit impl; do
+	for suite in parallel-review implementation-report review-report review-model-eval impl; do
 		: >"$REPO/skills/$suite/tests/fixture_test.ts"
 	done
 	cat >"$BIN/bun" <<EOF
@@ -63,15 +63,15 @@ EOF
 		XDG_CONFIG_HOME="$caller_config" XDG_DATA_HOME="$caller_data" XDG_STATE_HOME="$caller_state"
 	run bash "$REPO/scripts/run_tests.sh"
 	[ "$status" -eq 0 ]
-	[ "$(jq -s 'length' "$LOG")" -eq 7 ]
+	[ "$(jq -s 'length' "$LOG")" -eq 6 ]
 	jq -s -e --arg root "$REPO" --arg caller_home "$HOME" --arg caller_tmp "$TMPDIR" \
 		--arg cache "$XDG_CACHE_HOME" --arg config "$XDG_CONFIG_HOME" --arg data "$XDG_DATA_HOME" --arg state "$XDG_STATE_HOME" '
-		length == 7 and all(.[]; .canary == "absent" and .home != $caller_home and .tmpdir != $caller_tmp and
+		length == 6 and all(.[]; .canary == "absent" and .home != $caller_home and .tmpdir != $caller_tmp and
 		(.home | endswith("/home")) and (.tmpdir | endswith("/tmp")) and
 		(.pi_dir | endswith("/agent")) and (.xdg | all(.[]; endswith("/cache") or endswith("/config") or endswith("/data") or endswith("/state"))) and .env_dirs_exist and
 		(.xdg | all(.[]; . != $cache and . != $config and . != $data and . != $state)) and
 		(.argv | any(endswith("fixture_test.ts")) or any(endswith("fixture.test.ts")))) and
-		([.[].argv[] | select(contains("skills/"))] | length) == 6 and
+		([.[].argv[] | select(contains("skills/"))] | length) == 5 and
 		all(.[].argv[]; (contains("--allow-") | not)) and
 		all(.[].argv[] | select(endswith(".ts")); startswith($root + "/")) and
 		([.[] | select(.argv | any(contains("/skills/impl/tests/"))) | select(.impl_symlink == "1" and (.impl_root | endswith("/skills/tmp")) and (.impl_runs | endswith("/skills/impl-runs")))] | length) == 1
@@ -91,7 +91,7 @@ EOF
 	run bash "$REPO/scripts/run_tests.sh"
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"FAILED: bun test (skills/parallel-review)"* ]]
-	[ "$(jq -s 'length' "$LOG")" -eq 7 ]
+	[ "$(jq -s 'length' "$LOG")" -eq 6 ]
 	jq -r '.home, .tmpdir, .pi_dir, .xdg[]' "$LOG" | sort -u | while IFS= read -r private_dir; do
 		[ ! -e "$private_dir" ] || exit 1
 	done
@@ -118,5 +118,5 @@ EOF
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"failed to discover parallel-review tests (fd)"* ]]
 	[[ "$output" == *"no TypeScript tests found for skills/implementation-report"* ]]
-	[ "$(jq -s 'length' "$LOG")" -ge 5 ]
+	[ "$(jq -s 'length' "$LOG")" -ge 4 ]
 }

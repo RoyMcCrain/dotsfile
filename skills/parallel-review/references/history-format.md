@@ -1,6 +1,6 @@
 # Parallel-review provenance and adoption history
 
-ローカル専用の実行記録と採用判断スナップショット。新規 run は offline explicit level decision のみで、Jev/fallback/context/API 診断を収集しない。既存 Jev/fallback 履歴と `contextSha256`、`probabilities`、`httpStatuses` 等の過去フィールドは読取・評価互換のため schema のまま保持するものであり、現在の収集指示ではない。リポジトリ外 `${XDG_DATA_HOME:-$HOME/.local/share}/parallel-review/runs/` に保存する（ディレクトリ `0700`、ファイル `0600`）。アップロード・テレメトリなし。
+ローカル専用の実行記録と採用判断スナップショット。新規 run は offline explicit level decision のみを使用する。リポジトリ外 `${XDG_DATA_HOME:-$HOME/.local/share}/parallel-review/runs/` に保存する（ディレクトリ `0700`、ファイル `0600`）。アップロード・テレメトリなし。
 
 ## ディレクトリレイアウト
 
@@ -27,10 +27,7 @@
 
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"
-# 新しい parallel-review workflow は scale 2 を明示して init する（SKILL.md 正本）。
-# 汎用 storage init の --level-scale 省略時は互換性のため scale 5。
-# init は --level に **実際に採用した数値**（auto の場合は helper 出力の level）と
-# 任意 --level-decision FILE（select_review_level.ts の JSON）を受け付ける。
+# init は --level に 1 または 2 と、任意 --level-decision FILE を受け付ける。
 
 # 統合完了後（必須）
 SNAPSHOT=$(bun --config=/dev/null --no-env-file --no-install run "$HISTORY" save \
@@ -87,17 +84,13 @@ Pi backend が `--events-log` 付き runner で生成する **任意** JSONL。p
 | `createdAt` | ✓ | ミリ秒精度の ISO-8601 UTC（`YYYY-MM-DDTHH:MM:SS.sssZ`） |
 | `repository` | ✓ | 非空文字列 |
 | `revision` | ✓ | 非空文字列（concrete VCS ターゲット: commit hash または `<baseCommit>..<headCommit>`） |
-| `level` | ✓ | JSON number または CLI 文字列リテラル `1` / `2` / `3` / `4` / `5` のみ（`01` 等の coercion 不可） |
-| `levelScale` | 新規 run ✓ | `2` / `3` / `5`。新しい parallel-review workflow は `2` を必ず指定。汎用 storage init/CLI で `--level-scale` 省略時は互換性のため `5`。metadata の `levelScale` フィールドがない既存履歴は **legacy 3 段階** |
-| `levelDecision` | 任意（新規 offline explicit フロー） | `select_review_level.ts` 出力 JSON（schemaVersion 1）。`level` と一致必須。`levelScale: 2` または `5` の run のみ。scale 3 は不可 |
+| `level` | ✓ | JSON number または CLI 文字列リテラル `1` / `2` のみ |
+| `levelScale` | 必須 | metadata では `2` のみ。init CLI option のみ省略時に `2` を設定 |
+| `levelDecision` | 任意（新規 offline explicit フロー） | `select_review_level.ts` 出力 JSON（schemaVersion 1）。`level` と一致必須 |
 
-`level` は `levelScale` を超えてはならない。legacy（`levelScale` 省略）では `level` は 1–3 のみ。`levelScale: 2` は 1–2、`levelScale: 3` は 1–3、`levelScale: 5` は 1–5。
+`level` は 1 または 2。scale 欠落および scale 3/5 の履歴は unsupported として拒否し、再解釈しない。
 
-`levelDecision` は **採用した実レベル**（現行 workflow では offline explicit）を `level` と共に記録する。新規 scale 2 decisions は `source=explicit`、`requestedLevel` は選択数値、`reason=explicit`。既存 scale 5 decision は過去履歴として読み取り維持する。`reason` は固定コード、`patchSha256` は判定対象の生 patch バイト SHA-256。auto で `--context-file` を渡した run のみ任意 **`contextSha256`**（`select_review_level.ts` が正規化・検証済み context を `JSON.stringify` した UTF-8 の SHA-256、小文字 64 hex）。**raw context 本文は metadata に保存しない**（hash は同一 context の識別用。hash だけでは context を復元できない）。legacy レコードは `contextSha256` なしのまま有効。現行の explicit 1..2 では `contextSha256` を付けない。過去 scale 5 の auto/Jev fields は読み取り互換として保持する（raw 応答・秘密値は保存しない）。
-
-任意 **`httpStatuses`**（auto 診断のみ）: 当該 routing 1 操作で実際に受信した HTTP ステータスの順序付き配列。各要素は 200..599 の整数、長さ 1..4（初回＋最大 3 リトライの 4 fetch 試行の範囲）。一過性（408 / 429 / 500..599）の再試行は同一 payload を再利用し、配列には**応答が返った試行のみ**を記録する（応答の無い失敗 fetch は記録しない）。応答本文・ヘッダ・request id・資格情報・patch/context 本文は保存しない。有効な応答が無ければフィールドごと省略。`source: explicit` は付与不可（検証で拒否）。legacy レコードはフィールドなしのまま有効。
-
-任意 **`probabilities`**（深さ診断のみ）: キー `"1"`…`"5"` のみ、各値は JSON number で 0..1 の有限値。**5 キーすべて必須**（欠損・未知キー・NaN/文字列は metadata 検証で拒否）。API 側で optional block が malformed のときは **省略**（選択・`confidence` は従来どおり）。過去 `source: jev` または `fallback` かつ `reason: low_confidence` の記録に限り存在しうる。歴史的5キー仕様を維持し、新規 scale 2 workflow では収集しない。`confidence` は分布の集中度、`probabilities` は選択肢ごとの予測値であり、履歴から実測した正答率ではない。legacy レコードはフィールドなしのまま。
+`levelDecision` は **採用した実レベル**を `level` と共に記録する。`schemaVersion` は `1`、`source` と `reason` はともに `explicit`、`requestedLevel` は数値 `1` または `2` で `level` と一致必須。`patchSha256` は判定対象の生 patch バイト SHA-256（小文字 64 hex）。
 
 **read-only 一覧**（snapshot 不要・未完了 run 含む）:
 
@@ -110,27 +103,13 @@ bun --config=/dev/null --no-env-file --no-install run \
 
 stdout は `{ "decisions": [ { runId, createdAt, repository, revision, levelDecision } ], "warnings": [ { runDir, reason } ] }`。存在しない runs ルートは空配列（警告なし）。runs ルート自体、`metadata.json`、または run ディレクトリが symlink の場合は当該 run を列挙せず `warnings` に理由コード（例: `symlink_runs_root`, `symlink_run_dir`, `symlink_metadata`）のみ。無効 metadata / levelDecision も警告のみ（canary や raw ファイル内容は stdout/stderr に出さない）。同一 `runId` が複数 run に現れた場合は先に読んだ 1 件を採用し、残りは `duplicate_run_id`。`review-model-eval` の snapshot 集計とは別契約。
 
-任意のネスト `chunking`（schemaVersion 1 互換）。**省略時は legacy どおり検証しない**（`chunking` キー自体が無い JSON のみ legacy）。
+任意 chunking は `source: "fixed"`, `reason: "explicit_level"`, `choice: "none" | "12000"` のみです。
 
-| フィールド | 意味 |
-|-----------|------|
-| `source` | `jev` / `fallback` / `fixed` |
-| `reason` | `jev_ok` / `explicit_level` / 固定 fallback コード（`whole_patch_limit` 等） |
-| `choice` | `none` \| `12000` \| `24000` \| `48000`（10進バイト目安）。**`fixed` / `fallback` の実効 `choice` は `none` または `12000` のみ** |
-| `minConfidence` | auto 系 `jev` / `fallback` で必須。**存在時は親 `levelDecision.minConfidence` と同一** |
-| `confidence` / `suggestedChoice` / `model` | **通常 `jev` 採用時も必須**（`suggestedChoice` は `choice` と一致）。`low_confidence` / `whole_patch_limit` fallback 時も必須 |
+現行 scale 2 run では `levelDecision` を省略できる。auto と手動を分けた評価集計は今回追加しない。
 
-**親との対応**: `levelDecision.source === "explicit"` ⇔ `chunking.source === "fixed"`。malformed 共通 envelope（HTTP/JSON/schema 等）では深さ・chunk **両方** fallback。
+run 作成後は不変（`runId` / `createdAt` / `repository` / `revision` / `level` / `levelScale` / `levelDecision` を含む metadata 全体）。snapshot 間で patch/prompt の SHA-256 も不変。未完了 execution の identity と chunk hash は固定し、出力途中の stdout/stderr hash は変化を許す。完了後は record 全体とファイル hash が不変。
 
-**`whole_patch_limit`**: `suggestedChoice === "none"`、実効 `choice === "12000"`、`confidence >= minConfidence`（未満なら `low_confidence`）。
-
-深さと chunk の信頼度は独立。新規 `selectReviewLevel` / auto 出力は `chunking` を含む。
-
-既存 run（`levelDecision` なし）は従来どおり。auto と手動を分けた評価集計は今回追加しない。
-
-run 作成後は不変（`runId` / `createdAt` / `repository` / `revision` / `level` / `levelScale` / `levelDecision` を含む metadata 全体）。既存 legacy metadata を save 時に書き換えない。snapshot 間で patch/prompt の SHA-256 も不変。未完了 execution の identity と chunk hash は固定し、出力途中の stdout/stderr hash は変化を許す。完了後は record 全体とファイル hash が不変。
-
-オフライン評価（`review-model-eval`）のモデルグループキーは `backend` + `model` + `level` + **`levelScale`** + `actor.kind`。同じ数値 `level` でも scale 2 / legacy 3 / historical 5 は別グループ（例: 旧 L2 と新 L2 は統計を混ぜない）。
+オフライン評価（`review-model-eval`）は現行 scale 2 format の入力を対象とし、モデルグループキーは `backend` + `model` + `level` + `actor.kind` の 4 次元。
 
 ## assessment.json / snapshot
 
@@ -244,4 +223,4 @@ jq -r '
 
 HTML / JSON のモデル評価レポートは [`review-model-eval`](../../review-model-eval/SKILL.md)（`/skill:review-model-eval`）で生成できる。
 
-Jev の auto ルーティング深さの週次監査（独立監査・preflight 承認付き）は [`jev-audit`](../../jev-audit/SKILL.md) を参照。
+

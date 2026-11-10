@@ -1,4 +1,3 @@
-import type { LevelScale } from "../../parallel-review/scripts/review_history.ts";
 import type { EvaluationReport, ModelSummary } from "./evaluate_models.ts";
 
 const escapeHtml = (value: string): string =>
@@ -33,20 +32,10 @@ const fmtHashShort = (hash: string): string =>
 const thCells = (headers: string[]): string =>
   `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
 
-const levelScaleLabel = (scale: LevelScale): string => {
-  if (scale === 2) return "2段階";
-  return scale === 3 ? "3段階・旧" : "5段階";
-};
-
-const formatLevelCell = (
-  level: number,
-  scale: LevelScale,
-): string => `L${level} [${levelScaleLabel(scale)}]`;
+const formatLevelCell = (level: number): string => `L${level}`;
 
 const modelIdentity = (s: ModelSummary): string =>
-  `${s.backend} / ${s.model} / ${
-    formatLevelCell(s.level, s.levelScale)
-  } / ${s.actorKind}`;
+  `${s.backend} / ${s.model} / ${formatLevelCell(s.level)} / ${s.actorKind}`;
 
 export const renderReportHtml = (report: EvaluationReport): string => {
   const warnings = report.warnings.length > 0
@@ -128,7 +117,7 @@ export const renderReportHtml = (report: EvaluationReport): string => {
     <td>${escapeHtml(c.runId)}</td>
     <td>${escapeHtml(c.backend)}</td>
     <td>${escapeHtml(c.model)}</td>
-    <td>${escapeHtml(formatLevelCell(c.level, c.levelScale))}</td>
+    <td>${escapeHtml(formatLevelCell(c.level))}</td>
     <td>${escapeHtml(c.actorKind)}/${escapeHtml(c.actorId)}</td>
     <td>${escapeHtml(c.repository)}</td>
     <td>${escapeHtml(c.revision)}</td>
@@ -200,7 +189,7 @@ ${warnings}
 <table>
 <thead>${
     thCells([
-      "モデル (backend/model/level+scale/actor)",
+      "モデル (backend/model/level/actor)",
       "actor IDs",
       "runs",
       "cases",
