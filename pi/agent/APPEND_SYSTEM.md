@@ -49,7 +49,7 @@
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
 - 委譲後は必ず diff 目視、lint、test、仕様充足チェックで検証し、投げっぱなしにしない。
-- 当該ターンで実際のレビュー依頼（引用・議論だけの「レビューして」は除く）かつ単体 reviewer・レポート系を明示されない限り、preflight 成功後に `parallel-review` を実行する。L1/L2 のみで Codex + Claude の固定2 reviewer（Pi headless）を使う。未指定および `--level auto` は offline L1 alias、明示値は 1/2 のみ（3..5 は拒否）。L1 は Codex Sol :xhigh + Opus :high、L2 は Astra :max + Opus :max（model ID は catalog のみ）。Jev/OpenRouter、routing context、API key、runtime caller、Muse/Grok/Antigravity/Fugu/DeepSeek は parallel 経路に含めない。実際のレビュー依頼には秘密検査済み patch/chunk と Codex/Claude の設定済み retry の送信が含まれ、別途確認は求めない。機密情報が含まれる具体的根拠、または明示的な拒否・撤回・制限時は停止して報告し、provider を黙って切り替えない。無関係な API 等へ許可を拡大しない。Timeout は L1 600/600s、L2 600/900s。各 reviewer は失敗/timeout 後に一度 retry する。
+- 当該ターンで実際のレビュー依頼（引用・議論だけの「レビューして」は除く）かつ単体 reviewer・レポート系を明示されない限り、preflight 成功後に `parallel-review` を実行する。L1/L2 のみで Codex + Claude の固定2 reviewer（Pi headless）を使う。未指定および `--level auto` は offline L1 alias、明示値は 1/2 のみ（3..5 は拒否）。L1 は Codex Sol :xhigh + Opus :high、L2 は Astra :max + Opus :max（model ID は catalog のみ）。API key、runtime caller、Muse/Grok/Antigravity/Fugu/DeepSeek は parallel 経路に含めない。実際のレビュー依頼には秘密検査済み patch/chunk と Codex/Claude の設定済み retry の送信が含まれ、別途確認は求めない。機密情報が含まれる具体的根拠、または明示的な拒否・撤回・制限時は停止して報告し、provider を黙って切り替えない。無関係な API 等へ許可を拡大しない。Timeout は L1 600/600s、L2 600/900s。各 reviewer は失敗/timeout 後に一度 retry する。
 - ユーザーがレビュアーを明示した場合のみ `grok-review` / `codex-review` / `claude-review` / `fugu-review` / `muse-review` skill を使う。`muse-review` 単体は Muse の明示指定時のみ使う。実際の依頼に必要な指定 reviewer への送信に別途確認は不要。機密情報が含まれる具体的根拠、または明示的な拒否・撤回・制限時は停止し、provider を黙って切り替えない。
 
 ## Simplicity Principles

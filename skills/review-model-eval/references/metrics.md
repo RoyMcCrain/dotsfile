@@ -4,15 +4,14 @@
 
 ## グループ化
 
-モデルサマリのキーは **完全一致** の 5 要素:
+モデルサマリのキーは **完全一致** の 4 要素:
 
 1. `execution.backend`
 2. `execution.model`（effort 含む完全文字列）
-3. `metadata.level`（scale 内での位置。新規 scale 2 は 1–2、過去 scale 3/5 はそれぞれ 1–3 / 1–5）
-4. `metadata.levelScale`（省略 = legacy `3`、新規 parallel-review run = `2`。汎用 storage init の省略時は `5`）
-5. `snapshot.actor.kind`（`agent` / `human` は混ぜない）
+3. `metadata.level`（scale 2 の L1 または L2）
+4. `snapshot.actor.kind`（`agent` / `human` は混ぜない）
 
-実行統計・issue 集計を run に戻すときも上記 5 要素でフィルタする。同じ数値 level でも scale が異なれば別行（HTML では `L2 [3段階・旧]` / `L2 [5段階]` / `L2 [2段階]` 等）。過去3/5段階と新2段階を混同しない。
+評価対象は `metadata.levelScale: 2` の履歴のみ。levelScale が欠落、または scale 3/5 の履歴は警告付きで除外する。実行統計・issue 集計を run に戻すときも上記 dimensions でフィルタする。レポートは L1/L2 を表示する。
 
 同一グループに寄与した `actor.id` を列挙し、判断源バイアスを可視化する。合成スコアや自動ランキングは行わない。
 

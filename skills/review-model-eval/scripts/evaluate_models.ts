@@ -17,7 +17,6 @@ import {
 } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
-  getLevelScale,
   getRunsBaseDir,
   type LevelScale,
   parseLevel,
@@ -503,7 +502,7 @@ const buildCasesForRun = (item: SelectedRun): CaseRow[] => {
   const { snapshot, runDir, snapshotPath } = item;
   const metadata = snapshot.metadata;
   const level = parseLevel(metadata.level);
-  const levelScale = getLevelScale(metadata);
+  const levelScale: LevelScale = 2;
   const createdAt = metadata.createdAt as string;
   const repository = metadata.repository as string;
   const revision = metadata.revision as string;
@@ -733,7 +732,7 @@ type ExecutionStats = {
 
 type GroupIdentity = Pick<
   CaseRow,
-  "backend" | "model" | "level" | "levelScale" | "actorKind"
+  "backend" | "model" | "level" | "actorKind"
 >;
 
 const groupKey = (identity: GroupIdentity): GroupKey =>
@@ -741,7 +740,6 @@ const groupKey = (identity: GroupIdentity): GroupKey =>
     identity.backend,
     identity.model,
     identity.level,
-    identity.levelScale,
     identity.actorKind,
   ]);
 
@@ -798,13 +796,11 @@ const collectExecutionStats = (selected: SelectedRun[]) => {
       snapshot.reviews.map((review) => [review.executionId, review]),
     );
     const level = parseLevel(snapshot.metadata.level);
-    const levelScale = getLevelScale(snapshot.metadata);
     for (const exec of snapshot.executions) {
       const key = groupKey({
         backend: exec.backend,
         model: exec.model,
         level,
-        levelScale,
         actorKind: snapshot.actor.kind,
       });
       let stats = statsByGroup.get(key);
@@ -915,11 +911,10 @@ const buildModelSummaries = (
       a.localeCompare(b)
     )
   ) {
-    const [backend, model, level, levelScale, actorKind] = JSON.parse(gk) as [
+    const [backend, model, level, actorKind] = JSON.parse(gk) as [
       string,
       string,
       ReviewLevel,
-      LevelScale,
       "agent" | "human",
     ];
     const issueDetails = issueSummary(groups.issues.get(gk) ?? []);
@@ -928,7 +923,7 @@ const buildModelSummaries = (
       backend,
       model,
       level,
-      levelScale,
+      levelScale: 2,
       actorKind,
       actorIds: [...groups.actorIds.get(gk)!].sort(),
       distinctBenchmarks: groups.benchmarks.get(gk)!.size,

@@ -98,16 +98,25 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
 ```
 
-Parallel-review uses exactly two Pi headless reviewers, Codex and Claude, at L1/L2 only. Unspecified level defaults to offline L1; `--level auto` is an offline L1 alias. Only explicit levels 1/2 are accepted (3..5 are rejected). No Jev/OpenRouter routing, API key, routing context, or runtime caller is used. Chunking is local: raw patch bytes >=15000 or >=400 newlines selects `12000`, otherwise `none`; splitting respects file boundaries and never splits or truncates a single diff section.
+Parallel-review uses exactly two Pi headless reviewers, Codex and Claude, at L1/L2 only. Unspecified level defaults to offline L1; `--level auto` is an offline L1 alias. Only explicit levels 1/2 are accepted (3..5 are rejected). No alternate routing, API key, or runtime caller is used. Chunking is local: raw patch bytes >=15000 or >=400 newlines selects `12000`, otherwise `none`; splitting respects file boundaries and never splits or truncates a single diff section.
 
-New history records explicit offline decisions. Existing Jev/fallback records remain readable for historical evaluation; inspect records offline, including unfinished runs:
+New history records explicit offline decisions. Older history formats are unsupported and excluded with warnings. Inspect current records offline, including unfinished runs:
 
 ```bash
 bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/parallel-review/scripts/review_history.ts" decisions \
   --repository "$PWD"
 ```
 
-Repeated decisions for the same patch are not independent samples. Historical Jev fields are not collected for new runs.
+Repeated decisions for the same patch are not independent samples.
+
+If you installed the retired Jev weekly LaunchAgent, unload it and remove its plist so it cannot keep invoking the removed `audit.ts`:
+
+```bash
+launchctl bootout "gui/$(id -u)/com.roymc.jev-audit.weekly"
+rm "$HOME/Library/LaunchAgents/com.roymc.jev-audit.weekly.plist"
+```
+
+Saved review history and audit results are left untouched.
 
 Current roles include `review.codex`, `review.claude`, `review.grok`, `review.fugu`,
 `review.muse`, `review.deepseek`, `route.fugu.base`,

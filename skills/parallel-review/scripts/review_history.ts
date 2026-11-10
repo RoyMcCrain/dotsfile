@@ -155,43 +155,22 @@ const isMissingDir = (error: unknown): boolean => {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-export type ReviewLevel = 1 | 2 | 3 | 4 | 5;
-export type LevelScale = 2 | 3 | 5;
+export type ReviewLevel = 1 | 2;
+export type LevelScale = 2;
 
 export const parseLevel = (value: unknown): ReviewLevel => {
-  if (
-    value === 1 || value === 2 || value === 3 || value === 4 || value === 5
-  ) return value;
-  if (
-    value === "1" || value === "2" || value === "3" || value === "4" ||
-    value === "5"
-  ) {
-    return Number(value) as ReviewLevel;
-  }
-  throw new Error("level must be 1, 2, 3, 4, or 5");
+  if (value === 1 || value === 2) return value;
+  if (value === "1" || value === "2") return Number(value) as ReviewLevel;
+  throw new Error("level must be 1 or 2");
 };
 
 export const getLevelScale = (
   metadata: Record<string, unknown>,
 ): LevelScale => {
-  const raw = metadata.levelScale;
-  if (raw === undefined) return 3;
-  if (raw === 2 || raw === 3 || raw === 5) return raw;
-  throw new Error("metadata.levelScale must be 2, 3, or 5");
-};
-
-const assertLevelWithinScale = (
-  metadata: Record<string, unknown>,
-  level: ReviewLevel,
-): void => {
-  const scale = getLevelScale(metadata);
-  if (level <= scale) return;
-  if (metadata.levelScale === undefined) {
-    throw new Error(
-      `legacy 3-level metadata does not support level ${level}`,
-    );
+  if (metadata.levelScale !== 2) {
+    throw new Error("metadata.levelScale must be 2");
   }
-  throw new Error(`metadata.level exceeds levelScale ${scale}`);
+  return 2;
 };
 
 const validateId = (value: unknown, label: string): string => {
@@ -282,7 +261,7 @@ export const validateMetadata = (value: unknown): Record<string, unknown> => {
     throw new Error("metadata.revision is required");
   }
   const level = parseLevel(value.level);
-  assertLevelWithinScale(value, level);
+  getLevelScale(value);
   if (value.levelDecision !== undefined) {
     if (value.levelDecision === null) {
       throw new Error("metadata.levelDecision must not be null");
@@ -290,9 +269,6 @@ export const validateMetadata = (value: unknown): Record<string, unknown> => {
     const decision = validateLevelDecision(value.levelDecision);
     if (decision.level !== level) {
       throw new Error("metadata.level must match levelDecision.level");
-    }
-    if (getLevelScale(value) === 3) {
-      throw new Error("levelDecision requires levelScale 2 or 5");
     }
   }
   return value;
@@ -747,7 +723,7 @@ export const initRun = async (options: {
     throw new Error("revision is required");
   }
   const level = parseLevel(options.level);
-  const levelScale = options.levelScale ?? 5;
+  const levelScale = options.levelScale ?? 2;
   let levelDecisionRecord: Record<string, unknown> | undefined;
   if (options.levelDecision !== undefined) {
     const decision = validateLevelDecision(options.levelDecision);
@@ -1241,7 +1217,7 @@ const cmdInit = async (args: string[]) => {
   const levelScaleRaw = parsed.get("level-scale");
   if (!repository || !revision || !levelRaw) {
     throw new Error(
-      "usage: review_history.ts init --repository PATH --revision REV --level N [--level-scale 2|3|5] [--level-decision FILE]",
+      "usage: review_history.ts init --repository PATH --revision REV --level N [--level-scale 2] [--level-decision FILE]",
     );
   }
   let levelDecision: unknown;
@@ -1250,9 +1226,9 @@ const cmdInit = async (args: string[]) => {
     levelDecision = JSON.parse(await readFile(decisionPath, "utf8"));
   }
   if (
-    levelScaleRaw !== undefined && !["2", "3", "5"].includes(levelScaleRaw)
+    levelScaleRaw !== undefined && levelScaleRaw !== "2"
   ) {
-    throw new Error("level-scale must be 2, 3, or 5");
+    throw new Error("level-scale must be 2");
   }
   const { runDir } = await initRun({
     repository,

@@ -5,7 +5,7 @@ description: Codex と Claude の固定2 reviewer（Pi headless）を2段階で�
 
 # /parallel-review
 
-L1/L2 のみで Codex + Claude の固定2 reviewer を `model-roles.json` の `reviewLevels` catalog から解決し、秘密検査済み patch/chunk を並行レビューする。model ID の正本は catalog のみ。runtime caller、Muse、Grok、Antigravity、Fugu、DeepSeek、Jev/OpenRouter、routing context は parallel 経路に含めない。単体 reviewer skill は従来どおり明示時のみ使う。
+L1/L2 のみで Codex + Claude の固定2 reviewer を `model-roles.json` の `reviewLevels` catalog から解決し、秘密検査済み patch/chunk を並行レビューする。model ID の正本は catalog のみ。runtime caller、Muse、Grok、Antigravity、Fugu、DeepSeek は parallel 経路に含めない。単体 reviewer skill は従来どおり明示時のみ使う。
 
 未指定および `--level auto` は offline L1 alias で、自動判断ではない。明示 level は 1/2 のみ（3..5 は拒否）。L1 は Codex Sol :xhigh + Opus :high、L2 は Astra :max + Opus :max。正確な model ID は catalog にのみ記載する。
 
@@ -36,11 +36,11 @@ L1/L2 のみで Codex + Claude の固定2 reviewer を `model-roles.json` の `r
 
 Timeout は L1=600/600秒、L2=600/900秒（初回/retry）。chunk は raw patch bytes >=15000 または newline >=400 なら `12000`、それ以外は `none`。file-boundary splitter を使い、単一 diff section は分割・切り詰めない。chunk 全体 hash と履歴保存を維持する。
 
-CLI は `select_review_level.ts --input PATCH [--level 1..2|auto] [--help]` のみ。`auto` は offline L1 alias。level decision は `source=explicit`, `requestedLevel` は選択数値、`reason=explicit`。選択は offline で、network/API key/context permission は不要。新規 `levelDecision` はこの explicit 形式。過去 Jev/fallback 履歴は読取互換として保持する。
+CLI は `select_review_level.ts --input PATCH [--level 1..2|auto] [--help]` のみ。`auto` は offline L1 alias。level decision は `source=explicit`, `requestedLevel` は選択数値、`reason=explicit`。選択は offline で、network/API key/context permission は不要。新規 `levelDecision` はこの explicit 形式。旧形式の履歴は非対応であり、読み込み時に除外する。
 
 ## 実行記録（provenance）
 
-履歴保存には `bun` と `jq` が必要（devbox 管理）。各 run の判断・採用実績はローカルに永続化し、[history format](references/history-format.md) を正本とする。reviewer には assessment / 過去 snapshot を渡さない（アンカリング防止）。新規 run は offline explicit level decision のみ。過去 Jev/fallback 履歴は読取互換。
+履歴保存には `bun` と `jq` が必要（devbox 管理）。各 run の判断・採用実績はローカルに永続化し、[history format](references/history-format.md) を正本とする。reviewer には assessment / 過去 snapshot を渡さない（アンカリング防止）。新規 run は offline explicit level decision のみ。旧形式の履歴は非対応であり、読み込み時に除外する。
 
 ```bash
 HISTORY="$HOME/.agents/skills/parallel-review/scripts/review_history.ts"

@@ -45,7 +45,7 @@ bun --config=/dev/null --no-env-file --no-install run \
 
 `<runs-dir>/<run-dir>/snapshots/*.json` のみ。raw patch / log は読まない。各 run では invalid snapshot が 1 件でもあれば run 全体を除外し、`savedAt` 最新を 1 件だけ使用（[references/metrics.md](references/metrics.md) 参照）。
 
-検証は `parallel-review/scripts/review_history.ts` の `validateSnapshot` を共用する。新しい parallel-review run は scale 2。`metadata.levelScale` 省略は legacy 3 段階、過去の明示 scale 3/5 run も読み取り可能。評価のグループ化は level + levelScale の両方を見る。
+検証は `parallel-review/scripts/review_history.ts` の `validateSnapshot` を共用する。新しい parallel-review run は scale 2。`metadata.levelScale` は 2 のみ受け付ける。旧形式や scale 3/5 の履歴は非対応で、読み込み時に警告付きで除外する。評価は L1/L2 のみを集計する。
 
 ## レポート内容
 
