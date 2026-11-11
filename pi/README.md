@@ -393,11 +393,14 @@ Isolation is **not** a filesystem sandbox; scope work via the prompt.
 
 ## Extensions
 
-Configured by `settings.json` via `extensions/*.ts` and npm packages. Four
-unused extensions are excluded by default: Fugu automatic routing,
-after-compaction continuation, LM Studio discovery, and OpenRouter balance
-polling. The source remains available for opt-in. To reenable one, remove its
-matching `-extensions/<filename>` entry from `pi/agent/settings.json` and run
+Configured by `settings.json` via `extensions/*.ts` and npm packages. The
+monorepo guidance loader injects directory rules on first relevant file access,
+while full explicit reads and already-loaded canonical aliases are deduplicated.
+Five unused extensions are excluded by default: Fugu automatic routing,
+after-compaction continuation, LM Studio discovery, OpenRouter balance
+polling, and Markdown compaction-log duplication. Their sources remain available
+for opt-in. To reenable one, remove its matching
+`-extensions/<filename>` entry from `pi/agent/settings.json` and run
 `/reload` or restart Pi to apply the settings change.
 
 | Extension / package             | Purpose                                                              |
@@ -410,7 +413,7 @@ matching `-extensions/<filename>` entry from `pi/agent/settings.json` and run
 | `auto-continue-after-compact.ts` (disabled) | Automatically continue after compaction. |
 | `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
 | `workspace-cd.ts`               | Fork/switch Pi session cwd after jj workspace setup (`switch_workspace_cwd` tool, `/workspace-cd`). |
-| `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
+| `save-compaction-log.ts` (disabled) | Optional Markdown copies of compaction summaries in `~/.pi/agent/compaction-logs/`; native summaries remain in session JSONL. |
 | `repo-memory-local.ts`          | Local-only repo memory: `recall_memory` / `remember` / `review_memory` tools + `/repo-memory-review` command. |
 
 Reload after editing extensions:
@@ -426,9 +429,14 @@ Reload after editing extensions:
 reads the subscription quota through the locally authenticated `codex
 app-server`, so Codex CLI must be installed and logged in.
 
-Usage refreshes at session start, after model switches, and after each settled
-agent run. Run `/codex-usage` to force a refresh; automatic failures stay silent
-and clear stale status.
+For both unified `openai` OAuth and legacy `openai-codex` models, automatic
+refresh attempts occur at session start, after model switches, and after settled
+runs, but no more than once every five minutes. The last successful value stays
+cached and displayed between attempts; there is no background polling. Run
+`/codex-usage` to bypass the interval and retry manually. Automatic failures
+stay silent and clear both cached and visible usage; usage remains blank until
+the next successful refresh. Cancelled in-flight requests do not consume the
+interval, so returning to a supported model can retry immediately.
 
 ### OpenRouter prepaid balance
 

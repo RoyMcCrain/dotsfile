@@ -960,7 +960,7 @@ EOF
 	run jq -e '
 		.extensions as $extensions |
 		($extensions | index("extensions/*.ts") != null) and
-		(["auto-fugu-model.ts", "auto-continue-after-compact.ts", "local-openai.ts", "openrouter-balance.ts"] |
+		(["auto-fugu-model.ts", "auto-continue-after-compact.ts", "local-openai.ts", "openrouter-balance.ts", "save-compaction-log.ts"] |
 			all(. as $name | $extensions | index("-extensions/" + $name) != null)) and
 		(["codex-usage.ts", "cmux-session-name.ts", "repo-memory-local.ts", "workspace-cd.ts"] |
 			all(. as $name | $extensions | index("-extensions/" + $name) == null))
@@ -968,7 +968,7 @@ EOF
 	[ "$status" -eq 0 ]
 
 	local name
-	for name in auto-fugu-model.ts auto-continue-after-compact.ts local-openai.ts openrouter-balance.ts; do
+	for name in auto-fugu-model.ts auto-continue-after-compact.ts local-openai.ts openrouter-balance.ts save-compaction-log.ts; do
 		[ -f "$BATS_TEST_DIRNAME/../extensions/$name" ]
 	done
 }
