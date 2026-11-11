@@ -9,11 +9,8 @@
 #   resolve-model.sh --list               list roles
 #   resolve-model.sh --review-level N [--current-model MODEL [--current-backend pi|agy]]
 #                                          print "backend<TAB>model<TAB>initial<TAB>retry" per reviewer
-#   resolve-model.sh --apply              sync enabledModels into settings.json
-#   resolve-model.sh --check              verify enabledModels matches catalog
-#
-# defaultProvider / defaultModel are runtime state that Pi rewrites on /model,
-# so they are deliberately left alone.
+#   resolve-model.sh --apply              sync the model of an existing Codex config
+#   resolve-model.sh --check              verify the model of an existing Codex config
 #
 # shellcheck disable=SC2016  # $role / $field are jq variables, not shell ones
 set -euo pipefail
@@ -250,15 +247,6 @@ list_roles() {
 	' "$1"
 }
 
-settings_path() {
-	local catalog="$1"
-	if [[ -n "${PI_SETTINGS_FILE:-}" ]]; then
-		printf '%s\n' "$PI_SETTINGS_FILE"
-		return
-	fi
-	printf '%s\n' "$(dirname "$catalog")/settings.json"
-}
-
 # Live Codex config is app-owned at ${CODEX_HOME:-$HOME/.codex}/config.toml.
 codex_config_path() {
 	if [[ -n "${CODEX_CONFIG_FILE:-}" ]]; then
@@ -303,44 +291,6 @@ check_codex() {
 		return 0
 	fi
 	die "codex model mismatch: $config has '$actual', catalog wants '$wanted'"
-}
-
-apply_settings() {
-	local catalog="$1"
-	local settings
-	settings=$(settings_path "$catalog")
-	[[ -f "$settings" ]] || die "settings.json not found: $settings"
-	# settings.json is a symlink into the dotfiles repo; resolve to the real file
-	# so the atomic rename below updates the repo copy instead of clobbering the
-	# symlink with a standalone file (which would silently break the link).
-	settings=$(readlink -f "$settings")
-
-	local tmp
-	tmp=$(mktemp "$settings.XXXXXX")
-	jq --slurpfile cat "$catalog" '.enabledModels = $cat[0].enabledModels' \
-		"$settings" >"$tmp"
-
-	# Update the dependent codex config first; set -e aborts here on failure,
-	# leaving settings.json untouched so the two files never drift apart.
-	apply_codex "$catalog"
-
-	# tmp lives beside settings, so this is an atomic same-filesystem rename.
-	mv "$tmp" "$settings"
-	printf 'updated enabledModels in %s from %s\n' "$settings" "$catalog"
-}
-
-check_settings() {
-	local catalog="$1"
-	local settings
-	settings=$(settings_path "$catalog")
-	[[ -f "$settings" ]] || die "settings.json not found: $settings"
-
-	if ! jq -e --slurpfile cat "$catalog" \
-		'.enabledModels == $cat[0].enabledModels' "$settings" >/dev/null; then
-		die "enabledModels does not match model-roles.json: $settings"
-	fi
-	printf 'ok: enabledModels in %s matches %s\n' "$settings" "$catalog"
-	check_codex "$catalog"
 }
 
 main() {
@@ -439,10 +389,10 @@ main() {
 		;;
 	apply)
 		require_sd
-		apply_settings "$catalog"
+		apply_codex "$catalog"
 		;;
 	check)
-		check_settings "$catalog"
+		check_codex "$catalog"
 		;;
 	pi)
 		[[ -n "$role" ]] || usage

@@ -94,8 +94,8 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh --field cursor ROLE          # -> Cursor Agent model id (compatibility)
 ~/.pi/agent/resolve-model.sh --review-level 2              # -> Codex/Claude Pi reviewer TSV (L2)
 ~/.pi/agent/resolve-model.sh --label review.grok
-~/.pi/agent/resolve-model.sh --apply                      # sync derived config
-~/.pi/agent/resolve-model.sh --check                      # verify nothing drifted
+~/.pi/agent/resolve-model.sh --apply                      # update model in an existing live Codex config
+~/.pi/agent/resolve-model.sh --check                      # check model in an existing live Codex config
 ```
 
 Parallel-review uses exactly two Pi headless reviewers, Codex and Claude, at L1/L2 only. Unspecified level defaults to offline L1; `--level auto` is an offline L1 alias. Only explicit levels 1/2 are accepted (3..5 are rejected). No alternate routing, API key, or runtime caller is used. Chunking is local: raw patch bytes >=15000 or >=400 newlines selects `12000`, otherwise `none`; splitting respects file boundaries and never splits or truncates a single diff section.
@@ -123,8 +123,7 @@ Current roles include `review.codex`, `review.claude`, `review.grok`, `review.fu
 `route.fugu.ultra`, `impl.default`, `research.xai`, `codex.default`.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
-`reviewLevels` tier models, role labels, and the `enabledModels` cycling list),
-then run `--apply` and `--check`. Skills pick it up immediately because
+`reviewLevels` tier models, and role labels). Skills pick it up immediately because
 `run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
 Parallel-review tiers resolve with `--review-level N` as two `pi` backend rows
 (`backend<TAB>model<TAB>initial<TAB>retry`). L1 uses Codex Sol :xhigh + Opus :high;
@@ -134,9 +133,16 @@ Each reviewer retries once after failure or timeout. Other provider roles remain
 available for their independent explicitly selected skills; they are not used in
 parallel-review.
 
-`enabledModels` controls Pi's Ctrl+P cycling choices (configured with
-`/scoped-models`); it is not an allowlist for `--model` or skill role resolution. Role and tier
-models live in `roles` and `reviewLevels`.
+If `roles["codex.default"].id` changes, run
+`~/.pi/agent/resolve-model.sh --apply` and `~/.pi/agent/resolve-model.sh --check`
+to update and verify only the model of an existing live Codex config.
+
+Roles and tier models live in `roles` and `reviewLevels`; these are separate from Pi's optional
+interactive model scope. Users can configure the scope with Pi's built-in
+`/scoped-models` command, and Pi's default is to cycle all models with usable
+authentication. The resolver does not manage or check that scope. `--apply` and
+`--check` synchronize/check only the model of an existing live Codex config;
+changing Pi roles takes effect on resolution and does not require syncing settings.
 
 `modelOverrides` in `models.json` are keyed by the exact model ID from
 `codex.default`. When migrating, update the override key to match the new
@@ -147,12 +153,11 @@ Pi auto-compacts when `contextTokens > contextWindow - reserveTokens`; with
 500K and the current 50K reserve that threshold is above 450K (1M would be
 above 950K, not a fixed 200K).
 
-`--apply` / `--check` cover the config files that cannot expand variables:
+`--apply` / `--check` cover only the model in an existing live Codex config:
 
-| Target                                     | Key             | Source role / field |
-| ------------------------------------------ | --------------- | ------------------- |
-| `pi/agent/settings.json`                   | `enabledModels` | `enabledModels`     |
-| `~/.codex/config.toml` (local, app-owned)  | `model`         | `codex.default.id`  |
+| Target                                    | Key     | Source role / field |
+| ----------------------------------------- | ------- | ------------------- |
+| `~/.codex/config.toml` (local, app-owned) | `model` | `codex.default.id`  |
 
 Codex config ownership:
 
@@ -214,9 +219,9 @@ Codex config ownership:
   script location). Setup entrypoints invoke the same helper without
   `--migrate-legacy`.
 
-`defaultProvider` / `defaultModel` in `settings.json` are intentionally *not*
-managed, because Pi rewrites them at runtime when you switch with `/model`.
-Run `--check` after editing the catalog to catch drift.
+Pi runtime settings, including any manually configured `enabledModels` scope,
+are not managed or checked by the resolver. `--apply` / `--check` only update/check
+the model of an existing live Codex config; a missing Codex config remains a no-op.
 
 Tracked custom providers:
 
@@ -236,22 +241,20 @@ matches that 1M value):
 `contextWindow` 300000 and `maxTokens` 32768 (Max) / 8192 (Ultra v2) in
 `models.json`.
 
-After editing the catalog:
-
-1. Run `./pi/agent/resolve-model.sh --apply` and `--check`.
-2. Restart Pi (full restart is simplest; `/reload` may suffice for catalog-only
-   changes).
-3. Select `sakana-ai-console/fugu-max:high` or `fugu-ultra-v2.0:high` via
-   `/model`, then run `/auto-fugu on` — manual `/model` selection disables
-   automatic routing until you re-enable it or start a new session.
+After editing the catalog, Pi role changes take effect on resolution and do not
+require syncing settings. After removing the old managed scope from settings,
+restart Pi to clear it from the current session. To use Fugu, select
+`sakana-ai-console/fugu-max:high` or `fugu-ultra-v2.0:high` via `/model`, then run
+`/auto-fugu on` — manual `/model` selection disables automatic routing until you
+re-enable it or start a new session.
 
 Built-in subscription providers (via `/login`):
 
 - `anthropic/*` — Claude Pro/Max OAuth (built into Pi; no extra package)
 
-`enabledModels` lists models consumed by Pi itself (including implementation role
-`impl.default`, default GPT-6 Luna High). Implementation runs via isolated headless
-Pi (`skills/impl/scripts/run_impl.sh`), not the main session model.
+Pi's optional interactive model scope is user-managed with `/scoped-models`;
+it is not a catalog role allowlist. Implementation runs via isolated headless Pi
+(`skills/impl/scripts/run_impl.sh`), not the main session model.
 
 Environment variables:
 
@@ -284,9 +287,9 @@ literal API key or an environment reference such as `$SAKANA_API_KEY`.
 ### OpenCode Go API key
 
 Pi ships a built-in `opencode-go` provider (distinct from OpenCode Zen /
-`opencode`). No custom provider, endpoints, or model catalog are tracked here;
-`enabledModels` uses the `opencode-go/*` glob so bundled model IDs stay in sync
-with Pi.
+`opencode`). No custom provider, endpoints, or model catalog are tracked here.
+Users who want to include its models in interactive cycling can configure that
+scope themselves with Pi's `/scoped-models` command.
 
 1. Unlock Bitwarden if needed, then sync the Keychain item (fish uses the default
    env var derived from the item name):
