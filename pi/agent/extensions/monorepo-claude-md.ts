@@ -22,6 +22,7 @@ import {
   isReadToolResult,
   isWriteToolResult,
   type ExtensionAPI,
+  type ToolResultEvent,
 } from "@earendil-works/pi-coding-agent";
 
 // 1ディレクトリでの採用優先順（先頭が優先）。
@@ -89,12 +90,78 @@ const readContextContent = (file: string): string => {
   return buf.toString("utf8").trimEnd();
 };
 
+const safeRealpath = (file: string) => {
+  try {
+    return fs.realpathSync(file);
+  } catch {
+    return undefined;
+  }
+};
+
+const isFullRead = (
+  input: { offset?: number; limit?: number },
+  truncated: boolean,
+) => (input.offset === undefined || input.offset === 1) &&
+  input.limit === undefined && !truncated;
+
+const isFullReadEvent = (event: ToolResultEvent) => {
+  if (!isReadToolResult(event)) return false;
+  return isFullRead(event.input, !!event.details?.truncation?.truncated);
+};
+
+const toolResultPath = (event: ToolResultEvent) => {
+  if (isReadToolResult(event)) return { path: event.input.path, isRead: true };
+  if (isEditToolResult(event) || isWriteToolResult(event)) {
+    return { path: event.input.path, isRead: false };
+  }
+  return undefined;
+};
+
 export default function monorepoClaudeMd(pi: ExtensionAPI) {
   let repoRoot = "";
   let realRepoRoot = "";
   const injected = new Set<string>();
 
-  pi.on("session_start", async (_event, ctx) => {
+  const guidanceBlock = (file: string, realRead: string | undefined, readResult: boolean) => {
+    const realFile = safeRealpath(file);
+    if (!realFile || !isInside(realRepoRoot, realFile)) return undefined;
+    if (readResult && realFile === realRead) return undefined;
+    if (injected.has(realFile)) return undefined;
+    try {
+      const content = readContextContent(realFile);
+      injected.add(realFile);
+      const relPath = path.relative(repoRoot, file);
+      return `--- Directory guidance from ${relPath} ---\n${content}\n--- end guidance (${relPath}) ---`;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const collectGuidance = (
+    contextFiles: string[],
+    realRead: string | undefined,
+    readResult: boolean,
+  ) => {
+    const blocks: string[] = [];
+    for (const file of contextFiles) {
+      const block = guidanceBlock(file, realRead, readResult);
+      if (block) blocks.push(block);
+    }
+    return blocks;
+  };
+
+  const recordFullRead = (
+    contextFiles: string[],
+    realRead: string | undefined,
+    fullRead: boolean,
+  ) => {
+    if (!realRead || !fullRead) return;
+    for (const file of contextFiles) {
+      if (safeRealpath(file) === realRead) injected.add(realRead);
+    }
+  };
+
+  pi.on("session_start", (_event, ctx) => {
     repoRoot = findRepoRoot(ctx.cwd);
     try {
       realRepoRoot = fs.realpathSync(repoRoot);
@@ -104,44 +171,27 @@ export default function monorepoClaudeMd(pi: ExtensionAPI) {
     injected.clear();
   });
 
-  pi.on("tool_result", async (event, ctx) => {
-    if (event.isError) return;
-
-    const rawPath =
-      isReadToolResult(event) || isEditToolResult(event) || isWriteToolResult(event)
-        ? event.input.path
-        : undefined;
-    if (typeof rawPath !== "string" || !rawPath) return;
-
-    const absFile = path.resolve(ctx.cwd, rawPath);
-    const blocks: string[] = [];
-
-    for (const file of ancestorContextFiles(absFile, repoRoot, ctx.cwd)) {
-      if (isReadToolResult(event) && path.resolve(file) === absFile) continue;
-
-      let realCandidate: string;
+  pi.on("before_agent_start", (event) => {
+    for (const contextFile of event.systemPromptOptions.contextFiles ?? []) {
       try {
-        realCandidate = fs.realpathSync(file);
+        injected.add(fs.realpathSync(contextFile.path));
       } catch {
-        continue;
-      }
-      if (!isInside(realRepoRoot, realCandidate)) continue;
-      if (injected.has(realCandidate)) continue;
-
-      try {
-        const content = readContextContent(realCandidate);
-        injected.add(realCandidate);
-        const relPath = path.relative(repoRoot, file);
-        blocks.push(
-          `--- Directory guidance from ${relPath} ---\n${content}\n--- end guidance (${relPath}) ---`,
-        );
-      } catch {
-        // 読めないファイルは黙ってスキップし、tool result はそのまま保つ。
+        // Ignore paths that disappeared after the runtime loaded context.
       }
     }
+  });
 
+  pi.on("tool_result", (event, ctx) => {
+    if (event.isError) return;
+    const tool = toolResultPath(event);
+    if (!tool || typeof tool.path !== "string" || !tool.path) return;
+
+    const absFile = path.resolve(ctx.cwd, tool.path);
+    const contextFiles = ancestorContextFiles(absFile, repoRoot, ctx.cwd);
+    const realRead = tool.isRead ? safeRealpath(absFile) : undefined;
+    if (tool.isRead) recordFullRead(contextFiles, realRead, isFullReadEvent(event));
+    const blocks = collectGuidance(contextFiles, realRead, tool.isRead);
     if (blocks.length === 0) return;
-
     return {
       content: [...event.content, { type: "text", text: `\n\n${blocks.join("\n\n")}` }],
     };

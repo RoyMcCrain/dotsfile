@@ -25,7 +25,8 @@
     "-extensions/auto-fugu-model.ts",
     "-extensions/auto-continue-after-compact.ts",
     "-extensions/local-openai.ts",
-    "-extensions/openrouter-balance.ts"
+    "-extensions/openrouter-balance.ts",
+    "-extensions/save-compaction-log.ts"
   ],
   "lastChangelogVersion": "1.5.2",
   "packages": [],
