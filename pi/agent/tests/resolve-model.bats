@@ -20,7 +20,6 @@ setup() {
 write_catalog() {
 	cat >"$CATALOG" <<'EOF'
 {
-  "enabledModels": ["provider/pi-model:high", "provider/other:high"],
   "roles": {
     "review.test": { "pi": "provider/pi-model:high", "label": "Pi Model" },
     "impl.cursor": { "cursor": "composer-fast", "label": "Composer Fast" },
@@ -47,16 +46,16 @@ model_reasoning_effort = "medium"
 EOF
 }
 
-review_fixture_catalog() {
-	cat >"$CATALOG"
-}
-
 minimal_path_without_sd() {
 	local bin="$TEST_ROOT/minimal-path"
 	mkdir -p "$bin"
 	ln -sf "$(command -v bash)" "$bin/bash"
 	ln -sf "$(command -v jq)" "$bin/jq"
 	printf '%s\n' "$bin"
+}
+
+review_fixture_catalog() {
+	cat >"$CATALOG"
 }
 
 @test "resolves .pi for pi roles and .id fallback for codex.default" {
@@ -75,61 +74,105 @@ minimal_path_without_sd() {
 	[ "$output" = "gpt-test-model" ]
 }
 
-@test "--apply syncs enabledModels and codex model while preserving defaultProvider and defaultModel" {
+@test "--apply updates Codex and leaves manually scoped Pi settings byte-for-byte unchanged" {
 	# Arrange
 	write_catalog
-	write_settings_drifted
+	cat >"$SETTINGS" <<'EOF'
+{
+  "defaultProvider": "anthropic",
+  "defaultModel": "runtime-selected-model",
+  "defaultThinkingLevel": "max",
+  "enabledModels": ["manual/provider-scope"]
+}
+EOF
 	write_codex_drifted
+	local settings_before="$TEST_ROOT/settings.before"
+	cp "$SETTINGS" "$settings_before"
 
 	# Act
 	run "$RESOLVER" --apply
-	[ "$status" -eq 0 ]
 
 	# Assert
-	jq -e '.defaultProvider == "openai-codex"' "$SETTINGS" >/dev/null
-	jq -e '.defaultModel == "runtime-selected-model"' "$SETTINGS" >/dev/null
-	jq -e '.enabledModels == ["provider/pi-model:high", "provider/other:high"]' "$SETTINGS" >/dev/null
+	[ "$status" -eq 0 ]
+	cmp -s "$SETTINGS" "$settings_before"
 	rg -Fq 'model = "gpt-test-model"' "$CODEX"
 }
 
-@test "--apply with sd unavailable fails before mutation and reports sd is required" {
+@test "--apply requires sd and preserves Codex config when it is unavailable" {
 	# Arrange
 	write_catalog
-	write_settings_drifted
 	write_codex_drifted
-
-	local settings_before codex_before minimal_path
-	settings_before=$(cat "$SETTINGS")
-	codex_before=$(cat "$CODEX")
-	minimal_path=$(minimal_path_without_sd)
+	local codex_before="$TEST_ROOT/config.before"
+	cp "$CODEX" "$codex_before"
+	local minimal_path
+	minimal_path="$(minimal_path_without_sd)"
 
 	# Act
 	run env PATH="$minimal_path" "$RESOLVER" --apply
 
 	# Assert
 	[ "$status" -ne 0 ]
-	[[ "$output" == *sd\ is\ required* ]]
-	[ "$(cat "$SETTINGS")" = "$settings_before" ]
-	[ "$(cat "$CODEX")" = "$codex_before" ]
+	[[ "$output" == *"sd is required"* ]]
+	cmp -s "$CODEX" "$codex_before"
 }
 
-@test "--check reports drift and succeeds after apply" {
+@test "--check ignores manually scoped Pi settings and checks Codex only" {
 	# Arrange
 	write_catalog
 	write_settings_drifted
 	write_codex_drifted
+	local settings_before="$TEST_ROOT/settings.before"
+	cp "$SETTINGS" "$settings_before"
 
-	# Act
+	# Act — Codex drift remains an error irrespective of Pi scope.
 	run "$RESOLVER" --check
 	[ "$status" -ne 0 ]
+	[[ "$output" == *"codex model mismatch"* ]]
 
+	# Correct Codex, then check succeeds while Pi settings remain untouched.
 	run "$RESOLVER" --apply
 	[ "$status" -eq 0 ]
-
 	run "$RESOLVER" --check
 
 	# Assert
 	[ "$status" -eq 0 ]
+	cmp -s "$SETTINGS" "$settings_before"
+}
+
+@test "--apply and --check work without any Pi settings file" {
+	# Arrange
+	write_catalog
+	write_codex_drifted
+	rm -f "$SETTINGS"
+
+	# Act — missing Pi settings are irrelevant, while Codex drift is detected.
+	run env PI_SETTINGS_FILE="$SETTINGS" "$RESOLVER" --check
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"codex model mismatch"* ]]
+	run env PI_SETTINGS_FILE="$SETTINGS" "$RESOLVER" --apply
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[ ! -e "$SETTINGS" ]
+	rg -Fq 'model = "gpt-test-model"' "$CODEX"
+	run env PI_SETTINGS_FILE="$SETTINGS" "$RESOLVER" --check
+	[ "$status" -eq 0 ]
+}
+
+@test "missing Codex config remains a no-op for apply and check" {
+	# Arrange
+	write_catalog
+	rm -f "$SETTINGS" "$CODEX"
+
+	# Act
+	run "$RESOLVER" --apply
+	[ "$status" -eq 0 ]
+	run "$RESOLVER" --check
+
+	# Assert
+	[ "$status" -eq 0 ]
+	[ ! -e "$CODEX" ]
+	[ ! -e "$SETTINGS" ]
 }
 
 write_catalog_with_levels() {
@@ -394,44 +437,9 @@ EOF
 	cmp -s "$legacy" "$legacy_snapshot"
 }
 
-@test "Sonnet 5.5 high/max in catalog; legacy Sonnet 5 scopes are gone" {
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local sonnet_high="anthropic/claude-sonnet-5-5:high"
-	local sonnet_max="anthropic/claude-sonnet-5-5:max"
-
-	jq -e --arg high "$sonnet_high" --arg max "$sonnet_max" \
-		'(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' \
-		"$real_catalog" >/dev/null
-	run jq -e '[.enabledModels[] | select(test("anthropic/claude-sonnet-5:"))] | length == 0' \
-		"$real_catalog"
-	[ "$status" -eq 0 ]
-}
-
-@test "GPT-6.1 Sol xhigh/max enabledModels entries are present in catalog" {
-	# Arrange — integration against tracked repo catalog
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local sol_xhigh="openai/gpt-6.1-sol:xhigh"
-	local sol_max="openai/gpt-6.1-sol:max"
-
-	# Assert — catalog exposes each Sol scope entry exactly once
-	jq -e --arg x "$sol_xhigh" --arg m "$sol_max" \
-		'(.enabledModels | map(select(. == $x)) | length == 1) and (.enabledModels | map(select(. == $m)) | length == 1)' \
-		"$real_catalog" >/dev/null
-}
-
-@test "OpenCode Go enabledModels glob is present in catalog" {
-	# Arrange — integration against tracked repo catalog
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-
-	# Assert — catalog exposes the provider glob scope
-	jq -e '.enabledModels | index("opencode-go/*") != null' "$real_catalog" >/dev/null
-}
-
 @test "models.json registers two native Meta Muse models and one Go DeepSeek with caps and compat" {
-	# Arrange — integration against tracked models.json, catalog, and enabled scopes
+	# Arrange — integration against tracked models.json
 	local real_models="$BATS_TEST_DIRNAME/../models.json"
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-
 	# Assert — Meta provider transport, exactly two native Muse models, and normal Spark capabilities
 	jq -e '
 		.providers["meta"] as $p |
@@ -463,11 +471,6 @@ EOF
 			.compat.thinkingFormat == "deepseek")
 	' "$real_models" >/dev/null
 
-	# Assert — exact scopes keep older built-in Meta models out of cycling
-	jq -e '
-		([.enabledModels[] | select(startswith("meta/"))] | sort) ==
-		["meta/muse-spark-1.3", "meta/muse-wonder-1.0"]
-	' "$real_catalog" >/dev/null
 }
 
 @test "--review-level rejects invalid current model and backend" {
@@ -888,15 +891,6 @@ EOF
 	[[ "$output" == *"unknown model role"* ]]
 }
 
-@test "production --check verifies settings/catalog enabledModels synchronization" {
-	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
-	export PI_SETTINGS_FILE="$BATS_TEST_DIRNAME/../settings.json"
-	export CODEX_CONFIG_FILE="$BATS_TEST_TMPDIR/no-codex-config.toml"
-	run "$RESOLVER" --check
-	[ "$status" -eq 0 ]
-	jq -e '.enabledModels | index("openai/gpt-6-luna:high") != null' "$MODEL_ROLES_FILE" >/dev/null
-}
-
 @test "auth.json.example wires opencode-go command auth without enabling opencode Zen" {
 	# Arrange — tracked auth example only (no live auth or Keychain)
 	local auth_example="$BATS_TEST_DIRNAME/../auth.json.example"
@@ -967,13 +961,7 @@ EOF
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	local real_models="$BATS_TEST_DIRNAME/../models.json"
 	local codex_fugu="$BATS_TEST_DIRNAME/../../../codex/fugu.json"
-	local base_model="sakana-ai-console/fugu-max:high"
 	local ultra_model="sakana-ai-console/fugu-ultra-v2.0:high"
-
-	# Assert — catalog enables both Fugu pair entries
-	jq -e --arg base "$base_model" --arg ultra "$ultra_model" \
-		'(.enabledModels | index($base) != null) and (.enabledModels | index($ultra) != null)' \
-		"$real_catalog" >/dev/null
 
 	# Assert — review.fugu resolves to ultra v2 :high with timeout 240
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.fugu
@@ -1035,15 +1023,12 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "Opus 5.5 high/max and standalone Claude role remain enabled" {
+@test "Opus 5.5 standalone Claude role remains resolvable" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
-	local opus_high="anthropic/claude-opus-5-5:high"
-	local opus_max="anthropic/claude-opus-5-5:max"
-	jq -e --arg high "$opus_high" --arg max "$opus_max" '(.enabledModels | index($high) != null) and (.enabledModels | index($max) != null)' "$real_catalog" >/dev/null
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.claude
 	[ "$status" -eq 0 ]
-	[ "$output" = "$opus_high" ]
+	[ "$output" = "anthropic/claude-opus-5-5:high" ]
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.claude
 	[ "$status" -eq 0 ]
 	[ "$output" = "Claude Opus 5.5 High" ]
@@ -1068,7 +1053,6 @@ EOF
 	[ "$output" = "$codex_id" ]
 	jq -e --arg id "$codex_id" --arg sol "gpt-6.1-sol" '(.providers.openai.modelOverrides[$id].contextWindow == 500000) and (.providers.openai.modelOverrides[$sol].contextWindow == 500000) and ((.providers.openai.modelOverrides | keys | sort) == ([$id, $sol] | sort))' "$real_models" >/dev/null
 	jq -e '[.. | strings | select(startswith("openai-codex/"))] | length == 0' "$real_catalog" >/dev/null
-	jq -e '[.enabledModels[] | select(startswith("openai/"))] | length == 5' "$real_catalog" >/dev/null
 }
 
 @test "review.muse standalone role, DeepSeek, shared skill, and Claude symlink remain protected" {
@@ -1109,5 +1093,4 @@ EOF
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" research.xai
 	[ "$status" -eq 0 ]
 	[ "$output" = "xai/grok-4.7" ]
-	jq -e '.enabledModels | index("xai/grok-4.7") != null' "$real_catalog" >/dev/null
 }
