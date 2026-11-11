@@ -75,9 +75,13 @@ const tailBytes = (text: string, maxBytes: number) => {
 
 const normalizeMemory = (text: string) => text.trim().toLowerCase();
 
-// Strip the "- <ISO> [topic] " prefix to compare only the note text.
-const bulletNoteText = (line: string) =>
-  line.replace(/^-\s*\S+\s*(?:\[[^\]]*\]\s*)?/, "").trim();
+// Strip only the writer's timestamp prefix; consolidated bullets have none.
+const bulletNoteText = (line: string) => {
+  const bullet = line.replace(/^-\s*/, "");
+  const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s+/.exec(bullet);
+  if (!timestamp) return bullet.trim();
+  return bullet.slice(timestamp[0].length).replace(/^\[[^\]]*\]\s*/, "").trim();
+};
 
 const readMemoryText = async (memoryPath: string) => {
   try {

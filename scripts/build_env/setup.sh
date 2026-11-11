@@ -125,8 +125,6 @@ link_managed "$BASE_DIR/antigravity/skills/context-loader" "$HOME/.gemini/antigr
 for item in AGENTS.md APPEND_SYSTEM.md settings.json models.json model-roles.json resolve-model.sh extensions lib; do
 	link_managed "$BASE_DIR/pi/agent/$item" "$HOME/.pi/agent/$item"
 done
-if command -v npm >/dev/null 2>&1; then bash "$BASE_DIR/scripts/build_env/patch_pi_min_output_tokens.sh"; fi
-
 # Read and validate the authoritative inventory once before distributing shared skills.
 shared_skill_inventory_text=$(bash "$BASE_DIR/scripts/build_env/list_shared_agent_skills.sh" "$BASE_DIR")
 [[ -n "$shared_skill_inventory_text" ]] || {

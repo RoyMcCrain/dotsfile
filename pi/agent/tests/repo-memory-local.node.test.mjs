@@ -230,6 +230,58 @@ test("review_memory success removes backup, updates memory and index", async (t)
   assert.match(await pi.indexPrompt(), /1 notes saved/);
 });
 
+test("remember skips duplicate after review_memory consolidation", async (t) => {
+  const curated = "## testing\n- Use Bun for tests.\n";
+  const { root, memoryPath, pi } = await setup({
+    memory: "- 2020-01-01T00:00:00.000Z [testing] Use Bun for tests.\n",
+    hooks: {
+      complete: () => Promise.resolve({ content: [{ type: "text", text: curated }] }),
+    },
+  });
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  await review(pi);
+  const consolidated = await readFile(memoryPath, "utf8");
+  const result = await pi.tools.get("remember").execute(
+    "",
+    { note: "Use Bun for tests.", topic: "testing" },
+    undefined,
+    undefined,
+    baseCtx(),
+  );
+
+  assert.equal(result.content[0].text, "Already remembered.");
+  assert.equal(await readFile(memoryPath, "utf8"), consolidated);
+});
+
+for (const memory of [
+  "- 2020-01-01T00:00:00.000Z [testing] Use Bun for tests.\n",
+  "- 2020-01-01T00:00:00.000Z Use Bun for tests.\n",
+]) {
+  test(`remember deduplicates existing writer format: ${memory.includes("[testing]") ? "topic" : "no topic"}`, async (t) => {
+    const { root, memoryPath, pi } = await setup({ memory });
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const result = await pi.tools.get("remember").execute(
+      "", { note: "Use Bun for tests." }, undefined, undefined, baseCtx(),
+    );
+    assert.equal(result.content[0].text, "Already remembered.");
+    assert.equal(await readFile(memoryPath, "utf8"), memory);
+  });
+}
+
+test("remember saves a distinct note when it is only a substring match", async (t) => {
+  const memory = "## testing\n- Use Bun for tests and scripts\n";
+  const { root, memoryPath, pi } = await setup({ memory });
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = await pi.tools.get("remember").execute(
+    "", { note: "Use Bun for tests" }, undefined, undefined, baseCtx(),
+  );
+  assert.equal(result.content[0].text, "Saved to repo memory.");
+  const saved = await readFile(memoryPath, "utf8");
+  assert.ok(saved.startsWith(memory));
+  assert.match(saved, /- \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z Use Bun for tests\n/);
+});
+
 test("repo-memory-review command success removes backup after confirm", async (t) => {
   const { root, memoryPath, pi, notifications, uiCtx } = await setup({
     memory: "- first note\n- second note\n",

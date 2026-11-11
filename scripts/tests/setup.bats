@@ -58,11 +58,7 @@ exit 0
 EOF
 	mkdir -p "$REPO/scripts/wsl"
 	printf '[Unit]\nDescription=synthetic WSL bridge\n' >"$REPO/scripts/wsl/bitwarden-ssh-agent.service"
-	cat >"$REPO/scripts/build_env/patch_pi_min_output_tokens.sh" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-	chmod +x "$BIN"/* "$REPO/scripts/build_env/patch_pi_min_output_tokens.sh"
+	chmod +x "$BIN"/*
 	PATH="$BIN:/usr/bin:/bin"
 	export PATH
 }
