@@ -955,10 +955,27 @@ EOF
 		[[ "$output" == *"unknown review level"* ]]
 	done
 }
-@test "Fugu integration restored with fugu-max and fugu-ultra-v2.0" {
-	# Arrange — integration against tracked repo catalog, settings, models, codex
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+@test "unused extensions are excluded while the extension glob remains enabled" {
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
+	run jq -e '
+		.extensions as $extensions |
+		($extensions | index("extensions/*.ts") != null) and
+		(["auto-fugu-model.ts", "auto-continue-after-compact.ts", "local-openai.ts", "openrouter-balance.ts"] |
+			all(. as $name | $extensions | index("-extensions/" + $name) != null)) and
+		(["codex-usage.ts", "cmux-session-name.ts", "repo-memory-local.ts", "workspace-cd.ts"] |
+			all(. as $name | $extensions | index("-extensions/" + $name) == null))
+	' "$real_settings"
+	[ "$status" -eq 0 ]
+
+	local name
+	for name in auto-fugu-model.ts auto-continue-after-compact.ts local-openai.ts openrouter-balance.ts; do
+		[ -f "$BATS_TEST_DIRNAME/../extensions/$name" ]
+	done
+}
+
+@test "Fugu manual integration remains available with fugu-max and fugu-ultra-v2.0" {
+	# Arrange — integration against tracked repo catalog, models, codex
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 	local real_models="$BATS_TEST_DIRNAME/../models.json"
 	local codex_fugu="$BATS_TEST_DIRNAME/../../../codex/fugu.json"
 	local ultra_model="sakana-ai-console/fugu-ultra-v2.0:high"
@@ -1004,10 +1021,6 @@ EOF
 	taplo fmt --check - <"$fugu_profile" >/dev/null
 	[ "$(taplo get -f "$fugu_profile" model)" = "fugu-max" ]
 	[ "$(taplo get -f "$fugu_profile" model_providers.sakana.base_url)" = "https://api.sakana.ai/v1" ]
-
-	# Assert — auto-fugu-model extension is active (not force-excluded)
-	run jq -e '.extensions | index("-extensions/auto-fugu-model.ts") == null' "$real_settings"
-	[ "$status" -eq 0 ]
 
 	# Assert — Codex fugu.json registry uses new slugs
 	jq -e '

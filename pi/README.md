@@ -225,14 +225,16 @@ the model of an existing live Codex config; a missing Codex config remains a no-
 
 Tracked custom providers:
 
-- `lm-studio/*` (dynamically loaded from `LM_STUDIO_BASE_URL` or
-  `http://localhost:1234/v1`)
+- `lm-studio/*` (disabled by default; when `local-openai.ts` is reenabled,
+  dynamically loaded from `LM_STUDIO_BASE_URL` or `http://localhost:1234/v1`)
+  — remove `-extensions/local-openai.ts` from settings and run `/reload` to use it.
 
-**Fugu (Sakana) — active.** The `sakana-ai-console` provider serves
-`fugu-max` (base, everyday) and `fugu-ultra-v2.0` (ultra, deep review).
+**Fugu (Sakana) — available for manual use.** The `sakana-ai-console` provider
+serves `fugu-max` (base, everyday) and `fugu-ultra-v2.0` (ultra, deep review).
 `review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). Fugu is not used by
-`parallel-review`; it remains available through explicitly selected standalone
-review skills. Legacy pre-reactivation
+`parallel-review`; standalone/manual roles remain available through explicitly
+selected review skills. Automatic Fugu routing and escalation are disabled by
+default. Legacy pre-reactivation
 snapshot: `pi/agent/fugu.disabled.json.example` (obsolete IDs — do not merge).
 
 **Local caps** (deliberate Pi operational limits; Sakana's setup catalog lists
@@ -243,10 +245,11 @@ matches that 1M value):
 
 After editing the catalog, Pi role changes take effect on resolution and do not
 require syncing settings. After removing the old managed scope from settings,
-restart Pi to clear it from the current session. To use Fugu, select
-`sakana-ai-console/fugu-max:high` or `fugu-ultra-v2.0:high` via `/model`, then run
-`/auto-fugu on` — manual `/model` selection disables automatic routing until you
-re-enable it or start a new session.
+restart Pi to clear it from the current session. To use Fugu manually, select
+`sakana-ai-console/fugu-max:high` or `fugu-ultra-v2.0:high` via `/model`. To use
+automatic `/auto-fugu` routing, first remove
+`-extensions/auto-fugu-model.ts` from `pi/agent/settings.json`, then run `/reload`
+or restart Pi to apply the settings change.
 
 Built-in subscription providers (via `/login`):
 
@@ -390,15 +393,21 @@ Isolation is **not** a filesystem sandbox; scope work via the prompt.
 
 ## Extensions
 
-Configured by `settings.json` via `extensions/*.ts` and npm packages.
+Configured by `settings.json` via `extensions/*.ts` and npm packages. Four
+unused extensions are excluded by default: Fugu automatic routing,
+after-compaction continuation, LM Studio discovery, and OpenRouter balance
+polling. The source remains available for opt-in. To reenable one, remove its
+matching `-extensions/<filename>` entry from `pi/agent/settings.json` and run
+`/reload` or restart Pi to apply the settings change.
 
 | Extension / package             | Purpose                                                              |
 | ------------------------------- | -------------------------------------------------------------------- |
-| `local-openai.ts`               | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
+| `local-openai.ts` (disabled)    | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
 | `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
-| `openrouter-balance.ts`         | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
-| `auto-fugu-model.ts`            | Route everyday work on `fugu-max`; auto-escalate to `fugu-ultra-v2.0` when on the Fugu pair. Toggle with `/auto-fugu on\|off\|status`. |
+| `openrouter-balance.ts` (disabled) | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
+| `auto-fugu-model.ts` (disabled) | Route everyday work on `fugu-max`; auto-escalate to `fugu-ultra-v2.0` when on the Fugu pair. Toggle with `/auto-fugu on\|off\|status`. |
+| `auto-continue-after-compact.ts` (disabled) | Automatically continue after compaction. |
 | `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
 | `workspace-cd.ts`               | Fork/switch Pi session cwd after jj workspace setup (`switch_workspace_cwd` tool, `/workspace-cd`). |
 | `save-compaction-log.ts`        | Save compaction summaries to `~/.pi/agent/compaction-logs/`.         |
@@ -423,9 +432,12 @@ and clear stale status.
 
 ### OpenRouter prepaid balance
 
-`openrouter-balance.ts` adds a compact TUI status such as `OpenRouter $12.34`
-via the extension status bar (alongside Codex usage and other statuses). It is
-shown in TUI mode regardless of the selected main model, because other independent features may use OpenRouter when the primary provider is not OpenRouter.
+When explicitly reenabled, `openrouter-balance.ts` adds a compact TUI status such as
+`OpenRouter $12.34` via the extension status bar (alongside Codex usage and other
+statuses). Its balance polling applies only when the extension is reenabled; it
+otherwise makes no requests. When enabled, it is shown in TUI mode regardless of
+the selected main model, because other independent features may use OpenRouter
+when the primary provider is not OpenRouter.
 
 The balance comes from OpenRouter's management API (`GET /api/v1/credits`), not
 from the inference key (`OPEN_ROUTER_API_KEY`).
@@ -448,11 +460,11 @@ from the inference key (`OPEN_ROUTER_API_KEY`).
 3. On every new fish startup, `config.fish` reads that Keychain item and
    `set -gx OPEN_ROUTER_MANAGEMENT_KEY …` (item name → env name:
    `open-router-management-key` → `OPEN_ROUTER_MANAGEMENT_KEY`).
-4. Start or **fully restart** Pi from that fish session so the process inherits
-   the variable. Pi loads `openrouter-balance.ts` automatically via
-   `settings.json` → `extensions: ["extensions/*.ts"]` (repo symlink under
-   `~/.pi/agent/extensions`); no extra settings entry is required after adding
-   the file.
+4. To enable polling, remove `-extensions/openrouter-balance.ts` from
+   `pi/agent/settings.json`, then start or **fully restart** Pi from that fish
+   session so it loads the setting and inherits the variable. The extension
+   source is discovered by the `extensions/*.ts` glob (repo symlink under
+   `~/.pi/agent/extensions`).
 
 **`/reload` limits:** `/reload` reloads extensions and other Pi resources, but
 it does **not** re-read the parent shell environment. If you `sync-key` or export a new
@@ -468,12 +480,14 @@ also skips the API.
 
 ### Fugu model routing
 
-`auto-fugu-model.ts` keeps `fugu-max` as the everyday model and promotes to
-`fugu-ultra-v2.0` only when preflight rules or in-run struggle signals warrant
-it. Routing operates **only when already on the Fugu pair** — it does not switch
-from Codex/GPT or other providers. PR creation stays on base (Max). Manual
-Manual `/model` selection disables automatic routing until `/auto-fugu on` or a
-new session (full Pi restart also clears the override). Role IDs:
+When explicitly reenabled, `auto-fugu-model.ts` keeps `fugu-max` as the everyday
+model and promotes to `fugu-ultra-v2.0` only when preflight rules or in-run
+struggle signals warrant it. Routing operates **only when already on the Fugu
+pair** — it does not switch from Codex/GPT or other providers. PR creation stays
+on base (Max). Remove `-extensions/auto-fugu-model.ts` from settings and run
+`/reload` or restart Pi before using `/auto-fugu`. Manual `/model` selection
+disables automatic routing until `/auto-fugu on` or a new session (full Pi
+restart also clears the override). Role IDs:
 `route.fugu.base` → `fugu-max`, `route.fugu.ultra` → `fugu-ultra-v2.0`.
 
 ### cmux session names

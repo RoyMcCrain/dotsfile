@@ -21,9 +21,13 @@
     }
   },
   "extensions": [
-    "extensions/*.ts"
+    "extensions/*.ts",
+    "-extensions/auto-fugu-model.ts",
+    "-extensions/auto-continue-after-compact.ts",
+    "-extensions/local-openai.ts",
+    "-extensions/openrouter-balance.ts"
   ],
-  "lastChangelogVersion": "1.5.0",
+  "lastChangelogVersion": "1.5.2",
   "packages": [],
   "prompts": [
     "~/.agents/skills/explainer/prompts"
