@@ -16,13 +16,11 @@ Manual install:
 
 ```bash
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
-./scripts/build_env/patch_pi_min_output_tokens.sh
 ```
 
-The patch avoids OpenAI Responses API errors where Pi sends
-`max_output_tokens < 16` during a near-full compaction request. Restart Pi after
-patching; `/reload` only reloads extensions and does not reload Pi's core
-`node_modules`.
+The verified Pi 1.5.2 runtime clamps OpenAI and Azure Responses
+`max_output_tokens` to a minimum of 16. This behavior is provided by Pi itself;
+older versions have not been verified here.
 
 ## Link this config
 
@@ -406,7 +404,6 @@ for opt-in. To reenable one, remove its matching
 | Extension / package             | Purpose                                                              |
 | ------------------------------- | -------------------------------------------------------------------- |
 | `local-openai.ts` (disabled)    | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
-| `clamp-openai-output-tokens.ts` | Clamp normal OpenAI payloads to the minimum `max_output_tokens = 16`. |
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
 | `openrouter-balance.ts` (disabled) | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
 | `auto-fugu-model.ts` (disabled) | Route everyday work on `fugu-max`; auto-escalate to `fugu-ultra-v2.0` when on the Fugu pair. Toggle with `/auto-fugu on\|off\|status`. |
