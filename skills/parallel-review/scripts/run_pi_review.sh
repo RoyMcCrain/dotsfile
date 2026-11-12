@@ -18,6 +18,7 @@ die() { review_common_die "$@"; }
 
 temp_config_dir=''
 review_cmd=()
+claude_code_extension=''
 
 cleanup_temp_config() {
 	if [[ -n "$temp_config_dir" && -d "$temp_config_dir" ]]; then
@@ -168,6 +169,11 @@ build_pi_command() {
 	review_cmd=("${PI_REVIEW_BIN:-pi}" -p --model "$model" --system-prompt "$SYSTEM_PROMPT"
 		--no-session --no-skills --no-prompt-templates --no-context-files
 		--no-approve --no-extensions --no-tools)
+	# The claude-code provider exists only in the pi-claude-code package, so load
+	# exactly that extension; --no-extensions still blocks everything else.
+	if [[ "$model" == claude-code/* ]]; then
+		review_cmd+=(-e "$claude_code_extension")
+	fi
 	if [[ "$json_mode" == 1 ]]; then
 		review_cmd+=(--mode json)
 	fi
@@ -342,6 +348,12 @@ main() {
 	review_work_dir="$temp_config_dir"
 	trap cleanup_all EXIT
 	make_isolated_config "$source_config" "$temp_config_dir"
+
+	if [[ "$model" == claude-code/* ]]; then
+		claude_code_extension="${PI_CLAUDE_CODE_EXTENSION:-$source_config/git/github.com/earendil-works/pi-claude-code}"
+		# Recovery must keep the commit pinned in settings.json, so reconcile instead of reinstalling HEAD.
+		[[ -d "$claude_code_extension" ]] || die "pi-claude-code extension not found: $claude_code_extension (run: pi update --extensions)"
+	fi
 
 	local json_mode=0 events_log_resolved=''
 	if [[ -n "$events_log" ]]; then

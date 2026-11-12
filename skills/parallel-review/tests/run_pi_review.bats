@@ -1119,3 +1119,55 @@ EOF
 	[ "$status" -eq 0 ]
 	jq -e '.ld_dyld_present == true and .ld_library_path_present == true' "$ENV_LOG" >/dev/null
 }
+
+@test "claude-code models load only the pi-claude-code extension" {
+	local ext="$TEST_ROOT/pi-claude-code"
+	mkdir -p "$ext"
+	export PI_CLAUDE_CODE_EXTENSION="$ext"
+	run_runner 5 claude-code/claude-opus-5-5:high
+	[ "$status" -eq 0 ]
+
+	jq -e 'index("--no-extensions")' "$ARGS_LOG" >/dev/null
+	jq -e --arg ext "$ext" '.[index("-e") + 1] == $ext' "$ARGS_LOG" >/dev/null
+	assert_tools_absent
+}
+
+@test "non claude-code models do not load extensions" {
+	export PI_CLAUDE_CODE_EXTENSION="$TEST_ROOT/pi-claude-code"
+	run_runner
+	[ "$status" -eq 0 ]
+
+	if jq -e 'index("-e")' "$ARGS_LOG" >/dev/null; then
+		fail "-e should not be present"
+	fi
+}
+
+@test "claude-code model defaults to the extension installed in the Pi agent dir" {
+	local agent="$TEST_ROOT/pi-agent"
+	local ext="$agent/git/github.com/earendil-works/pi-claude-code"
+	mkdir -p "$ext"
+	ext=$(cd "$ext" && pwd -P)
+	unset PI_CLAUDE_CODE_EXTENSION
+	export PI_CODING_AGENT_DIR="$agent"
+	run_runner 5 claude-code/claude-opus-5-5:high
+	[ "$status" -eq 0 ]
+
+	jq -e --arg ext "$ext" '.[index("-e") + 1] == $ext' "$ARGS_LOG" >/dev/null
+}
+
+@test "claude-code model fails before side effects and keeps the pinned recovery path" {
+	export PI_CLAUDE_CODE_EXTENSION="$TEST_ROOT/missing-extension"
+	apply_runner_env
+	local -a cmd=()
+	while IFS= read -r -d '' token; do
+		cmd+=("$token")
+	done < <(runner_command 5 claude-code/claude-opus-5-5:high --events-log "$EVENTS_LOG")
+
+	run "${cmd[@]}"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"pi-claude-code extension not found"* ]]
+	[[ "$output" == *"pi update --extensions"* ]]
+	[[ "$output" != *"pi install"* ]]
+	[ ! -f "$ARGS_LOG" ]
+	[ ! -e "$EVENTS_LOG" ]
+}

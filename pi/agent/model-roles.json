@@ -6,7 +6,7 @@
       "label": "Codex GPT-6 Astra High"
     },
     "review.claude": {
-      "pi": "anthropic/claude-opus-5-5:high",
+      "pi": "claude-code/claude-opus-5-5:high",
       "label": "Claude Opus 5.5 High"
     },
     "review.grok": {
@@ -67,7 +67,7 @@
         "pi": "openai/gpt-6.1-sol:xhigh"
       },
       {
-        "pi": "anthropic/claude-opus-5-5:high"
+        "pi": "claude-code/claude-opus-5-5:high"
       }
     ],
     "2": [
@@ -75,7 +75,7 @@
         "pi": "openai/gpt-6-astra:max"
       },
       {
-        "pi": "anthropic/claude-opus-5-5:max"
+        "pi": "claude-code/claude-opus-5-5:max"
       }
     ]
   }

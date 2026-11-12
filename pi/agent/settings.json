@@ -29,7 +29,9 @@
     "-extensions/save-compaction-log.ts"
   ],
   "lastChangelogVersion": "1.5.2",
-  "packages": [],
+  "packages": [
+    "https://github.com/earendil-works/pi-claude-code@d5b5e04c314d3452d357174d16d10dda34daa2d2"
+  ],
   "prompts": [
     "~/.agents/skills/explainer/prompts"
   ]
