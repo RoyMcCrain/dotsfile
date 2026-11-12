@@ -225,7 +225,7 @@ if ((failures > 0)); then
 fi
 ```
 
-`run_pi_review.sh` は Bash 5 以上を必要とする。Pi runner は一時設定で retry を止め、CLI で skill / context / extension / tools を無効化した patch-only を強制する。各 Pi backend に `--events-log logs/<execution-id>.events.jsonl` を渡す（`bun` + `jq` 必須）。
+`run_pi_review.sh` は Bash 5 以上を必要とする。Pi runner は一時設定で retry を止め、CLI で skill / context / extension / tools を無効化した patch-only を強制する。`claude-code/*` モデルのみ pi-claude-code 拡張だけを `-e` で読み込む（Claude サブスク枠を消費）。この経路の Claude Code 子プロセスは拡張側が `--tools ""`・`--setting-sources ""`・`--strict-mcp-config`・CLAUDE.md/auto-memory 無効で起動する（pin した commit で確認）。拡張が無い場合は `pi update --extensions` で pin 済み commit を復元する。各 Pi backend に `--events-log logs/<execution-id>.events.jsonl` を渡す（`bun` + `jq` 必須）。
 
 events sidecar は **メタデータのみ**（正規化イベント種別・stream phase・allowlist 数値 usage・attempt 別 `elapsedMs`、失敗時の固定 `errorCategory` / allowlist `httpStatus`、`wrapper_error` 行）。生 JSON・prompt/patch・delta 本文・資格情報は書かない。events モードでは runner が Bun events helper を起動する直前のコマンド環境だけ、export 済みの `LD_*` / `DYLD_*` 変数名を `-u` で除去する（親シェル環境はそのまま。Bun は Deno のような runtime permission sandbox を提供しない）。ファイルは runner が retry 前に `0600` で一度だけ新規作成し、各 attempt の watchdog 実行前に `attempt_start`、終了後に `attempt_exit`（いずれも数値 `timestampMs`）を jq で追記する。timeout 前でも観測済み行は保存される。snapshot / execution schema には含めない（診断用）。
 

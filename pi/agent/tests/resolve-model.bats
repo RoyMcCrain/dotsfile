@@ -937,14 +937,14 @@ EOF
 			claude="${claude%%$'	'*}"
 			case "$level" in
 			1)
-				[ "$codex" = "openai/gpt-6.1-sol:xhigh" ] && [ "$claude" = "anthropic/claude-opus-5-5:high" ]
+				[ "$codex" = "openai/gpt-6.1-sol:xhigh" ] && [ "$claude" = "claude-code/claude-opus-5-5:high" ]
 				[ "${lines[0]}" = "$(printf 'pi\topenai/gpt-6.1-sol:xhigh\t600\t600')" ]
-				[ "${lines[1]}" = "$(printf 'pi\tanthropic/claude-opus-5-5:high\t600\t600')" ]
+				[ "${lines[1]}" = "$(printf 'pi\tclaude-code/claude-opus-5-5:high\t600\t600')" ]
 				;;
 			2)
-				[ "$codex" = "openai/gpt-6-astra:max" ] && [ "$claude" = "anthropic/claude-opus-5-5:max" ]
+				[ "$codex" = "openai/gpt-6-astra:max" ] && [ "$claude" = "claude-code/claude-opus-5-5:max" ]
 				[ "${lines[0]}" = "$(printf 'pi\topenai/gpt-6-astra:max\t600\t900')" ]
-				[ "${lines[1]}" = "$(printf 'pi\tanthropic/claude-opus-5-5:max\t600\t900')" ]
+				[ "${lines[1]}" = "$(printf 'pi\tclaude-code/claude-opus-5-5:max\t600\t900')" ]
 				;;
 			esac
 		done
@@ -1041,7 +1041,7 @@ EOF
 	local real_settings="$BATS_TEST_DIRNAME/../settings.json"
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.claude
 	[ "$status" -eq 0 ]
-	[ "$output" = "anthropic/claude-opus-5-5:high" ]
+	[ "$output" = "claude-code/claude-opus-5-5:high" ]
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.claude
 	[ "$status" -eq 0 ]
 	[ "$output" = "Claude Opus 5.5 High" ]

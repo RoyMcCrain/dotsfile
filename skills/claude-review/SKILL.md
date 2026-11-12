@@ -1,6 +1,6 @@
 ---
 name: claude-review
-description: Pi headless（Anthropic Claude Opus）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
+description: Pi headless（pi-claude-code 経由の Claude Opus）で120秒上限の単体コードレビューを実行する。「レビューして」だけなら parallel-review を優先する。
 ---
 
 # /claude-review
@@ -26,7 +26,7 @@ RUNNER="$HOME/.agents/skills/parallel-review/scripts/run_pi_review.sh"
 
 `--role` は `~/.pi/agent/model-roles.json` から実モデル ID を解決する。モデル変更はそのカタログだけを編集する。
 
-runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化した patch-only で実行する。タイムアウト時は exit 124。自動再試行・自動フォールバックはしない。
+runner は一時設定で retry を止め、CLIで skill / context / extension / tools を無効化した patch-only で実行する（`claude-code/*` は pi-claude-code 拡張のみ読み込む）。タイムアウト時は exit 124。自動再試行・自動フォールバックはしない。
 
 ## 出力
 
