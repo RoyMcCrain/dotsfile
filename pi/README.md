@@ -405,6 +405,7 @@ for opt-in. To reenable one, remove its matching
 | ------------------------------- | -------------------------------------------------------------------- |
 | `local-openai.ts` (disabled)    | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
+| `timeline.ts`                   | Track local task progress and automatic tool activity with `timeline_tasks` / `/timeline`. |
 | `openrouter-balance.ts` (disabled) | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
 | `auto-fugu-model.ts` (disabled) | Route everyday work on `fugu-max`; auto-escalate to `fugu-ultra-v2.0` when on the Fugu pair. Toggle with `/auto-fugu on\|off\|status`. |
 | `auto-continue-after-compact.ts` (disabled) | Automatically continue after compaction. |
@@ -418,6 +419,14 @@ Reload after editing extensions:
 ```text
 /reload
 ```
+
+### Local execution timeline
+
+`timeline_tasks` reads or replaces the current flat plan; updates are complete snapshots. Omitted tasks leave the plan, `[]` clears it, and completed tasks stay until explicitly omitted. `{note: "..."}` appends a concise public note without changing tasks; `{tasks, note}` updates both. Use one or two short what/why/next sentences at significant milestones (initial plan, meaningful approach/decision changes, and validation outcomes), not per-tool noise. The quiet widget uses at most two lines for current progress and individually timed live tools. `/timeline` is a focused overlay that follows the latest activity initially; on wide terminals (90+ columns) it shows CURRENT PLAN and ACTIVITY side by side, while narrower terminals show the focused pane. Tab switches panes; arrows and PgUp/PgDn navigate, and scroll expanded activity/task details; Enter opens or closes details. 1=all, 2=plan and notes, 3=all tool executions (including failures), 4=failures only; Home goes oldest and pauses follow, while End closes details, jumps latest, and resumes follow. Escape or Ctrl+C closes. Scrolling pauses follow so new events and elapsed refreshes do not steal the reader's position. Times are displayed in JST (`Asia/Tokyo`); stored timestamps remain UTC.
+
+Plans support up to 50 tasks with 120-character titles; explicitly supplied notes are limited to 320 characters and append to the latest 200 history records, independently of the current plan. This first version has no nested/weighted tasks or periodic LLM reports. `duration` is execution time supplied by Pi; `elapsed` is the preflight-to-completion fallback on older hosts.
+
+Timeline history is stored as custom entries in the current Pi session branch, not in separate files, and is not injected into model context; `timeline_tasks` returns only the current plan. Tool records contain only tool IDs/names, timestamps, outcomes, and available timing; tool arguments, commands, paths, output, prompts, and responses are not copied. Task titles and explicitly supplied notes are deliberately supplied by the model, so do not put secrets in them. Notes are public summaries only: never include private reasoning/thinking streams, full prompts, commands, or copied tool output. The completion count reflects declared task statuses, not independently verified work. It is local progress/history only: no workers, model routing, external telemetry, or live visibility into subprocesses launched inside other tools.
 
 ### Codex plan usage
 
