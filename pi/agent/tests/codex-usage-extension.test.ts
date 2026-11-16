@@ -23,7 +23,10 @@ const snapshot = {
 const claudeRow: UsageRow = {
   provider: "Claude",
   status: "ok",
-  windows: [{ label: "5h", remainingPercent: 77 }],
+  windows: [
+    { label: "5h", remainingPercent: 77 },
+    { label: "7d", remainingPercent: 44 },
+  ],
 };
 
 const deferred = <T>() => {
@@ -125,9 +128,13 @@ test("widget shows every provider row regardless of the selected model", async (
 
     // Assert
     const lines = fake.renderWidget();
-    assertEquals(lines.length, 2);
-    assertTrue(lines.some((line) => line.includes("Codex 残り: 5h 82%")));
-    assertTrue(lines.some((line) => line.includes("Claude 残り: 5h 77%")));
+    assertEquals(lines.length, 1);
+    assertTrue(
+      lines[0]?.includes(
+        "Codex 残り: 5h 82% · 7d 64% │ Claude 残り: 7d 44%",
+      ),
+    );
+    assertTrue(!lines[0]?.includes("Claude 残り: 5h 77%"));
   } finally {
     collectors.restore();
   }
@@ -159,7 +166,8 @@ test("automatic Codex failure shows unavailable, keeps Claude, and respects the 
     const failed = fake.renderWidget().join("\n");
     assertTrue(failed.includes("Codex 残り: 取得失敗"));
     assertTrue(!failed.includes("Codex 残り: 5h 82%"));
-    assertTrue(failed.includes("Claude 残り: 5h 77%"));
+    assertTrue(failed.includes("Claude 残り: 7d 44%"));
+    assertTrue(!failed.includes("5h 77%"));
     assertEquals(collectors.codex.mock.calls.length, 2);
 
     now.mockReturnValue(1_599_999);
