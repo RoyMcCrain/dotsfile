@@ -14,7 +14,10 @@ resolve_test_path() {
 
 setup() {
 	TEST_ROOT="$BATS_TEST_TMPDIR/run-impl"
+	REAL_BUN=$(command -v bun)
 	mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/agent" "$TEST_ROOT/work" "$TEST_ROOT/tmp" "$TEST_ROOT/impl-runs"
+	PATH="$TEST_ROOT/bin:$PATH"
+	export PATH REAL_BUN
 	export TMPDIR="$TEST_ROOT/tmp"
 	export IMPL_RUNS_DIR="$TEST_ROOT/impl-runs"
 	export HOME="$TEST_ROOT/home"
@@ -24,6 +27,8 @@ setup() {
 	PROMPT=$(resolve_test_path "$PROMPT")
 
 	ARGS_LOG="$TEST_ROOT/args.json"
+	USAGE_CALL_MARKER="$TEST_ROOT/usage-calls"
+	export USAGE_CALL_MARKER
 	ENV_LOG="$TEST_ROOT/env.json"
 	CONFIG_SNAP="$TEST_ROOT/config-snap.json"
 	FAKE_PI="$TEST_ROOT/bin/pi"
@@ -33,6 +38,8 @@ setup() {
 
 	write_fixture_catalog
 	write_fake_pi
+	write_fake_bun
+	export IMPL_USAGE_FIXTURE='{"claude":{"unavailable":"unknown"},"openai":{"unavailable":"unknown"}}'
 
 	export MODEL_ROLES_FILE="$FIXTURE_CATALOG"
 	export MODEL_RESOLVER="$REAL_RESOLVER"
@@ -54,6 +61,14 @@ write_fixture_catalog() {
       "pi": "$pi_model",
       "label": "GPT-6 Luna High"
     },
+    "impl.haiku": {
+      "pi": "provider/haiku:high",
+      "label": "Claude Haiku"
+    },
+    "impl.luna": {
+      "pi": "$pi_model",
+      "label": "GPT-6 Luna High"
+    },
     "review.test": {
       "pi": "provider/other:high",
       "label": "Other Pi"
@@ -65,6 +80,22 @@ write_fixture_catalog() {
   }
 }
 EOF
+}
+
+write_fake_bun() {
+	cat >"$TEST_ROOT/bin/bun" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+for arg in "$@"; do
+	if [[ "$arg" == */query_impl_usage.ts ]]; then
+		printf '%s\n' invoked >>"${USAGE_CALL_MARKER:?}"
+		printf '%s\n' "${IMPL_USAGE_FIXTURE:?}"
+		exit 0
+	fi
+done
+exec "$REAL_BUN" "$@"
+EOF
+	chmod +x "$TEST_ROOT/bin/bun"
 }
 
 write_fake_pi() {
@@ -105,6 +136,7 @@ jq -n \
 	--arg offline "${PI_OFFLINE:-}" \
 	--arg skip "${PI_SKIP_VERSION_CHECK:-}" \
 	--arg telem "${PI_TELEMETRY:-}" \
+	--arg usage_credits "${PI_CLAUDE_CODE_ALLOW_USAGE_CREDITS:-}" \
 	--arg pwd "$PWD" \
 	--arg system_prompt "$system_prompt" \
 	--argjson auth_link "$auth_link" \
@@ -116,6 +148,7 @@ jq -n \
 		pi_offline: $offline,
 		pi_skip_version_check: $skip,
 		pi_telemetry: $telem,
+		usage_credits: $usage_credits,
 		cwd: $pwd,
 		dotenv_canary_present: (env | has("DOTSFILE_DOTENV_CANARY")),
 		auth_link: $auth_link,
@@ -182,13 +215,23 @@ args_at_prompt() {
 	jq -e --arg prompt "@$prompt" 'map(select(. == $prompt)) | length == 1' "$ARGS_LOG" >/dev/null
 }
 
-@test "run_impl: defaults use impl.default model and invocation cwd" {
+run_log_dir() {
+	printf '%s\n' "$1" | rg '^run_impl.sh: run log directory: ' | sd '^run_impl.sh: run log directory: ' ''
+}
+
+set_haiku_model() {
+	local model=$1
+	jq --arg model "$model" '.enabledModels += [$model] | .roles["impl.haiku"].pi = $model' "$FIXTURE_CATALOG" >"$FIXTURE_CATALOG.tmp"
+	mv "$FIXTURE_CATALOG.tmp" "$FIXTURE_CATALOG"
+}
+
+@test "run_impl: defaults use fallback Haiku first and invocation cwd" {
 	local work_dir
 	work_dir=$(cd "$TEST_ROOT/work" && pwd -P)
 	cd "$work_dir" || exit 1
 	run "$RUNNER" --prompt "$PROMPT"
 	[ "$status" -eq 0 ]
-	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+	args_has_prefix_pair --model "provider/haiku:high"
 	jq -e --arg cwd "$work_dir" '.cwd == $cwd' "$ENV_LOG" >/dev/null
 }
 
@@ -198,12 +241,39 @@ args_at_prompt() {
 	args_has_prefix_pair --model "provider/other:high"
 }
 
-@test "run_impl: catalog change updates --model on subsequent run" {
+@test "run_impl: default and omitted roles alternate while pins do not consume turns" {
+	local roles=() dir role_root="$TEST_ROOT/separate-runs"
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":50},"openai":{"remainingPercent":50}}'
+	for role in '' impl.haiku impl.luna impl.default '' impl.default; do
+		if [[ -n "$role" ]]; then
+			run "$RUNNER" --prompt "$PROMPT" --role "$role"
+		else
+			run "$RUNNER" --prompt "$PROMPT"
+		fi
+		[ "$status" -eq 0 ]
+		dir=$(run_log_dir "$output")
+		[[ -n "$dir" ]]
+		roles+=("$(jq -r .role "$dir/metadata.json")")
+	done
+	[[ "${roles[*]}" == "impl.haiku impl.haiku impl.luna impl.luna impl.haiku impl.luna" ]]
+
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$role_root"
+	[ "$status" -eq 0 ]
+	dir=$(run_log_dir "$output")
+	jq -e '.role == "impl.haiku"' "$dir/metadata.json" >/dev/null
+
 	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	dir=$(run_log_dir "$output")
+	jq -e '.role == "impl.haiku"' "$dir/metadata.json" >/dev/null
+}
+
+@test "run_impl: catalog change updates --model on subsequent run" {
+	run "$RUNNER" --prompt "$PROMPT" --role impl.luna
 	[ "$status" -eq 0 ]
 	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
 	write_fixture_catalog "openrouter/vendor/model:high"
-	run "$RUNNER" --prompt "$PROMPT"
+	run "$RUNNER" --prompt "$PROMPT" --role impl.luna
 	[ "$status" -eq 0 ]
 	args_has_prefix_pair --model "openrouter/vendor/model:high"
 }
@@ -260,6 +330,128 @@ args_at_prompt() {
 	fi
 }
 
+@test "run_impl: Claude Haiku explicitly loads only provider package and disables usage credits" {
+	local package="$TEST_ROOT/claude-extension"
+	mkdir -p "$package" "$TEST_ROOT/work/other"
+	set_haiku_model "claude-code/synthetic-haiku:high"
+	export PI_CLAUDE_CODE_EXTENSION="$package" PI_CLAUDE_CODE_ALLOW_USAGE_CREDITS=1
+	export PI_CLAUDE_CODE_EXTENSION="$TEST_ROOT/missing-extension"
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":10},"openai":{"remainingPercent":90}}'
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+	jq -e 'index("-e") == null' "$ARGS_LOG" >/dev/null
+	export PI_CLAUDE_CODE_EXTENSION="$package"
+	export IMPL_USAGE_FIXTURE='{"claude":{"unavailable":"unknown"},"openai":{"unavailable":"unknown"}}'
+	run "$RUNNER" --prompt "$PROMPT" --cwd "$TEST_ROOT/work/other"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair -e "$package"
+	args_contains --no-extensions
+	jq -e '[.[] | select(. == "-e")] | length == 1' "$ARGS_LOG" >/dev/null
+	jq -e '.usage_credits == "0"' "$ENV_LOG" >/dev/null
+	jq -e '.role == "impl.haiku" and .resolvedModel == "claude-code/synthetic-haiku:high"' "$(run_log_dir "$output")/metadata.json" >/dev/null
+
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	jq -e 'index("-e") == null' "$ARGS_LOG" >/dev/null
+	jq -e '.usage_credits == "1"' "$ENV_LOG" >/dev/null
+}
+
+@test "run_impl: Claude package default and relative override resolve before cwd; selected missing package stops before dispatch" {
+	local initial_pwd="$PWD" relative="$TEST_ROOT/work/relative-extension"
+	local default_package="$TEST_ROOT/agent/git/github.com/earendil-works/pi-claude-code"
+	mkdir -p "$relative" "$TEST_ROOT/work/other" "$default_package"
+	default_package=$(cd "$default_package" && pwd -P)
+	set_haiku_model "claude-code/synthetic-haiku:high"
+	unset PI_CLAUDE_CODE_EXTENSION
+	run "$RUNNER" --prompt "$PROMPT" --role impl.haiku
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair -e "$default_package"
+	cd "$TEST_ROOT/work" || exit 1
+	export PI_CLAUDE_CODE_EXTENSION=relative-extension
+	run "$RUNNER" --prompt "$PROMPT" --cwd "$TEST_ROOT/work/other"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair -e "$relative"
+
+	export PI_CLAUDE_CODE_EXTENSION="$TEST_ROOT/missing-extension"
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":50},"openai":{"remainingPercent":50}}'
+	rm -f "$TEST_ROOT/missing-runs/.default-routing.sqlite"
+	rm -f "$ARGS_LOG"
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$TEST_ROOT/missing-runs"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"pi update --extensions"* ]]
+	[[ ! -f "$ARGS_LOG" ]]
+	[[ -e "$TEST_ROOT/missing-runs/.default-routing.sqlite" ]]
+	[[ -z "$(fd -t d -d 1 . "$TEST_ROOT/missing-runs")" ]]
+	cd "$initial_pwd" || exit 1
+}
+
+@test "run_impl: non-Claude role never loads extension even with invalid override" {
+	export PI_CLAUDE_CODE_EXTENSION="$TEST_ROOT/missing-extension"
+	run "$RUNNER" --prompt "$PROMPT" --role impl.luna
+	[ "$status" -eq 0 ]
+	jq -e 'index("-e") == null' "$ARGS_LOG" >/dev/null
+}
+
+@test "run_impl: quota priority and fallback preserve actual models and metadata" {
+	local dir
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":10},"openai":{"remainingPercent":90}}'
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+	dir=$(run_log_dir "$output")
+	jq -e '.role == "impl.luna" and .resolvedModel == "openai-codex/gpt-6-luna:high"' "$dir/metadata.json" >/dev/null
+	export IMPL_USAGE_FIXTURE='{"claude":{"unavailable":"unknown"},"openai":{"unavailable":"unknown"}}'
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "provider/haiku:high"
+	dir=$(run_log_dir "$output")
+	jq -e '.role == "impl.haiku" and .resolvedModel == "provider/haiku:high"' "$dir/metadata.json" >/dev/null
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":80},"openai":{"remainingPercent":20}}'
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "provider/haiku:high"
+	dir=$(run_log_dir "$output")
+	jq -e '.role == "impl.haiku" and .resolvedModel == "provider/haiku:high"' "$dir/metadata.json" >/dev/null
+	export IMPL_USAGE_FIXTURE='{"claude":{"unavailable":"unknown"},"openai":{"unavailable":"unknown"}}'
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+	dir=$(run_log_dir "$output")
+	jq -e '.role == "impl.luna" and .resolvedModel == "openai-codex/gpt-6-luna:high"' "$dir/metadata.json" >/dev/null
+}
+
+@test "run_impl: pins bypass usage collector and both exhausted sides stop before dispatch" {
+	local dir
+	export IMPL_USAGE_FIXTURE='not-json'
+	rm -f "$USAGE_CALL_MARKER"
+	run "$RUNNER" --prompt "$PROMPT" --role impl.haiku
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "provider/haiku:high"
+	[ ! -e "$USAGE_CALL_MARKER" ]
+	rm -f "$USAGE_CALL_MARKER"
+	run "$RUNNER" --prompt "$PROMPT" --role impl.luna
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+	[ ! -e "$USAGE_CALL_MARKER" ]
+	local malformed_runs="$TEST_ROOT/malformed-runs"
+	rm -f "$ARGS_LOG"
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$malformed_runs"
+	[ "$status" -ne 0 ]
+	[[ ! -f "$ARGS_LOG" ]]
+	[[ ! -e "$malformed_runs/.default-routing.sqlite" ]]
+	[[ -z "$(fd -t d -d 1 . "$malformed_runs")" ]]
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":0},"openai":{"remainingPercent":0}}'
+	local exhausted_runs="$TEST_ROOT/exhausted-runs"
+	rm -f "$ARGS_LOG"
+	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$exhausted_runs"
+	[ "$status" -ne 0 ]
+	[[ ! -f "$ARGS_LOG" ]]
+	[[ "$output" == *"both observed windows are exhausted"* ]]
+	[[ ! -e "$exhausted_runs/.default-routing.sqlite" ]]
+	[[ -z "$(fd -t d -d 1 . "$exhausted_runs")" ]]
+}
+
 @test "run_impl: persists private run log under IMPL_RUNS_DIR" {
 	run "$RUNNER" --prompt "$PROMPT"
 	[ "$status" -eq 0 ]
@@ -269,7 +461,7 @@ args_at_prompt() {
 	[[ -n "$run_dir" ]]
 	meta="$run_dir/metadata.json"
 	[[ -f "$meta" ]]
-	jq -e '.schemaVersion == 1 and .executionStatus == "completed" and .role == "impl.default"' "$meta" >/dev/null
+	jq -e '.schemaVersion == 1 and .executionStatus == "completed" and .role == "impl.haiku" and .resolvedModel == "provider/haiku:high"' "$meta" >/dev/null
 	[[ -f "$run_dir/events.jsonl" ]]
 }
 
@@ -297,6 +489,34 @@ args_at_prompt() {
 	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$TEST_ROOT/not-a-dir/file"
 	[ "$status" -ne 0 ]
 	[[ ! -f "$ARGS_LOG" ]]
+}
+
+@test "run_impl: missing default candidate fails preflight without consuming turn" {
+	jq 'del(.roles["impl.luna"])' "$FIXTURE_CATALOG" >"$FIXTURE_CATALOG.tmp"
+	mv "$FIXTURE_CATALOG.tmp" "$FIXTURE_CATALOG"
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -ne 0 ]
+	[[ ! -f "$ARGS_LOG" ]]
+	[[ ! -e "$IMPL_RUNS_DIR/.default-routing.sqlite" ]]
+
+	write_fixture_catalog
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "provider/haiku:high"
+	jq -e '.role == "impl.haiku"' "$(run_log_dir "$output")/metadata.json" >/dev/null
+}
+
+@test "run_impl: broken balanced state fails closed but explicit role works" {
+	printf '%s\n' 'not a sqlite database' >"$IMPL_RUNS_DIR/.default-routing.sqlite"
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -ne 0 ]
+	[[ ! -f "$ARGS_LOG" ]]
+	[[ -z "$(fd -t d -d 1 . "$IMPL_RUNS_DIR")" ]]
+
+	run "$RUNNER" --prompt "$PROMPT" --role impl.luna
+	[ "$status" -eq 0 ]
+	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+	jq -e '.role == "impl.luna"' "$(run_log_dir "$output")/metadata.json" >/dev/null
 }
 
 @test "run_impl: relative spaced runs-dir resolves before cwd change" {
@@ -364,15 +584,46 @@ args_at_prompt() {
 	[[ "$(shasum -a 256 "$TEST_ROOT/agent/models.json" | awk '{print $1}')" == "$before_models" ]]
 }
 
-@test "run_impl: propagates child failure exit status and cleans temp config" {
+@test "run_impl: failed child consumes its balanced turn without fallback" {
 	export FAKE_PI_EXIT=17
 	run "$RUNNER" --prompt "$PROMPT"
 	[ "$status" -eq 17 ]
-	local cfg meta
+	local cfg meta next_dir
 	cfg=$(jq -r '.config' "$ENV_LOG")
 	[[ ! -d "$cfg" ]]
 	meta="$(latest_run_dir)/metadata.json"
-	jq -e '.executionStatus == "failed" and .exitCode == 17' "$meta" >/dev/null
+	jq -e '.executionStatus == "failed" and .exitCode == 17 and .role == "impl.haiku"' "$meta" >/dev/null
+	export FAKE_PI_EXIT=0
+	run "$RUNNER" --prompt "$PROMPT"
+	[ "$status" -eq 0 ]
+	next_dir=$(run_log_dir "$output")
+	jq -e '.role == "impl.luna"' "$next_dir/metadata.json" >/dev/null
+}
+
+@test "run_impl: parallel default calls allocate balanced roles" {
+	local pids=() i role_root="$TEST_ROOT/parallel-runs"
+	for i in 1 2 3 4; do
+		FAKE_PI_ARGS="$TEST_ROOT/args-$i.json" FAKE_PI_ENV="$TEST_ROOT/env-$i.json" \
+			FAKE_PI_CONFIG_SNAP="$TEST_ROOT/config-$i.json" \
+			"$RUNNER" --prompt "$PROMPT" --runs-dir "$role_root" >"$TEST_ROOT/out-$i" 2>&1 &
+		pids+=("$!")
+	done
+	for i in "${pids[@]}"; do
+		wait "$i" || return 1
+	done
+	local haiku=0 luna=0 dir role
+	for dir in "$role_root"/*; do
+		[[ -d "$dir" ]] || continue
+		role=$(jq -r .role "$dir/metadata.json")
+		if [[ "$role" == impl.haiku ]]; then
+			jq -e '.resolvedModel == "provider/haiku:high"' "$dir/metadata.json" >/dev/null
+			((haiku += 1))
+		elif [[ "$role" == impl.luna ]]; then
+			jq -e '.resolvedModel == "openai-codex/gpt-6-luna:high"' "$dir/metadata.json" >/dev/null
+			((luna += 1))
+		fi
+	done
+	[[ "$haiku" -eq 2 && "$luna" -eq 2 ]]
 }
 
 @test "run_impl: rejects explicit empty --runs-dir without calling Pi" {

@@ -88,7 +88,7 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ```bash
 ~/.pi/agent/resolve-model.sh --list                      # role -> model id -> label
 ~/.pi/agent/resolve-model.sh review.codex                 # -> Pi model id
-~/.pi/agent/resolve-model.sh impl.default                 # -> Pi implementation model id
+~/.pi/agent/resolve-model.sh impl.default                 # -> legacy Luna model; runner compares each provider's tightest valid remaining quota window
 ~/.pi/agent/resolve-model.sh --field cursor ROLE          # -> Cursor Agent model id (compatibility)
 ~/.pi/agent/resolve-model.sh --review-level 2              # -> Codex/Claude Pi reviewer TSV (L2)
 ~/.pi/agent/resolve-model.sh --label review.grok
@@ -361,7 +361,15 @@ pi auth check --provider anthropic --json
 ### Implementation delegation (`impl` skill)
 
 Non-trivial implementation delegates to an **isolated headless Pi child** (no parent
-settings/skills/context). The caller prepares the prompt and validates afterward.
+settings/skills/context). The caller prepares the prompt and validates afterward. Haiku
+uses the Claude subscription through Claude Code CLI and the installed, pinned
+`pi-claude-code` package; only that provider package is explicitly allowlisted when
+Haiku is selected, while other extension discovery remains disabled. The child
+forces usage-credit opt-in off, but this is not a guarantee against a charge on the
+initial request. Existing `impl.haiku` pins now use the Claude subscription instead
+of `opencode-go`, so Claude Code must be installed and logged in. The provider ref
+is pinned in `pi/agent/settings.json` under `packages`; `pi update --extensions`
+restores that configured ref rather than switching to unpinned HEAD.
 
 ```bash
 ~/.pi/agent/resolve-model.sh impl.default
@@ -369,8 +377,8 @@ pi auth check --provider openai-codex --json
 bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" --prompt /tmp/impl-prompt.md --cwd "$PWD"
 ```
 
-- `impl.default` → GPT-6 Luna High; comparison roles `impl.deepseek`, `impl.haiku` (same catalog, `--role` per run)
-- Change models by editing `model-roles.json` roles only (not skills/runners)
+- Runner `impl.default` compares each provider's smallest valid remaining window: Claude OAuth five-hour / seven-day and Codex CLI primary / secondary (Codex is a reference, not Luna's per-app quota). If one side is unknown it chooses a known positive side and avoids a known zero; both known zero stops before dispatch. Ties and both-unknown alternate Haiku/Luna per runs root using SQLite; priority choices do not advance fallback state. Direct resolver `impl.default` remains the legacy Luna model. Explicit `impl.haiku`, `impl.luna`, and `impl.deepseek` roles pin one model and bypass usage queries. Quota snapshots and credentials are not persisted; the Claude provider remains explicitly allowlisted and usage-credit opt-in stays disabled.
+- Change candidate models through `impl.haiku.pi` / `impl.luna.pi` in `model-roles.json` (not skills/runners). `impl.default.pi` is only for direct resolver compatibility. Install/update the pinned provider package with `pi update --extensions` if the selected provider reports it missing.
 - Run metrics persist under `~/.local/share/impl/runs` (or `IMPL_RUNS_DIR` / `run_impl.sh --runs-dir`); offline report:
 
 ```bash

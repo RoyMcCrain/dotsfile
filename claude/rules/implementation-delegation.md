@@ -2,9 +2,9 @@
 
 ## 基本方針
 
-実装委譲は **`impl` スキル**（Pi role **`impl.default`**、既定 GPT-6 Luna High）を使う。**非自明な実装は積極的に委譲**し、呼び出し元（Claude 等）が「正確な指示」を作って渡し、実装後の検証は呼び出し元が行う。
+実装委譲は **`impl` スキル**（Pi role **`impl.default`**）を使う。既定は Claude Haiku / Luna の観測残量が多い側を選ぶ（OpenAI は Codex の参考値）。同率・両側不明時のみ交互選択し、両側 0% なら停止する。**非自明な実装は積極的に委譲**し、呼び出し元が正確な指示を作り、実装後に検証する。詳しい選択規則は `skills/impl/SKILL.md` を参照する。
 
-モデル ID は直書きせず role で指定する。実体は `~/.pi/agent/model-roles.json`（`~/.pi/agent/resolve-model.sh --list`）。Pi 実装 role は `resolve-model.sh impl.default` または `run_impl.sh --role …` で解決する。
+モデル ID は直書きせず role で指定する。実体は `~/.pi/agent/model-roles.json`（`~/.pi/agent/resolve-model.sh --list`）。`impl.haiku` / `impl.luna` など具体的な role の固定指定では残量を照会しない。直接 resolver `impl.default` は互換性のため Luna を返す。
 
 ## 委譲する
 

@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 readonly SYSTEM_PROMPT="$SCRIPT_DIR/../references/system.md"
 readonly EVENTS_HELPER="$SCRIPT_DIR/run_impl_events.ts"
+readonly ROLE_SELECTOR="$SCRIPT_DIR/select_impl_role.ts"
+readonly USAGE_COLLECTOR="$SCRIPT_DIR/query_impl_usage.ts"
 
 die() {
 	printf '%s\n' "$1" >&2
@@ -64,6 +66,8 @@ require_readable_nonempty_file() {
 require_bun() {
 	command -v bun >/dev/null 2>&1 || die "bun is required for implementation logging"
 	[[ -f "$EVENTS_HELPER" ]] || die "events helper not found: $EVENTS_HELPER"
+	[[ -f "$ROLE_SELECTOR" ]] || die "role selector not found: $ROLE_SELECTOR"
+	[[ -f "$USAGE_COLLECTOR" ]] || die "usage collector not found: $USAGE_COLLECTOR"
 }
 
 default_runs_dir() {
@@ -142,7 +146,9 @@ EOF
 }
 
 main() {
-	local role=impl.default prompt='' cwd='' prompt_path resolved_model source_config impl_bin status=0
+	local role=impl.default prompt='' cwd='' prompt_path resolved_model='' source_config impl_bin status=0 usage_snapshot
+	local haiku_model='' luna_model='' selected_role claude_code_extension=''
+	local -a pi_command
 	local cwd_explicit=false runs_dir='' runs_dir_resolved='' runs_dir_explicit=false
 
 	invocation_pwd=$PWD
@@ -218,8 +224,32 @@ main() {
 	source_config=$(cd "$source_config" && pwd -P)
 	[[ -f "$SYSTEM_PROMPT" ]] || die "bundled system prompt not found: $SYSTEM_PROMPT"
 
-	resolved_model=$(resolve_role_pi "$role")
+	if [[ "$role" == impl.default ]]; then
+		haiku_model=$(resolve_role_pi impl.haiku)
+		luna_model=$(resolve_role_pi impl.luna)
+	else
+		resolved_model=$(resolve_role_pi "$role")
+	fi
 	impl_bin=$(resolve_impl_bin)
+	if [[ "$role" == impl.default ]]; then
+		usage_snapshot=$(bun --config=/dev/null --no-env-file --no-install run "$USAGE_COLLECTOR") || die "failed to query implementation usage"
+		selected_role=$(bun --config=/dev/null --no-env-file --no-install run "$ROLE_SELECTOR" "$runs_dir_resolved" "$usage_snapshot") || die "failed to select default implementation role"
+		case "$selected_role" in
+		impl.haiku)
+			role=$selected_role
+			resolved_model=$haiku_model
+			;;
+		impl.luna)
+			role=$selected_role
+			resolved_model=$luna_model
+			;;
+		*) die "role selector returned invalid role" ;;
+		esac
+	fi
+	if [[ "$resolved_model" == claude-code/* ]]; then
+		claude_code_extension=$(abs_path "$invocation_pwd" "${PI_CLAUDE_CODE_EXTENSION:-$source_config/git/github.com/earendil-works/pi-claude-code}")
+		[[ -d "$claude_code_extension" ]] || die "pi-claude-code extension not found: $claude_code_extension (run: pi update --extensions)"
+	fi
 
 	temp_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/pi-impl-config-XXXXXX")
 	trap cleanup_temp_config EXIT
@@ -229,6 +259,14 @@ main() {
 	cd "$cwd" || die "working directory not found: $cwd"
 	export PI_CODING_AGENT_DIR="$temp_config_dir" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
 
+	pi_command=("$impl_bin" -p --mode json --model "$resolved_model" --system-prompt "$SYSTEM_PROMPT"
+		--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp --no-approve)
+	if [[ "$resolved_model" == claude-code/* ]]; then
+		pi_command+=(-e "$claude_code_extension")
+		export PI_CLAUDE_CODE_ALLOW_USAGE_CREDITS=0
+	fi
+	pi_command+=(--tools 'read,bash,edit,write' "@$prompt_path" 'Implement the supplied task directly.')
+
 	set +e
 	bun --config=/dev/null --no-env-file --no-install run "$EVENTS_HELPER" \
 		--runs-root "$runs_dir_resolved" \
@@ -237,10 +275,7 @@ main() {
 		--prompt-path "$prompt_path" \
 		--system-prompt-path "$SYSTEM_PROMPT" \
 		--repository-path "$cwd" \
-		-- \
-		"$impl_bin" -p --mode json --model "$resolved_model" --system-prompt "$SYSTEM_PROMPT" \
-		--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp --no-approve \
-		--tools read,bash,edit,write "@$prompt_path" 'Implement the supplied task directly.'
+		-- "${pi_command[@]}"
 	status=$?
 	set -e
 

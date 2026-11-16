@@ -6,6 +6,7 @@
 
 - History root (default `${XDG_DATA_HOME:-~/.local/share}/impl/runs`, override with `IMPL_RUNS_DIR` or `run_impl.sh --runs-dir`). Relative `IMPL_RUNS_DIR` and relative `--runs-dir` resolve against the shell invocation working directory **before** `cd --cwd`.
 - Each execution: unique subdirectory (mode `0700`), never reused. Existing history roots are never `chmod`’d by the runner; only newly created roots receive `0700`.
+- `.default-routing.sqlite` is private persistent state in the root used only when quota priorities tie or both are unknown; it alternates Haiku/Luna, and priority decisions do not advance it. It is not a run directory and reports ignore it. Quota snapshots and credentials are never persisted.
 - `metadata.json` (mode `0600`) — aggregate run record.
 - `events.jsonl` (mode `0600`) — whitelisted metadata-only Pi stream events. Created empty before Pi starts.
 
@@ -17,7 +18,7 @@ Raw prompts, system prompts, assistant text, tool args/results, stderr, env, and
 | --- | --- | --- |
 | `schemaVersion` | `1` | |
 | `runId` | string | Unique within history root |
-| `role` | string | Catalog role (e.g. `impl.default`) |
+| `role` | string | Effective dispatched catalog role (`impl.haiku` or `impl.luna` for quota-aware default runs); schema version unchanged |
 | `resolvedModel` | string | Provider/model including effort |
 | `startedAt` / `finishedAt` | ISO-8601 UTC | `finishedAt` absent while `executionStatus` is `running` |
 | `elapsedMs` | number? | Monotonic duration (ms), ≥ 0; **absent while running** |
