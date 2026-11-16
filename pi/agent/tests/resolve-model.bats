@@ -437,42 +437,6 @@ EOF
 	cmp -s "$legacy" "$legacy_snapshot"
 }
 
-@test "models.json registers two native Meta Muse models and one Go DeepSeek with caps and compat" {
-	# Arrange — integration against tracked models.json
-	local real_models="$BATS_TEST_DIRNAME/../models.json"
-	# Assert — Meta provider transport, exactly two native Muse models, and normal Spark capabilities
-	jq -e '
-		.providers["meta"] as $p |
-		($p.api == "openai-responses") and
-		($p.baseUrl == "https://api.meta.ai/v1") and
-		(($p.models | map(.id) | sort) == (["muse-spark-1.3", "muse-wonder-1.0"] | sort)) and
-		($p.models[] | select(.id == "muse-spark-1.3") |
-			.reasoning == true and
-			(.input | sort) == (["image", "text"] | sort) and
-			.contextWindow == 1048576 and
-			.maxTokens == 131072 and
-			.thinkingLevelMap.high == "high" and
-			.thinkingLevelMap.max == "max")
-	' "$real_models" >/dev/null
-
-	# Assert — Go provider transport, single DeepSeek model, caps and compat preserved
-	jq -e '
-		.providers["opencode-go"] as $p |
-		($p.api == "openai-completions") and
-		($p.baseUrl == "https://opencode.ai/zen/go/v1") and
-		($p.models | map(.id)) == ["deepseek-v4.1-flash"] and
-		($p.models[0] |
-			.reasoning == true and
-			(.input | sort) == (["image", "text"] | sort) and
-			.contextWindow == 1000000 and
-			.maxTokens == 384000 and
-			.compat.maxTokensField == "max_tokens" and
-			.compat.requiresReasoningContentOnAssistantMessages == true and
-			.compat.thinkingFormat == "deepseek")
-	' "$real_models" >/dev/null
-
-}
-
 @test "--review-level rejects invalid current model and backend" {
 	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
 
@@ -863,18 +827,35 @@ EOF
 	[ ! -s "$stdout_file" ]
 }
 
+@test "production catalog exposes only the seven retained roles and rejects retired roles" {
+	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
+	export MODEL_ROLES_FILE="$real_catalog"
+	run "$RESOLVER" --list
+	[ "$status" -eq 0 ]
+	[ "$(printf '%s\n' "$output" | cut -f1 | sort)" = "$(printf '%s\n' codex.default impl.default impl.haiku impl.luna research.xai review.claude review.codex | sort)" ]
+	for role in review.grok review.fugu review.muse review.deepseek route.fugu.base route.fugu.ultra impl.deepseek; do
+		run "$RESOLVER" "$role"
+		[ "$status" -ne 0 ]
+		[[ "$output" == *"unknown model role"* ]]
+	done
+	jq -e '(.providers | keys | sort) == ["openai"] and (.providers.openai.modelOverrides | keys | sort) == ["gpt-6-astra", "gpt-6.1-sol"]' "$BATS_TEST_DIRNAME/../models.json" >/dev/null
+	for role in review.codex impl.default impl.haiku impl.luna review.claude research.xai; do
+		run "$RESOLVER" "$role"
+		[ "$status" -eq 0 ]
+		case "$role" in
+		review.codex) [[ "$output" == openai/* ]] ;;
+		impl.default | impl.luna) [[ "$output" == openai/* ]] ;;
+		impl.haiku | review.claude) [[ "$output" == claude-code/* ]] ;;
+		research.xai) [ "$output" = "xai/grok-4.7" ] ;;
+		esac
+	done
+}
+
 @test "production catalog resolves impl.default to Luna high for Pi" {
 	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
 	run "$RESOLVER" impl.default
 	[ "$status" -eq 0 ]
 	[ "$output" = "openai/gpt-6-luna:high" ]
-}
-
-@test "production catalog resolves impl.deepseek for Pi" {
-	export MODEL_ROLES_FILE="$BATS_TEST_DIRNAME/../model-roles.json"
-	run "$RESOLVER" impl.deepseek
-	[ "$status" -eq 0 ]
-	[ "$output" = "opencode-go/deepseek-v4.1-flash:high" ]
 }
 
 @test "production catalog resolves impl.haiku for Pi" {
@@ -896,29 +877,6 @@ EOF
 	run "$RESOLVER" --field cursor impl.cursor
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"unknown model role"* ]]
-}
-
-@test "auth.json.example wires opencode-go command auth without enabling opencode Zen" {
-	# Arrange — tracked auth example only (no live auth or Keychain)
-	local auth_example="$BATS_TEST_DIRNAME/../auth.json.example"
-	local expected_cmd='!security find-generic-password -w -s open-code-go-api-key'
-
-	# Assert — Sakana command reference remains intact
-	jq -e '
-		.["sakana-ai-console"].type == "api_key" and
-		.["sakana-ai-console"].key == "!security find-generic-password -w -s fugu-api-key"
-	' "$auth_example" >/dev/null
-
-	# Assert — OpenCode Go uses provider-scoped command auth (not shared OPENCODE_API_KEY)
-	jq -e --arg cmd "$expected_cmd" '
-		.["opencode-go"].type == "api_key" and
-		.["opencode-go"].key == $cmd
-	' "$auth_example" >/dev/null
-
-	# Assert — Zen provider and env-based Zen auth are not introduced
-	jq -e 'has("opencode") | not' "$auth_example" >/dev/null
-	run jq -e '[.. | strings | select(test("OPENCODE_API_KEY"))] | length == 0' "$auth_example"
-	[ "$status" -eq 0 ]
 }
 
 @test "production catalog resolves exactly Codex then Claude for every tier regardless of caller" {
@@ -944,9 +902,9 @@ EOF
 			claude="${claude%%$'	'*}"
 			case "$level" in
 			1)
-				[ "$codex" = "openai/gpt-6.1-sol:xhigh" ] && [ "$claude" = "claude-code/claude-opus-5-5:high" ]
+				[ "$codex" = "openai/gpt-6.1-sol:xhigh" ] && [ "$claude" = "claude-code/claude-sonnet-5-5:high" ]
 				[ "${lines[0]}" = "$(printf 'pi\topenai/gpt-6.1-sol:xhigh\t600\t600')" ]
-				[ "${lines[1]}" = "$(printf 'pi\tclaude-code/claude-opus-5-5:high\t600\t600')" ]
+				[ "${lines[1]}" = "$(printf 'pi\tclaude-code/claude-sonnet-5-5:high\t600\t600')" ]
 				;;
 			2)
 				[ "$codex" = "openai/gpt-6-astra:max" ] && [ "$claude" = "claude-code/claude-opus-5-5:max" ]
@@ -967,7 +925,7 @@ EOF
 	run jq -e '
 		.extensions as $extensions |
 		($extensions | index("extensions/*.ts") != null) and
-		(["auto-fugu-model.ts", "auto-continue-after-compact.ts", "local-openai.ts", "openrouter-balance.ts", "save-compaction-log.ts"] |
+		(["auto-continue-after-compact.ts", "local-openai.ts", "openrouter-balance.ts", "save-compaction-log.ts"] |
 			all(. as $name | $extensions | index("-extensions/" + $name) != null)) and
 		(["codex-usage.ts", "cmux-session-name.ts", "repo-memory-local.ts", "workspace-cd.ts"] |
 			all(. as $name | $extensions | index("-extensions/" + $name) == null))
@@ -975,72 +933,9 @@ EOF
 	[ "$status" -eq 0 ]
 
 	local name
-	for name in auto-fugu-model.ts auto-continue-after-compact.ts local-openai.ts openrouter-balance.ts save-compaction-log.ts; do
+	for name in auto-continue-after-compact.ts local-openai.ts openrouter-balance.ts save-compaction-log.ts; do
 		[ -f "$BATS_TEST_DIRNAME/../extensions/$name" ]
 	done
-}
-
-@test "Fugu manual integration remains available with fugu-max and fugu-ultra-v2.0" {
-	# Arrange — integration against tracked repo catalog, models, codex
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local real_models="$BATS_TEST_DIRNAME/../models.json"
-	local codex_fugu="$BATS_TEST_DIRNAME/../../../codex/fugu.json"
-	local ultra_model="sakana-ai-console/fugu-ultra-v2.0:high"
-
-	# Assert — review.fugu resolves to ultra v2 :high with timeout 240
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.fugu
-	[ "$status" -eq 0 ]
-	[ "$output" = "$ultra_model" ]
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.fugu
-	[ "$status" -eq 0 ]
-	[ "$output" = "240" ]
-
-	# Assert — route roles expose raw model IDs for extension consumption
-	jq -e '.roles["route.fugu.base"].id == "fugu-max"' "$real_catalog" >/dev/null
-	jq -e '.roles["route.fugu.ultra"].id == "fugu-ultra-v2.0"' "$real_catalog" >/dev/null
-
-	# Assert — sakana provider transport and caps in models.json
-	jq -e '
-		.providers["sakana-ai-console"] as $provider |
-		($provider.baseUrl == "https://api.sakana.ai/v1") and
-		($provider.api == "openai-responses") and
-		($provider.models | map(.id) | sort) == (["fugu-max", "fugu-ultra-v2.0"] | sort) and
-		($provider.models[] | select(.id == "fugu-max") | .contextWindow == 300000 and .maxTokens == 32768) and
-		($provider.models[] | select(.id == "fugu-ultra-v2.0") | .contextWindow == 300000 and .maxTokens == 8192)
-	' "$real_models" >/dev/null
-
-	# Assert — both models share the same supported/unsupported thinking levels
-	for model_id in fugu-max fugu-ultra-v2.0; do
-		jq -e --arg id "$model_id" '
-			.providers["sakana-ai-console"].models[] | select(.id == $id) |
-			(.thinkingLevelMap.off == null) and
-			(.thinkingLevelMap.minimal == null) and
-			(.thinkingLevelMap.low == null) and
-			(.thinkingLevelMap.medium == null) and
-			(.thinkingLevelMap.high == "high") and
-			(.thinkingLevelMap.xhigh == "xhigh") and
-			(.thinkingLevelMap.max == "max")
-		' "$real_models" >/dev/null
-	done
-
-	# Assert — Codex fugu profile template defaults to Max
-	local fugu_profile="$BATS_TEST_DIRNAME/../../../codex/fugu.config.toml.example"
-	taplo fmt --check - <"$fugu_profile" >/dev/null
-	[ "$(taplo get -f "$fugu_profile" model)" = "fugu-max" ]
-	[ "$(taplo get -f "$fugu_profile" model_providers.sakana.base_url)" = "https://api.sakana.ai/v1" ]
-
-	# Assert — Codex fugu.json registry uses new slugs
-	jq -e '
-		[.models[].slug] | sort == (["fugu-max", "fugu-ultra-v2.0"] | sort)
-	' "$codex_fugu" >/dev/null
-
-	# Assert — no legacy active model IDs (fugu / fugu-ultra without version)
-	run jq -e '[.. | strings | select(. == "sakana-ai-console/fugu:high" or . == "sakana-ai-console/fugu-ultra:high")] | length == 0' \
-		"$real_catalog"
-	[ "$status" -eq 0 ]
-	run jq -e '[.providers["sakana-ai-console"].models[].id | select(. == "fugu" or . == "fugu-ultra")] | length == 0' \
-		"$real_models"
-	[ "$status" -eq 0 ]
 }
 
 @test "Opus 5.5 standalone Claude role remains resolvable" {
@@ -1073,44 +968,4 @@ EOF
 	[ "$output" = "$codex_id" ]
 	jq -e --arg id "$codex_id" --arg sol "gpt-6.1-sol" '(.providers.openai.modelOverrides[$id].contextWindow == 500000) and (.providers.openai.modelOverrides[$sol].contextWindow == 500000) and ((.providers.openai.modelOverrides | keys | sort) == ([$id, $sol] | sort))' "$real_models" >/dev/null
 	jq -e '[.. | strings | select(startswith("openai-codex/"))] | length == 0' "$real_catalog" >/dev/null
-}
-
-@test "review.muse standalone role, DeepSeek, shared skill, and Claude symlink remain protected" {
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	local muse_skill="$BATS_TEST_DIRNAME/../../../skills/muse-review/SKILL.md"
-	local claude_link="$BATS_TEST_DIRNAME/../../../claude/skills/muse-review"
-	local repo_root
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.muse
-	[ "$status" -eq 0 ]
-	[ "$output" = "meta/muse-spark-1.3:high" ]
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.muse
-	[ "$status" -eq 0 ]
-	[ "$output" = "120" ]
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --label review.muse
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"Muse Spark 1.3 High"* ]]
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.deepseek
-	[ "$status" -eq 0 ]
-	[ "$output" = "opencode-go/deepseek-v4.1-flash:high" ]
-	[ -f "$muse_skill" ]
-	rg -Fq 'review.muse' "$muse_skill"
-	repo_root=$(cd "$BATS_TEST_DIRNAME/../../.." && pwd -P)
-	run bash "$repo_root/scripts/build_env/list_shared_agent_skills.sh" "$repo_root"
-	[ "$status" -eq 0 ]
-	[[ $'\n'"$output"$'\n' == *$'\n'"$repo_root/skills/muse-review"$'\n'* ]]
-	[ -L "$claude_link" ]
-	[ "$(readlink "$claude_link")" = "../../skills/muse-review" ]
-}
-
-@test "review.grok standalone role resolves, times out, and remains enabled" {
-	local real_catalog="$BATS_TEST_DIRNAME/../model-roles.json"
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" review.grok
-	[ "$status" -eq 0 ]
-	[ "$output" = "xai/grok-4.7" ]
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" --field timeout review.grok
-	[ "$status" -eq 0 ]
-	[ "$output" = "120" ]
-	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" research.xai
-	[ "$status" -eq 0 ]
-	[ "$output" = "xai/grok-4.7" ]
 }

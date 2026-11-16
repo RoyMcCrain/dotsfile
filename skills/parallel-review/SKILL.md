@@ -5,9 +5,9 @@ description: Codex と Claude の固定2 reviewer（Pi headless）を2段階で�
 
 # /parallel-review
 
-L1/L2 のみで Codex + Claude の固定2 reviewer を `model-roles.json` の `reviewLevels` catalog から解決し、秘密検査済み patch/chunk を並行レビューする。model ID の正本は catalog のみ。runtime caller、Muse、Grok、Antigravity、Fugu、DeepSeek は parallel 経路に含めない。単体 reviewer skill は従来どおり明示時のみ使う。
+L1/L2 のみで Codex + Claude の固定2 reviewer を `model-roles.json` の `reviewLevels` catalog から解決し、秘密検査済み patch/chunk を並行レビューする。Claude と OpenAI は review / implementation を担当し、Grok は research 専用。model ID の正本は catalog のみ。API key と runtime caller は parallel 経路に含めない。単体 reviewer skill は明示時のみ使う。
 
-未指定および `--level auto` は offline L1 alias で、自動判断ではない。明示 level は 1/2 のみ（3..5 は拒否）。L1 は Codex Sol :xhigh + Opus :high、L2 は Astra :max + Opus :max。正確な model ID は catalog にのみ記載する。
+未指定および `--level auto` は offline L1 alias で、自動判断ではない。明示 level は 1/2 のみ（3..5 は拒否）。L1 は Codex Sol :xhigh + Sonnet :high、L2 は Astra :max + Opus :max。正確な model ID は catalog にのみ記載する。
 
 各 run で [security-review](../security-review/SKILL.md) の共通セキュリティ指示と静的 prompt supplement を適用する。通常レビューは correctness/security/回帰/設計/テスト不足を維持し、明示的 security review だけ観点を security に絞る。supplement を読むことは新 workflow 起動ではない。既存 workflow では preflight/init を繰り返さず同じ run の prompt に適用する。
 

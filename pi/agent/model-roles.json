@@ -1,5 +1,5 @@
 {
-  "description": "Single source of truth for model IDs. parallel-review selects offline review tiers (1..2; unspecified/auto means L1), each with exactly two Pi reviewers in Codex then Claude order. Tier attempt budgets live in reviewTimeouts. Roles name one model per consumer: .pi for Pi headless, .agy for Antigravity CLI (resolve with --field agy), .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
+  "description": "Single source of truth for model IDs. parallel-review selects offline review tiers (1..2; unspecified/auto means L1), each with exactly two Pi reviewers in Codex then Claude order. Tier attempt budgets live in reviewTimeouts. Claude and OpenAI handle review and implementation; Grok is reserved for research. Roles name one model per consumer: .pi for Pi headless, .agy for Antigravity CLI (resolve with --field agy), .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
   "roles": {
     "review.codex": {
       "pi": "openai/gpt-6-astra:high",
@@ -9,40 +9,9 @@
       "pi": "claude-code/claude-opus-5-5:high",
       "label": "Claude Opus 5.5 High"
     },
-    "review.grok": {
-      "pi": "xai/grok-4.7",
-      "label": "Grok 4.7 (xAI review)",
-      "timeout": 120
-    },
-    "review.fugu": {
-      "pi": "sakana-ai-console/fugu-ultra-v2.0:high",
-      "label": "Sakana Fugu Ultra v2 High",
-      "timeout": 240
-    },
-    "review.muse": {
-      "pi": "meta/muse-spark-1.3:high",
-      "label": "Muse Spark 1.3 High",
-      "timeout": 120
-    },
-    "review.deepseek": {
-      "pi": "opencode-go/deepseek-v4.1-flash:high",
-      "label": "DeepSeek V4.1 Flash High"
-    },
-    "route.fugu.base": {
-      "id": "fugu-max",
-      "label": "Sakana Fugu Max"
-    },
-    "route.fugu.ultra": {
-      "id": "fugu-ultra-v2.0",
-      "label": "Sakana Fugu Ultra v2"
-    },
     "impl.default": {
       "pi": "openai/gpt-6-luna:high",
       "label": "GPT-6 Luna High"
-    },
-    "impl.deepseek": {
-      "pi": "opencode-go/deepseek-v4.1-flash:high",
-      "label": "DeepSeek V4.1 Flash High"
     },
     "impl.haiku": {
       "pi": "claude-code/claude-haiku-5-5:high",
@@ -71,7 +40,7 @@
         "pi": "openai/gpt-6.1-sol:xhigh"
       },
       {
-        "pi": "claude-code/claude-opus-5-5:high"
+        "pi": "claude-code/claude-sonnet-5-5:high"
       }
     ],
     "2": [
