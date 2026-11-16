@@ -1,312 +1,375 @@
 import { spyOn, test } from "bun:test";
-import { deepEqual as assertEquals } from "node:assert/strict";
+import {
+  deepEqual as assertEquals,
+  ok as assertTrue,
+} from "node:assert/strict";
 import { setImmediate } from "node:timers/promises";
 import codexUsage from "../extensions/codex-usage.ts";
-import * as usage from "../lib/codex-usage.ts";
+import * as claude from "../lib/claude-usage.ts";
+import * as codex from "../lib/codex-usage.ts";
+import type { UsageRow } from "../lib/provider-usage.ts";
+
+type WidgetFactory = (
+  tui: unknown,
+  theme: { fg: (_style: string, text: string) => string },
+) => { render: (width: number) => string[] };
 
 const snapshot = {
   planType: "pro",
-  primary: { usedPercent: 12, windowDurationMins: 10_080 },
+  primary: { usedPercent: 18, windowDurationMins: 300 },
+  secondary: { usedPercent: 36, windowDurationMins: 10_080 },
 };
 
-type FakeContext = {
-  hasUI: boolean;
-  model?: { provider: string; id: string };
-  modelRegistry: { isUsingOAuth: () => boolean };
-  ui: {
-    setStatus: (key: string, value: string | undefined) => void;
-    notify: (message: string) => void;
-    theme: { fg: (_style: string, text: string) => string };
-  };
+const claudeRow: UsageRow = {
+  provider: "Claude",
+  status: "ok",
+  windows: [{ label: "5h", remainingPercent: 77 }],
 };
-
-type ContextOptions = { provider?: string; oauth?: boolean; hasUI?: boolean };
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
-  return { promise, resolve, reject };
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
 };
+
+// Spies on every collector so no test can read credentials or call a network.
+const mockCollectors = (
+  codexImpl: () => Promise<unknown> = () => Promise.resolve(snapshot),
+  claudeImpl: () => Promise<UsageRow> = () => Promise.resolve(claudeRow),
+) => ({
+  codex: spyOn(codex, "queryCodexUsage").mockImplementation(
+    codexImpl as never,
+  ),
+  claude: spyOn(claude, "queryClaudeUsage").mockImplementation(
+    claudeImpl as never,
+  ),
+  restore() {
+    this.codex.mockRestore();
+    this.claude.mockRestore();
+  },
+});
 
 const createFakePi = () => {
   const handlers = new Map<
     string,
-    ((_event: unknown, ctx: FakeContext) => unknown)[]
+    ((_event: unknown, ctx: unknown) => unknown)[]
   >();
-  let command: ((_args: string, ctx: FakeContext) => unknown) | undefined;
-  const statuses = new Map<string, string | undefined>();
+  const commands = new Map<string, (args: string, ctx: unknown) => unknown>();
+  const widgets = new Map<string, WidgetFactory | string[] | undefined>();
   const notifications: string[] = [];
   const pi = {
-    on(type: string, handler: (_event: unknown, ctx: FakeContext) => unknown) {
-      const registered = handlers.get(type) ?? [];
-      registered.push(handler);
-      handlers.set(type, registered);
+    on(type: string, handler: (_event: unknown, ctx: unknown) => unknown) {
+      handlers.set(type, [...(handlers.get(type) ?? []), handler]);
     },
-    registerCommand(_name: string, spec: { handler: typeof command }) {
-      command = spec.handler;
+    registerCommand(
+      name: string,
+      spec: { handler: (args: string, ctx: unknown) => unknown },
+    ) {
+      commands.set(name, spec.handler);
     },
   };
-  const createCtx = (
-    { provider, oauth = false, hasUI = true }: ContextOptions = {},
-  ) => ({
-    hasUI,
-    model: provider ? { provider, id: "gpt-test" } : undefined,
-    modelRegistry: { isUsingOAuth: () => oauth },
+  const createCtx = ({ provider, mode = "tui" }: {
+    provider?: string;
+    mode?: string;
+  } = {}) => ({
+    hasUI: mode === "tui",
+    mode,
+    model: provider ? { provider, id: "test-model" } : undefined,
+    modelRegistry: { isUsingOAuth: () => false },
     ui: {
-      setStatus: (key, value) => statuses.set(key, value),
-      notify: (message) => notifications.push(message),
+      setStatus: () => {},
+      setWidget: (
+        key: string,
+        value: WidgetFactory | string[] | undefined,
+      ) => widgets.set(key, value),
+      notify: (message: string) => notifications.push(message),
       theme: { fg: (_style: string, text: string) => text },
     },
-  } satisfies FakeContext);
-  const dispatch = async (type: string, ctx: FakeContext) => {
+  });
+  const dispatch = async (type: string, ctx: unknown) => {
     for (const handler of handlers.get(type) ?? []) await handler({}, ctx);
   };
-  const runCommand = async (ctx: FakeContext) => await command?.("", ctx);
-
-  return { pi, statuses, notifications, createCtx, dispatch, runCommand };
+  const run = async (name: string, ctx: unknown) =>
+    await commands.get(name)?.("", ctx);
+  const renderWidget = (width = 120) => {
+    const widget = widgets.get("codex-usage");
+    if (typeof widget !== "function") return [];
+    return widget(undefined, { fg: (_style, text) => text }).render(width);
+  };
+  return {
+    pi,
+    widgets,
+    notifications,
+    createCtx,
+    dispatch,
+    run,
+    renderWidget,
+  };
 };
 
-test("unified OpenAI OAuth displays usage and supports manual refresh", async () => {
+test("widget shows every provider row regardless of the selected model", async () => {
+  // Arrange
   const fake = createFakePi();
-  const query = spyOn(usage, "queryCodexUsage").mockResolvedValue(snapshot);
+  const collectors = mockCollectors();
   try {
     codexUsage(fake.pi as never);
-    const ctx = fake.createCtx({ provider: "openai", oauth: true });
 
-    await fake.dispatch("session_start", ctx);
-    assertEquals(fake.statuses.get("codex-usage")?.includes("Codex Pro"), true);
+    // Act
+    await fake.dispatch(
+      "session_start",
+      fake.createCtx({ provider: "anthropic" }),
+    );
+    await setImmediate();
 
-    await fake.runCommand(ctx);
-    assertEquals(query.mock.calls.length, 2);
-    assertEquals(fake.notifications, ["Codex usage: Codex Pro 7d 12%"]);
+    // Assert
+    const lines = fake.renderWidget();
+    assertEquals(lines.length, 2);
+    assertTrue(lines.some((line) => line.includes("Codex 残り: 5h 82%")));
+    assertTrue(lines.some((line) => line.includes("Claude 残り: 5h 77%")));
   } finally {
-    query.mockRestore();
+    collectors.restore();
   }
 });
 
-test("automatic lifecycle refreshes are throttled while manual refresh bypasses the interval", async () => {
+test("automatic Codex failure shows unavailable, keeps Claude, and respects the cooldown", async () => {
+  // Arrange
   const fake = createFakePi();
-  const query = spyOn(usage, "queryCodexUsage").mockResolvedValue(snapshot);
+  let fail = false;
+  const collectors = mockCollectors(
+    () =>
+      fail
+        ? Promise.reject(new Error("codex down"))
+        : Promise.resolve(snapshot),
+  );
   const now = spyOn(Date, "now").mockReturnValue(1_000_000);
   try {
     codexUsage(fake.pi as never);
-    const ctx = fake.createCtx({ provider: "openai", oauth: true });
+    const ctx = fake.createCtx({ provider: "openai" });
     await fake.dispatch("session_start", ctx);
-    await fake.dispatch("agent_settled", ctx);
-    assertEquals(query.mock.calls.length, 1);
-    assertEquals(fake.statuses.get("codex-usage")?.includes("Codex Pro"), true);
+    await setImmediate();
+    assertTrue(fake.renderWidget().join("\n").includes("Codex 残り: 5h 82%"));
 
+    // Act & Assert
+    now.mockReturnValue(1_300_000);
+    fail = true;
+    await fake.dispatch("agent_settled", ctx);
+    await setImmediate();
+    const failed = fake.renderWidget().join("\n");
+    assertTrue(failed.includes("Codex 残り: 取得失敗"));
+    assertTrue(!failed.includes("Codex 残り: 5h 82%"));
+    assertTrue(failed.includes("Claude 残り: 5h 77%"));
+    assertEquals(collectors.codex.mock.calls.length, 2);
+
+    now.mockReturnValue(1_599_999);
+    await fake.dispatch("agent_settled", ctx);
+    await setImmediate();
+    assertEquals(collectors.codex.mock.calls.length, 2);
+    const cooling = fake.renderWidget().join("\n");
+    assertTrue(cooling.includes("Codex 残り: 取得失敗"));
+    assertTrue(!cooling.includes("Codex 残り: 5h 82%"));
+
+    now.mockReturnValue(1_600_000);
+    await fake.dispatch("agent_settled", ctx);
+    assertEquals(collectors.codex.mock.calls.length, 3);
+  } finally {
+    now.mockRestore();
+    collectors.restore();
+  }
+});
+
+test("automatic refreshes respect the cooldown while manual refresh bypasses it", async () => {
+  // Arrange
+  const fake = createFakePi();
+  const collectors = mockCollectors();
+  const now = spyOn(Date, "now").mockReturnValue(1_000_000);
+  try {
+    codexUsage(fake.pi as never);
+    const ctx = fake.createCtx({ provider: "openai" });
+    await fake.dispatch("session_start", ctx);
+    await setImmediate();
+
+    // Act & Assert
     now.mockReturnValue(1_299_999);
     await fake.dispatch("agent_settled", ctx);
-    assertEquals(query.mock.calls.length, 1);
+    assertEquals(collectors.codex.mock.calls.length, 1);
 
     now.mockReturnValue(1_300_000);
     await fake.dispatch("agent_settled", ctx);
-    assertEquals(query.mock.calls.length, 2);
+    assertEquals(collectors.codex.mock.calls.length, 2);
 
-    now.mockReturnValue(1_300_001);
-    await fake.runCommand(ctx);
-    assertEquals(query.mock.calls.length, 3);
+    await fake.run("usage", ctx);
+    assertEquals(collectors.codex.mock.calls.length, 3);
   } finally {
     now.mockRestore();
-    query.mockRestore();
+    collectors.restore();
   }
 });
 
-test("cancelling an automatic refresh permits a fresh attempt when support returns", async () => {
+test("in-flight automatic events coalesce without aborting the refresh", async () => {
+  // Arrange
   const fake = createFakePi();
   const pending = deferred<typeof snapshot>();
-  const query = spyOn(usage, "queryCodexUsage")
-    .mockImplementationOnce(() => pending.promise as never)
-    .mockResolvedValueOnce(snapshot);
-  const now = spyOn(Date, "now").mockReturnValue(2_000_000);
-  try {
-    codexUsage(fake.pi as never);
-    const supported = fake.createCtx({ provider: "openai", oauth: true });
-    await fake.dispatch("session_start", supported);
-    assertEquals(query.mock.calls.length, 1);
-
-    await fake.dispatch("model_select", fake.createCtx({ provider: "anthropic" }));
-    assertEquals(query.mock.calls[0]?.[0]?.signal?.aborted, true);
-    await fake.dispatch("model_select", supported);
-    await setImmediate();
-
-    assertEquals(query.mock.calls.length, 2);
-    assertEquals(fake.statuses.get("codex-usage")?.includes("Codex Pro"), true);
-  } finally {
-    now.mockRestore();
-    query.mockRestore();
-  }
-});
-
-test("unsupported context clears status and supported OAuth restores cached status", async () => {
-  const fake = createFakePi();
-  const query = spyOn(usage, "queryCodexUsage").mockResolvedValue(snapshot);
-  const now = spyOn(Date, "now").mockReturnValue(2_000_000);
-  try {
-    codexUsage(fake.pi as never);
-    const supported = fake.createCtx({ provider: "openai", oauth: true });
-    await fake.dispatch("session_start", supported);
-    const unsupported = fake.createCtx({ provider: "anthropic" });
-    await fake.dispatch("model_select", unsupported);
-    assertEquals(fake.statuses.get("codex-usage"), undefined);
-    await fake.dispatch("model_select", supported);
-    assertEquals(query.mock.calls.length, 1);
-    assertEquals(fake.statuses.get("codex-usage")?.includes("Codex Pro"), true);
-  } finally {
-    now.mockRestore();
-    query.mockRestore();
-  }
-});
-
-test("in-flight automatic lifecycle events coalesce without aborting the query", async () => {
-  const fake = createFakePi();
-  const pending = deferred<typeof snapshot>();
-  const query = spyOn(usage, "queryCodexUsage").mockReturnValue(pending.promise as never);
+  const collectors = mockCollectors(() => pending.promise);
   const now = spyOn(Date, "now").mockReturnValue(1_000_000);
   try {
     codexUsage(fake.pi as never);
-    const ctx = fake.createCtx({ provider: "openai", oauth: true });
+    const ctx = fake.createCtx();
     await fake.dispatch("session_start", ctx);
     now.mockReturnValue(1_300_000);
+
+    // Act
+    await fake.dispatch("model_select", ctx);
     await fake.dispatch("agent_settled", ctx);
-    assertEquals(query.mock.calls.length, 1);
-    assertEquals(query.mock.calls[0]?.[0]?.signal?.aborted, false);
     pending.resolve(snapshot);
     await setImmediate();
-    assertEquals(fake.statuses.get("codex-usage")?.includes("Codex Pro"), true);
+
+    // Assert
+    assertEquals(collectors.codex.mock.calls.length, 1);
+    assertEquals(collectors.codex.mock.calls[0]?.[0]?.signal?.aborted, false);
+    assertTrue(fake.renderWidget().join("\n").includes("Codex 残り: 5h 82%"));
   } finally {
     now.mockRestore();
-    query.mockRestore();
+    collectors.restore();
   }
 });
 
-test("failed attempts cool down without resurrecting a stale successful status", async () => {
-  const fake = createFakePi();
-  const query = spyOn(usage, "queryCodexUsage").mockResolvedValue(snapshot);
-  const now = spyOn(Date, "now").mockReturnValue(3_000_000);
-  try {
-    codexUsage(fake.pi as never);
-    const ctx = fake.createCtx({ provider: "openai", oauth: true });
-    await fake.dispatch("session_start", ctx);
-    now.mockReturnValue(3_300_000);
-    query.mockRejectedValueOnce(new Error("offline"));
-    await fake.dispatch("agent_settled", ctx);
-    assertEquals(fake.statuses.get("codex-usage"), undefined);
-    await fake.dispatch("agent_settled", ctx);
-    assertEquals(query.mock.calls.length, 2);
-    assertEquals(fake.statuses.get("codex-usage"), undefined);
-  } finally {
-    now.mockRestore();
-    query.mockRestore();
-  }
-});
-
-test("manual refresh supersedes automatic work and stale completion cannot overwrite it", async () => {
+test("manual refresh supersedes automatic work and stale results cannot overwrite it", async () => {
+  // Arrange
   const fake = createFakePi();
   const automatic = deferred<typeof snapshot>();
   const manual = deferred<typeof snapshot>();
-  const query = spyOn(usage, "queryCodexUsage").mockImplementationOnce(() => automatic.promise as never).mockImplementationOnce(() => manual.promise as never);
+  const collectors = mockCollectors(
+    () => (collectors.codex.mock.calls.length === 1
+      ? automatic.promise
+      : manual.promise),
+  );
   try {
     codexUsage(fake.pi as never);
-    const ctx = fake.createCtx({ provider: "openai", oauth: true });
+    const ctx = fake.createCtx();
     await fake.dispatch("session_start", ctx);
-    const command = fake.runCommand(ctx);
-    assertEquals(query.mock.calls[0]?.[0]?.signal?.aborted, true);
-    manual.resolve({ ...snapshot, primary: { usedPercent: 80, windowDurationMins: 10_080 } });
+
+    // Act
+    const command = fake.run("usage", ctx);
+    manual.resolve({
+      ...snapshot,
+      primary: { usedPercent: 80, windowDurationMins: 300 },
+    });
     await command;
     automatic.resolve(snapshot);
     await setImmediate();
-    assertEquals(fake.statuses.get("codex-usage")?.includes("80%"), true);
+
+    // Assert
+    assertEquals(collectors.codex.mock.calls[0]?.[0]?.signal?.aborted, true);
+    assertTrue(fake.renderWidget().join("\n").includes("Codex 残り: 5h 20%"));
   } finally {
-    query.mockRestore();
+    collectors.restore();
   }
 });
 
-const cancellationCases = [
-  {
-    name: "unsupported model",
-    event: "model_select",
-    options: { provider: "anthropic" },
-  },
-  {
-    name: "no UI",
-    event: "model_select",
-    options: { provider: "openai", oauth: true, hasUI: false },
-  },
-  {
-    name: "session shutdown",
-    event: "session_shutdown",
-    options: { provider: "openai", oauth: true },
-  },
-] as const;
-
-for (const { name, event, options } of cancellationCases) {
-  test(`${name} cancellation prevents status resurrection`, async () => {
-    const fake = createFakePi();
-    const pending = deferred<typeof snapshot>();
-    const query = spyOn(usage, "queryCodexUsage").mockReturnValue(pending.promise as never);
-    try {
-      codexUsage(fake.pi as never);
-      const ctx = fake.createCtx({ provider: "openai", oauth: true });
-      await fake.dispatch("session_start", ctx);
-      await fake.dispatch(event, fake.createCtx(options));
-      assertEquals(query.mock.calls[0]?.[0]?.signal?.aborted, true);
-      pending.resolve(snapshot);
-      await setImmediate();
-      assertEquals(fake.statuses.get("codex-usage"), undefined);
-    } finally {
-      query.mockRestore();
-    }
-  });
-}
-
-test("legacy Codex OAuth remains supported", async () => {
+test("session shutdown cancels in-flight work and clears the widget", async () => {
+  // Arrange
   const fake = createFakePi();
-  const query = spyOn(usage, "queryCodexUsage").mockResolvedValue(snapshot);
+  const pending = deferred<typeof snapshot>();
+  const collectors = mockCollectors(() => pending.promise);
   try {
     codexUsage(fake.pi as never);
-    const ctx = fake.createCtx({ provider: "openai-codex" });
+    const ctx = fake.createCtx();
+    await fake.dispatch("session_start", ctx);
 
-    await fake.runCommand(ctx);
-    assertEquals(query.mock.calls.length, 1);
-    assertEquals(fake.statuses.get("codex-usage"), "Codex Pro 7d 12%");
-    assertEquals(fake.notifications, ["Codex usage: Codex Pro 7d 12%"]);
+    // Act
+    await fake.dispatch("session_shutdown", ctx);
+    pending.resolve(snapshot);
+    await setImmediate();
+
+    // Assert
+    assertEquals(collectors.codex.mock.calls[0]?.[0]?.signal?.aborted, true);
+    assertEquals(fake.widgets.get("codex-usage"), undefined);
   } finally {
-    query.mockRestore();
+    collectors.restore();
   }
 });
 
-test("OpenAI API key and unsupported or absent models are rejected safely", async () => {
+test("a non-TUI trigger cancels pending TUI work without repopulating the widget", async () => {
   const fake = createFakePi();
-  const query = spyOn(usage, "queryCodexUsage").mockResolvedValue(snapshot);
+  const pending = deferred<typeof snapshot>();
+  const collectors = mockCollectors(() => pending.promise);
   try {
     codexUsage(fake.pi as never);
-    const oauthContext = fake.createCtx({ provider: "openai", oauth: true });
-    await fake.runCommand(oauthContext);
-    assertEquals(fake.statuses.get("codex-usage")?.includes("Codex Pro"), true);
+    await fake.dispatch("session_start", fake.createCtx());
 
-    const apiKeyContext = fake.createCtx({ provider: "openai" });
-    await fake.dispatch("model_select", apiKeyContext);
-    assertEquals(fake.statuses.get("codex-usage"), undefined);
-    await fake.runCommand(apiKeyContext);
-    await fake.runCommand(
-      fake.createCtx({ provider: "anthropic", oauth: true }),
-    );
-    await fake.runCommand(fake.createCtx({ oauth: true }));
-    await fake.runCommand(
-      fake.createCtx({ provider: "openai", oauth: true, hasUI: false }),
-    );
+    await fake.dispatch("agent_settled", fake.createCtx({ mode: "print" }));
+    pending.resolve(snapshot);
+    await setImmediate();
 
-    assertEquals(query.mock.calls.length, 1);
-    assertEquals(fake.notifications, [
-      "Codex usage: Codex Pro 7d 12%",
-      "Codex usage is shown only for ChatGPT OAuth models",
-      "Codex usage is shown only for ChatGPT OAuth models",
-      "Codex usage is shown only for ChatGPT OAuth models",
-    ]);
+    assertEquals(collectors.codex.mock.calls[0]?.[0]?.signal?.aborted, true);
+    assertEquals(
+      fake.renderWidget().join("\n").includes("Codex 残り: 5h 82%"),
+      false,
+    );
   } finally {
-    query.mockRestore();
+    collectors.restore();
+  }
+});
+
+test("a non-TUI usage command cancels pending TUI work", async () => {
+  const fake = createFakePi();
+  const pending = deferred<typeof snapshot>();
+  const collectors = mockCollectors(() => pending.promise);
+  try {
+    codexUsage(fake.pi as never);
+    await fake.dispatch("session_start", fake.createCtx());
+
+    await fake.run("usage", fake.createCtx({ mode: "print" }));
+    pending.resolve(snapshot);
+    await setImmediate();
+
+    assertEquals(collectors.codex.mock.calls[0]?.[0]?.signal?.aborted, true);
+    assertEquals(
+      fake.renderWidget().join("\n").includes("Codex 残り: 5h 82%"),
+      false,
+    );
+  } finally {
+    collectors.restore();
+  }
+});
+
+test("non-TUI sessions perform no collection", async () => {
+  // Arrange
+  const fake = createFakePi();
+  const collectors = mockCollectors();
+  try {
+    codexUsage(fake.pi as never);
+
+    // Act
+    await fake.dispatch("session_start", fake.createCtx({ mode: "print" }));
+    await fake.run("usage", fake.createCtx({ mode: "print" }));
+
+    // Assert
+    assertEquals(collectors.codex.mock.calls.length, 0);
+    assertEquals(collectors.claude.mock.calls.length, 0);
+  } finally {
+    collectors.restore();
+  }
+});
+
+test("codex-usage alias runs the same all-provider refresh", async () => {
+  // Arrange
+  const fake = createFakePi();
+  const collectors = mockCollectors();
+  try {
+    codexUsage(fake.pi as never);
+
+    // Act
+    await fake.run("codex-usage", fake.createCtx());
+    await setImmediate();
+
+    // Assert
+    assertEquals(collectors.codex.mock.calls.length, 1);
+    assertEquals(collectors.claude.mock.calls.length, 1);
+    assertTrue(fake.renderWidget().join("\n").includes("Claude 残り"));
+  } finally {
+    collectors.restore();
   }
 });

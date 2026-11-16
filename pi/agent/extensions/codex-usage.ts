@@ -2,111 +2,148 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { formatCodexUsageStatus, queryCodexUsage } from "../lib/codex-usage.ts";
+import { queryClaudeUsage } from "../lib/claude-usage.ts";
+import { queryCodexUsage } from "../lib/codex-usage.ts";
+import {
+  type ProviderName,
+  renderUsageLines,
+  toCodexRow,
+  type UsageRow,
+} from "../lib/provider-usage.ts";
 
-const CODEX_PROVIDER = "openai-codex";
-const STATUS_KEY = "codex-usage";
+const WIDGET_KEY = "codex-usage";
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const PROVIDERS: readonly ProviderName[] = ["Codex", "Claude"];
 
-const isCodexUsageSupported = (ctx: ExtensionContext) => {
-  const model = ctx.model;
-  return !!model && (
-    model.provider === CODEX_PROVIDER ||
-    (model.provider === "openai" && ctx.modelRegistry.isUsingOAuth(model))
-  );
+// Each collector converts its own failures to an unavailable row so one
+// provider's error never hides the others.
+const collectors: Record<
+  ProviderName,
+  (signal: AbortSignal) => Promise<UsageRow>
+> = {
+  Codex: (signal) =>
+    queryCodexUsage({ signal }).then(toCodexRow, () => ({
+      provider: "Codex",
+      status: "unavailable",
+    })),
+  Claude: (signal) =>
+    queryClaudeUsage({ signal }).catch(() => ({
+      provider: "Claude",
+      status: "unavailable",
+    })),
 };
 
-export default function codexUsage(pi: ExtensionAPI) {
-  let refreshId = 0;
-  let controller: AbortController | undefined;
-  let lastAttemptAt: number | undefined;
-  let cachedStatus: string | undefined;
+const rowFor = (
+  rows: ReadonlyMap<ProviderName, UsageRow>,
+  provider: ProviderName,
+): UsageRow => rows.get(provider) ?? { provider, status: "pending" };
 
-  const clearStatus = (ctx: ExtensionContext) => {
-    if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, undefined);
+export default function codexUsage(pi: ExtensionAPI) {
+  let generation = 0;
+  let inFlight: AbortController | undefined;
+  let lastAttemptAt: number | undefined;
+  const rows = new Map<ProviderName, UsageRow>();
+
+  const render = (ctx: ExtensionContext) => {
+    // Plain rows are captured; the theme is applied only inside render.
+    const snapshot = PROVIDERS.map((provider) => rowFor(rows, provider));
+    ctx.ui.setWidget(
+      WIDGET_KEY,
+      (_tui, theme) => ({
+        render: (width: number) => renderUsageLines(snapshot, width, theme),
+        invalidate() {},
+      }),
+      { placement: "belowEditor" },
+    );
+  };
+
+  const clearUi = (ctx: ExtensionContext) => {
+    if (!ctx.hasUI) return;
+    ctx.ui.setStatus(WIDGET_KEY, undefined);
+    ctx.ui.setWidget(WIDGET_KEY, undefined);
   };
 
   const cancelRefresh = () => {
-    refreshId++;
-    if (controller) {
+    generation++;
+    if (inFlight) {
       lastAttemptAt = undefined;
-      controller.abort();
-      controller = undefined;
+      inFlight.abort();
+      inFlight = undefined;
     }
   };
 
-  const fetchUsage = async (ctx: ExtensionContext, notify = false) => {
+  const cooldownActive = () =>
+    lastAttemptAt !== undefined &&
+    Date.now() - lastAttemptAt < REFRESH_INTERVAL_MS;
+
+  const applyRow = (ctx: ExtensionContext, current: number, row: UsageRow) => {
+    if (current !== generation) return;
+    rows.set(row.provider, row);
+    render(ctx);
+  };
+
+  const runRefresh = async (ctx: ExtensionContext, manual: boolean) => {
+    cancelRefresh();
+    const current = generation;
+    const controller = new AbortController();
+    inFlight = controller;
     lastAttemptAt = Date.now();
-    const currentId = refreshId;
-    const currentController = new AbortController();
-    controller = currentController;
+    render(ctx);
 
-    try {
-      const snapshot = await queryCodexUsage({ signal: currentController.signal });
-      if (currentId !== refreshId) return;
-      const status = formatCodexUsageStatus(snapshot);
-      cachedStatus = status;
-      ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", status));
-      if (notify) ctx.ui.notify(`Codex usage: ${status}`, "info");
-    } catch {
-      if (currentId !== refreshId) return;
-      cachedStatus = undefined;
-      clearStatus(ctx);
-      if (notify) ctx.ui.notify("Codex usage refresh failed", "warning");
-    } finally {
-      if (currentId === refreshId) controller = undefined;
-    }
+    await Promise.all(
+      PROVIDERS.map((provider) =>
+        collectors[provider](controller.signal).then((row) =>
+          applyRow(ctx, current, row)
+        )
+      ),
+    );
+    if (current !== generation) return;
+    inFlight = undefined;
+    if (manual) ctx.ui.notify("Usage refreshed", "info");
   };
 
-  const scheduleRefresh = (ctx: ExtensionContext) => {
-    if (!ctx.hasUI || !isCodexUsageSupported(ctx)) {
+  // Automatic triggers coalesce with in-flight work and respect the cooldown;
+  // manual refresh always supersedes older work.
+  const refresh = (ctx: ExtensionContext, manual = false) => {
+    if (ctx.mode !== "tui") {
       cancelRefresh();
-      clearStatus(ctx);
       return;
     }
-    if (cachedStatus) ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", cachedStatus));
-    if (controller || (lastAttemptAt !== undefined && Date.now() - lastAttemptAt < REFRESH_INTERVAL_MS)) return;
-    void fetchUsage(ctx);
+    if (!manual && (inFlight || cooldownActive())) return;
+    void runRefresh(ctx, manual);
   };
 
   pi.on("session_start", (_event, ctx) => {
     cancelRefresh();
+    rows.clear();
     lastAttemptAt = undefined;
-    cachedStatus = undefined;
-    scheduleRefresh(ctx);
+    refresh(ctx);
   });
 
   pi.on("model_select", (_event, ctx) => {
-    scheduleRefresh(ctx);
+    refresh(ctx);
   });
 
   pi.on("agent_settled", (_event, ctx) => {
-    scheduleRefresh(ctx);
+    refresh(ctx);
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
     cancelRefresh();
-    cachedStatus = undefined;
-    clearStatus(ctx);
+    rows.clear();
+    clearUi(ctx);
   });
 
-  pi.registerCommand("codex-usage", {
-    description: "Refresh ChatGPT Codex plan usage shown in the footer",
-    handler: async (_args, ctx) => {
-      if (!ctx.hasUI || !isCodexUsageSupported(ctx)) {
-        cancelRefresh();
-        clearStatus(ctx);
-        if (ctx.hasUI) {
-          ctx.ui.notify(
-            "Codex usage is shown only for ChatGPT OAuth models",
-            "warning",
-          );
-        }
-        return;
-      }
-
-      cancelRefresh();
-      await fetchUsage(ctx, true);
+  const usageCommand = {
+    description:
+      "Refresh remaining Codex and Claude usage shown below the editor",
+    // Returns a promise because Pi's command handler type requires one; the
+    // refresh itself runs in the background so the command returns promptly.
+    handler: (_args: string, ctx: ExtensionContext) => {
+      refresh(ctx, true);
+      return Promise.resolve();
     },
-  });
+  };
+  pi.registerCommand("usage", usageCommand);
+  pi.registerCommand("codex-usage", usageCommand);
 }
