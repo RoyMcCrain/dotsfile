@@ -325,7 +325,7 @@ its matching
 | Extension / package             | Purpose                                                              |
 | ------------------------------- | -------------------------------------------------------------------- |
 | `local-openai.ts` (disabled)    | Auto-register LM Studio models from `LM_STUDIO_BASE_URL` at startup. |
-| `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
+| `codex-usage.ts`                | Show remaining Codex and Claude usage in a widget below the editor. Refresh with `/usage` (alias `/codex-usage`). |
 | `timeline.ts`                   | Track local task progress and automatic tool activity with `timeline_tasks` / `/timeline`. |
 | `openrouter-balance.ts` (disabled) | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
 | `auto-continue-after-compact.ts` (disabled) | Automatically continue after compaction. |
@@ -348,26 +348,57 @@ Plans support up to 50 tasks with 120-character titles; explicitly supplied note
 
 Timeline history is stored as custom entries in the current Pi session branch, not in separate files, and is not injected into model context; `timeline_tasks` returns only the current plan. Tool records contain only tool IDs/names, timestamps, outcomes, and available timing; tool arguments, commands, paths, output, prompts, and responses are not copied. Task titles and explicitly supplied notes are deliberately supplied by the model, so do not put secrets in them. Notes are public summaries only: never include private reasoning/thinking streams, full prompts, commands, or copied tool output. The completion count reflects declared task statuses, not independently verified work. It is local progress/history only: no workers, model routing, external telemetry, or live visibility into subprocesses launched inside other tools.
 
-### Codex plan usage
+### Provider remaining usage dashboard
 
-`codex-usage.ts` keeps Pi's built-in footer and adds a compact status such as
-`Codex Pro 7d 0% ↻08/25 14:57` while an `openai-codex` model is selected. It
-reads the subscription quota through the locally authenticated `codex
-app-server`, so Codex CLI must be installed and logged in.
+`codex-usage.ts` keeps Pi's built-in footer and adds a persistent widget below
+the editor that shows both providers at once, regardless of the selected
+model. Example rows:
 
-For both unified `openai` OAuth and legacy `openai-codex` models, automatic
-refresh attempts occur at session start, after model switches, and after settled
-runs, but no more than once every five minutes. The last successful value stays
-cached and displayed between attempts; there is no background polling. Run
-`/codex-usage` to bypass the interval and retry manually. Automatic failures
-stay silent and clear both cached and visible usage; usage remains blank until
-the next successful refresh. Cancelled in-flight requests do not consume the
-interval, so returning to a supported model can retry immediately.
+```text
+Codex 残り: 5h 82% ↻11/17 01:00 · 7d 64% ↻11/21 09:00
+Claude 残り: 5h 77% ↻11/17 03:00 · 7d 44% ↻11/23 06:00
+```
+
+- **Remaining, not used.** Codex and Claude percentages are the share of each
+  window still available. Values are rounded only for display.
+- **Reset times** are shown in local time when the provider reports a valid
+  date. Unknown or malformed dates are omitted rather than guessed.
+- **States.** `不明` means the provider returned no valid quota window (for
+  example, a plan-only Codex snapshot). `認証エラー` is an auth rejection,
+  `未設定` means the credentials are not configured, and `取得失敗` is any other
+  sanitized failure. A failing provider does not hide the others.
+
+### Codex and Codex CLI
+
+Codex quota is read through the locally logged-in `codex app-server`, so Codex
+CLI must be installed and logged in. The extension only queries; it never starts
+inference to measure quota and never writes credentials or config.
+
+### Claude
+
+Claude usage uses the Claude Code OAuth credential (read-only). The credential
+file is `$PI_CLAUDE_CODE_CONFIG_DIR/.credentials.json`, else
+`$CLAUDE_CONFIG_DIR/.credentials.json`, else `~/.claude/.credentials.json`. For
+the default config dir only, the macOS Keychain item `Claude Code-credentials`
+is used when no file is found. A custom config dir never falls back to the
+default keychain, so it cannot silently show a different account. The request
+uses the Anthropic OAuth usage endpoint with `redirect: "error"` and a bounded
+timeout.
+
+### Refresh and cooldown
+
+Automatic refresh attempts occur at session start, after model switches, and
+after settled runs, but no more than once every five minutes. Refreshes run in
+the background and never block startup. Run `/usage` (or the `/codex-usage`
+alias) to refresh all providers immediately, bypassing the cooldown. There is
+no background polling. Cancelled in-flight refreshes do not consume the
+cooldown. Shutdown cancels pending work and clears the widget. Non-TUI modes
+perform no collection.
 
 ### OpenRouter prepaid balance
 
 When explicitly reenabled, `openrouter-balance.ts` adds a compact TUI status such as
-`OpenRouter $12.34` via the extension status bar (alongside Codex usage and other
+`OpenRouter $12.34` via the extension status bar (alongside other extension
 statuses). Its balance polling applies only when the extension is reenabled; it
 otherwise makes no requests. When enabled, it is shown in TUI mode regardless of
 the selected main model, because other independent features may use OpenRouter
