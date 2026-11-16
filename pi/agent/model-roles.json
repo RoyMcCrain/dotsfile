@@ -45,8 +45,12 @@
       "label": "DeepSeek V4.1 Flash High"
     },
     "impl.haiku": {
-      "pi": "opencode-go/claude-haiku-5-5:high",
+      "pi": "claude-code/claude-haiku-5-5:high",
       "label": "Claude Haiku 5.5 High"
+    },
+    "impl.luna": {
+      "pi": "openai/gpt-6-luna:high",
+      "label": "GPT-6 Luna High"
     },
     "research.xai": {
       "pi": "xai/grok-4.7",
