@@ -138,6 +138,105 @@ test("every provider stays visible and no line exceeds a narrow width", () => {
   assertTrue(plain.includes("Claude 残り"));
 });
 
+test("Claude 5h is hidden from the display while the source row keeps it", () => {
+  // Arrange
+  const row: UsageRow = {
+    provider: "Claude",
+    status: "ok",
+    windows: [
+      { label: "5h", remainingPercent: 77 },
+      { label: "7d", remainingPercent: 44, resetsAt: 1_763_900_000 },
+    ],
+  };
+  const original = structuredClone(row);
+
+  // Act
+  const text = describeUsageRow(row);
+
+  // Assert
+  assertEquals(
+    text,
+    `Claude 残り: 7d 44% ↻${formatResetAt(1_763_900_000)}`,
+  );
+  assertEquals(row, original);
+});
+
+test("a Claude row with only a hidden 5h window shows unknown", () => {
+  // Arrange
+  const row: UsageRow = {
+    provider: "Claude",
+    status: "ok",
+    windows: [{ label: "5h", remainingPercent: 77 }],
+  };
+
+  // Act
+  const text = describeUsageRow(row);
+
+  // Assert
+  assertEquals(text, "Claude 残り: 不明");
+});
+
+test("Codex and Claude share one line when the width allows it", () => {
+  // Arrange
+  const codexReset = 1_763_340_000;
+  const claudeReset = 1_763_900_000;
+  const rows: UsageRow[] = [
+    toCodexRow({
+      primary: { usedPercent: 18, windowDurationMins: 300 },
+      secondary: {
+        usedPercent: 36,
+        windowDurationMins: 10_080,
+        resetsAt: codexReset,
+      },
+    }),
+    {
+      provider: "Claude",
+      status: "ok",
+      windows: [
+        { label: "5h", remainingPercent: 77, resetsAt: 1_763_340_000 },
+        { label: "7d", remainingPercent: 44, resetsAt: claudeReset },
+      ],
+    },
+  ];
+
+  // Act
+  const lines = renderUsageLines(rows, 200, theme);
+
+  // Assert
+  assertEquals(lines, [
+    `Codex 残り: 5h 82% · 7d 64% ↻${
+      formatResetAt(codexReset)
+    } │ Claude 残り: 7d 44% ↻${formatResetAt(claudeReset)}`,
+  ]);
+});
+
+test("a failed provider stays visible beside a healthy one on the shared line", () => {
+  // Arrange
+  const rows: UsageRow[] = [
+    toCodexRow({
+      primary: { usedPercent: 18, windowDurationMins: 300 },
+      secondary: { usedPercent: 36, windowDurationMins: 10_080 },
+    }),
+    { provider: "Claude", status: "unavailable" },
+  ];
+
+  // Act
+  const lines = renderUsageLines(rows, 200, theme);
+
+  // Assert
+  assertEquals(lines, [
+    "Codex 残り: 5h 82% · 7d 64% │ Claude 残り: 取得失敗",
+  ]);
+});
+
+test("no rows render no widget lines", () => {
+  // Act
+  const lines = renderUsageLines([], 80, theme);
+
+  // Assert
+  assertEquals(lines, []);
+});
+
 test("a hung authenticated request fails once its timeout elapses", async () => {
   // Arrange
   const seen: { signal?: AbortSignal } = {};

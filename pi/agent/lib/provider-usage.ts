@@ -105,18 +105,28 @@ const describeWindow = (window: UsageWindow) => {
   return `${window.label} ${Math.round(window.remainingPercent)}%${reset}`;
 };
 
-export const describeUsageRow = (row: UsageRow): string =>
-  row.status === "ok"
-    ? `${LABELS[row.provider]}: ${row.windows.map(describeWindow).join(" · ")}`
-    : `${LABELS[row.provider]}: ${STATE_TEXT[row.status]}`;
+// Display-only: Claude's 5h window is hidden; the source row keeps it.
+export const describeUsageRow = (row: UsageRow): string => {
+  if (row.status !== "ok") {
+    return `${LABELS[row.provider]}: ${STATE_TEXT[row.status]}`;
+  }
+  const windows = row.windows.filter((window) =>
+    row.provider !== "Claude" || window.label !== "5h"
+  );
+  return windows.length === 0
+    ? `${LABELS[row.provider]}: ${STATE_TEXT.unknown}`
+    : `${LABELS[row.provider]}: ${windows.map(describeWindow).join(" · ")}`;
+};
 
+// One joined line so narrow widths wrap rather than hide a provider.
 export const renderUsageLines = (
   rows: readonly UsageRow[],
   width: number,
   theme: DimTheme,
 ) =>
-  rows.flatMap((row) =>
-    wrapTextWithAnsi(theme.fg("dim", describeUsageRow(row)), width)
+  rows.length === 0 ? [] : wrapTextWithAnsi(
+    theme.fg("dim", rows.map((row) => describeUsageRow(row)).join(" │ ")),
+    width,
   );
 
 // Caps each request by timeout and the caller's signal; dispose clears both.

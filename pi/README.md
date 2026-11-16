@@ -330,6 +330,7 @@ its matching
 | `openrouter-balance.ts` (disabled) | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
 | `auto-continue-after-compact.ts` (disabled) | Automatically continue after compaction. |
 | `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
+| `minimal-footer.ts`             | Replace the built-in footer's token/cache/cost chunk with a minimal footer (path, context, model + provider when several are available, thinking, statuses). Applies on `/reload`. |
 | `workspace-cd.ts`               | Fork/switch Pi session cwd after jj workspace setup (`switch_workspace_cwd` tool, `/workspace-cd`). |
 | `save-compaction-log.ts` (disabled) | Optional Markdown copies of compaction summaries in `~/.pi/agent/compaction-logs/`; native summaries remain in session JSONL. |
 | `repo-memory-local.ts`          | Local-only repo memory: `recall_memory` / `remember` / `review_memory` tools + `/repo-memory-review` command. |
@@ -350,14 +351,18 @@ Timeline history is stored as custom entries in the current Pi session branch, n
 
 ### Provider remaining usage dashboard
 
-`codex-usage.ts` keeps Pi's built-in footer and adds a persistent widget below
-the editor that shows both providers at once, regardless of the selected
-model. Example rows:
+`codex-usage.ts` adds a persistent widget below the editor that shows both
+providers at once, regardless of the selected model. Both providers share one
+line, separated by ` │ `:
 
 ```text
-Codex 残り: 5h 82% ↻11/17 01:00 · 7d 64% ↻11/21 09:00
-Claude 残り: 5h 77% ↻11/17 03:00 · 7d 44% ↻11/23 06:00
+Codex 残り: 5h 82% ↻11/17 01:00 · 7d 64% ↻11/21 09:00 │ Claude 残り: 7d 44% ↻11/23 06:00
 ```
+
+- **Claude 5h is hidden in display only.** The 5h window is still collected;
+  Codex windows are always shown. If Claude has only a 5h window, it shows
+  `Claude 残り: 不明`.
+- **Narrow terminals wrap** the shared line instead of hiding either provider.
 
 - **Remaining, not used.** Codex and Claude percentages are the share of each
   window still available. Values are rounded only for display.
