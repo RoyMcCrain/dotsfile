@@ -47,7 +47,7 @@ link_shared_skills() {
 			link_managed "$effective_source" "$HOME/.codex/skills/$name"
 		fi
 	done <<<"$shared_skill_inventory_text"
-	for name in cursor fugu large-diff-review cursor-review crm-postmortem; do
+	for name in cursor fugu large-diff-review cursor-review crm-postmortem grok-review fugu-review muse-review; do
 		# Retired names should not remove foreign links or real user data.
 		for root in "$HOME/.agents/skills" "$HOME/.codex/skills"; do
 			[[ -L "$root/$name" && $(readlink "$root/$name") == "$BASE_DIR/skills/$name" ]] && rm -- "$root/$name"

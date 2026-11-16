@@ -146,7 +146,7 @@ EOF
 
 @test 'retired exact repository links are removed from both skill roots only' {
 	mkdir -p "$HOME_FIXTURE/.agents/skills" "$HOME_FIXTURE/.codex/skills" "$TEST_ROOT/foreign"
-	for name in cursor fugu large-diff-review cursor-review crm-postmortem; do
+	for name in cursor fugu large-diff-review cursor-review crm-postmortem grok-review fugu-review muse-review; do
 		[[ $name == large-diff-review ]] || ln -s "$(realpath "$REPO")/skills/$name" "$HOME_FIXTURE/.agents/skills/$name"
 		[[ $name == cursor-review ]] || ln -s "$(realpath "$REPO")/skills/$name" "$HOME_FIXTURE/.codex/skills/$name"
 	done
@@ -165,6 +165,12 @@ EOF
 	[ "$(readlink "$HOME_FIXTURE/.codex/skills/fugu")" = "$TEST_ROOT/foreign" ]
 	[ "$(cat "$HOME_FIXTURE/.agents/skills/large-diff-review/data")" = 'agent data' ]
 	[ "$(cat "$HOME_FIXTURE/.codex/skills/cursor-review/data")" = 'codex data' ]
+	for name in grok-review fugu-review muse-review; do
+		[ ! -e "$HOME_FIXTURE/.agents/skills/$name" ]
+		[ ! -L "$HOME_FIXTURE/.agents/skills/$name" ]
+		[ ! -e "$HOME_FIXTURE/.codex/skills/$name" ]
+		[ ! -L "$HOME_FIXTURE/.codex/skills/$name" ]
+	done
 }
 
 @test 'required shared skill inventory failure makes actual setup fail' {

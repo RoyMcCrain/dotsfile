@@ -22,7 +22,6 @@
   },
   "extensions": [
     "extensions/*.ts",
-    "-extensions/auto-fugu-model.ts",
     "-extensions/auto-continue-after-compact.ts",
     "-extensions/local-openai.ts",
     "-extensions/openrouter-balance.ts",

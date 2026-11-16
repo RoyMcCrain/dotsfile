@@ -91,7 +91,7 @@ reference **roles** defined in `pi/agent/model-roles.json`:
 ~/.pi/agent/resolve-model.sh impl.default                 # -> legacy Luna model; runner compares each provider's tightest valid remaining quota window
 ~/.pi/agent/resolve-model.sh --field cursor ROLE          # -> Cursor Agent model id (compatibility)
 ~/.pi/agent/resolve-model.sh --review-level 2              # -> Codex/Claude Pi reviewer TSV (L2)
-~/.pi/agent/resolve-model.sh --label review.grok
+~/.pi/agent/resolve-model.sh --label research.xai
 ~/.pi/agent/resolve-model.sh --apply                      # update model in an existing live Codex config
 ~/.pi/agent/resolve-model.sh --check                      # check model in an existing live Codex config
 ```
@@ -116,20 +116,21 @@ rm "$HOME/Library/LaunchAgents/com.roymc.jev-audit.weekly.plist"
 
 Saved review history and audit results are left untouched.
 
-Current roles include `review.codex`, `review.claude`, `review.grok`, `review.fugu`,
-`review.muse`, `review.deepseek`, `route.fugu.base`,
-`route.fugu.ultra`, `impl.default`, `research.xai`, `codex.default`.
+Current roles are `review.codex`, `review.claude`, `impl.default`, `impl.haiku`,
+`impl.luna`, `research.xai`, and `codex.default`. Claude and OpenAI handle review
+and implementation; Grok is reserved for research. Removed role/provider
+additions do not restrict Pi's built-in interactive model catalog or delete
+credentials. Removed skills/extensions require Pi `/reload` or
+restart to disappear from an existing session.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
 `reviewLevels` tier models, and role labels). Skills pick it up immediately because
 `run_pi_review.sh --role ROLE` resolves Pi models through the same catalog.
 Parallel-review tiers resolve with `--review-level N` as two `pi` backend rows
-(`backend<TAB>model<TAB>initial<TAB>retry`). L1 uses Codex Sol :xhigh + Opus :high;
+(`backend<TAB>model<TAB>initial<TAB>retry`). L1 uses Codex Sol :xhigh + Sonnet :high;
 L2 uses Astra :max + Opus :max. Catalog is the sole source of exact model IDs.
 Timeouts are L1 600/600s and L2 600/900s (initial/retry).
-Each reviewer retries once after failure or timeout. Other provider roles remain
-available for their independent explicitly selected skills; they are not used in
-parallel-review.
+Each reviewer retries once after failure or timeout.
 
 If `roles["codex.default"].id` changes, run
 `~/.pi/agent/resolve-model.sh --apply` and `~/.pi/agent/resolve-model.sh --check`
@@ -227,28 +228,6 @@ Tracked custom providers:
   dynamically loaded from `LM_STUDIO_BASE_URL` or `http://localhost:1234/v1`)
   — remove `-extensions/local-openai.ts` from settings and run `/reload` to use it.
 
-**Fugu (Sakana) — available for manual use.** The `sakana-ai-console` provider
-serves `fugu-max` (base, everyday) and `fugu-ultra-v2.0` (ultra, deep review).
-`review.fugu` → `fugu-ultra-v2.0:high` (timeout 240s). Fugu is not used by
-`parallel-review`; standalone/manual roles remain available through explicitly
-selected review skills. Automatic Fugu routing and escalation are disabled by
-default. Legacy pre-reactivation
-snapshot: `pi/agent/fugu.disabled.json.example` (obsolete IDs — do not merge).
-
-**Local caps** (deliberate Pi operational limits; Sakana's setup catalog lists
-`context_window` 1000000 for Max and Ultra v2, and Codex `codex/fugu.json`
-matches that 1M value):
-`contextWindow` 300000 and `maxTokens` 32768 (Max) / 8192 (Ultra v2) in
-`models.json`.
-
-After editing the catalog, Pi role changes take effect on resolution and do not
-require syncing settings. After removing the old managed scope from settings,
-restart Pi to clear it from the current session. To use Fugu manually, select
-`sakana-ai-console/fugu-max:high` or `fugu-ultra-v2.0:high` via `/model`. To use
-automatic `/auto-fugu` routing, first remove
-`-extensions/auto-fugu-model.ts` from `pi/agent/settings.json`, then run `/reload`
-or restart Pi to apply the settings change.
-
 Built-in subscription providers (via `/login`):
 
 - `anthropic/*` — Claude Pro/Max OAuth (built into Pi; no extra package)
@@ -263,72 +242,6 @@ Environment variables:
 export LM_STUDIO_BASE_URL="http://localhost:1234/v1"  # Optional
 export LM_STUDIO_API_KEY="..."           # Optional; dummy key is used if unset
 ```
-
-### Sakana API key
-
-Pi resolves `sakana-ai-console` credentials from `~/.pi/agent/auth.json`
-(no API key in tracked `models.json`). If `auth.json` is missing, copy the
-example once:
-
-```bash
-cp pi/agent/auth.json.example ~/.pi/agent/auth.json
-chmod 600 ~/.pi/agent/auth.json
-```
-
-Do **not** overwrite an existing `auth.json`. The example expects a generic
-password item named `fugu-api-key`:
-
-```bash
-security find-generic-password -w -s fugu-api-key >/dev/null
-```
-
-If you do not want to use Keychain, edit `~/.pi/agent/auth.json` and store a
-literal API key or an environment reference such as `$SAKANA_API_KEY`.
-
-### OpenCode Go API key
-
-Pi ships a built-in `opencode-go` provider (distinct from OpenCode Zen /
-`opencode`). No custom provider, endpoints, or model catalog are tracked here.
-Users who want to include its models in interactive cycling can configure that
-scope themselves with Pi's `/scoped-models` command.
-
-1. Unlock Bitwarden if needed, then sync the Keychain item (fish uses the default
-   env var derived from the item name):
-
-   ```bash
-   bw-unlock   # if BW_SESSION is unset
-   sync-key open-code-go-api-key
-   ```
-
-2. Add or merge the `opencode-go` command entry into `~/.pi/agent/auth.json`
-   without overwriting other credentials (copy from `pi/agent/auth.json.example`
-   if helpful):
-
-   ```json
-   "opencode-go": {
-     "type": "api_key",
-     "key": "!security find-generic-password -w -s open-code-go-api-key"
-   }
-   ```
-
-   Avoid the shared `OPENCODE_API_KEY` environment variable here; both Go and
-   Zen use it. The provider-scoped entry keeps this key limited to Go.
-
-3. Restrict permissions and restart Pi:
-
-   ```bash
-   chmod 600 ~/.pi/agent/auth.json
-   ```
-
-4. Verify readiness:
-
-   ```bash
-   pi auth check --provider opencode-go --json
-   pi --list-models opencode-go
-   ```
-
-   In an interactive session, `/model` and search for `opencode-go` to pick a
-   model.
 
 ### Claude Pro/Max (`anthropic`)
 
@@ -366,9 +279,9 @@ uses the Claude subscription through Claude Code CLI and the installed, pinned
 `pi-claude-code` package; only that provider package is explicitly allowlisted when
 Haiku is selected, while other extension discovery remains disabled. The child
 forces usage-credit opt-in off, but this is not a guarantee against a charge on the
-initial request. Existing `impl.haiku` pins now use the Claude subscription instead
-of `opencode-go`, so Claude Code must be installed and logged in. The provider ref
-is pinned in `pi/agent/settings.json` under `packages`; `pi update --extensions`
+initial request. `impl.haiku` uses the Claude subscription, so Claude Code must
+be installed and logged in. The provider ref is pinned in
+`pi/agent/settings.json` under `packages`; `pi update --extensions`
 restores that configured ref rather than switching to unpinned HEAD.
 
 ```bash
@@ -377,7 +290,7 @@ pi auth check --provider openai-codex --json
 bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" --prompt /tmp/impl-prompt.md --cwd "$PWD"
 ```
 
-- Runner `impl.default` compares each provider's smallest valid remaining window: Claude OAuth five-hour / seven-day and Codex CLI primary / secondary (Codex is a reference, not Luna's per-app quota). If one side is unknown it chooses a known positive side and avoids a known zero; both known zero stops before dispatch. Ties and both-unknown alternate Haiku/Luna per runs root using SQLite; priority choices do not advance fallback state. Direct resolver `impl.default` remains the legacy Luna model. Explicit `impl.haiku`, `impl.luna`, and `impl.deepseek` roles pin one model and bypass usage queries. Quota snapshots and credentials are not persisted; the Claude provider remains explicitly allowlisted and usage-credit opt-in stays disabled.
+- Runner `impl.default` compares each provider's smallest valid remaining window: Claude OAuth five-hour / seven-day and Codex CLI primary / secondary (Codex is a reference, not Luna's per-app quota). If one side is unknown it chooses a known positive side and avoids a known zero; both known zero stops before dispatch. Ties and both-unknown alternate Haiku/Luna per runs root using SQLite; priority choices do not advance fallback state. Direct resolver `impl.default` remains the legacy Luna model. Explicit `impl.haiku` and `impl.luna` roles pin one model and bypass usage queries. Quota snapshots and credentials are not persisted; the Claude provider remains explicitly allowlisted and usage-credit opt-in stays disabled.
 - Change candidate models through `impl.haiku.pi` / `impl.luna.pi` in `model-roles.json` (not skills/runners). `impl.default.pi` is only for direct resolver compatibility. Install/update the pinned provider package with `pi update --extensions` if the selected provider reports it missing.
 - Run metrics persist under `~/.local/share/impl/runs` (or `IMPL_RUNS_DIR` / `run_impl.sh --runs-dir`); offline report:
 
@@ -402,10 +315,10 @@ Isolation is **not** a filesystem sandbox; scope work via the prompt.
 Configured by `settings.json` via `extensions/*.ts` and npm packages. The
 monorepo guidance loader injects directory rules on first relevant file access,
 while full explicit reads and already-loaded canonical aliases are deduplicated.
-Five unused extensions are excluded by default: Fugu automatic routing,
-after-compaction continuation, LM Studio discovery, OpenRouter balance
-polling, and Markdown compaction-log duplication. Their sources remain available
-for opt-in. To reenable one, remove its matching
+Four unused extensions are excluded by default: after-compaction continuation,
+LM Studio discovery, OpenRouter balance polling, and Markdown compaction-log
+duplication. Their sources remain available for opt-in. To reenable one, remove
+its matching
 `-extensions/<filename>` entry from `pi/agent/settings.json` and run
 `/reload` or restart Pi to apply the settings change.
 
@@ -415,7 +328,6 @@ for opt-in. To reenable one, remove its matching
 | `codex-usage.ts`                | Show ChatGPT Codex plan usage and reset time in Pi's footer. Refresh with `/codex-usage`. |
 | `timeline.ts`                   | Track local task progress and automatic tool activity with `timeline_tasks` / `/timeline`. |
 | `openrouter-balance.ts` (disabled) | Show OpenRouter prepaid balance in Pi's status bar. Refresh with `/openrouter-balance`. |
-| `auto-fugu-model.ts` (disabled) | Route everyday work on `fugu-max`; auto-escalate to `fugu-ultra-v2.0` when on the Fugu pair. Toggle with `/auto-fugu on\|off\|status`. |
 | `auto-continue-after-compact.ts` (disabled) | Automatically continue after compaction. |
 | `cmux-session-name.ts`          | Sync unnamed Pi session names from the caller cmux workspace `custom_title` for `/resume` search. |
 | `workspace-cd.ts`               | Fork/switch Pi session cwd after jj workspace setup (`switch_workspace_cwd` tool, `/workspace-cd`). |
@@ -499,18 +411,6 @@ Usage refreshes at session start and after each settled agent run. Run
 clear stale status; manual refresh shows a short Japanese message on failure.
 Print, JSON, and RPC modes do not call the API. TUI without UI (`hasUI: false`)
 also skips the API.
-
-### Fugu model routing
-
-When explicitly reenabled, `auto-fugu-model.ts` keeps `fugu-max` as the everyday
-model and promotes to `fugu-ultra-v2.0` only when preflight rules or in-run
-struggle signals warrant it. Routing operates **only when already on the Fugu
-pair** — it does not switch from Codex/GPT or other providers. PR creation stays
-on base (Max). Remove `-extensions/auto-fugu-model.ts` from settings and run
-`/reload` or restart Pi before using `/auto-fugu`. Manual `/model` selection
-disables automatic routing until `/auto-fugu on` or a new session (full Pi
-restart also clears the override). Role IDs:
-`route.fugu.base` → `fugu-max`, `route.fugu.ultra` → `fugu-ultra-v2.0`.
 
 ### cmux session names
 
@@ -654,9 +554,7 @@ exposure is controlled by which runtime directory links the skill.
 | `review-report` | 「レビューレポート作って」 |
 | `implementation-report` | 「実装レポート作って」 |
 | `review-verify` | 「裏取りして」 / verification パケット |
-| `codex-review` / `claude-review` / `grok-review` | 単体 reviewer を明示指定時 |
-| `fugu-review` | Fugu 単体 reviewer を明示指定時 |
-| `muse-review` | Muse 単体 reviewer を明示指定時（`/skill:muse-review`）。Contributor は prompts/completions を学習利用（非 ZDR）。parallel には含めない。単体 skill は明示時のみ（timeout 120s、`attempts=1`）。role `review.muse`、`run_pi_review.sh` 再利用 |
+| `codex-review` / `claude-review` | 単体 reviewer を明示指定時 |
 | `hunk-review` | Hunk バンドル（devbox 同梱） |
 
 **Implementation & PR**:
