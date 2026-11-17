@@ -1,6 +1,6 @@
 {
   "defaultProvider": "openai",
-  "defaultModel": "gpt-6.1-sol",
+  "defaultModel": "gpt-6.2-sol",
   "defaultThinkingLevel": "xhigh",
   "theme": "dark",
   "shellPath": "~/.local/share/devbox/global/default/.devbox/nix/profile/default/bin/bash",
