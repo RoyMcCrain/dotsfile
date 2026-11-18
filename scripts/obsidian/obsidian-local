@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v obsidian >/dev/null 2>&1; then
+	printf '%s\n' 'obsidian-local: enable/register Obsidian CLI in Settings → General → Command line interface.' >&2
+	exit 127
+fi
+
+if [[ -n ${OBSIDIAN_CLI_VAULT:-} && $# -gt 0 && $1 != vault=* ]]; then
+	exec obsidian "vault=$OBSIDIAN_CLI_VAULT" "$@"
+fi
+exec obsidian "$@"

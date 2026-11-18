@@ -5,8 +5,9 @@ setup() {
 	REPO="$TEST_ROOT/repo"
 	HOME_FIXTURE="$TEST_ROOT/home"
 	BIN="$TEST_ROOT/bin"
-	mkdir -p "$REPO/scripts/build_env" "$REPO/scripts" "$REPO/skills" "$REPO/codex/skills" "$REPO/devbox/runtime-packages" "$REPO/codex" "$REPO/pi/agent" "$HOME_FIXTURE" "$BIN"
+	mkdir -p "$REPO/scripts/build_env" "$REPO/scripts/obsidian" "$REPO/scripts" "$REPO/skills" "$REPO/codex/skills" "$REPO/devbox/runtime-packages" "$REPO/codex" "$REPO/pi/agent" "$HOME_FIXTURE" "$BIN"
 	cp "$BATS_TEST_DIRNAME/../build_env/setup.sh" "$REPO/scripts/build_env/"
+	cp "$BATS_TEST_DIRNAME/../obsidian/obsidian-local" "$REPO/scripts/obsidian/"
 	cp "$BATS_TEST_DIRNAME/../build_env/setup_codex_config.sh" "$REPO/scripts/build_env/"
 	cp "$BATS_TEST_DIRNAME/../build_env/list_shared_agent_skills.sh" "$REPO/scripts/build_env/"
 	cat >"$REPO/pi/agent/resolve-model.sh" <<'EOF'
@@ -71,6 +72,8 @@ run_setup() { env -i HOME="$HOME_FIXTURE" PATH="$PATH" bash "$REPO/scripts/build
 	printf 'ordinary user data\n' >"$HOME_FIXTURE/.codex/skills/sample/data"
 	run_setup
 	[ "$(readlink "$HOME_FIXTURE/.agents/skills/codex-review")" = "$(realpath "$REPO")/codex/skills/codex-review" ]
+	[ "$(readlink "$HOME_FIXTURE/.local/bin/obsidian-local")" = "$(realpath "$REPO")/scripts/obsidian/obsidian-local" ]
+	[ -x "$HOME_FIXTURE/.local/bin/obsidian-local" ]
 	[ "$(readlink "$HOME_FIXTURE/.agents/skills/mcp-delegate")" = "$(realpath "$REPO")/codex/skills/mcp-delegate" ]
 	[ "$(readlink "$HOME_FIXTURE/.codex/skills/mcp-delegate")" = "$(realpath "$REPO")/codex/skills/mcp-delegate" ]
 	[ "$(readlink "$HOME_FIXTURE/.codex/skills/context-loader")" = "$(realpath "$REPO")/codex/skills/context-loader" ]
