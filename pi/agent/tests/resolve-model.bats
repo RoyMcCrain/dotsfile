@@ -838,7 +838,7 @@ EOF
 		[ "$status" -ne 0 ]
 		[[ "$output" == *"unknown model role"* ]]
 	done
-	jq -e '(.providers | keys | sort) == ["openai"] and (.providers.openai.modelOverrides | keys | sort) == ["gpt-6-astra", "gpt-6.1-sol"]' "$BATS_TEST_DIRNAME/../models.json" >/dev/null
+	jq -e '(.providers | keys | sort) == ["openai"] and (.providers.openai.modelOverrides | keys | sort) == ["gpt-6-astra", "gpt-6.1-sol", "gpt-6.2-astra", "gpt-6.2-sol"]' "$BATS_TEST_DIRNAME/../models.json" >/dev/null
 	for role in review.codex impl.default impl.haiku impl.luna review.claude research.xai; do
 		run "$RESOLVER" "$role"
 		[ "$status" -eq 0 ]
@@ -907,8 +907,8 @@ EOF
 				[ "${lines[1]}" = "$(printf 'pi\tclaude-code/claude-sonnet-5-5:high\t600\t600')" ]
 				;;
 			2)
-				[ "$codex" = "openai/gpt-6-astra:max" ] && [ "$claude" = "claude-code/claude-opus-5-5:max" ]
-				[ "${lines[0]}" = "$(printf 'pi\topenai/gpt-6-astra:max\t600\t900')" ]
+				[ "$codex" = "openai/gpt-6.2-astra:max" ] && [ "$claude" = "claude-code/claude-opus-5-5:max" ]
+				[ "${lines[0]}" = "$(printf 'pi\topenai/gpt-6.2-astra:max\t600\t900')" ]
 				[ "${lines[1]}" = "$(printf 'pi\tclaude-code/claude-opus-5-5:max\t600\t900')" ]
 				;;
 			esac
@@ -966,6 +966,6 @@ EOF
 	run env MODEL_ROLES_FILE="$real_catalog" "$RESOLVER" codex.default
 	[ "$status" -eq 0 ]
 	[ "$output" = "$codex_id" ]
-	jq -e --arg id "$codex_id" --arg sol "gpt-6.1-sol" '(.providers.openai.modelOverrides[$id].contextWindow == 500000) and (.providers.openai.modelOverrides[$sol].contextWindow == 500000) and ((.providers.openai.modelOverrides | keys | sort) == ([$id, $sol] | sort))' "$real_models" >/dev/null
+	jq -e --arg id "$codex_id" --arg sol "gpt-6.1-sol" '(.providers.openai.modelOverrides[$id].contextWindow == 500000) and (.providers.openai.modelOverrides[$sol].contextWindow == 500000)' "$real_models" >/dev/null
 	jq -e '[.. | strings | select(startswith("openai-codex/"))] | length == 0' "$real_catalog" >/dev/null
 }
