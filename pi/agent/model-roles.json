@@ -45,7 +45,7 @@
     ],
     "2": [
       {
-        "pi": "openai/gpt-6-astra:max"
+        "pi": "openai/gpt-6.2-astra:max"
       },
       {
         "pi": "claude-code/claude-opus-5-5:max"
