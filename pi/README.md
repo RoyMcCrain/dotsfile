@@ -117,8 +117,9 @@ rm "$HOME/Library/LaunchAgents/com.roymc.jev-audit.weekly.plist"
 Saved review history and audit results are left untouched.
 
 Current roles are `review.codex`, `review.claude`, `impl.default`, `impl.haiku`,
-`impl.luna`, `research.xai`, and `codex.default`. Claude and OpenAI handle review
-and implementation; Grok is reserved for research. Removed role/provider
+`impl.luna`, `research.xai`, `codex.default`, and the opt-in OSS roles
+`oss.design`, `oss.impl`, and `oss.review`. Claude and OpenAI handle normal
+review and implementation; Grok is reserved for research. Removed role/provider
 additions do not restrict Pi's built-in interactive model catalog or delete
 credentials. Removed skills/extensions require Pi `/reload` or
 restart to disappear from an existing session.
@@ -309,6 +310,29 @@ bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/impl
 - Deprecated alias skill: `cursor-impl` (`/skill:cursor-impl`) — follow `impl` canonical docs
 
 Isolation is **not** a filesystem sandbox; scope work via the prompt.
+
+### OSS development (explicit Meta opt-in)
+
+`oss-dev` is installed by the dotfiles setup; without the symlink, use
+`scripts/oss-dev.sh` from the dotfiles checkout. The mode is selected per command
+and does not replace `impl.default` or Codex + Claude `parallel-review`.
+
+```bash
+oss-dev design --share-with-meta
+oss-dev impl --share-with-meta --cwd "$PWD" --prompt TASK.md --files FILES.txt
+oss-dev review --share-with-meta --patch REVIEW.patch
+```
+
+- **Design** starts a fresh interactive Muse Wonder session without repository context or tools.
+- **Implementation** pins Muse Spark 1.3 Contributor. `FILES.txt` lists reviewed regular text files, one path relative to the worktree per line. Only those files are available to file tools. For a new file, pre-create it empty and list it. Run shell commands, lint, and tests outside this mode.
+- **Review** sends only the selected Git patch to a fresh, no-tools Muse Spark 1.3 Contributor single reviewer. It does not pick up your working diff, task prompt, or session. There is no provider fallback.
+
+`--share-with-meta` acknowledges that submitted inputs and outputs may be used
+for training; it does not guarantee any retention policy. Inspect the prompt,
+patch, and approved files (including unpublished changes), and only use material
+you have the right to share. Exclude confidential and personal data and avoid
+concurrent edits to approved files during the run. The local marker checks are
+not a complete secret scanner or an OS sandbox.
 
 ## Extensions
 

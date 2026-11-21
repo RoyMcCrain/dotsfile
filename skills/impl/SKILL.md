@@ -36,7 +36,7 @@ bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" \
 ```
 
 - **実行メトリクス**はリポジトリ外に自動永続化（既定 `~/.local/share/impl/runs` または `IMPL_RUNS_DIR` / `--runs-dir`）。生プロンプト・assistant 全文・ツール引数は保存しない（`references/history-format.md`）
-- 比較・固定指定: `--role impl.haiku` / `--role impl.luna`。その他の具体的な catalog role も指定できる（`.pi` 必須、Cursor 専用 role は不可）。固定指定では usage 照会も fallback turn 消費も行わない。省略時と明示 `--role impl.default` は同一の利用可能量優先ポリシー
+- 比較・固定指定: `--role impl.haiku` / `--role impl.luna`。その他の具体的な catalog role も指定できる（`.pi` 必須、Cursor 専用 role は不可）。固定指定では usage 照会も fallback turn 消費も行わない。省略時と明示 `--role impl.default` は同一の利用可能量優先ポリシー。`oss.*` と Meta Contributor モデルは通常の固定指定の対象外。OSS 実装は `oss-dev impl --share-with-meta` の入力検査付き経路を使う
 - オフライン比較レポート（`--runs-dir` 省略時は `IMPL_RUNS_DIR` または XDG/HOME 既定）:
 
 ```bash

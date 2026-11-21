@@ -20,7 +20,8 @@ invocation_pwd=''
 cleanup_temp_config() {
 	[[ -n "$temp_config_dir" && -d "$temp_config_dir" ]] || return 0
 	local dir=$temp_config_dir
-	if ! rm -f -- "$dir/settings.json" "$dir/auth.json" "$dir/models.json" "$dir/models-store.json"; then
+	if ! rm -f -- "$dir/settings.json" "$dir/auth.json" "$dir/models.json" "$dir/models-store.json" \
+		"$dir/files.txt" "$dir/task.md" "$dir/approval-lines" "$dir/approved.json"; then
 		printf '%s\n' "run_impl.sh: warning: could not remove owned temp config files: $dir" >&2
 	fi
 	if rmdir "$dir" 2>/dev/null; then
@@ -33,6 +34,7 @@ cleanup_temp_config() {
 usage() {
 	cat >&2 <<'EOF'
 Usage: run_impl.sh --prompt PATH [--cwd PATH] [--role ROLE] [--runs-dir PATH]
+       run_impl.sh --role oss.impl --share-with-meta --cwd WORKTREE --prompt PATH --files FILES
 
 Runs an isolated Pi headless implementation. Default role is impl.default.
 Implementation metrics are persisted under the runs directory (see IMPL_RUNS_DIR).
@@ -61,6 +63,42 @@ require_readable_nonempty_file() {
 	if [[ ! -f "$path" || ! -r "$path" || ! -s "$path" ]]; then
 		die "$label is missing, unreadable, or empty: $path"
 	fi
+}
+
+prepare_oss_inputs() {
+	local prompt=$1 manifest=$2 cwd=$3 rel segment lower_segment canonical local_path result
+	cp -- "$manifest" "$temp_config_dir/files.txt"
+	cp -- "$prompt" "$temp_config_dir/task.md"
+	chmod 600 "$temp_config_dir/files.txt" "$temp_config_dir/task.md"
+	[[ -s "$temp_config_dir/task.md" ]] || die "prompt is empty"
+	oss_check_content "$temp_config_dir/files.txt"
+	oss_check_content "$temp_config_dir/task.md"
+	: >"$temp_config_dir/approval-lines"
+	while IFS= read -r rel || [[ -n "$rel" ]]; do
+		[[ -n "$rel" && "$rel" =~ ^[A-Za-z0-9._/-]+$ && "$rel" != /* ]] || die "invalid approved manifest path"
+		case "/$rel/" in */../* | */./*) die "invalid approved manifest path" ;; esac
+		IFS=/ read -ra segments <<<"$rel"
+		for segment in "${segments[@]}"; do
+			lower_segment=$(printf '%s' "$segment" | tr '[:upper:]' '[:lower:]')
+			case "$lower_segment" in .git | .jj | .pi | node_modules | .env* | auth* | credential* | secret* | key*) die "restricted path in approved manifest" ;; esac
+		done
+		review_is_secret_path "$rel" && die "restricted path in approved manifest"
+		local_path="$cwd/$rel"
+		[[ -f "$local_path" && ! -L "$local_path" ]] || die "approved paths must be regular non-link files"
+		canonical=$(realpath "$local_path")
+		[[ "$canonical" == "$cwd"/* && "$canonical" == "$local_path" ]] || die "symlinked or escaping approved path rejected"
+		set +e
+		rg --no-config -F -x -q -- "$canonical" "$temp_config_dir/approval-lines" >/dev/null 2>&1
+		result=$?
+		set -e
+		case "$result" in 0) die "duplicate approved path" ;; 1) ;; *) die "manifest validation failed closed" ;; esac
+		oss_check_content "$canonical"
+		printf '%s\n' "$canonical" >>"$temp_config_dir/approval-lines"
+	done <"$temp_config_dir/files.txt"
+	[[ -s "$temp_config_dir/approval-lines" ]] || die "empty approved file manifest"
+	jq -Rn '[inputs]' <"$temp_config_dir/approval-lines" >"$temp_config_dir/approved.json"
+	chmod 600 "$temp_config_dir/approved.json"
+	oss_warn_share
 }
 
 require_bun() {
@@ -133,11 +171,12 @@ resolve_impl_bin() {
 }
 
 make_isolated_config() {
-	local source=$1 target=$2 name original
+	local source=$1 target=$2 role=$3 name original
 	cat >"$target/settings.json" <<'EOF'
 {"defaultProjectTrust":"never","enableInstallTelemetry":false}
 EOF
 	for name in auth.json models.json; do
+		[[ "$role" != oss.impl || "$name" != models.json ]] || continue
 		original="$source/$name"
 		if [[ -f "$original" ]]; then
 			ln -s "$original" "$target/$name"
@@ -147,7 +186,9 @@ EOF
 
 main() {
 	local role=impl.default prompt='' cwd='' prompt_path resolved_model='' source_config impl_bin status=0 usage_snapshot
+	local share_with_meta=false files_input=''
 	local haiku_model='' luna_model='' selected_role claude_code_extension=''
+	local oss_extension=''
 	local -a pi_command
 	local cwd_explicit=false runs_dir='' runs_dir_resolved='' runs_dir_explicit=false
 
@@ -172,6 +213,14 @@ main() {
 			role=$1
 			[[ -n "$role" ]] || die "invalid empty role"
 			;;
+		--share-with-meta)
+			share_with_meta=true
+			;;
+		--files)
+			shift
+			[[ $# -gt 0 && -z "$files_input" && -n "$1" ]] || usage
+			files_input=$1
+			;;
 		--runs-dir)
 			shift
 			[[ $# -gt 0 ]] || usage
@@ -184,6 +233,13 @@ main() {
 		shift
 	done
 
+	if [[ "$role" == oss.* ]]; then
+		[[ "$role" == oss.impl ]] || die "unsupported reserved OSS role: $role"
+		[[ "$share_with_meta" == true ]] || die "OSS implementation requires explicit --share-with-meta"
+		[[ "$cwd_explicit" == true && -n "$files_input" ]] || die "OSS implementation requires explicit --cwd and --files"
+	else
+		[[ "$share_with_meta" == false && -z "$files_input" ]] || die "OSS-only flags require --role oss.impl"
+	fi
 	require_bun
 
 	[[ -n "$prompt" ]] || die "missing required argument: --prompt"
@@ -203,6 +259,8 @@ main() {
 	cwd=$(expand_home "$cwd")
 	[[ -d "$cwd" ]] || die "working directory not found: $cwd"
 	cwd=$(cd "$cwd" && pwd -P)
+	[[ "$role" != oss.impl || "$cwd" != / ]] || die "filesystem root is not an allowed worktree"
+	if [[ "$role" == oss.impl && "$cwd" == *[[:cntrl:]]* ]]; then die "OSS working directory contains control characters"; fi
 
 	if [[ "$runs_dir_explicit" == true ]]; then
 		runs_dir=$(expand_home "$runs_dir")
@@ -224,7 +282,26 @@ main() {
 	source_config=$(cd "$source_config" && pwd -P)
 	[[ -f "$SYSTEM_PROMPT" ]] || die "bundled system prompt not found: $SYSTEM_PROMPT"
 
-	if [[ "$role" == impl.default ]]; then
+	if [[ "$role" == oss.impl ]]; then
+		# shellcheck disable=SC1091
+		source "$SCRIPT_DIR/../../parallel-review/scripts/review_common.sh"
+		# shellcheck disable=SC1091
+		source "$SCRIPT_DIR/../../../scripts/oss-inputs.sh"
+		local files_absolute
+		prompt_path=$(review_require_file "$prompt_path")
+		files_absolute=$(abs_path "$invocation_pwd" "$files_input")
+		[[ -f "$files_absolute" && -r "$files_absolute" && ! -L "$files_absolute" ]] || die "approved manifest must be a readable regular file"
+		temp_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/pi-impl-config-XXXXXX")
+		temp_config_dir=$(cd "$temp_config_dir" && pwd -P)
+		chmod 700 "$temp_config_dir"
+		trap cleanup_temp_config EXIT
+		prepare_oss_inputs "$prompt_path" "$files_absolute" "$cwd"
+		prompt_path="$temp_config_dir/task.md"
+		oss_extension=$(realpath "$SCRIPT_DIR/../../../pi/agent/oss-dev/approved-files.ts")
+		[[ -f "$oss_extension" ]] || die "OSS approval extension not found"
+		resolved_model=$(resolve_role_pi "$role")
+		[[ "$resolved_model" =~ ^meta/[A-Za-z0-9._-]+-contributor(:(off|minimal|low|medium|high|xhigh|max))?$ ]] || die "OSS implementation role must resolve to a fixed Meta Contributor model"
+	elif [[ "$role" == impl.default ]]; then
 		haiku_model=$(resolve_role_pi impl.haiku)
 		luna_model=$(resolve_role_pi impl.luna)
 	else
@@ -246,26 +323,40 @@ main() {
 		*) die "role selector returned invalid role" ;;
 		esac
 	fi
+	if [[ "$role" != oss.impl && "${resolved_model%%:*}" == meta/*-contributor ]]; then
+		die "Meta Contributor models are reserved for role oss.impl"
+	fi
 	if [[ "$resolved_model" == claude-code/* ]]; then
 		claude_code_extension=$(abs_path "$invocation_pwd" "${PI_CLAUDE_CODE_EXTENSION:-$source_config/git/github.com/earendil-works/pi-claude-code}")
 		[[ -d "$claude_code_extension" ]] || die "pi-claude-code extension not found: $claude_code_extension (run: pi update --extensions)"
 	fi
 
-	temp_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/pi-impl-config-XXXXXX")
-	trap cleanup_temp_config EXIT
-	temp_config_dir=$(cd "$temp_config_dir" && pwd -P)
-	make_isolated_config "$source_config" "$temp_config_dir"
+	if [[ -z "$temp_config_dir" ]]; then
+		temp_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/pi-impl-config-XXXXXX")
+		temp_config_dir=$(cd "$temp_config_dir" && pwd -P)
+		trap cleanup_temp_config EXIT
+	fi
+	make_isolated_config "$source_config" "$temp_config_dir" "$role"
 
 	cd "$cwd" || die "working directory not found: $cwd"
 	export PI_CODING_AGENT_DIR="$temp_config_dir" PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
 
 	pi_command=("$impl_bin" -p --mode json --model "$resolved_model" --system-prompt "$SYSTEM_PROMPT"
 		--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp --no-approve)
+	if [[ "$role" == oss.impl ]]; then
+		PI_OSS_APPROVED_FILES="$temp_config_dir/approved.json"
+		export PI_OSS_APPROVED_FILES
+		pi_command+=(--no-builtin-tools -e "$oss_extension")
+	fi
 	if [[ "$resolved_model" == claude-code/* ]]; then
 		pi_command+=(-e "$claude_code_extension")
 		export PI_CLAUDE_CODE_ALLOW_USAGE_CREDITS=0
 	fi
-	pi_command+=(--tools 'read,bash,edit,write' "@$prompt_path" 'Implement the supplied task directly.')
+	if [[ "$role" == oss.impl ]]; then
+		pi_command+=("@$prompt_path" 'Implement only approved files; do not use tools beyond approved file access.')
+	else
+		pi_command+=(--tools 'read,bash,edit,write' "@$prompt_path" 'Implement the supplied task directly.')
+	fi
 
 	set +e
 	bun --config=/dev/null --no-env-file --no-install run "$EVENTS_HELPER" \
