@@ -1,5 +1,5 @@
 {
-  "description": "Single source of truth for model IDs. parallel-review selects offline review tiers (1..2; unspecified/auto means L1), each with exactly two Pi reviewers in Codex then Claude order. Tier attempt budgets live in reviewTimeouts. Claude and OpenAI handle normal review and implementation; Grok is reserved for research. The `oss.*` roles are separate, explicitly opted-in Meta routes and are not used by normal workflows. Roles name one model per consumer: .pi for Pi headless, .agy for Antigravity CLI (resolve with --field agy), .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
+  "description": "Single source of truth for model IDs. parallel-review selects offline review tiers (1..2; unspecified/auto means L1), each with exactly two Pi reviewers in Codex then Claude order. Tier attempt budgets live in reviewTimeouts. Claude and OpenAI handle normal review and implementation; Grok is reserved for research. The `impl.muse` role is a separate Meta Contributor route for the impl skill: the runner selects it automatically only when --role is omitted during an active Meta Muse Wonder/Spark Pi model (external sharing still needs explicit approval), and it is never a fallback. Roles name one model per consumer: .pi for Pi headless, .agy for Antigravity CLI (resolve with --field agy), .cursor for Cursor Agent CLI (resolve with --field cursor), .id for other tools such as Codex.",
   "roles": {
     "review.codex": {
       "pi": "openai/gpt-6-astra:high",
@@ -21,21 +21,13 @@
       "pi": "openai/gpt-6-luna:high",
       "label": "GPT-6 Luna High"
     },
+    "impl.muse": {
+      "pi": "meta/muse-spark-1.3-contributor:high",
+      "label": "Muse Spark 1.3 Contributor High (Meta OSS, explicit opt-in)"
+    },
     "research.xai": {
       "pi": "xai/grok-4.7",
       "label": "Grok 4.7 (X Search research)"
-    },
-    "oss.design": {
-      "pi": "meta/muse-wonder-1.0:high",
-      "label": "Muse Wonder OSS design (explicit opt-in)"
-    },
-    "oss.impl": {
-      "pi": "meta/muse-spark-1.3-contributor:high",
-      "label": "Muse Spark Contributor OSS implementation (explicit opt-in)"
-    },
-    "oss.review": {
-      "pi": "meta/muse-spark-1.3-contributor:high",
-      "label": "Muse Spark Contributor OSS patch review (explicit opt-in)"
     },
     "codex.default": {
       "id": "gpt-6-astra",

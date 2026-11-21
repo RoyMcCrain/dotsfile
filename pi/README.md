@@ -117,12 +117,12 @@ rm "$HOME/Library/LaunchAgents/com.roymc.jev-audit.weekly.plist"
 Saved review history and audit results are left untouched.
 
 Current roles are `review.codex`, `review.claude`, `impl.default`, `impl.haiku`,
-`impl.luna`, `research.xai`, `codex.default`, and the opt-in OSS roles
-`oss.design`, `oss.impl`, and `oss.review`. Claude and OpenAI handle normal
-review and implementation; Grok is reserved for research. Removed role/provider
-additions do not restrict Pi's built-in interactive model catalog or delete
-credentials. Removed skills/extensions require Pi `/reload` or
-restart to disappear from an existing session.
+`impl.luna`, `impl.muse`, `research.xai`, and `codex.default`. Claude and OpenAI
+handle default implementation and review; Grok is reserved for research.
+`impl.muse` uses Meta Muse Spark 1.3 Contributor with explicit sharing approval.
+These roles do not restrict Pi's built-in interactive model catalog or delete
+credentials. Removed skills/extensions require Pi `/reload` or restart to
+disappear from an existing session.
 
 To move to a new model version, update `model-roles.json` (role model IDs,
 `reviewLevels` tier models, and role labels). Skills pick it up immediately because
@@ -311,28 +311,42 @@ bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/impl
 
 Isolation is **not** a filesystem sandbox; scope work via the prompt.
 
-### OSS development (explicit Meta opt-in)
+### Explicit Meta Muse model selection (opt-in)
 
-`oss-dev` is installed by the dotfiles setup; without the symlink, use
-`scripts/oss-dev.sh` from the dotfiles checkout. The mode is selected per command
-and does not replace `impl.default` or Codex + Claude `parallel-review`.
+The Meta Muse Spark 1.3 Contributor model is a normal Pi model. Pick it
+deliberately in a **new, OSS-appropriate session**; do not select it in an
+existing session, because prior history, context, and tool results may be sent.
+
+- In Pi, run `/model` and search for `contributor` (or `muse-spark-1.3-contributor`), then select it.
+- Authenticate with `/login` if Pi offers Meta, or set `META_API_KEY` as described in the installed Pi providers documentation.
+- Meta may use submitted content for training. Share only material you have the right to share and have approved.
+
+The standard impl skill can also run it as a fixed role, with explicit file-scoped
+approval and no fallback. Use the normal runner:
 
 ```bash
-oss-dev design --share-with-meta
-oss-dev impl --share-with-meta --cwd "$PWD" --prompt TASK.md --files FILES.txt
-oss-dev review --share-with-meta --patch REVIEW.patch
+"$HOME/.agents/skills/impl/scripts/run_impl.sh" --role impl.muse --share-with-meta \
+  --cwd "$PWD" --prompt TASK.md --files FILES.txt
 ```
 
-- **Design** starts a fresh interactive Muse Wonder session without repository context or tools.
-- **Implementation** pins Muse Spark 1.3 Contributor. `FILES.txt` lists reviewed regular text files, one path relative to the worktree per line. Only those files are available to file tools. For a new file, pre-create it empty and list it. Run shell commands, lint, and tests outside this mode.
-- **Review** sends only the selected Git patch to a fresh, no-tools Muse Spark 1.3 Contributor single reviewer. It does not pick up your working diff, task prompt, or session. There is no provider fallback.
+Role selection is automatic for model choice only. When `--role` is omitted and
+the active Pi model is Meta Muse Wonder or Muse Spark (read from the `PI_PROVIDER`
+and `PI_MODEL` variables that Pi injects into model-callable Bash), the runner uses
+`impl.muse`. Other models keep `impl.default`, and an explicit `--role` always wins.
+This does not share anything: `--share-with-meta`, `--cwd`, and `--files` are still
+required, and missing approval stops before Pi or any quota lookup. Do not treat
+the automatic choice as consent to send content to Meta.
+
+`FILES.txt` lists approved regular text files, one worktree-relative path per
+line. To add a file, create it empty first and list it. The child can read, edit,
+and write only listed files. Run shell commands, lint, and tests outside the
+child. `impl.muse` is never used as a fallback or for review.
 
 `--share-with-meta` acknowledges that submitted inputs and outputs may be used
-for training; it does not guarantee any retention policy. Inspect the prompt,
-patch, and approved files (including unpublished changes), and only use material
-you have the right to share. Exclude confidential and personal data and avoid
-concurrent edits to approved files during the run. The local marker checks are
-not a complete secret scanner or an OS sandbox.
+for training; it does not guarantee any retention policy. Inspect the prompt and
+approved files, including unpublished changes. Exclude confidential and personal
+data and avoid concurrent edits to approved files during the run. The local
+marker checks are not a complete secret scanner or an OS sandbox.
 
 ## Extensions
 

@@ -173,6 +173,27 @@ EOF
 	done
 }
 
+@test 'setup removes its dangling oss-dev link' {
+	mkdir -p "$HOME_FIXTURE/.local/bin"
+	ln -s "$(realpath "$REPO")/scripts/oss-dev.sh" "$HOME_FIXTURE/.local/bin/oss-dev"
+	run_setup
+	[ ! -e "$HOME_FIXTURE/.local/bin/oss-dev" ]
+	[ ! -L "$HOME_FIXTURE/.local/bin/oss-dev" ]
+}
+
+@test 'setup preserves foreign and user-owned oss-dev paths' {
+	mkdir -p "$HOME_FIXTURE/.local/bin" "$TEST_ROOT/foreign"
+	ln -s "$TEST_ROOT/foreign" "$HOME_FIXTURE/.local/bin/oss-dev"
+	run_setup
+	[ -L "$HOME_FIXTURE/.local/bin/oss-dev" ]
+	[ "$(readlink "$HOME_FIXTURE/.local/bin/oss-dev")" = "$TEST_ROOT/foreign" ]
+	rm "$HOME_FIXTURE/.local/bin/oss-dev"
+	printf 'user file\n' >"$HOME_FIXTURE/.local/bin/oss-dev"
+	run_setup
+	[ ! -L "$HOME_FIXTURE/.local/bin/oss-dev" ]
+	[ "$(cat "$HOME_FIXTURE/.local/bin/oss-dev")" = 'user file' ]
+}
+
 @test 'required shared skill inventory failure makes actual setup fail' {
 	rm "$REPO/skills/sample/SKILL.md"
 	run run_setup

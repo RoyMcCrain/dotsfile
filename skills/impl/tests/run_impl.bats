@@ -18,6 +18,7 @@ setup() {
 	mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/agent" "$TEST_ROOT/work" "$TEST_ROOT/tmp" "$TEST_ROOT/impl-runs"
 	PATH="$TEST_ROOT/bin:$PATH"
 	export PATH REAL_BUN
+	unset PI_PROVIDER PI_MODEL
 	export TMPDIR="$TEST_ROOT/tmp"
 	export IMPL_RUNS_DIR="$TEST_ROOT/impl-runs"
 	export HOME="$TEST_ROOT/home"
@@ -233,6 +234,33 @@ set_haiku_model() {
 	[ "$status" -eq 0 ]
 	args_has_prefix_pair --model "provider/haiku:high"
 	jq -e --arg cwd "$work_dir" '.cwd == $cwd' "$ENV_LOG" >/dev/null
+}
+
+@test "run_impl: explicit impl.default stays on quota policy during an active Muse session" {
+	export PI_PROVIDER=meta PI_MODEL=muse-spark-fixture-contributor
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":10},"openai":{"remainingPercent":90}}'
+	run "$RUNNER" --prompt "$PROMPT" --role impl.default
+	[ "$status" -eq 0 ]
+	[ -e "$USAGE_CALL_MARKER" ]
+	args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+	jq -e '.role == "impl.luna"' "$(run_log_dir "$output")/metadata.json" >/dev/null
+	jq -e 'index("--no-builtin-tools") == null' "$ARGS_LOG" >/dev/null
+}
+
+@test "run_impl: omitted role outside active Meta Muse keeps quota policy" {
+	local env_pair
+	export IMPL_USAGE_FIXTURE='{"claude":{"remainingPercent":10},"openai":{"remainingPercent":90}}'
+	for env_pair in "meta another-model" "other muse-spark-fixture"; do
+		read -r PI_PROVIDER PI_MODEL <<<"$env_pair"
+		export PI_PROVIDER PI_MODEL
+		rm -f "$USAGE_CALL_MARKER" "$ARGS_LOG"
+		run "$RUNNER" --prompt "$PROMPT"
+		[ "$status" -eq 0 ]
+		[ -e "$USAGE_CALL_MARKER" ]
+		args_has_prefix_pair --model "openai-codex/gpt-6-luna:high"
+		jq -e '.role == "impl.luna"' "$(run_log_dir "$output")/metadata.json" >/dev/null
+	done
+	unset PI_PROVIDER PI_MODEL
 }
 
 @test "run_impl: --role selects alternate catalog role" {

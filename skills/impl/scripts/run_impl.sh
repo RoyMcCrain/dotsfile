@@ -34,9 +34,12 @@ cleanup_temp_config() {
 usage() {
 	cat >&2 <<'EOF'
 Usage: run_impl.sh --prompt PATH [--cwd PATH] [--role ROLE] [--runs-dir PATH]
-       run_impl.sh --role oss.impl --share-with-meta --cwd WORKTREE --prompt PATH --files FILES
+       run_impl.sh --role impl.muse --share-with-meta --cwd WORKTREE --prompt PATH --files FILES
 
 Runs an isolated Pi headless implementation. Default role is impl.default.
+When --role is omitted and the active Pi model (PI_PROVIDER/PI_MODEL) is Meta Muse
+Wonder or Muse Spark, the role is impl.muse, which still requires --share-with-meta,
+--cwd, and --files. An explicit --role (including impl.default) always wins.
 Implementation metrics are persisted under the runs directory (see IMPL_RUNS_DIR).
 EOF
 	exit 1
@@ -176,7 +179,7 @@ make_isolated_config() {
 {"defaultProjectTrust":"never","enableInstallTelemetry":false}
 EOF
 	for name in auth.json models.json; do
-		[[ "$role" != oss.impl || "$name" != models.json ]] || continue
+		[[ "$role" != impl.muse || "$name" != models.json ]] || continue
 		original="$source/$name"
 		if [[ -f "$original" ]]; then
 			ln -s "$original" "$target/$name"
@@ -185,7 +188,7 @@ EOF
 }
 
 main() {
-	local role=impl.default prompt='' cwd='' prompt_path resolved_model='' source_config impl_bin status=0 usage_snapshot
+	local role='' prompt='' cwd='' prompt_path resolved_model='' source_config impl_bin status=0 usage_snapshot
 	local share_with_meta=false files_input=''
 	local haiku_model='' luna_model='' selected_role claude_code_extension=''
 	local oss_extension=''
@@ -233,12 +236,18 @@ main() {
 		shift
 	done
 
-	if [[ "$role" == oss.* ]]; then
-		[[ "$role" == oss.impl ]] || die "unsupported reserved OSS role: $role"
-		[[ "$share_with_meta" == true ]] || die "OSS implementation requires explicit --share-with-meta"
-		[[ "$cwd_explicit" == true && -n "$files_input" ]] || die "OSS implementation requires explicit --cwd and --files"
+	if [[ -z "$role" ]]; then
+		case "${PI_PROVIDER:-}/${PI_MODEL:-}" in
+		meta/muse-wonder-* | meta/muse-spark-*) role=impl.muse ;;
+		*) role=impl.default ;;
+		esac
+	fi
+
+	if [[ "$role" == impl.muse ]]; then
+		[[ "$share_with_meta" == true ]] || die "impl.muse requires explicit --share-with-meta"
+		[[ "$cwd_explicit" == true && -n "$files_input" ]] || die "impl.muse requires explicit --cwd and --files"
 	else
-		[[ "$share_with_meta" == false && -z "$files_input" ]] || die "OSS-only flags require --role oss.impl"
+		[[ "$share_with_meta" == false && -z "$files_input" ]] || die "--share-with-meta and --files require --role impl.muse"
 	fi
 	require_bun
 
@@ -259,8 +268,8 @@ main() {
 	cwd=$(expand_home "$cwd")
 	[[ -d "$cwd" ]] || die "working directory not found: $cwd"
 	cwd=$(cd "$cwd" && pwd -P)
-	[[ "$role" != oss.impl || "$cwd" != / ]] || die "filesystem root is not an allowed worktree"
-	if [[ "$role" == oss.impl && "$cwd" == *[[:cntrl:]]* ]]; then die "OSS working directory contains control characters"; fi
+	[[ "$role" != impl.muse || "$cwd" != / ]] || die "filesystem root is not an allowed worktree"
+	if [[ "$role" == impl.muse && "$cwd" == *[[:cntrl:]]* ]]; then die "working directory contains control characters"; fi
 
 	if [[ "$runs_dir_explicit" == true ]]; then
 		runs_dir=$(expand_home "$runs_dir")
@@ -282,7 +291,7 @@ main() {
 	source_config=$(cd "$source_config" && pwd -P)
 	[[ -f "$SYSTEM_PROMPT" ]] || die "bundled system prompt not found: $SYSTEM_PROMPT"
 
-	if [[ "$role" == oss.impl ]]; then
+	if [[ "$role" == impl.muse ]]; then
 		# shellcheck disable=SC1091
 		source "$SCRIPT_DIR/../../parallel-review/scripts/review_common.sh"
 		# shellcheck disable=SC1091
@@ -297,7 +306,7 @@ main() {
 		trap cleanup_temp_config EXIT
 		prepare_oss_inputs "$prompt_path" "$files_absolute" "$cwd"
 		prompt_path="$temp_config_dir/task.md"
-		oss_extension=$(realpath "$SCRIPT_DIR/../../../pi/agent/oss-dev/approved-files.ts")
+		oss_extension=$(realpath "$SCRIPT_DIR/../../../pi/agent/impl/approved-files.ts")
 		[[ -f "$oss_extension" ]] || die "OSS approval extension not found"
 		resolved_model=$(resolve_role_pi "$role")
 		[[ "$resolved_model" =~ ^meta/[A-Za-z0-9._-]+-contributor(:(off|minimal|low|medium|high|xhigh|max))?$ ]] || die "OSS implementation role must resolve to a fixed Meta Contributor model"
@@ -323,8 +332,8 @@ main() {
 		*) die "role selector returned invalid role" ;;
 		esac
 	fi
-	if [[ "$role" != oss.impl && "${resolved_model%%:*}" == meta/*-contributor ]]; then
-		die "Meta Contributor models are reserved for role oss.impl"
+	if [[ "$role" != impl.muse && "${resolved_model%%:*}" == meta/*-contributor ]]; then
+		die "Meta Contributor models are reserved for role impl.muse"
 	fi
 	if [[ "$resolved_model" == claude-code/* ]]; then
 		claude_code_extension=$(abs_path "$invocation_pwd" "${PI_CLAUDE_CODE_EXTENSION:-$source_config/git/github.com/earendil-works/pi-claude-code}")
@@ -343,7 +352,7 @@ main() {
 
 	pi_command=("$impl_bin" -p --mode json --model "$resolved_model" --system-prompt "$SYSTEM_PROMPT"
 		--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp --no-approve)
-	if [[ "$role" == oss.impl ]]; then
+	if [[ "$role" == impl.muse ]]; then
 		PI_OSS_APPROVED_FILES="$temp_config_dir/approved.json"
 		export PI_OSS_APPROVED_FILES
 		pi_command+=(--no-builtin-tools -e "$oss_extension")
@@ -352,7 +361,7 @@ main() {
 		pi_command+=(-e "$claude_code_extension")
 		export PI_CLAUDE_CODE_ALLOW_USAGE_CREDITS=0
 	fi
-	if [[ "$role" == oss.impl ]]; then
+	if [[ "$role" == impl.muse ]]; then
 		pi_command+=("@$prompt_path" 'Implement only approved files; do not use tools beyond approved file access.')
 	else
 		pi_command+=(--tools 'read,bash,edit,write' "@$prompt_path" 'Implement the supplied task directly.')

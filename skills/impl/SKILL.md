@@ -36,7 +36,8 @@ bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" \
 ```
 
 - **実行メトリクス**はリポジトリ外に自動永続化（既定 `~/.local/share/impl/runs` または `IMPL_RUNS_DIR` / `--runs-dir`）。生プロンプト・assistant 全文・ツール引数は保存しない（`references/history-format.md`）
-- 比較・固定指定: `--role impl.haiku` / `--role impl.luna`。その他の具体的な catalog role も指定できる（`.pi` 必須、Cursor 専用 role は不可）。固定指定では usage 照会も fallback turn 消費も行わない。省略時と明示 `--role impl.default` は同一の利用可能量優先ポリシー。`oss.*` と Meta Contributor モデルは通常の固定指定の対象外。OSS 実装は `oss-dev impl --share-with-meta` の入力検査付き経路を使う
+- 比較・固定指定: `--role impl.haiku` / `--role impl.luna`。その他の具体的な catalog role も指定できる（`.pi` 必須、Cursor 専用 role は不可）。固定指定では usage 照会も fallback turn 消費も行わない。Meta Contributor モデルは `impl.muse` 以外の role で使えない
+- `--role` 省略時は、Pi が Bash に渡す `PI_PROVIDER` / `PI_MODEL` が Meta Muse Wonder / Muse Spark なら `impl.muse`、それ以外は `impl.default`。明示 `--role`（`impl.default` を含む）を優先する
 - オフライン比較レポート（`--runs-dir` 省略時は `IMPL_RUNS_DIR` または XDG/HOME 既定）:
 
 ```bash
@@ -53,12 +54,22 @@ bun --config=/dev/null --no-env-file --no-install run "$HOME/.agents/skills/impl
 
 （`passed|failed|not-run` のみ。`completed` かつ exit 0 以外を `passed` にしない）
 - レポート JSON/HTML はトークン・コストの **known/expected スライス分母**と run 既知数を表示。`caseKey` は完全な同一性（HTML は短い `displayLabel` + title）。CLI は未知 positional / 重複フラグを拒否。`running` メタデータに elapsed/exit/finished を含めない
+- `impl.muse` は自動選択でも明示指定でも `--share-with-meta --cwd --files` が必須。承認がなければ確認し、承認前に実行したり別 provider へ切り替えたりしない。シェル・追加ツールは使えないため、ローカル検証は子プロセスの外で行う:
+
+```bash
+bash "$HOME/.agents/skills/impl/scripts/run_impl.sh" --role impl.muse --share-with-meta \
+  --cwd "$PWD" --prompt "$TMPDIR/impl-prompt.md" --files "$TMPDIR/approved-files.txt"
+```
+
+- `--files` は作業ツリー基準の通常テキストファイルを 1 行 1 件で列挙する。`.git`・`.jj`・`.pi`・`node_modules`・`.env*`・認証/秘密らしい名前、symlink、作業ツリー外への解決は拒否される。
+- Pi では `/skill:impl` の依頼文に共有承認を書ける。Muse セッションでは `impl.muse` の指定を省略できる。
+- Meta に送信するのは、ユーザーが明示的に承認した関連 OSS 入力だけ。秘密・個人情報・共有権限のない内容は送らない。Meta では送信内容が学習に使われる可能性があり、ローカル検査で秘密をすべて検出できるわけではない。
 - 既定ポリシーは `impl.default`。Claude OAuth の five-hour / seven-day 利用率と Codex CLI の primary / secondary quota を読み取り、各側の最小 remaining percentage を比較する。OpenAI 値は Luna の per-app quota ではなく Codex reference。片側不明なら既知の正の側を選び、片側が既知 0・他方不明なら不明側を選ぶ。両方 0 は dispatch 前に失敗
 - 同率または両側不明時のみ runs root ごとの SQLite 交互選択を消費し、新しい root は Haiku から開始する。優先度による選択は turn を進めない。fallback 選択後の失敗（選択された provider の拡張不足も含む）は割り当て済み turn を消費する。固定 role は usage query も turn 消費もしない
 - 照会先の失敗は unavailable として扱うが、collector 自体の実行異常や不正な snapshot はインストール・プログラム異常を隠さず停止する
 - Catalog の `impl.default` resolver は後方互換のため単一 Luna model を返す。ランナーのみ quota-aware policy を適用し、候補はそれぞれ `impl.haiku` / `impl.luna` resolver で解決・検証する
-- モデル ID は skill / runner に書かない。変更はカタログの `.pi` のみ（`resolve-model.sh --list` / `resolve-model.sh impl.haiku` / `resolve-model.sh impl.luna` で確認）
-- 毎回 **新規** 非対話 Pi（`--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp`）。親の settings / packages / SYSTEM.md / 拡張は読まない。Haiku が選ばれた場合のみ、Claude subscription provider のため、インストール済み・pin 済み `pi-claude-code` package だけを明示ロードする（`PI_CLAUDE_CODE_EXTENSION` または agent config の package path）。他の拡張 discovery は無効のまま。
+- モデル ID は skill / runner に書かない。変更はカタログの `.pi` のみ（`resolve-model.sh --list` / `resolve-model.sh impl.haiku` / `resolve-model.sh impl.luna` / `resolve-model.sh impl.muse` で確認）
+- 毎回 **新規** 非対話 Pi（`--no-session --no-skills --no-prompt-templates --no-context-files --no-extensions --no-mcp`）。親の settings / packages / SYSTEM.md / 拡張は読まない。Haiku が選ばれた場合のみ、Claude subscription provider のため、インストール済み・pin 済み `pi-claude-code` package だけを明示ロードする（`PI_CLAUDE_CODE_EXTENSION` または agent config の package path）。`impl.muse` では承認ファイルを制限する拡張だけを明示ロードする。それ以外の拡張 discovery は無効のまま。
 - **隔離はサンドボックスではない**（Bun は Deno の `--allow-*` 相当の権限制限を提供しない。`--cwd` は作業ルートの指定にすぎない）。プロンプトで触るファイルを絞る
 - Haiku は Claude Code CLI 経由で Claude subscription を使う。quota credential / usage と Codex quota は読み取り専用で照会し、秘密情報・snapshot は保存しない。usage-credit opt-in は子プロセスで無効化するが、これは最初の要求に料金が発生しない保証ではない
 - OpenAI Codex 系 provider の認証: `pi auth check --provider openai-codex --json`（**資格情報の内容は出力しない**）

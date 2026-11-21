@@ -3,7 +3,7 @@ import { linkSync, mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, wr
 import os from "node:os";
 import path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import extension from "../oss-dev/approved-files.ts";
+import extension from "../impl/approved-files.ts";
 
 test("OSS file guard allows only canonical approved paths", async () => {
   const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "oss-guard-")));

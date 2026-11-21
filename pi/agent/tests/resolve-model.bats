@@ -832,14 +832,14 @@ EOF
 	export MODEL_ROLES_FILE="$real_catalog"
 	run "$RESOLVER" --list
 	[ "$status" -eq 0 ]
-	[ "$(printf '%s\n' "$output" | cut -f1 | sort)" = "$(printf '%s\n' codex.default impl.default impl.haiku impl.luna research.xai review.claude review.codex oss.design oss.impl oss.review | sort)" ]
-	for role in review.grok review.fugu review.muse review.deepseek route.fugu.base route.fugu.ultra impl.deepseek; do
+	[ "$(printf '%s\n' "$output" | cut -f1 | sort)" = "$(printf '%s\n' codex.default impl.default impl.haiku impl.luna impl.muse research.xai review.claude review.codex | sort)" ]
+	for role in review.grok review.fugu review.muse review.deepseek route.fugu.base route.fugu.ultra impl.deepseek oss.design oss.impl oss.review; do
 		run "$RESOLVER" "$role"
 		[ "$status" -ne 0 ]
 		[[ "$output" == *"unknown model role"* ]]
 	done
 	jq -e '(.providers | keys | sort) == ["openai"] and (.providers.openai.modelOverrides | keys | sort) == ["gpt-6-astra", "gpt-6.1-sol", "gpt-6.2-astra", "gpt-6.2-sol"]' "$BATS_TEST_DIRNAME/../models.json" >/dev/null
-	for role in review.codex impl.default impl.haiku impl.luna review.claude research.xai oss.design oss.impl oss.review; do
+	for role in review.codex impl.default impl.haiku impl.luna impl.muse review.claude research.xai; do
 		run "$RESOLVER" "$role"
 		[ "$status" -eq 0 ]
 		case "$role" in
@@ -847,8 +847,7 @@ EOF
 		impl.default | impl.luna) [[ "$output" == openai/* ]] ;;
 		impl.haiku | review.claude) [[ "$output" == claude-code/* ]] ;;
 		research.xai) [ "$output" = "xai/grok-4.7" ] ;;
-		oss.design) [ "$output" = "meta/muse-wonder-1.0:high" ] ;;
-		oss.impl | oss.review) [ "$output" = "meta/muse-spark-1.3-contributor:high" ] ;;
+		impl.muse) [ "$output" = "meta/muse-spark-1.3-contributor:high" ] ;;
 		esac
 	done
 }
