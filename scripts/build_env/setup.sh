@@ -71,6 +71,7 @@ done
 link_managed "$BASE_DIR/gitignore" "$HOME/.config/git/ignore"
 mkdir -p "$HOME/.local/bin"
 link_managed "$BASE_DIR/scripts/ai-commit.sh" "$HOME/.local/bin/ai-commit"
+link_managed "$BASE_DIR/scripts/oss-dev.sh" "$HOME/.local/bin/oss-dev"
 
 # Devbox config symlink plus real flake copies (Nix pure evaluation rejects symlinked flake files).
 devbox_dir="$HOME/.local/share/devbox/global/default"
