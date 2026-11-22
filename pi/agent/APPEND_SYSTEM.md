@@ -44,7 +44,7 @@
 
 ## Implementation Delegation
 
-- 非自明な実装は、原則として `impl` skill（role `impl.default`）で隔離された非対話 Pi 子プロセス（`skills/impl/scripts/run_impl.sh`）に委譲する。既定は Claude Haiku / Luna の観測残量が多い側を選ぶ（OpenAI は Codex の参考値）。同率・両側不明時のみ交互選択し、両側 0% なら停止する。詳しい選択規則は skill を参照する。
+- 非自明な実装は、原則として `impl` skill で隔離された非対話 Pi 子プロセス（`skills/impl/scripts/run_impl.sh`）に委譲する。role 未指定で Pi の使用モデルが Meta Muse Wonder / Spark なら `impl.muse` を選ぶが、Meta への共有と対象ファイルの明示承認なしには起動しない。それ以外の既定は `impl.default` で Claude Haiku / Luna の観測残量が多い側を選ぶ（OpenAI は Codex の参考値）。同率・両側不明時のみ交互選択し、両側 0% なら停止する。詳しい選択規則は skill を参照する。
 - モデル ID を直書きしない。skill / script は role 名で指定し、実体は `~/.pi/agent/model-roles.json` で一元管理する。直接 resolver `impl.default` は互換性のため legacy Luna model を返す（`--list` で確認）。明示 role の pin は quota query を行わない。quota snapshot や credential は永続化しない。
 - 直接編集してよいのは、数行で済む自明な変更に限る。
 - 委譲前に touchpoint を地図化し、確定仕様、触る箇所、参照テンプレ、完了条件、触ってはいけない箇所を明記する。
