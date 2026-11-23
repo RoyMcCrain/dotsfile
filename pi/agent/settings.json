@@ -27,11 +27,15 @@
     "-extensions/openrouter-balance.ts",
     "-extensions/save-compaction-log.ts"
   ],
-  "lastChangelogVersion": "1.5.2",
+  "lastChangelogVersion": "1.6.0",
   "packages": [
-    "https://github.com/earendil-works/pi-claude-code@d5b5e04c314d3452d357174d16d10dda34daa2d2"
+    "https://github.com/earendil-works/pi-claude-code@d5b5e04c314d3452d357174d16d10dda34daa2d2",
+    "npm:pi-muse-provider"
   ],
   "prompts": [
     "~/.agents/skills/explainer/prompts"
-  ]
+  ],
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:pi-muse-provider\",\"scope\":\"user\"}": "0.1.3"
+  }
 }

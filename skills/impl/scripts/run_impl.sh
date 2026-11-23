@@ -238,7 +238,7 @@ main() {
 
 	if [[ -z "$role" ]]; then
 		case "${PI_PROVIDER:-}/${PI_MODEL:-}" in
-		meta/muse-wonder-* | meta/muse-spark-*) role=impl.muse ;;
+		meta/muse-wonder-* | meta/muse-spark-* | muse/muse-wonder-* | muse/muse-spark-*) role=impl.muse ;;
 		*) role=impl.default ;;
 		esac
 	fi

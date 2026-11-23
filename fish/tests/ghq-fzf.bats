@@ -313,11 +313,13 @@ file_mtime() {
 		--filter=shared \
 		<"$HOME/.cache/ghq-fzf-list" >"$TEST_ROOT/filtered.out"
 
-	mapfile -t filtered_paths < <(strip_ansi <"$TEST_ROOT/filtered.out" | rg $'\t' | cut -f2)
-	[ "${#filtered_paths[@]}" -eq 3 ]
-	[ "${filtered_paths[0]}" = "github.com/acme/shared-parent" ]
-	[ "${filtered_paths[1]}" = "github.com/zebra/zzz-shared" ]
-	[ "${filtered_paths[2]}" = "github.com/acme/shared-workspace" ]
+	# fzf 0.67 --filter --no-sort prints only --with-nth fields, so assert on
+	# the display field (field 1 when tabs are present, whole line otherwise).
+	mapfile -t filtered_names < <(strip_ansi <"$TEST_ROOT/filtered.out" | cut -f1 | "$SD_BIN" '^\s+' '')
+	[ "${#filtered_names[@]}" -eq 3 ]
+	[ "${filtered_names[0]}" = "shared-parent" ]
+	[ "${filtered_names[1]}" = "zzz-shared" ]
+	[[ "${filtered_names[2]}" == *shared-workspace ]]
 
 	rm -f "$FZF_LOG"
 	run run_ghq_fzf

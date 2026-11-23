@@ -666,7 +666,7 @@ set_haiku_model() {
 	chmod 0755 "$shared"
 	run "$RUNNER" --prompt "$PROMPT" --runs-dir "$shared"
 	[ "$status" -eq 0 ]
-	[[ "$(stat -f '%Lp' "$shared" 2>/dev/null || stat -c '%a' "$shared")" == "755" ]]
+	[[ "$(stat -c '%a' "$shared" 2>/dev/null || stat -f '%Lp' "$shared")" == "755" ]]
 }
 
 @test "run_impl isolates cwd Bun config while preserving the requested cwd" {
