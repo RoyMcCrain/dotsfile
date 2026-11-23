@@ -147,7 +147,7 @@ insert_task_line() {
 		esac
 	}
 
-	mode=$(stat -f '%Lp' "$inbox_file" 2>/dev/null || stat -c '%a' "$inbox_file")
+	mode=$(stat -c '%a' "$inbox_file" 2>/dev/null || stat -f '%Lp' "$inbox_file")
 	chmod "$mode" "$tmp" || die "failed to preserve inbox file mode: $inbox_file"
 	mv "$tmp" "$inbox_file"
 	trap - RETURN EXIT

@@ -58,7 +58,7 @@ inbox_unchanged() {
 }
 
 file_mode() {
-	stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+	stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
 }
 
 @test "due task is inserted before placeholder in due section with trailing metadata" {
