@@ -102,14 +102,16 @@ assert_muse_dispatch() {
 	[ "$(realpath "$(cat "$OSS_CWD")")" = "$(realpath "$TEST_ROOT/work")" ]
 }
 
-@test "omitted role in an active Meta Muse session auto-selects impl.muse for both families" {
-	local model
-	for model in muse-spark-fixture muse-wonder-fixture; do
-		rm -f "$OSS_CALLS" "$OSS_FILES" "$OSS_PROMPT" "$USAGE_CALL_MARKER"
-		use_active_model meta "$model"
-		run "$RUNNER" --share-with-meta --cwd "$TEST_ROOT/work" --prompt "$TEST_ROOT/work/task.md" --files "$TEST_ROOT/work/files.txt" </dev/null
-		[ "$status" -eq 0 ]
-		assert_muse_dispatch
+@test "omitted role in an active Muse session auto-selects impl.muse for both providers and families" {
+	local provider model
+	for provider in meta muse; do
+		for model in muse-spark-fixture muse-wonder-fixture; do
+			rm -f "$OSS_CALLS" "$OSS_FILES" "$OSS_PROMPT" "$USAGE_CALL_MARKER"
+			use_active_model "$provider" "$model"
+			run "$RUNNER" --share-with-meta --cwd "$TEST_ROOT/work" --prompt "$TEST_ROOT/work/task.md" --files "$TEST_ROOT/work/files.txt" </dev/null
+			[ "$status" -eq 0 ]
+			assert_muse_dispatch
+		done
 	done
 }
 
