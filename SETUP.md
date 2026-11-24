@@ -59,6 +59,27 @@ push 前に `scripts/run_tests.sh`（Bun + Node + bats）が走る pre-push hook
 > **注意**: git hooks は `git push` でのみ発火する。`jj git push` は git hooks を実行しないため、
 > jj で push する場合は事前に `./scripts/run_tests.sh` を手動で実行すること。
 
+## Obsidian Desktop CLI
+
+セットアップ後は `~/.local/bin/obsidian-local` を利用できます。リポジトリから直接実行する場合は `scripts/obsidian/obsidian-local` です。`~/.local/bin` が PATH に含まれていない場合は追加してください。
+
+Obsidian Desktop アプリを起動し、必要に応じて Settings → General → Command line interface で CLI を有効化・登録してください。例：
+
+```bash
+obsidian-local help
+obsidian-local search 'query=キーワード'
+obsidian-local read 'path=Folder/Note.md'
+obsidian-local daily:read
+```
+
+既定の Vault を指定するには Fish で `set -gx OBSIDIAN_CLI_VAULT 'My Vault'`、POSIX shell で `export OBSIDIAN_CLI_VAULT='My Vault'` を設定します。明示的な指定は優先されます：
+
+```bash
+obsidian-local 'vault=Work Notes' search 'query=キーワード'
+```
+
+Vault を指定しない場合は公式 CLI の既定動作に従います。書き込み操作の前に対象 Vault を確認してください。これは Obsidian Desktop のローカル操作であり、既存の `ob` Sync ツールではありません。
+
 ## devboxツールのインストール
 
 `setup.sh`実行後（devbox.jsonのシンボリックリンク作成後）：
